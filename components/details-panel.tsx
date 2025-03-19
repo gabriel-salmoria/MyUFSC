@@ -24,7 +24,10 @@ export default function StudentCourseDetailsPanel({
   }
 
   const getStatusBadge = () => {
-    if (!studentCourse) return null
+    if (!studentCourse){
+      console.log("No student course found", course)
+       return null
+    }
 
     switch (studentCourse.status) {
       case CourseStatus.COMPLETED:
@@ -77,20 +80,6 @@ export default function StudentCourseDetailsPanel({
             <p>{course.name}</p>
           </div>
 
-          {getStatusBadge() && (
-            <div>
-              <h4 className="text-sm font-medium text-muted-foreground">Status</h4>
-              {getStatusBadge()}
-            </div>
-          )}
-
-          {studentCourse?.grade && (
-            <div>
-              <h4 className="text-sm font-medium text-muted-foreground">Grade</h4>
-              <p>{studentCourse.grade.toFixed(1)}</p>
-            </div>
-          )}
-
           <div>
             <h4 className="text-sm font-medium text-muted-foreground">Credits</h4>
             <p>{course.credits}</p>
@@ -102,23 +91,9 @@ export default function StudentCourseDetailsPanel({
           </div>
 
           <div>
-            <h4 className="text-sm font-medium text-muted-foreground">Phase</h4>
+            <h4 className="text-sm font-medium text-muted-foreground">Recommended Phase</h4>
             <p>{course.phase}</p>
           </div>
-
-          {studentCourse?.semesterTaken && (
-            <div>
-              <h4 className="text-sm font-medium text-muted-foreground">Semester Taken</h4>
-              <p>{studentCourse.semesterTaken}</p>
-            </div>
-          )}
-
-          {studentCourse?.semesterPlanned && (
-            <div>
-              <h4 className="text-sm font-medium text-muted-foreground">Semester Planned</h4>
-              <p>{studentCourse.semesterPlanned}</p>
-            </div>
-          )}
 
           <div>
             <h4 className="text-sm font-medium text-muted-foreground">Prerequisites</h4>
@@ -132,13 +107,6 @@ export default function StudentCourseDetailsPanel({
               <p>No prerequisites</p>
             )}
           </div>
-
-          {studentCourse?.notes && (
-            <div>
-              <h4 className="text-sm font-medium text-muted-foreground">Notes</h4>
-              <p className="text-sm">{studentCourse.notes}</p>
-            </div>
-          )}
         </div>
 
         <div className="mt-6 space-y-2">

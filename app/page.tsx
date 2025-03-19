@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useMemo } from "react"
 import CurriculumVisualizer from "@/components/curriculum-visualizer"
-import type { Curriculum } from "@/types/curriculum"
+import type { Curriculum, Course } from "@/types/curriculum"
 import type { CurriculumVisualization } from "@/types/visualization"
 import { parseCurriculumData } from "@/lib/curriculum-parser"
 import csData from "@/data/cs-degree.json"
+import StudentCourseDetailsPanel from "@/components/details-panel"
 
 
 
@@ -14,6 +15,7 @@ export default function Home() {
     curriculum: Curriculum 
     visualization: CurriculumVisualization 
   } | null>(null)
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
 
 
   // PARSING THE CURRICULUM DATA
@@ -61,10 +63,17 @@ export default function Home() {
           <CurriculumVisualizer
             curriculum={curriculumData.curriculum}
             visualization={curriculumData.visualization}
-            onCourseClick={(course) => console.log("Clicked course:", course)}
+            onCourseClick={setSelectedCourse}
           />
         </div>
       </div>
+
+      {selectedCourse && (
+        <StudentCourseDetailsPanel
+          course={selectedCourse}
+          onClose={() => setSelectedCourse(null)}
+        />
+      )}
 
 
     {/*

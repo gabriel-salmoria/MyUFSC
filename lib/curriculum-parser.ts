@@ -18,6 +18,7 @@ interface RawCurriculumData {
   courses: Course[]
 }
 
+
 export function parseCurriculumData(jsonData: RawCurriculumData): {
   curriculum: Curriculum
   visualization: CurriculumVisualization
