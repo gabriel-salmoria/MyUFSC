@@ -26,8 +26,7 @@ export default function CurriculumVisualizer({
   const totalWidth = curriculum.totalPhases * 200
 
   return (
-    <div className="flex flex-col w-1/3 h-1/3">
-
+    <div className="flex flex-col w-full h-full">
       <div
         className="relative flex-1 overflow-auto bg-gray-50"
         ref={containerRef}
@@ -49,14 +48,21 @@ export default function CurriculumVisualizer({
           </div>
 
           {/* Course Boxes */}
-          {curriculum.allCourses.map((course) => {
-            const position = visualization.positions.find((p) => p.courseId === course.id)
-            if (!position) return null
+          {curriculum.phases.flatMap((phase) => 
+            phase.courses.map((course) => {
+              const position = visualization.positions.find((p) => p.courseId === course.id)
+              if (!position) return null
 
-            return (
-              <CourseBox key={course.id} course={course} position={position} onClick={() => onCourseClick?.(course)} />
-            )
-          })}
+              return (
+                <CourseBox 
+                  key={course.id} 
+                  course={course} 
+                  position={position} 
+                  onClick={() => onCourseClick?.(course)} 
+                />
+              )
+            })
+          )}
         </div>
       </div>
     </div>

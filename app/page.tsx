@@ -7,14 +7,17 @@ import type { CurriculumVisualization } from "@/types/visualization"
 import { parseCurriculumData } from "@/lib/curriculum-parser"
 import csData from "@/data/cs-degree.json"
 
+
+
 export default function Home() {
   const [curriculumData, setCurriculumData] = useState<{
-    curriculum: Curriculum
-    visualization: CurriculumVisualization
+    curriculum: Curriculum 
+    visualization: CurriculumVisualization 
   } | null>(null)
 
+
+  // PARSING THE CURRICULUM DATA
   useEffect(() => {
-    // Parse the curriculum data
     const data = parseCurriculumData(csData)
     setCurriculumData(data)
   }, [])
@@ -43,14 +46,15 @@ export default function Home() {
     )
   }
 
+
   return (
     <main className="flex min-h-screen flex-col">
-      <div className="flex items-center justify-between p-4 border-b bg-white shadow-sm">
-        <h1 className="text-2xl font-bold">University Semester Planner</h1>
+      <div className="flex items-center justify-center p-4 border-b bg-white shadow-sm">
+        <h1 className="text-2xl font-bold ">legal hein galerinha do cowboy</h1>
       </div>
 
       <div className="flex-1 p-6">
-        <div 
+        <div
           className="border rounded-lg overflow-hidden shadow-md"
           style={{ height: `${containerHeight}px` }}
         >
@@ -61,6 +65,24 @@ export default function Home() {
           />
         </div>
       </div>
+
+
+    {/*
+      <div className="flex-1 p-6">
+        <div
+          className="border rounded-lg overflow-hidden shadow-md"
+          style={{ height: `${containerHeight}px` }}
+        >
+          <CurriculumVisualizer
+            curriculum={curriculumData.curriculum}
+            visualization={curriculumData.visualization}
+            onCourseClick={(course) => console.log("Clicked course:", course)}
+          />
+        </div>
+      </div>
+      */}
+
+
     </main>
   )
 }

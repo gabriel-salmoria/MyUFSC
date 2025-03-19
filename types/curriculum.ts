@@ -30,6 +30,5 @@ export interface Curriculum {
   department: string // Department offering the program
   totalPhases: number // Total number of phases/semesters
   phases: Phase[] // Array of phases
-  allCourses: Course[] // Flat array of all courses for easy lookup
 }
 

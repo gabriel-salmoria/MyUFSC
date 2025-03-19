@@ -61,112 +61,115 @@ export default function StudentCourseDetailsPanel({
   }
 
   return (
-    <div className="fixed right-0 top-0 h-full w-80 bg-white shadow-lg border-l p-4 z-10 overflow-y-auto">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold">{course.id}</h3>
-        <Button variant="ghost" size="icon" onClick={onClose}>
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
-
-      <div className="space-y-4">
-        <div>
-          <h4 className="text-sm font-medium text-muted-foreground">Course Name</h4>
-          <p>{course.name}</p>
+    <>
+      <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
+      <div className="fixed right-0 top-0 h-full w-80 bg-white shadow-lg border-l p-4 z-50 overflow-y-auto transform translate-x-0 transition-transform duration-200">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold">{course.id}</h3>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
         </div>
 
-        {getStatusBadge() && (
+        <div className="space-y-4">
           <div>
-            <h4 className="text-sm font-medium text-muted-foreground">Status</h4>
-            {getStatusBadge()}
+            <h4 className="text-sm font-medium text-muted-foreground">Course Name</h4>
+            <p>{course.name}</p>
           </div>
-        )}
 
-        {studentCourse?.grade && (
+          {getStatusBadge() && (
+            <div>
+              <h4 className="text-sm font-medium text-muted-foreground">Status</h4>
+              {getStatusBadge()}
+            </div>
+          )}
+
+          {studentCourse?.grade && (
+            <div>
+              <h4 className="text-sm font-medium text-muted-foreground">Grade</h4>
+              <p>{studentCourse.grade.toFixed(1)}</p>
+            </div>
+          )}
+
           <div>
-            <h4 className="text-sm font-medium text-muted-foreground">Grade</h4>
-            <p>{studentCourse.grade.toFixed(1)}</p>
+            <h4 className="text-sm font-medium text-muted-foreground">Credits</h4>
+            <p>{course.credits}</p>
           </div>
-        )}
 
-        <div>
-          <h4 className="text-sm font-medium text-muted-foreground">Credits</h4>
-          <p>{course.credits}</p>
-        </div>
-
-        <div>
-          <h4 className="text-sm font-medium text-muted-foreground">Workload</h4>
-          <p>{course.workload} hours</p>
-        </div>
-
-        <div>
-          <h4 className="text-sm font-medium text-muted-foreground">Phase</h4>
-          <p>{course.phase}</p>
-        </div>
-
-        {studentCourse?.semesterTaken && (
           <div>
-            <h4 className="text-sm font-medium text-muted-foreground">Semester Taken</h4>
-            <p>{studentCourse.semesterTaken}</p>
+            <h4 className="text-sm font-medium text-muted-foreground">Workload</h4>
+            <p>{course.workload} hours</p>
           </div>
-        )}
 
-        {studentCourse?.semesterPlanned && (
           <div>
-            <h4 className="text-sm font-medium text-muted-foreground">Semester Planned</h4>
-            <p>{studentCourse.semesterPlanned}</p>
+            <h4 className="text-sm font-medium text-muted-foreground">Phase</h4>
+            <p>{course.phase}</p>
           </div>
-        )}
 
-        <div>
-          <h4 className="text-sm font-medium text-muted-foreground">Prerequisites</h4>
-          {course.prerequisites.length > 0 ? (
-            <ul className="list-disc pl-5">
-              {course.prerequisites.map((prereq) => (
-                <li key={prereq}>{prereq}</li>
-              ))}
-            </ul>
-          ) : (
-            <p>No prerequisites</p>
+          {studentCourse?.semesterTaken && (
+            <div>
+              <h4 className="text-sm font-medium text-muted-foreground">Semester Taken</h4>
+              <p>{studentCourse.semesterTaken}</p>
+            </div>
+          )}
+
+          {studentCourse?.semesterPlanned && (
+            <div>
+              <h4 className="text-sm font-medium text-muted-foreground">Semester Planned</h4>
+              <p>{studentCourse.semesterPlanned}</p>
+            </div>
+          )}
+
+          <div>
+            <h4 className="text-sm font-medium text-muted-foreground">Prerequisites</h4>
+            {course.prerequisites.length > 0 ? (
+              <ul className="list-disc pl-5">
+                {course.prerequisites.map((prereq) => (
+                  <li key={prereq}>{prereq}</li>
+                ))}
+              </ul>
+            ) : (
+              <p>No prerequisites</p>
+            )}
+          </div>
+
+          {studentCourse?.notes && (
+            <div>
+              <h4 className="text-sm font-medium text-muted-foreground">Notes</h4>
+              <p className="text-sm">{studentCourse.notes}</p>
+            </div>
           )}
         </div>
 
-        {studentCourse?.notes && (
-          <div>
-            <h4 className="text-sm font-medium text-muted-foreground">Notes</h4>
-            <p className="text-sm">{studentCourse.notes}</p>
-          </div>
-        )}
+        <div className="mt-6 space-y-2">
+          {!studentCourse || studentCourse.status === CourseStatus.PLANNED ? (
+            <Button className="w-full" onClick={() => onStatusChange?.(course.id, CourseStatus.IN_PROGRESS)}>
+              Mark as In Progress
+            </Button>
+          ) : null}
+
+          {!studentCourse || studentCourse.status !== CourseStatus.COMPLETED ? (
+            <Button
+              variant={!studentCourse || studentCourse.status === CourseStatus.PLANNED ? "outline" : "default"}
+              className="w-full"
+              onClick={() => onStatusChange?.(course.id, CourseStatus.COMPLETED)}
+            >
+              Mark as Completed
+            </Button>
+          ) : null}
+
+          {studentCourse && studentCourse.status !== CourseStatus.PLANNED ? (
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => onStatusChange?.(course.id, CourseStatus.PLANNED)}
+            >
+              Mark as Planned
+            </Button>
+          ) : null}
+        </div>
       </div>
-
-      <div className="mt-6 space-y-2">
-        {!studentCourse || studentCourse.status === CourseStatus.PLANNED ? (
-          <Button className="w-full" onClick={() => onStatusChange?.(course.id, CourseStatus.IN_PROGRESS)}>
-            Mark as In Progress
-          </Button>
-        ) : null}
-
-        {!studentCourse || studentCourse.status !== CourseStatus.COMPLETED ? (
-          <Button
-            variant={!studentCourse || studentCourse.status === CourseStatus.PLANNED ? "outline" : "default"}
-            className="w-full"
-            onClick={() => onStatusChange?.(course.id, CourseStatus.COMPLETED)}
-          >
-            Mark as Completed
-          </Button>
-        ) : null}
-
-        {studentCourse && studentCourse.status !== CourseStatus.PLANNED ? (
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => onStatusChange?.(course.id, CourseStatus.PLANNED)}
-          >
-            Mark as Planned
-          </Button>
-        ) : null}
-      </div>
-    </div>
+    </>
   )
 }
 

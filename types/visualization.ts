@@ -24,7 +24,6 @@ export interface CoursePosition {
 export interface CurriculumVisualization {
   id: string // Visualization identifier
   curriculumId: string // Reference to the curriculum
-  connections: CourseConnection[] // All course connections
   positions: CoursePosition[] // Positions of all courses
   phaseLabels: {
     // Labels for phases
@@ -34,7 +33,6 @@ export interface CurriculumVisualization {
       width: number
     }
   }
-  zoomLevel: number // Current zoom level
   panOffset: { x: number; y: number } // Current pan offset
 }
 

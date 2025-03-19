@@ -1,6 +1,15 @@
 import type { Curriculum, Course, Phase } from "@/types/curriculum"
 import type { CurriculumVisualization, CoursePosition } from "@/types/visualization"
 
+
+const positions: CoursePosition[] = []
+const COURSE_WIDTH = 140
+const COURSE_HEIGHT = 50
+const PHASE_WIDTH = 200
+const VERTICAL_SPACING = 60
+
+
+
 interface RawCurriculumData {
   id: string
   name: string
@@ -13,20 +22,12 @@ export function parseCurriculumData(jsonData: RawCurriculumData): {
   curriculum: Curriculum
   visualization: CurriculumVisualization
 } {
-  // Create phases array
+  // Create phases array and populate with courses
   const phases: Phase[] = Array.from({ length: jsonData.totalPhases }, (_, i) => ({
     number: i + 1,
     name: `Phase ${i + 1}`,
-    courses: [],
+    courses: jsonData.courses.filter(course => course.phase === i + 1),
   }))
-
-  // Populate phases with courses
-  jsonData.courses.forEach((course) => {
-    const phaseIndex = course.phase - 1
-    if (phases[phaseIndex]) {
-      phases[phaseIndex].courses.push(course)
-    }
-  })
 
   // Create the curriculum object
   const curriculum: Curriculum = {
@@ -35,43 +36,26 @@ export function parseCurriculumData(jsonData: RawCurriculumData): {
     department: jsonData.department,
     totalPhases: jsonData.totalPhases,
     phases: phases,
-    allCourses: jsonData.courses,
   }
 
-  // Create course positions for visualization
-  const positions: CoursePosition[] = []
-  const COURSE_WIDTH = 140
-  const COURSE_HEIGHT = 50
-  const PHASE_WIDTH = 200
-  const VERTICAL_SPACING = 60
-
-  jsonData.courses.forEach((course) => {
-    const phaseIndex = course.phase - 1
-    const courseIndex = phases[phaseIndex].courses.indexOf(course)
-
-    positions.push({
-      courseId: course.id,
-      x: phaseIndex * PHASE_WIDTH + 20, // 20px padding from left
-      y: courseIndex * VERTICAL_SPACING + 60, // 60px from top for phase header
-      width: COURSE_WIDTH,
-      height: COURSE_HEIGHT,
+  // Iterate through each phase to position courses
+  phases.forEach((phase, phaseIndex) => {
+    phase.courses.forEach((course, courseIndex) => {
+      positions.push({
+        courseId: course.id,
+        x: phaseIndex * PHASE_WIDTH + 20, // 20px padding from left
+        y: courseIndex * VERTICAL_SPACING + 60, // 60px from top for phase header
+        width: COURSE_WIDTH,
+        height: COURSE_HEIGHT,
+      })
     })
   })
 
-  // Create connections based on prerequisites
-  const connections = jsonData.courses.flatMap((course) =>
-    course.prerequisites.map((prereqId) => ({
-      fromCourseId: prereqId,
-      toCourseId: course.id,
-      type: "prerequisite" as const,
-    }))
-  )
 
   // Create the visualization object
   const visualization: CurriculumVisualization = {
     id: `${jsonData.id}-vis`,
     curriculumId: jsonData.id,
-    connections,
     positions,
     phaseLabels: Object.fromEntries(
       phases.map((phase) => [
@@ -83,7 +67,6 @@ export function parseCurriculumData(jsonData: RawCurriculumData): {
         },
       ])
     ),
-    zoomLevel: 1,
     panOffset: { x: 0, y: 0 },
   }
 
