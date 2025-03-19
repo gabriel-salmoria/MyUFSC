@@ -65,6 +65,7 @@ export function parseCurriculumData(jsonData: RawCurriculumData): {
           x: (phase.number - 1) * PHASE_WIDTH,
           y: 0,
           width: PHASE_WIDTH,
+          height: 400,
         },
       ])
     ),

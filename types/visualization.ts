@@ -31,6 +31,7 @@ export interface CurriculumVisualization {
       x: number
       y: number
       width: number
+      height?: number
     }
   }
   panOffset: { x: number; y: number } // Current pan offset

@@ -33,11 +33,11 @@ export default function Home() {
       ...curriculumData.curriculum.phases.map(phase => phase.courses.length)
     )
     
-    // Calculate height: 60px header + (maxCourses * 60px per course) + 40px padding
-    const calculatedHeight = 60 + (maxCoursesPerPhase * 60) + 40
+    // Calculate height: 60px header + (maxCourses * 60px per course) + 20px padding
+    const calculatedHeight = 60 + (maxCoursesPerPhase * 60) + 20
     
     // Ensure a minimum height of 400px
-    return Math.max(400, calculatedHeight)
+    return calculatedHeight
   }, [curriculumData])
 
   if (!curriculumData) {
@@ -64,6 +64,7 @@ export default function Home() {
             curriculum={curriculumData.curriculum}
             visualization={curriculumData.visualization}
             onCourseClick={setSelectedCourse}
+            height={containerHeight}
           />
         </div>
       </div>

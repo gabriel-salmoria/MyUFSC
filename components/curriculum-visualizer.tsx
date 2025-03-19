@@ -12,12 +12,14 @@ interface CurriculumVisualizerProps {
   curriculum: Curriculum
   visualization: CurriculumVisualization
   onCourseClick?: (course: Course) => void
+  height?: number
 }
 
 export default function CurriculumVisualizer({
   curriculum,
   visualization,
   onCourseClick,
+  height = 500,
 }: CurriculumVisualizerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [pan, setPan] = useState({ x: 0, y: 0 })
@@ -37,7 +39,7 @@ export default function CurriculumVisualizer({
             transform: `translate(${pan.x}px, ${pan.y}px)`,
             transformOrigin: "0 0",
             width: totalWidth,
-            height: "500px",
+            height: `${height}px`,
           }}
         >
           {/* Phase Headers */}

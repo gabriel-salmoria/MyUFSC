@@ -30,6 +30,8 @@ export default function StudentCourseDetailsPanel({
     }
 
     switch (studentCourse.status) {
+
+      // TODO: implement
       case CourseStatus.COMPLETED:
         return (
           <div className="flex items-center gap-1 text-green-600 bg-green-50 px-2 py-1 rounded-full text-xs">
