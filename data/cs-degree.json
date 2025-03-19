@@ -1,0 +1,304 @@
+{
+  "id": "cs-2023",
+  "name": "Computer Science",
+  "department": "INE - Informatics and Statistics",
+  "totalPhases": 8,
+  "courses": [
+    {
+      "id": "MTM3100",
+      "name": "Pre-Calculus",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": [],
+      "phase": 1
+    },
+    {
+      "id": "INE5401",
+      "name": "Introduction",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": [],
+      "phase": 1
+    },
+    {
+      "id": "MTM3110",
+      "name": "Calculus 1",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": [],
+      "phase": 1
+    },
+    {
+      "id": "EEL5105",
+      "name": "Circuits",
+      "credits": 5,
+      "workload": 90,
+      "prerequisites": [],
+      "phase": 1
+    },
+    {
+      "id": "INE5402",
+      "name": "OOP I",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": [],
+      "phase": 1
+    },
+    {
+      "id": "INE5403",
+      "name": "Discrete Math",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": [],
+      "phase": 1
+    },
+    {
+      "id": "MTM3121",
+      "name": "Linear Algebra",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": ["MTM3100"],
+      "phase": 2
+    },
+    {
+      "id": "INE5404",
+      "name": "OOP II",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": ["INE5402"],
+      "phase": 2
+    },
+    {
+      "id": "MTM3120",
+      "name": "Calculus 2",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": ["MTM3110"],
+      "phase": 2
+    },
+    {
+      "id": "INE5406",
+      "name": "Digital Systems",
+      "credits": 5,
+      "workload": 90,
+      "prerequisites": ["EEL5105"],
+      "phase": 2
+    },
+    {
+      "id": "INE5407",
+      "name": "CTS",
+      "credits": 3,
+      "workload": 54,
+      "prerequisites": [],
+      "phase": 2
+    },
+    {
+      "id": "MTM3131",
+      "name": "Differential Equations",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": ["MTM3120"],
+      "phase": 3
+    },
+    {
+      "id": "INE5408",
+      "name": "Data Structures",
+      "credits": 6,
+      "workload": 108,
+      "prerequisites": ["INE5404"],
+      "phase": 3
+    },
+    {
+      "id": "INE5410",
+      "name": "Concurrent Programming",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": ["INE5404"],
+      "phase": 3
+    },
+    {
+      "id": "INE5411",
+      "name": "Computer Organization",
+      "credits": 6,
+      "workload": 108,
+      "prerequisites": ["INE5406"],
+      "phase": 3
+    },
+    {
+      "id": "INE5202",
+      "name": "Numerical Calculus",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": ["MTM3120"],
+      "phase": 3
+    },
+    {
+      "id": "INE5412",
+      "name": "Operating Systems I",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": ["INE5410", "INE5411"],
+      "phase": 4
+    },
+    {
+      "id": "INE5415",
+      "name": "Theory of Computation",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": ["INE5408"],
+      "phase": 4
+    },
+    {
+      "id": "INE5416",
+      "name": "Paradigms of Programming",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": ["INE5408"],
+      "phase": 4
+    },
+    {
+      "id": "INE5417",
+      "name": "Software Engineering I",
+      "credits": 5,
+      "workload": 90,
+      "prerequisites": ["INE5408"],
+      "phase": 4
+    },
+    {
+      "id": "INE5418",
+      "name": "Distributed Computing",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": ["INE5412"],
+      "phase": 5
+    },
+    {
+      "id": "INE5419",
+      "name": "Software Engineering II",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": ["INE5417"],
+      "phase": 5
+    },
+    {
+      "id": "INE5420",
+      "name": "Computer Graphics",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": ["MTM3120"],
+      "phase": 5
+    },
+    {
+      "id": "INE5421",
+      "name": "Languages and Formal Models",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": ["INE5415"],
+      "phase": 5
+    },
+    {
+      "id": "INE5422",
+      "name": "Computer Networks II",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": ["INE5414"],
+      "phase": 6
+    },
+    {
+      "id": "INE5423",
+      "name": "Database I",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": ["INE5408"],
+      "phase": 6
+    },
+    {
+      "id": "INE5424",
+      "name": "Software Engineering II",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": ["INE5419"],
+      "phase": 6
+    },
+    {
+      "id": "INE5425",
+      "name": "Modeling and Simulation",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": ["INE5421"],
+      "phase": 6
+    },
+    {
+      "id": "INE5426",
+      "name": "Compilers",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": ["INE5421"],
+      "phase": 7
+    },
+    {
+      "id": "INE5427",
+      "name": "Software Planning and Management",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": ["INE5424"],
+      "phase": 7
+    },
+    {
+      "id": "INE5428",
+      "name": "Computer and Society",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": [],
+      "phase": 7
+    },
+    {
+      "id": "INE5429",
+      "name": "Security in Computing",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": ["INE5412"],
+      "phase": 7
+    },
+    {
+      "id": "INE5430",
+      "name": "Artificial Intelligence",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": ["INE5415"],
+      "phase": 8
+    },
+    {
+      "id": "INE5431",
+      "name": "Multimedia Systems",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": ["INE5420"],
+      "phase": 8
+    },
+    {
+      "id": "INE5432",
+      "name": "Database II",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": ["INE5423"],
+      "phase": 8
+    },
+    {
+      "id": "INE5433",
+      "name": "Final Project I",
+      "credits": 6,
+      "workload": 108,
+      "prerequisites": ["INE5427"],
+      "phase": 8
+    },
+    {
+      "id": "INE5434",
+      "name": "Final Project II",
+      "credits": 6,
+      "workload": 108,
+      "prerequisites": ["INE5433"],
+      "phase": 8
+    }
+  ]
+}
