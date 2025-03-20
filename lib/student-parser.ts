@@ -7,7 +7,7 @@ interface RawStudentData {
   studentId: string
   name: string
   takenCourses: [{
-    [courseId: string]: string  // Course ID to grade mapping
+    [key: string]: string  // Object with course codes as keys and grades as string values
   }]
   plans: Array<{
     id: string
@@ -27,32 +27,49 @@ export function parseStudentData(jsonData: RawStudentData): {
   
   // Create a map of course grades from takenCourses
   const gradeMap = new Map<string, number>()
-  if (jsonData.takenCourses && jsonData.takenCourses.length > 0) {
+  if (jsonData.takenCourses?.[0]) {
     Object.entries(jsonData.takenCourses[0]).forEach(([courseId, grade]) => {
       gradeMap.set(courseId, parseFloat(grade))
     })
   }
   
-  // Convert semesters object to array and sort by number
+  // Convert semesters object to array and process semester numbers
   const semesterEntries = Object.entries(rawPlan.semesters)
     .map(([key, value]) => ({
       number: parseInt(key),
       courses: value.courses,
     }))
-    .sort((a, b) => a.number - b.number)
+
+  // Find the highest positive semester number to determine the current phase
+  const maxPositiveSemester = Math.max(
+    ...semesterEntries
+      .filter(entry => entry.number > 0)
+      .map(entry => entry.number)
+  )
+
+  // Sort semesters: completed ones first (positive numbers), then current (-1), then planned (< -1)
+  const sortedEntries = semesterEntries.sort((a, b) => {
+    // Helper function to get sort weight
+    const getWeight = (num: number) => {
+      if (num > 0) return num // Completed semesters keep their order
+      if (num === -1) return maxPositiveSemester + 1 // Current semester comes after completed
+      return maxPositiveSemester + 2 + Math.abs(num + 1) // Future semesters come last
+    }
+    return getWeight(a.number) - getWeight(b.number)
+  })
 
   // Process each semester
   const semesters: StudentSemester[] = []
   const inProgressCourses: StudentCourse[] = []
   const plannedCourses: StudentCourse[] = []
 
-  semesterEntries.forEach(({ number, courses }) => {
+  sortedEntries.forEach(({ number, courses }) => {
     const processedCourses: StudentCourse[] = []
 
     courses.forEach(courseCode => {
       // Get base course code without class number
       const baseCode = courseCode.split("-")[0]
-      const courseInfo = getCourseInfo(courseCode)
+      const courseInfo = getCourseInfo(baseCode)
       if (!courseInfo) {
         console.warn(`Course not found in curriculum: ${courseCode}`)
         return
@@ -99,8 +116,14 @@ export function parseStudentData(jsonData: RawStudentData): {
 
     // Only add semesters with actual courses
     if (processedCourses.length > 0) {
+      const displayNumber = number === -1 
+        ? maxPositiveSemester + 1 // Current semester gets next number
+        : number < -1 
+          ? maxPositiveSemester + Math.abs(number + 1) // Future semesters increment from there
+          : number // Past semesters keep their number
+
       const semester: StudentSemester = {
-        number: Math.abs(number), // Convert negative numbers to positive for display
+        number: displayNumber,
         year: new Date().getFullYear().toString(), // You might want to make this configurable
         courses: processedCourses,
         totalCredits: processedCourses.reduce((sum, course) => sum + course.credits, 0),

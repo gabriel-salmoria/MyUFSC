@@ -6,25 +6,11 @@ import ProgressVisualizer from "@/components/progress-visualizer"
 import type { Curriculum, Course } from "@/types/curriculum"
 import type { CurriculumVisualization } from "@/types/visualization"
 import type { StudentPlan, StudentCourse } from "@/types/student-plan"
-import { CourseStatus } from "@/types/student-plan"
 import { parseCurriculumData } from "@/lib/curriculum-parser"
+import { parseStudentData } from "@/lib/student-parser"
 import csData from "@/data/cs-degree.json"
+import studentData from "@/data/student.json"
 import StudentCourseDetailsPanel from "@/components/details-panel"
-
-// Mock student plan data
-const mockStudentPlan: StudentPlan = {
-  number: 1,
-  semesters: [
-    {
-      number: 1,
-      year: "2024",
-      courses: [],
-      totalCredits: 0,
-    },
-  ],
-  inProgressCourses: [],
-  plannedCourses: [],
-}
 
 export default function Home() {
   const [curriculumData, setCurriculumData] = useState<{
@@ -33,45 +19,23 @@ export default function Home() {
   } | null>(null)
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
   const [selectedStudentCourse, setSelectedStudentCourse] = useState<StudentCourse | null>(null)
-  const [studentPlan, setStudentPlan] = useState<StudentPlan>(mockStudentPlan)
+  const [studentPlan, setStudentPlan] = useState<StudentPlan | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-  // PARSING THE CURRICULUM DATA
+  // Load both curriculum and student data
   useEffect(() => {
-    const data = parseCurriculumData(csData)
-    setCurriculumData(data)
+    try {
+      // First load and parse curriculum data
+      const currData = parseCurriculumData(csData)
+      setCurriculumData(currData)
 
-    // Create a mock student plan with some courses from the curriculum
-    if (data.curriculum.phases.length > 0) {
-      const mockPlan: StudentPlan = {
-        number: 1,
-        semesters: [
-          {
-            number: 1,
-            year: "2024",
-            courses: data.curriculum.phases[0].courses.map(course => ({
-              ...course,
-              course,
-              status: CourseStatus.IN_PROGRESS,
-              completed: false,
-            })),
-            totalCredits: data.curriculum.phases[0].courses.reduce((sum, course) => sum + course.credits, 0),
-          },
-          {
-            number: 2,
-            year: "2024",
-            courses: data.curriculum.phases[1].courses.map(course => ({
-              ...course,
-              course,
-              status: CourseStatus.PLANNED,
-              completed: false,
-            })),
-            totalCredits: data.curriculum.phases[1].courses.reduce((sum, course) => sum + course.credits, 0),
-          },
-        ],
-        inProgressCourses: [],
-        plannedCourses: [],
-      }
-      setStudentPlan(mockPlan)
+      // Then parse student data
+      const { currentPlan } = parseStudentData(studentData)
+      setStudentPlan(currentPlan)
+    } catch (error) {
+      console.error("Error loading data:", error)
+    } finally {
+      setIsLoading(false)
     }
   }, [])
 
@@ -90,10 +54,18 @@ export default function Home() {
     return calculatedHeight
   }, [curriculumData])
 
-  if (!curriculumData) {
+  if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-lg">Loading curriculum data...</div>
+        <div className="text-lg">Loading data...</div>
+      </div>
+    )
+  }
+
+  if (!curriculumData || !studentPlan) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-lg text-red-600">Error loading data. Please try again.</div>
       </div>
     )
   }

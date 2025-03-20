@@ -40,10 +40,11 @@ export default function ProgressVisualizer({
   })
 
   // Create phase headers for each semester
-  const phases = studentPlan.semesters.map((semester) => ({
+  const phases = studentPlan.semesters.map((semester, index) => ({
     number: semester.number,
     name: `Semester ${semester.number}`,
     courses: semester.courses.map(sc => sc.course),
+    originalIndex: index, // Keep track of original position
   }))
 
   return (
@@ -64,12 +65,16 @@ export default function ProgressVisualizer({
           {/* Semester Headers */}
           <div className="flex w-full">
             {phases.map((phase) => (
-              <PhaseHeader key={phase.number} phase={phase} width={200} />
+              <PhaseHeader 
+                key={`semester-${phase.originalIndex}`} 
+                phase={phase} 
+                width={200} 
+              />
             ))}
           </div>
 
           {/* Course Boxes */}
-          {studentPlan.semesters.flatMap((semester) =>
+          {studentPlan.semesters.flatMap((semester, semesterIndex) =>
             semester.courses.map((studentCourse) => {
               const position = positions.find(
                 (p) => p.courseId === studentCourse.course.id
@@ -78,9 +83,10 @@ export default function ProgressVisualizer({
 
               return (
                 <CourseBox
-                  key={studentCourse.course.id}
+                  key={`${studentCourse.course.id}-${semesterIndex}`}
                   course={studentCourse.course}
                   position={position}
+                  studentCourse={studentCourse}
                   onClick={() => onCourseClick?.(studentCourse)}
                 />
               )
