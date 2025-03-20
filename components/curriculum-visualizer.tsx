@@ -49,6 +49,17 @@ export default function CurriculumVisualizer({
             ))}
           </div>
 
+          {/* Vertical Divider Lines */}
+          {Array.from({ length: curriculum.totalPhases - 1 }, (_, i) => (
+            <div
+              key={`divider-${i}`}
+              className="absolute top-10 bottom-0 w-px bg-gray-300"
+              style={{
+                left: `${(i + 1) * 200}px`,
+              }}
+            />
+          ))}
+
           {/* Course Boxes */}
           {curriculum.phases.flatMap((phase) => 
             phase.courses.map((course) => {

@@ -21,7 +21,7 @@ const BOX_WIDTH = 140
 const BOX_HEIGHT = 50
 const BOX_SPACING_X = 200 // Space between columns
 const BOX_SPACING_Y = 60 // Space between rows
-const LEFT_PADDING = 20
+const LEFT_PADDING = 30
 
 export default function ProgressVisualizer({
   studentPlan,
@@ -114,6 +114,17 @@ export default function ProgressVisualizer({
               />
             ))}
           </div>
+
+          {/* Vertical Divider Lines */}
+          {Array.from({ length: TOTAL_SEMESTERS - 1 }, (_, i) => (
+            <div
+              key={`divider-${i}`}
+              className="absolute top-10 bottom-0 w-px bg-gray-300"
+              style={{
+                left: `${(i + 1) * BOX_SPACING_X}px`,
+              }}
+            />
+          ))}
 
           {/* Course Boxes */}
           {positions.map((position) => {

@@ -54,7 +54,7 @@ export function parseCurriculumData(jsonData: RawCurriculumData): {
     phase.courses.forEach((course, courseIndex) => {
       positions.push({
         courseId: course.id,
-        x: phaseIndex * PHASE_WIDTH + 20, // 20px padding from left
+        x: phaseIndex * PHASE_WIDTH + 30, // 20px padding from left
         y: courseIndex * VERTICAL_SPACING + 60, // 60px from top for phase header
         width: COURSE_WIDTH,
         height: COURSE_HEIGHT,
