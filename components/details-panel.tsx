@@ -118,7 +118,16 @@ export default function StudentCourseDetailsPanel({
               <p>No prerequisites</p>
             )}
           </div>
+
+          <div>
+            <h4 className="text-sm font-medium text-muted-foreground">Description</h4>
+              <ul className="list-disc pl-5">
+                {course.description ?? "No description"}
+              </ul>
+          </div>
         </div>
+
+
 
         <div className="mt-6 space-y-2">
           {!studentCourse || studentCourse.status === CourseStatus.PLANNED ? (

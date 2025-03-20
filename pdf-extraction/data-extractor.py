@@ -334,7 +334,7 @@ def parse_course_info(text):
 
 def main():
     # Read the input file
-    with open('lib/example.txt', 'r', encoding='utf-8') as f:
+    with open('pdf-extraction/example1.txt', 'r', encoding='utf-8') as f:
         text = f.read()
     
     course_data = parse_course_info(text)
@@ -362,7 +362,7 @@ def main():
 
 
     # Write the output to a JSON file
-    with open('lib/output.json', 'w', encoding='utf-8') as f:
+    with open('pdf-extraction/output.json', 'w', encoding='utf-8') as f:
         json.dump(course_data, f, ensure_ascii=False, indent=2)
     
     print("Course information has been successfully parsed and saved to lib/output.json")

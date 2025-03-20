@@ -45,10 +45,10 @@
       "workload": 72,
       "prerequisites": [],
       "equivalents": [
-        "MTM5801",
         "MTM5115",
+        "MTM3101",
         "MTM5161",
-        "MTM3101"
+        "MTM5801"
       ],
       "description": "Cálculo de funções de uma variável real: limites; continuidade; derivada; aplicações da derivada (taxas de variação, retas tangentes e normais, problemas de otimização e máximos e mínimos); integral definida e indefinida.",
       "phase": 1
@@ -72,8 +72,8 @@
       "workload": 90,
       "prerequisites": [],
       "equivalents": [
-        "EEL5310",
-        "EEL5340"
+        "EEL5340",
+        "EEL5310"
       ],
       "description": "Máquinas seqüenciais síncronas (Mealy e Moore) e sua representação (diagramas de transição e descrição em HDL). Síntese de circuitos seqüenciais (minimização e codificação de estados). Mapeamento e alternativas de implementação de máquinas de estado (\"hardwired\", PLA, ROM e PLD). Estudos de casos: controladores de memória, de interrupção, de DMA. Simulação de sistemas digitais descritos em HDL no nível de transferência entre registradores. CPU vista como um sistema digital (datapath e unidade de controle). Unidade de controle de uma CPU simples (\"hardwired\" e microprogramada).",
       "phase": 2
@@ -86,8 +86,8 @@
       "workload": 54,
       "prerequisites": [],
       "equivalents": [
-        "EEL5310",
-        "EEL5340"
+        "EEL5340",
+        "EEL5310"
       ],
       "description": "Estudo das relações entre ciência, tecnologia e sociedade ao longo da história, com ênfase na atualidade; filosofia da ciência; análise de valores e ideologias envolvendo a produção e divulgação da ciência e da tecnologia; influências das diferenças culturais nas concepções de ciência e tecnologia e de suas relações com as sociedades; a participação da sociedade na definição de políticas relativas às questões científicas, tecnológicas, econômicas e ecológicas. O impacto da informática na sociedade.",
       "phase": 2
@@ -100,9 +100,9 @@
       "workload": 72,
       "prerequisites": [],
       "equivalents": [
+        "MTM3112",
         "MTM5812",
-        "MTM5245",
-        "MTM3112"
+        "MTM5245"
       ],
       "description": "-Aplicações da integral definida. Técnicas de integração (por partes, substituição trigonométrica, frações parciais). Integral imprópria. Álgebra vetorial. Estudo da reta e do plano. Curvas planas. Superfícies. Funções de várias variáveis. Derivadas parciais. Máximos e mínimos de funções de duas variáveis.",
       "phase": 2
@@ -115,9 +115,9 @@
       "workload": 72,
       "prerequisites": [],
       "equivalents": [
+        "MTM3112",
         "MTM5812",
-        "MTM5245",
-        "MTM3112"
+        "MTM5245"
       ],
       "description": "-Matrizes. Determinantes. Sistemas lineares. Espaço vetorial real. Produto interno. Transformações lineares. Autovalores e autovetores de um operador linear. Diagonalização. Aplicações da Álgebra Linear.",
       "phase": 2
@@ -130,9 +130,9 @@
       "workload": 72,
       "prerequisites": [],
       "equivalents": [
+        "MTM3121",
         "MTM3120",
-        "INE5402",
-        "MTM3121"
+        "INE5402"
       ],
       "description": "Erros e Sistemas de Numeracão. Solução de equações algébricas e transcendentais. Solução de equações polinomiais. Sistemas de equações lineares e não lineares. Interpolação Ajustamento de curvas. Integração numérica. Solução numérica de equações diferenciais ordinárias e sistemas de equações diferenciais.",
       "phase": 3
@@ -145,9 +145,9 @@
       "workload": 108,
       "prerequisites": [],
       "equivalents": [
+        "MTM3121",
         "MTM3120",
-        "INE5402",
-        "MTM3121"
+        "INE5402"
       ],
       "description": "Alocação dinâmica de memória. Variáveis estáticas e dinâmicas. Estruturas lineares. Tabelas de Espalhamento. Árvores. Árvores de Pesquisa. Métodos de ordenação. Métodos de acesso a arquivos. Técnicas de implementações iterativas e recursivas de estruturas de dados. Complexidade dos algoritmos em estruturas de dados.",
       "phase": 3
@@ -160,9 +160,9 @@
       "workload": 72,
       "prerequisites": [],
       "equivalents": [
+        "MTM3121",
         "MTM3120",
-        "INE5402",
-        "MTM3121"
+        "INE5402"
       ],
       "description": "Multiprogramação. Multitarefa. Execução concorrente. Recursos compartilhados e exclusão mútua. Regiões críticas. Coordenação de processos e threads. Semáforos. Monitores. Troca de mensagem. Programação concorrente orientada a objeto. Deadlock. Modelos de computação concorrente.",
       "phase": 3
@@ -174,12 +174,12 @@
       "credits": 6,
       "workload": 108,
       "prerequisites": [
-        "MTM3120",
-        "MTM3121"
+        "MTM3121",
+        "MTM3120"
       ],
       "equivalents": [
-        "MTM5814",
         "MTM5192",
+        "MTM5814",
         "MTM7174"
       ],
       "description": "Tendências tecnológicas na fabricação de CPUs e memórias. CPU: instruções e modos de endereçamento. Formatos de instruções e linguagem de montagem. Simulador e montador. Aritmética. Avaliação de desempenho. Datapath e unidade de controle. Alternativas de implementação (monociclo, multiciclo, pipeline, superescalar). Exceções e interrupções. Hazards estruturais, de dados e de controle. Hierarquia de memória e associatividade (cache e TLB). Dispositivos de entrada e saída: tipos, características e sua conexão à CPU e à memória. Comunicação com a CPU (polling, interrupção, DMA).",
@@ -192,12 +192,12 @@
       "credits": 4,
       "workload": 72,
       "prerequisites": [
-        "MTM3120",
-        "MTM3121"
+        "MTM3121",
+        "MTM3120"
       ],
       "equivalents": [
-        "MTM5814",
         "MTM5192",
+        "MTM5814",
         "MTM7174"
       ],
       "description": "-Equações diferenciais ordinárias de primeira ordem. Equações diferenciais ordinárias lineares homogêneas de ordem n. Equações diferenciais ordinárias lineares não homogêneas de ordem 2. Noções gerais de Transformada de Laplace. Sistemas de Equações Diferenciais.",
@@ -310,9 +310,9 @@
       "workload": 72,
       "prerequisites": [],
       "equivalents": [
-        "MTM3120",
         "INE5408",
-        "MTM3121"
+        "MTM3121",
+        "MTM3120"
       ],
       "description": "Computação Gráfica Básica. Sistema Gráfico Interativo. Transformações geométricas 2D e coordenadas homogêneas. Clipping. Curvas paramétricas em 2D e 3D. Estruturas de dados gráficas 3D. Navegação 3D. Projeções, perspectiva e clipping 3D. Superfícies paramétricas bicúbicas. Visualização em 3D contendo, Rayshading, Raycasting e Raytracing. Conversão por varredura e buffer de profundidade. Iluminação de objetos. Implementação de um rayshader. APIs Gráficas e OpenGL. Animação e utilização de modelos hierárquicos. Simulação de movimentação de animais e humanos. Realidade virtual e VRML.",
       "phase": 5
@@ -325,9 +325,9 @@
       "workload": 72,
       "prerequisites": [],
       "equivalents": [
-        "MTM3120",
         "INE5408",
-        "MTM3121"
+        "MTM3121",
+        "MTM3120"
       ],
       "description": "O processo de compilação. Linguagens e suas representações. Gramáticas: definição formal, classificação (Hierarquia de Chomsky), propriedades, problemas de decisão e aplicações. Gramáticas regulares, autômatos finitos, conjuntos regulares e expressões regulares. Gramáticas livres de contexto. Autômatos de pilha. Teoria de Parsing. Análise léxica e sintática.",
       "phase": 5
@@ -648,7 +648,7 @@
       "workload": 72,
       "prerequisites": [],
       "equivalents": [],
-      "description": "Habilitação: Bacharelado em Ciências da Computação - A ementa é livre, podendo cobrir quaisquer temas avançados em gerência de dados que não tenham sido ministradas em outras disciplinas da área de Banco de Dados (BD). Os objetivos específicos e tópicos podem variar, conforme a atualidade dos temas na área.",
+      "description": "- A ementa é livre, podendo cobrir quaisquer temas avançados em gerência de dados que não tenham sido ministradas em outras disciplinas da área de Banco de Dados (BD). Os objetivos específicos e tópicos podem variar, conforme a atualidade dos temas na área.",
       "phase": 8
     },
     {
@@ -659,7 +659,7 @@
       "workload": 72,
       "prerequisites": [],
       "equivalents": [],
-      "description": "Conceitos Básicos. Níveis de Testes. Tipos de Testes. Técnicas de Testes. Planejamento e Execução de Testes de Software. Desenvolvimento Orientado a Testes. Automação de Testes. Ferramentas de Testes.",
+      "description": "Testes. Automação de Testes. Ferramentas de Testes.",
       "phase": 8
     },
     {
@@ -747,7 +747,18 @@
       "workload": 72,
       "prerequisites": [],
       "equivalents": [],
-      "description": "Considerações iniciais da área e aplicações. Processos de descoberta do conhecimento (KDD) em base de dados. Análise exploratória de dados. Tipos de variáveis, Técnicas de Data Mining para classificação, estimação, predição, análise de agrupamentos, análise de associação: redes neurais, árvores de decisão, regras de decisão, análise discriminante, regressão linear, regressão logística, análise de cluster, análise de componentes principais. Uso de softwares de data mining. Exercícios. Data Mining de caso.",
+      "description": "variáveis, Técnicas de Data Mining para classificação, estimação, predição, análise de agrupamentos, análise de associação: redes neurais, árvores de decisão, regras de decisão, análise discriminante, regressão linear, regressão logística, análise de cluster, análise de componentes principais. Uso de softwares de data mining. Exercícios. Data Mining de caso.",
+      "phase": 8
+    },
+    {
+      "id": "INE5646",
+      "name": "Programação para Web",
+      "type": "optional",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": [],
+      "equivalents": [],
+      "description": "Arquiteturas. Serviços. Protocolos de comunicação entre cliente e servidor e entre servidores. Representação de dados no cliente. Acesso a bases de dados. Escalabilidade. Linguagens de modelagem da interface com o usuário. Linguagens de programação no cliente e no servidor. Segurança. Instalação e configuração de servidores. Prática de programação.",
       "phase": 8
     },
     {
@@ -773,6 +784,17 @@
       "phase": 8
     },
     {
+      "id": "INE5425",
+      "name": "MTM3100 Pré-Cálculo",
+      "type": "optional",
+      "credits": 4,
+      "workload": 72,
+      "prerequisites": [],
+      "equivalents": [],
+      "description": "4",
+      "phase": 8
+    },
+    {
       "id": "INE7011",
       "name": "Atividades Complementares 1",
       "type": "mandatory",
@@ -781,28 +803,6 @@
       "prerequisites": [],
       "equivalents": [],
       "description": "Realização de ações paralelas e complementares à formação acadêmica prevista nos demais componentes curriculares do projeto pedagógico do curso.",
-      "phase": 8
-    },
-    {
-      "id": "INE5646",
-      "name": "Programação para Web",
-      "type": "optional",
-      "credits": 4,
-      "workload": 72,
-      "prerequisites": [],
-      "equivalents": [],
-      "description": "Arquiteturas. Serviços. Protocolos de comunicação entre cliente e servidor e entre servidores. Representação de dados no cliente. Acesso a bases de dados. Escalabilidade. Linguagens de modelagem da interface com o usuário. Linguagens de programação no cliente e no servidor. Segurança. Instalação e configuração de servidores. Prática de programação.",
-      "phase": 8
-    },
-    {
-      "id": "MTM3100",
-      "name": "Pré-Cálculo",
-      "type": "optional",
-      "credits": 4,
-      "workload": 72,
-      "prerequisites": [],
-      "equivalents": [],
-      "description": "Conjuntos e aritmética básica; Cálculo com expressões algébricas; equações; inequações; funções.",
       "phase": 8
     },
     {

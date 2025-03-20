@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Define paths
-const sourcePath = path.resolve(__dirname, '../lib/output.json');
+const sourcePath = path.resolve(__dirname, '../pdf-extraction/output.json');
 const destPath = path.resolve(__dirname, '../data/cs-degree.json');
 
 // Read the source file
