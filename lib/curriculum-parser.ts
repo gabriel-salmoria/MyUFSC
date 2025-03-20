@@ -1,14 +1,14 @@
 import type { Curriculum, Course, Phase } from "@/types/curriculum"
 import type { CurriculumVisualization, CoursePosition } from "@/types/visualization"
 
-
 const positions: CoursePosition[] = []
 const COURSE_WIDTH = 140
 const COURSE_HEIGHT = 50
 const PHASE_WIDTH = 200
 const VERTICAL_SPACING = 60
 
-
+// Course map to store course information by code
+export const courseMap = new Map<string, Course>()
 
 interface RawCurriculumData {
   id: string
@@ -18,11 +18,18 @@ interface RawCurriculumData {
   courses: Course[]
 }
 
-
 export function parseCurriculumData(jsonData: RawCurriculumData): {
   curriculum: Curriculum
   visualization: CurriculumVisualization
 } {
+  // Clear the course map before populating it
+  courseMap.clear()
+
+  // Populate the course map
+  jsonData.courses.forEach(course => {
+    courseMap.set(course.id, course)
+  })
+
   // Create phases array and populate with courses
   const phases: Phase[] = Array.from({ length: jsonData.totalPhases }, (_, i) => ({
     number: i + 1,
@@ -39,6 +46,9 @@ export function parseCurriculumData(jsonData: RawCurriculumData): {
     phases: phases,
   }
 
+  // Clear positions array before populating it
+  positions.length = 0
+
   // Iterate through each phase to position courses
   phases.forEach((phase, phaseIndex) => {
     phase.courses.forEach((course, courseIndex) => {
@@ -51,7 +61,6 @@ export function parseCurriculumData(jsonData: RawCurriculumData): {
       })
     })
   })
-
 
   // Create the visualization object
   const visualization: CurriculumVisualization = {
@@ -86,4 +95,11 @@ export function loadCurriculumFromJson(jsonPath: string): Promise<{
       console.error("Error loading curriculum data:", error)
       throw error
     })
+}
+
+// Helper function to get course info by code
+export function getCourseInfo(courseCode: string): Course | undefined {
+  // Remove any class-specific suffix (e.g., "-05208")
+  const baseCode = courseCode.split("-")[0]
+  return courseMap.get(baseCode)
 } 
