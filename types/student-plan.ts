@@ -18,7 +18,6 @@ export enum CourseStatus {
 export interface StudentCourse extends Omit<Course, "phase"> {
   course: Course 
   status: CourseStatus
-  completed: boolean
   grade?: number
   class?: string
 }
@@ -28,7 +27,6 @@ export interface StudentCourse extends Omit<Course, "phase"> {
  */
 export interface StudentSemester {
   number: number
-  year: string
   courses: StudentCourse[]
   totalCredits: number
 }
@@ -37,7 +35,7 @@ export interface StudentSemester {
  * Represents the student's complete academic plan
  */
 export interface StudentPlan {
-  number: number
+  id: string
   semesters: StudentSemester[]
   inProgressCourses: StudentCourse[]
   plannedCourses: StudentCourse[]

@@ -97,6 +97,15 @@ export default function StudentCourseDetailsPanel({
             <p>{course.phase}</p>
           </div>
 
+          {studentCourse?.grade !== undefined && (
+            <div>
+              <h4 className="text-sm font-medium text-muted-foreground">Grade</h4>
+              <p className={studentCourse.grade >= 6.0 ? "text-green-600" : "text-red-600"}>
+                {studentCourse.grade.toFixed(1)}
+              </p>
+            </div>
+          )}
+
           <div>
             <h4 className="text-sm font-medium text-muted-foreground">Prerequisites</h4>
             {(course.prerequisites?.length ?? 0) > 0 ? (

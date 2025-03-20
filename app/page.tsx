@@ -1,28 +1,45 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
+
+// main visual components
 import CurriculumVisualizer from "@/components/curriculum-visualizer"
 import ProgressVisualizer from "@/components/progress-visualizer"
-import type { Curriculum, Course } from "@/types/curriculum"
-import type { CurriculumVisualization } from "@/types/visualization"
-import type { StudentPlan, StudentCourse } from "@/types/student-plan"
-import { parseCurriculumData } from "@/lib/curriculum-parser"
-import { parseStudentData } from "@/lib/student-parser"
-import csData from "@/data/cs-degree.json"
-import studentData from "@/data/student.json"
 import StudentCourseDetailsPanel from "@/components/details-panel"
 
+
+// types
+import type { Curriculum, Course } from "@/types/curriculum"
+import type { CurriculumVisualization } from "@/types/visualization"
+import type { StudentInfo, StudentCourse } from "@/types/student-plan"
+
+
+// parsers
+import { parseCurriculumData } from "@/lib/curriculum-parser"
+import { parseStudentData } from "@/lib/student-parser"
+
+
+// json data
+import csData from "@/data/cs-degree.json"
+import studentData from "@/data/student.json"
+
+
+
 export default function Home() {
+
   const [curriculumData, setCurriculumData] = useState<{
     curriculum: Curriculum 
     visualization: CurriculumVisualization 
   } | null>(null)
+
+
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
   const [selectedStudentCourse, setSelectedStudentCourse] = useState<StudentCourse | null>(null)
-  const [studentPlan, setStudentPlan] = useState<StudentPlan | null>(null)
+  const [studentInfo, setStudentInfo] = useState<StudentInfo | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Load both curriculum and student data
+
+  // parse data
   useEffect(() => {
     try {
       // First load and parse curriculum data
@@ -30,8 +47,8 @@ export default function Home() {
       setCurriculumData(currData)
 
       // Then parse student data
-      const { currentPlan } = parseStudentData(studentData as any)
-      setStudentPlan(currentPlan)
+      const student = parseStudentData(studentData as any) // TODO: Fix the type issue with studentData
+      setStudentInfo(student)
     } catch (error) {
       console.error("Error loading data:", error)
     } finally {
@@ -39,20 +56,19 @@ export default function Home() {
     }
   }, [])
 
-  // Calculate the container height based on the maximum number of courses in any phase
+  // calculate container height
   const containerHeight = useMemo(() => {
     if (!curriculumData) return 400
 
-    // Get maximum number of courses in any phase
     const maxCoursesPerPhase = Math.max(
       ...curriculumData.curriculum.phases.map(phase => phase.courses.length)
     )
     
-    // Calculate height: 60px header + (maxCourses * 60px per course) + 20px padding
     const calculatedHeight = 60 + (maxCoursesPerPhase * 60) + 20
     
     return calculatedHeight
   }, [curriculumData])
+
 
   if (isLoading) {
     return (
@@ -62,7 +78,7 @@ export default function Home() {
     )
   }
 
-  if (!curriculumData || !studentPlan) {
+  if (!curriculumData || !studentInfo || !studentInfo.currentPlan) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-lg text-red-600">Error loading data. Please try again.</div>
@@ -70,10 +86,12 @@ export default function Home() {
     )
   }
 
+
+
   return (
     <main className="flex min-h-screen flex-col">
       <div className="flex items-center justify-center p-4 border-b bg-white shadow-sm">
-        <h1 className="text-2xl font-bold">Curriculum Planner</h1>
+        <h1 className="text-2xl font-bold">Welcome back, {studentInfo.name}!</h1>
       </div>
 
       <div className="flex-1 p-6 space-y-6">
@@ -99,7 +117,7 @@ export default function Home() {
             style={{ height: `${containerHeight}px` }}
           >
             <ProgressVisualizer
-              studentPlan={studentPlan}
+              studentPlan={studentInfo.currentPlan}
               onCourseClick={setSelectedStudentCourse}
               height={containerHeight}
             />

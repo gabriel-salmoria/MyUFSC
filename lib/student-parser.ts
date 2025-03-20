@@ -1,4 +1,4 @@
-import type { StudentPlan, StudentCourse, StudentSemester } from "@/types/student-plan"
+import type { StudentInfo, StudentPlan, StudentCourse, StudentSemester } from "@/types/student-plan"
 import { CourseStatus } from "@/types/student-plan"
 import { getCourseInfo } from "./curriculum-parser"
 
@@ -6,9 +6,15 @@ interface RawStudentData {
   id: string
   studentId: string
   name: string
-  takenCourses: [{
-    [key: string]: string  // Object with course codes as keys and grades as string values
-  }]
+  currentPlan: string
+  currentSemester: string
+  CoursedSemesters: Array<{
+    [key: string]: {
+      courses: Array<{
+        [key: string]: string  // Course code to grade mapping
+      }>
+    }
+  }>
   plans: Array<{
     id: string
     semesters: {
@@ -19,162 +25,153 @@ interface RawStudentData {
   }>
 }
 
-export function parseStudentData(jsonData: RawStudentData): {
-  currentPlan: StudentPlan
-} {
-  // Get the first plan (we can extend this later to handle multiple plans)
-  const rawPlan = jsonData.plans[0]
-  
-  // Create a map of course grades from takenCourses
+export function parseStudentData(jsonData: RawStudentData): StudentInfo {
+  // Create a map of course grades from coursedSemesters
   const gradeMap = new Map<string, number>()
-  if (jsonData.takenCourses?.[0]) {
-    Object.entries(jsonData.takenCourses[0]).forEach(([courseId, grade]) => {
-      gradeMap.set(courseId, parseFloat(grade))
+  const completedSemesters = new Map<number, StudentSemester>()
+
+  // Process coursed semesters first
+  if (jsonData.CoursedSemesters) {
+    jsonData.CoursedSemesters.forEach(semesterData => {
+      Object.entries(semesterData).forEach(([semesterNumber, semester]) => {
+        const num = parseInt(semesterNumber)
+        const processedCourses: StudentCourse[] = []
+
+        // Process each course in the semester
+        semester.courses.forEach(courseData => {
+          Object.entries(courseData).forEach(([courseCode, grade]) => {
+            const courseInfo = getCourseInfo(courseCode)
+            if (!courseInfo) {
+              console.warn(`Course not found in curriculum: ${courseCode}`)
+              return
+            }
+
+            const studentCourse: StudentCourse = {
+              ...courseInfo,
+              course: courseInfo,
+              status: parseFloat(grade) >= 6 ? CourseStatus.COMPLETED : CourseStatus.FAILED,
+              grade: parseFloat(grade),
+            }
+
+            processedCourses.push(studentCourse)
+            gradeMap.set(courseCode, parseFloat(grade))
+          })
+        })
+
+        // Create the semester
+        completedSemesters.set(num, {
+          number: num,
+          courses: processedCourses,
+          totalCredits: processedCourses.reduce((sum, course) => sum + course.credits, 0),
+        })
+      })
     })
   }
-  
-  // Convert semesters object to array and identify the highest positive semester
-  const semesterEntries = Object.entries(rawPlan.semesters)
-    .map(([key, value]) => ({
-      number: parseInt(key),
-      courses: value.courses,
-    }))
 
-  // Find the highest positive semester (completed semester)
-  const maxPositiveSemester = semesterEntries
-    .filter(entry => entry.number > 0)
-    .reduce((max, entry) => Math.max(max, entry.number), 0)
-  
-  // Process each semester
-  const semesters: StudentSemester[] = []
-  const inProgressCourses: StudentCourse[] = []
-  const plannedCourses: StudentCourse[] = []
+  // Process all plans
+  const plans: StudentPlan[] = jsonData.plans.map(rawPlan => {
+    const semesters: StudentSemester[] = []
+    const inProgressCourses: StudentCourse[] = []
+    const plannedCourses: StudentCourse[] = []
 
-  // Custom sorting function:
-  // 1. Sort positive semesters (completed) in ascending order
-  // 2. Place current semester (-1) after completed semesters
-  // 3. Place future semesters (< -1) after the current semester
-  semesterEntries.sort((a, b) => {
-    // Both positive (completed) - sort normally
-    if (a.number > 0 && b.number > 0) {
-      return a.number - b.number
-    }
-    
-    // Current semester comes after all completed semesters
-    if (a.number === -1) return 1
-    if (b.number === -1) return -1
-    
-    // Future semesters come after current semester
-    if (a.number < -1 && b.number === -1) return 1
-    if (b.number < -1 && a.number === -1) return -1
-    
-    // Sort future semesters
-    if (a.number < -1 && b.number < -1) {
-      return b.number - a.number // Reverse order for future semesters
-    }
-    
-    // Positive semesters come before negative semesters
-    return b.number < 0 ? -1 : 1
-  })
+    // Add completed semesters first
+    Array.from(completedSemesters.entries())
+      .sort(([a], [b]) => a - b)
+      .forEach(([_, semester]) => {
+        semesters.push(semester)
+      })
 
-  // Process each semester with corrected numbering
-  semesterEntries.forEach((entry, index) => {
-    const { number, courses } = entry
-    
-    // Determine the display number:
-    // - Keep original numbers for completed semesters
-    // - Current semester (-1) gets maxPositiveSemester + 1
-    // - Future semesters get incremented from there
-    let displayNumber: number
-    
-    if (number > 0) {
-      // Completed semesters keep their original number
-      displayNumber = number
-    } else if (number === -1) {
-      // Current semester is next after the highest completed semester
-      displayNumber = maxPositiveSemester + 1
-    } else {
-      // Future semesters increment from current semester
-      const futureOffset = Math.abs(number + 1) // Convert -2, -3, etc. to 1, 2, etc.
-      displayNumber = maxPositiveSemester + 1 + futureOffset
-    }
-    
-    const processedCourses: StudentCourse[] = []
+    // Process current and future semesters
+    const currentSemesterNum = parseInt(jsonData.currentSemester)
+    const semesterEntries = Object.entries(rawPlan.semesters)
+      .map(([key, value]) => ({
+        number: parseInt(key),
+        courses: value.courses,
+      }))
+      .filter(entry => entry.number >= currentSemesterNum) // Only include current and future semesters
 
-    courses.forEach(courseCode => {
-      // Get base course code without class number
-      const baseCode = courseCode.split("-")[0]
-      const courseInfo = getCourseInfo(baseCode)
-      if (!courseInfo) {
-        console.warn(`Course not found in curriculum: ${courseCode}`)
-        return
-      }
+    // Sort semesters
+    semesterEntries.sort((a, b) => a.number - b.number)
 
-      let status: CourseStatus
-      const grade = gradeMap.get(baseCode)
+    // Process each semester
+    semesterEntries.forEach(entry => {
+      const { number, courses } = entry
+      const processedCourses: StudentCourse[] = []
 
-      if (number === -1) {
-        // Current semester courses are in progress
-        status = CourseStatus.IN_PROGRESS
-      } else if (number < -1) {
-        // Future semester courses are planned
-        status = CourseStatus.PLANNED
-      } else {
-        // Past semester courses are completed
-        status = CourseStatus.COMPLETED
-        // If we have a grade and it's below passing (assuming 6.0 is passing)
-        if (grade !== undefined && grade < 6.0) {
-          status = CourseStatus.FAILED
+      courses.forEach(courseCode => {
+        // Get base course code without class number
+        const baseCode = courseCode.split("-")[0]
+        const courseInfo = getCourseInfo(baseCode)
+        if (!courseInfo) {
+          console.warn(`Course not found in curriculum: ${courseCode}`)
+          return
         }
-      }
 
-      const studentCourse: StudentCourse = {
-        ...courseInfo,
-        course: courseInfo,
-        status,
-        completed: status === CourseStatus.COMPLETED,
-        // Add grade if available
-        grade: grade,
-        // Extract class number if present (e.g., "05208" from "EEL5106-05208")
-        class: courseCode.includes("-") ? courseCode.split("-")[1] : undefined,
-      }
+        let status: CourseStatus
+        const grade = gradeMap.get(baseCode)
 
-      processedCourses.push(studentCourse)
+        if (number === currentSemesterNum) {
+          // Current semester courses are in progress
+          status = CourseStatus.IN_PROGRESS
+        } else {
+          // Future semester courses are planned
+          status = CourseStatus.PLANNED
+        }
 
-      // Add to appropriate lists
-      if (status === CourseStatus.IN_PROGRESS) {
-        inProgressCourses.push(studentCourse)
-      } else if (status === CourseStatus.PLANNED) {
-        plannedCourses.push(studentCourse)
+        const studentCourse: StudentCourse = {
+          ...courseInfo,
+          course: courseInfo,
+          status,
+          grade: grade,
+          class: courseCode.includes("-") ? courseCode.split("-")[1] : undefined,
+        }
+
+        processedCourses.push(studentCourse)
+
+        // Add to appropriate lists
+        if (status === CourseStatus.IN_PROGRESS) {
+          inProgressCourses.push(studentCourse)
+        } else if (status === CourseStatus.PLANNED) {
+          plannedCourses.push(studentCourse)
+        }
+      })
+
+      // Only add semesters with actual courses
+      if (processedCourses.length > 0) {
+        const semester: StudentSemester = {
+          number,
+          courses: processedCourses,
+          totalCredits: processedCourses.reduce((sum, course) => sum + course.credits, 0),
+        }
+        semesters.push(semester)
       }
     })
 
-    // Only add semesters with actual courses
-    if (processedCourses.length > 0) {
-      const semester: StudentSemester = {
-        number: displayNumber, // Use the corrected display number
-        year: new Date().getFullYear().toString(), // You might want to make this configurable
-        courses: processedCourses,
-        totalCredits: processedCourses.reduce((sum, course) => sum + course.credits, 0),
-      }
-      semesters.push(semester)
+    // Create the student plan
+    return {
+      id: rawPlan.id,
+      semesters,
+      inProgressCourses,
+      plannedCourses,
     }
   })
 
-  // Create the student plan
-  const studentPlan: StudentPlan = {
-    number: parseInt(rawPlan.id),
-    semesters,
-    inProgressCourses,
-    plannedCourses,
+  // Find the current plan based on currentPlan ID
+  const currentPlan = plans.find(plan => plan.id === jsonData.currentPlan) || plans[0]
+
+  // Create the student info with all plans
+  const studentInfo: StudentInfo = {
+    id: jsonData.id,
+    studentId: jsonData.studentId,
+    name: jsonData.name,
+    currentPlan,
+    plans,
   }
 
-  return { currentPlan: studentPlan }
+  return studentInfo
 }
 
-export function loadStudentFromJson(jsonPath: string): Promise<{
-  currentPlan: StudentPlan
-}> {
+export function loadStudentFromJson(jsonPath: string): Promise<StudentInfo> {
   return fetch(jsonPath)
     .then((response) => response.json())
     .then((data) => parseStudentData(data))
