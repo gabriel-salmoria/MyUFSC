@@ -30,7 +30,7 @@ export default function Home() {
       setCurriculumData(currData)
 
       // Then parse student data
-      const { currentPlan } = parseStudentData(studentData)
+      const { currentPlan } = parseStudentData(studentData as any)
       setStudentPlan(currentPlan)
     } catch (error) {
       console.error("Error loading data:", error)
