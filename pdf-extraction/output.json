@@ -1,0 +1,52 @@
+{
+  "id": "cs-208",
+  "name": "CIÊNCIAS DA COMPUTAÇÃO",
+  "department": "Bacharelado em Ciências da Computação",
+  "totalPhases": 8,
+  "courses": [
+    {
+      "id": "OPTI",
+      "name": "Optativa I",
+      "type": "mandatory",
+      "credits": 3,
+      "workload": 54,
+      "prerequisites": [],
+      "equivalents": [],
+      "description": "Disciplina optativa a ser escolhida pelo aluno.",
+      "phase": 7
+    },
+    {
+      "id": "OPTII",
+      "name": "Optativa II",
+      "type": "mandatory",
+      "credits": 3,
+      "workload": 54,
+      "prerequisites": [],
+      "equivalents": [],
+      "description": "Disciplina optativa a ser escolhida pelo aluno.",
+      "phase": 7
+    },
+    {
+      "id": "OPTIII",
+      "name": "Optativa III",
+      "type": "mandatory",
+      "credits": 3,
+      "workload": 54,
+      "prerequisites": [],
+      "equivalents": [],
+      "description": "Disciplina optativa a ser escolhida pelo aluno.",
+      "phase": 8
+    },
+    {
+      "id": "OPTIV",
+      "name": "Optativa IV",
+      "type": "mandatory",
+      "credits": 3,
+      "workload": 54,
+      "prerequisites": [],
+      "equivalents": [],
+      "description": "Disciplina optativa a ser escolhida pelo aluno.",
+      "phase": 8
+    }
+  ]
+}

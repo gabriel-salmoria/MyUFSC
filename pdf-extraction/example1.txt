@@ -1,0 +1,1706 @@
+
+20071
+
+Documentação:
+
+
+Objetivo:
+
+O curso de Ciências da Computação tem por objetivo o fornecimento de sólida formação científica e tecnológica em computação,
+tornando-o apto a projetar e desenvolver produtos de informática.
+
+Titulação:
+
+Bacharel em Ciências da Computação
+
+Diplomado em:
+
+Ciências da Computação
+
+
+Mínimo: 7 semestres
+
+Máximo: 14 semestres
+
+Carga Horária Obrigatória:
+
+
+CNE: 3200 H
+
+Número de aulas semanais:
+
+Mínimo: 15
+
+Telefone:
+
+Profª. Drª. Lúcia Helena Martins Pacheco
+37217543
+
+
+Máximo: 30
+
+
+
+
+20071
+
+
+Fase 01
+
+
+
+
+
+
+
+
+Sistemas de numeração e códigos numéricos. Álgebra Booleana. Funções e portas lógicas. Portas lógicas CMOS. Síntese e otimização de circuitos lógicos.
+Circuitos combinacionais. Circuitos sequenciais. Máquinas de estados finitos. Relógio e temporização. Modelo bloco operativo/bloco de controle. Introdução
+às linguagens de descrição de hardware (HDL). Dispositivos lógicos programáveis.
+
+EEL5105
+
+Circuitos e Técnicas Digitais
+
+Ob
+
+90
+
+5
+
+Uso versus funcionamento interno de computadores. Organização de Computadores. Teoria da Computação. Linguagem de Computador. Sistemas
+Operacionais. Redes de Computadores. Sistemas Distribuídos. Engenharia de Software. Matemática na Computação. Tecnologias da informação: Bancos de
+Dados, Computação Gráfica, Segurança, Inteligência Artificial. Computação e Ética.
+
+INE5401
+
+Introdução à Computação
+
+Ob
+
+36
+
+2
+
+Algoritmo. Programação de computador. Resolução de problemas usando computador. Linguagem de Programação. Elementos de programação imperativa:
+variáveis simples, coleções uni e n dimensionais; tipos das variáveis; comandos; procedimentos e funções. Conceitos fundamentais do paradigma de
+Programação Orientada a Objetos: objeto, atributo, método, classe. Prática de programação usando alguma linguagem de programação orientada a objetos.
+
+INE5402
+
+Programação Orientada a Objetos I
+
+Ob
+
+108
+
+6
+
+(INE5382
+INE5603)
+
+
+Combinatória: Permutações e Combinações, O Princípio do Pombal, Relações de Recorrência. Relações: Propriedades de Relações, Relações de
+Álgebras Booleanas. Estruturas Algébricas: Semigrupos e Grupos. Elementos de Teoria de Números. Aplicações da
+Matemática Discreta.
+
+INE5403
+
+Fundamentos de Matemática Discreta para
+Computação
+
+Ob
+
+108
+
+6
+
+INE5381
+
+Cálculo de funções de uma variável real: limites; continuidade; derivada; aplicações da derivada (taxas de variação, retas tangentes e normais, problemas de
+otimização e máximos e mínimos); integral definida e indefinida.
+
+MTM3110 Cálculo 1
+
+
+Ob
+
+72
+
+4
+
+(MTM3101 ou
+MTM5115 ou
+MTM5161 ou
+MTM5801)
+
+
+
+
+20071
+
+
+Fase 02
+
+
+
+
+
+
+
+
+Herança. Polimorfismo. Reusabilidade de software. Componentes. Criação e uso de bibliotecas de classes. Padrões de projeto. Interface Gráfica com o
+Usuário. Exceções. Relacionamentos entre classes: agregação, composição e especialização. Persistência de dados e de objetos. Prática de programação
+com alguma linguagem de programação orientada a objetos.
+
+INE5404
+
+Programação Orientada a Objetos II
+
+Ob
+
+108
+
+6
+
+(INE5383
+INE5605)
+
+
+INE5402
+
+Máquinas seqüenciais síncronas (Mealy e Moore) e sua representação (diagramas de transição e descrição em HDL). Síntese de circuitos seqüenciais
+(minimização e codificação de estados). Mapeamento e alternativas de implementação de máquinas de estado ("hardwired", PLA, ROM e PLD). Estudos de
+casos: controladores de memória, de interrupção, de DMA. Simulação de sistemas digitais descritos em HDL no nível de transferência entre registradores.
+CPU vista como um sistema digital (datapath e unidade de controle). Unidade de controle de uma CPU simples ("hardwired" e microprogramada).
+
+INE5406
+
+Sistemas Digitais
+
+Ob
+
+90
+
+5
+
+(EEL5310 eh
+EEL5340)
+
+EEL5105
+
+Estudo das relações entre ciência, tecnologia e sociedade ao longo da história, com ênfase na atualidade; filosofia da ciência; análise de valores e ideologias
+envolvendo a produção e divulgação da ciência e da tecnologia; influências das diferenças culturais nas concepções de ciência e tecnologia e de suas
+relações com as sociedades; a participação da sociedade na definição de políticas relativas às questões científicas, tecnológicas, econômicas e ecológicas. O
+impacto da informática na sociedade.
+
+INE5407
+
+Ciência, Tecnologia e Sociedade
+
+Ob
+
+54
+
+3
+
+-Aplicações da integral definida. Técnicas de integração (por partes, substituição trigonométrica, frações parciais). Integral imprópria. Álgebra vetorial. Estudo
+da reta e do plano. Curvas planas. Superfícies. Funções de várias variáveis. Derivadas parciais. Máximos e mínimos de funções de duas variáveis.
+
+MTM3120 Cálculo 2
+
+Ob
+
+72
+
+4
+
+(MTM3102
+MTM5162
+MTM5192
+MTM5802
+MTM7174)
+
+ou
+ou
+ou
+
+MTM3110
+
+-Matrizes. Determinantes. Sistemas lineares. Espaço vetorial real. Produto interno. Transformações lineares. Autovalores e autovetores de um operador linear.
+Diagonalização. Aplicações da Álgebra Linear.
+
+MTM3121 Álgebra Linear
+
+
+Ob
+
+72
+
+4
+
+(MTM3112 ou
+MTM5245 ou
+MTM5812)
+
+
+
+
+20071
+
+
+Fase 03
+
+
+
+
+
+
+
+
+Erros e Sistemas de Numeracão. Solução de equações algébricas e transcendentais. Solução de equações polinomiais. Sistemas de equações lineares e não
+lineares. Interpolação Ajustamento de curvas. Integração numérica. Solução numérica de equações diferenciais ordinárias e sistemas de equações
+diferenciais.
+
+INE5202
+
+Cálculo Numérico em Computadores
+
+Ob
+
+72
+
+4
+
+INE5409
+
+(INE5402 eh
+MTM3120 eh
+MTM3121)
+
+Alocação dinâmica de memória. Variáveis estáticas e dinâmicas. Estruturas lineares. Tabelas de Espalhamento. Árvores. Árvores de Pesquisa. Métodos de
+ordenação. Métodos de acesso a arquivos. Técnicas de implementações iterativas e recursivas de estruturas de dados. Complexidade dos algoritmos em
+estruturas de dados.
+
+INE5408
+
+Estruturas de Dados
+
+Ob
+
+108
+
+6
+
+(INE5384
+INE5609)
+
+
+INE5404
+
+Multiprogramação. Multitarefa. Execução concorrente. Recursos compartilhados e exclusão mútua. Regiões críticas. Coordenação de processos e threads.
+Semáforos. Monitores. Troca de mensagem. Programação concorrente orientada a objeto. Deadlock. Modelos de computação concorrente.
+
+INE5410
+
+Programação Concorrente
+
+Ob
+
+72
+
+4
+
+INE5356
+
+INE5404
+
+Tendências tecnológicas na fabricação de CPUs e memórias. CPU: instruções e modos de endereçamento. Formatos de instruções e linguagem de
+montagem. Simulador e montador. Aritmética. Avaliação de desempenho. Datapath e unidade de controle. Alternativas de implementação (monociclo,
+multiciclo, pipeline, superescalar). Exceções e interrupções. Hazards estruturais, de dados e de controle. Hierarquia de memória e associatividade (cache e
+TLB). Dispositivos de entrada e saída: tipos, características e sua conexão à CPU e à memória. Comunicação com a CPU (polling, interrupção, DMA).
+
+INE5411
+
+Organização de Computadores I
+
+Ob
+
+108
+
+6
+
+(INE5309
+INE5366)
+
+
+INE5406
+
+-Equações diferenciais ordinárias de primeira ordem. Equações diferenciais ordinárias lineares homogêneas de ordem n. Equações diferenciais ordinárias
+lineares não homogêneas de ordem 2. Noções gerais de Transformada de Laplace. Sistemas de Equações Diferenciais.
+
+MTM3131 Equações Diferenciais Ordinárias
+
+
+Ob
+
+72
+
+4
+
+(MTM5192 ou
+MTM5814 ou
+MTM7174)
+
+(MTM3120 eh
+MTM3121)
+
+
+
+
+20071
+
+
+Fase 04
+
+
+
+
+
+
+
+
+Programação de Sistemas. Histórico de Sistemas Operacionais. Arquitetura de Sistemas Operacionais. Funcionalidades de Sistemas Operacionais. Gerência
+de Processos e Threads: Controle e Escalonamento. Impasses: Modelagem e Tratamento. Memória: Alocação, Gerência e Memória Virtual. Entrada e Saída:
+princípios de hardware e software, dispositivos periféricos. Sistema de Arquivos: Arquivos, Diretórios e Implementação. Proteção e Segurança. Sistemas com
+Múltiplos Processadores.
+
+INE5412
+
+Sistemas Operacionais I
+
+Ob
+
+72
+
+4
+
+INE5355
+
+(INE5410
+INE5411)
+
+
+Grafos e grafos orientados. Representação de problemas com grafos. Caminhos, ciclos e caminho de custo mínimo. Conexidade e alcançabilidade. Árvores e
+árvore de custo mínimo. Coloração e planaridade de grafos. Grafos hamiltonianos e eulerianos. Fluxo máximo em redes. Estabilidade e emparelhamento em
+grafos. Problemas de cobertura e de travessia. Representações computacionais e complexidade de algoritmos em grafos.
+
+INE5413
+
+Grafos
+
+Ob
+
+72
+
+4
+
+INE5312
+
+(INE5403
+INE5408)
+
+
+Capacidade de canal. Taxa de transmissão. Codificação analógica-digital, digital-digital e digital-analógica. Princípios dos modelos das redes de
+computadores: OSI e TCP/IP. Meios de transmissão de dados. Serviços e tarefas ofertados na camada de enlace. Estudo de casos de protocolos e
+tecnologias de enlace de dados. Redes de comutação de circuito e de pacotes.
+
+INE5414
+
+Redes de Computadores I
+
+Ob
+
+72
+
+4
+
+INE5324
+
+INE5404
+
+Programas, Máquinas e Computações. Máquinas de Turing. Funções Recursivas. Computabilidade. Decidibilidade. Análise e Complexidade de Algoritmos.
+Classes e complexidade de problemas computacionais.
+
+INE5415
+
+Teoria da Computação
+
+Ob
+
+72
+
+4
+
+INE5372
+
+(INE5403
+INE5408)
+
+
+Caracterização e classificações dos paradigmas. Problemas tratáveis pelos paradigmas. Definição e caracterização dos principais paradigmas declarativos e
+imperativos. Programação em Lógica. Programação Funcional. Prática de programação com os principais paradigmas apresentados.
+
+INE5416
+
+Paradigmas de Programação
+
+Ob
+
+90
+
+5
+
+(INE5363
+INE5364)
+
+
+INE5408
+
+Análise de requisitos: requisitos funcionais e requisitos não-funcionais; técnicas para levantamento e representação de requisitos, incluindo casos de uso.
+Modelagem OO: classe, atributo, associação, agregação e herança. Projeto OO: técnicas para projeto; padrões de projeto, componentes e frameworks;
+projeto de arquitetura; mapeamento objeto-relacional. Linguagem de especificação orientada a objetos. Métodos de análise e projeto orientados a objetos.
+Desenvolvimento de um software OO.
+
+INE5417
+
+Engenharia de Software I
+
+
+Ob
+
+90
+
+5
+
+INE5319
+
+INE5408
+
+
+
+
+20071
+
+
+Fase 05
+
+
+
+
+
+
+
+
+Análise combinatória. Planejamento de uma pesquisa. Análise exploratória de dados. Probabilidade. Variáveis aleatórias discretas e contínuas. Principais
+modelos teóricos. Estimação de parâmetros. Testes de hipóteses.
+
+INE5405
+
+Probabilidade e Estatística
+
+Ob
+
+90
+
+5
+
+(INE5104
+INE5115)
+
+
+MTM3110
+
+Arquitetura de Sistemas Distribuídos. Paradigmas de Computação Distribuída: Troca de Mensagens, Cliente/Servidor, Comunicação em Grupo, Objetos
+Distribuídos. Comunicação entre Processos. Suporte de SO para Computação Distribuída. Sincronização em Sistemas Distribuídos. Consistência e
+Replicação de Dados em Sistemas Distribuídos. Sistemas de Arquivo Distribuídos. Computação GRID.
+
+INE5418
+
+Computação Distribuída
+
+Ob
+
+72
+
+4
+
+(INE5412
+INE5414)
+
+
+Evolução da prática de desenvolvimento de software; qualidade de artefatos de software; modularidade e reusabilidade; modelagem estrutural e dinâmica em
+orientação a objetos, diferentes visões de um sistema; metodologias de análise e projeto orientadas a objetos; teste de software; manutenção de software;
+modelos de ciclo de vida; engenharia reversa; modelagem formal de sistemas; abordagens voltadas ao reuso de software; gerenciamento do processo de
+produção de software e técnicas de apoio ao gerenciamento do processo de produção de software; apoio automatizado ao desenvolvimento de software.
+
+INE5419
+
+Engenharia de Software II
+
+Ob
+
+72
+
+4
+
+(INE5322
+INE5614)
+
+
+INE5417
+
+Computação Gráfica Básica. Sistema Gráfico Interativo. Transformações geométricas 2D e coordenadas homogêneas. Clipping. Curvas paramétricas em 2D
+e 3D. Estruturas de dados gráficas 3D. Navegação 3D. Projeções, perspectiva e clipping 3D. Superfícies paramétricas bicúbicas. Visualização em 3D
+contendo, Rayshading, Raycasting e Raytracing. Conversão por varredura e buffer de profundidade. Iluminação de objetos. Implementação de um rayshader.
+APIs Gráficas e OpenGL. Animação e utilização de modelos hierárquicos. Simulação de movimentação de animais e humanos. Realidade virtual e VRML.
+
+INE5420
+
+Computação Gráfica
+
+Ob
+
+72
+
+4
+
+INE5341
+
+(INE5408 eh
+MTM3120 eh
+MTM3121)
+
+O processo de compilação. Linguagens e suas representações. Gramáticas: definição formal, classificação (Hierarquia de Chomsky), propriedades,
+problemas de decisão e aplicações. Gramáticas regulares, autômatos finitos, conjuntos regulares e expressões regulares. Gramáticas livres de contexto.
+Autômatos de pilha. Teoria de Parsing. Análise léxica e sintática.
+
+INE5421
+
+Linguagens Formais e Compiladores
+
+Ob
+
+72
+
+4
+
+INE5317
+
+INE5415
+
+Camada de Rede TCP/IP: endereçamento, roteamento, protocolos. Camada de Aplicação: conceitos e protocolos. Aspectos de segurança em redes de
+computadores. Dispositivos de interconexão, conceito de processores de redes. Protocolos leves. Métodos formais para especificação e verificação de
+protocolos. Administração de redes de computadores.
+
+INE5422
+
+Redes de Computadores II
+
+
+Ob
+
+72
+
+4
+
+INE5344
+
+INE5414
+
+
+
+
+20071
+
+
+Fase 06
+
+
+
+
+
+
+
+
+Banco de Dados (BD). Sistema de Gerência de BD: funcionalidades, módulos principais, categorias de usuários, dicionário de dados. Modelo relacional:
+conceitos, restrições de integridade, álgebra relacional, cálculo relacional. Linguagens SQL: DDL, DML, restrições de integridade, visões, autorização de
+acesso. Modelagem de dados: etapas do projeto de um BD relacional, modelo Entidade-Relacionamento (ER), mapeamento ER-relacional. Teoria da
+Normalização: objetivo, dependências funcionais, formas normais.
+
+INE5423
+
+Banco de Dados I
+
+Ob
+
+72
+
+4
+
+(INE5323
+INE5613)
+
+
+INE5408
+
+Desenvolvimento de Sistemas Operacionais: projeto lógico, arquitetura, inicialização de Sistemas Computacionais, componentes (processos, threads,
+escalonador, mecanismos de sincronização, gerenciadores de memória, sistemas de arquivos, drivers de dispositivos de entrada e saída), teste, depuração,
+estudos de caso.
+
+INE5424
+
+Sistemas Operacionais II
+
+Ob
+
+72
+
+4
+
+INE5357
+
+INE5412
+
+Modelagem de sistemas. Modelos analíticos e Modelos de simulação. Processos estocásticos. Introdução à teoria das filas. Redes de filas. Geração de
+números pseudo-aleatórios. Geração de variáveis aleatórias. Metodologia de projetos de modelagem e simulação de sistemas. Modelos voltados à simulação:
+definição, taxonomia e desenvolvimento. Validação de modelos de simulação. Praticas de modelagem e simulação. Linguagens de simulação. Estudo de
+casos.
+
+INE5425
+
+Modelagem e Simulação
+
+Ob
+
+72
+
+4
+
+INE5101
+
+(INE5202
+INE5405)
+
+
+Projeto de especificação de linguagens de programação. Implementação das etapas que compreendem o processo de compilação: Análise Léxica, Análise
+Sintática, Análise Semântica, Geração e Otimização de Código. Evolução e tendências da área de compiladores e linguagens de programação.
+
+INE5426
+
+Construção de Compiladores
+
+Ob
+
+72
+
+4
+
+INE5318
+
+INE5421
+
+Projetos. Metodologias de planejamento e gestão de projetos. Áreas de conhecimento da gerência de projetos: Escopo, Tempo, Risco, Integração,
+Comunicação, Custo, Recursos Humanos, Aquisição, Qualidade. Grupos de processos: Iniciação, Planejamento, Execução, Controle, Encerramento.
+Técnicas de acompanhamento de projetos. Ferramentas computacionais de apoio ao planejamento e gerência de projetos. Estudo de casos.
+
+INE5427
+
+Planejamento e Gestão de Projetos
+
+Ob
+
+72
+
+4
+
+INE5617
+
+INE5417
+
+Histórico, Teoria de Problemas, Paradigma Simbólico da IA, Modelagem de Agentes Inteligentes, Métodos de Busca, Representação de Conhecimento,
+Métodos de Inferência, Tratamento de Incertezas, Sistemas Especialistas, Lógica Nebulosa, Paradigma Conexionista da IA, Redes Neurais Diretas e
+Algoritmos de Aprendizado, Paradigma Evolucionário da IA, Algoritmos Genéticos.
+
+INE5430
+
+Inteligência Artificial
+
+Ob
+
+72
+
+4
+
+INE5371
+
+(INE5405
+INE5413
+INE5416)
+
+eh
+
+-Estrutura de um trabalho de pesquisa. Metodologia para elaboração de proposta e redação de monografia. Técnicas de apresentação e defesa pública.
+Questões éticas.
+
+INE5453
+
+Introdução ao Trabalho de Conclusão de
+Curso
+
+
+Ob
+
+18
+
+1
+
+INE5417
+
+
+
+
+20071
+
+
+Fase 07
+
+
+
+
+
+
+
+
+Ética pessoal, profissional e pública na área da informática. Dilemas éticos do profissional da informática; privacidade, vírus, hacking, uso da internet, direitos
+autorais, etc. Desemprego e informatização. Responsabilidade social. O profissional e o mercado de trabalho. Trabalho e relações humanas. O
+empreendedorismo como opção do profissional da informática. Legislação: Política nacional e tendências atuais referentes à regulamentação da profissão.
+
+INE5428
+
+Informática e Sociedade
+
+Ob
+
+72
+
+4
+
+INE5385
+
+INE5407
+
+Segurança em aplicações: programação segura, detecção de falhas, códigos maliciosos (malware). Segurança em sistemas operacionais: princípios de
+controle de acesso, sistemas confiáveis. Segurança em redes de computadores: ataques e defesas. Princípios de criptografia: criptografia simétrica e
+assimétrica, integridade de dados. Protocolos de autenticação: princípios, infra-estrutura de chaves públicas e aplicações (X.509, OpenPGP, SPKI, IBE),
+protocolos criptográficos (S/Mime, IPSec, SSL, OpenSSH, Kerberos, VPNs).
+
+INE5429
+
+Segurança em Computação
+
+Ob
+
+72
+
+4
+
+INE5386
+
+(INE5403
+INE5414)
+
+
+Definição de sistemas multimídia e problemática envolvida. Representação digital de áudio, imagens e vídeos. Técnicas e padrões de compressão.
+Aplicações multimídia: caracterização e requisitos. Protocolos de transporte de mídia e de controle-sinalização. Qualidade de Serviço.
+
+INE5431
+
+Sistemas Multimídia
+
+Ob
+
+72
+
+4
+
+INE5639
+
+INE5414
+
+SQL embutida: instruções estáticas e dinâmicas, cursores. Processamento de consultas: otimização algébrica; plano de execução de uma consulta
+considerando estimativas sobre os dados, índices, buffers e pipelines. Transações: definição, propriedades, estados. Recuperação de falhas: categorias de
+falhas, gerência de buffer, técnicas de recuperação. Controle de concorrência: teoria da serializabilidade, escalonadores otimistas e pessimistas, tratamento
+de deadlock. Noções básicas de bancos de dados distribuídos: arquiteturas, projeto, processamento de consultas, gerência de transações.
+
+INE5432
+
+Banco de Dados II
+
+Ob
+
+72
+
+4
+
+INE5433
+
+Trabalho de Conclusão de Curso I (TCC)
+
+Ob
+
+108
+
+6
+
+-
+
+Optativa I
+
+Ob
+
+54
+
+3
+
+-
+
+Optativa II
+
+Ob
+
+54
+
+3
+
+(INE5336
+INE5616)
+
+
+INE5423
+
+Orientação para o desenvolvimento da fase inicial do projeto em Ciência da Computação. Elaboração de relatórios sobre o andamento dos trabalhos
+
+
+INE5327
+
+(INE5427
+INE5453)
+
+
+
+
+
+20071
+
+
+Fase 08
+
+
+
+
+
+
+
+
+Orientação para o desenvolvimento da fase final do projeto em Ciência da Computação. Defesa final do trabalho perante banca examinador.
+
+INE5434
+
+Trabalho de Conclusão de Curso II (TCC)
+
+Ob
+
+162
+
+9
+
+-
+
+Optativa III
+
+Ob
+
+60
+
+3
+
+-
+
+Optativa IV
+
+Ob
+
+60
+
+3
+
+INE5328
+
+INE5433
+
+INE5461
+
+Programa de Intercâmbio I
+
+
+
+
+
+
+
+Op
+
+(*) Resolução 007/CUn/99
+
+INE5462
+
+Programa de Intercâmbio II
+
+Op
+
+INE5461
+
+INE5463
+
+Programa de Intercâmbio III
+
+Op
+
+INE5462
+
+Marketing Pessoal: aspectos da competitividade e pessoas: contexto e impactos no sucesso profissional. O fator profissional na apresentação do
+empreendedor: fatores de renovação e posicionamento para a excelência.
+
+CAD5146 Marketing Pessoal em Informática
+
+Op
+
+36
+
+2
+
+Conceito de empreendedorismo. A formação da Personalidade. O Processo comportamental. Fatores de sucesso, o perfil do empreendedor. Desenvolvimento
+de habilidades empreendedoras.
+
+CAD5240 Aspectos Comportamentais do
+Empreendedor
+
+Op
+
+36
+
+2
+
+Planejamento. Desenvolvimento e controle de recursos humanos. Organização da função de pessoal. Recrutamento. Seleção. Integração. Manutenção e
+direção de pessoal.
+
+CAD5241 Recursos Humanos em Informática
+
+Op
+
+72
+
+4
+
+Ementa disponível no Plano de Ensino do semestre em que a disciplina é/foi cursada.
+
+EEL7123
+
+Tópico Avançado em Sistemas Digitais
+
+Op
+
+72
+
+4
+
+Conceitos, técnicas e metodologias pertinentes ao desenvolvimento de projetos integrados de software e hardware, projeto baseado em plataforma,
+arquiteturas de software e hardware, componentes de software e hardware, estratégias de implementação, microcontroladores, sistemas em chip único
+(system-on-a-chip), aplicações de tempo-real, aplicações distribuídas. Estudo de caso: inicialização de sistemas computacionais, firmware, tratadores de
+dispositivos, projeto integrado de software e hardware.
+
+INE5435
+
+Integração Software/Hardware
+
+Op
+
+72
+
+4
+
+INE5346
+
+INE5411
+
+Fundamentos do projeto de computadores (mercados, custo, preço e desempenho). Arquiteturas de conjuntos de instruções (máquinas baseadas em
+acumulador, pilha e registradores, máquinas load-store). Arquiteturas RISC, CISC e DSP. Pipelining e emissão múltipla (máquinas superescalares e VLIW).
+Exploração de paralelismo entre instruções (escalonamento estático e dinâmico, previsão estática e dinâmica de desvios, execução especulativa, software
+pipelining, trace scheduling). Projeto de hierarquia de memória.
+
+INE5436
+
+Arquitetura de Computadores I
+
+Op
+
+72
+
+4
+
+INE5411
+
+Arquitetura de computadores modernos. Contextualização da taxonomia de Flynn (SISD,SIMD,MISD,MIMD). Redes de Interconexão. Multicomputadores.
+Multiprocessadores. Máquinas com Acesso Uniforme à Memória (UMA). Multiprocessores simétricos (SMP). Máquinas com Acesso Não Uniforme à Memória
+(NUMA). Máquinas com Coerência de Cache e Acesso Não Uniforme à Memória (ccNUMA). Processadores Massivamente Paralelos (MPP). Sistemas
+Distribuídos. Clusters. Grids.
+
+INE5437
+
+Arquitetura de Computadores II
+
+Op
+
+72
+
+4
+
+INE5411
+
+Perspectiva histórica, revisão de organização de computadores, microprocessadores e microcontroladores. Princípios de projeto de sistemas embarcados,
+restrições de tempo-real, técnicas de implementação, teste, emulação e depuração. Entrada e Saída (portas de E/S, tratamento de interrupções, E/S
+programada, DMA). Temporizadores, contadores e relógios. Interfaceamento analógico (conversores A/D e D/A, sensores e atuadores). Estudo de casos:
+sistemas embarcados baseados em microcontroladores, prototipação de sistemas embarcados em lógica programável, sistemas embarcados baseados em
+sistemas operacionais de tempo-real (RTOS).
+
+
+
+
+
+20071
+
+INE5438
+
+Laboratório de Microprocessadores e
+Lógica Programável
+
+Op
+
+72
+
+4
+
+INE5349
+
+INE5411
+
+Especificação (requisitos, linguagens, níveis e estilos de descrição). Hardware: entrada e saída (sample-hold, conversores A/D e D/A, sensores e atuadores),
+unidades de processamento (microprocessadores, DSPs, ASIPs e lógica reconfigurável) e memórias (flash, cache e scratch pad). Eficiência energética:
+compiladores energeticamente conscientes e gerenciamento de potência (DVS e DPM). Compactação de código. Ferramentas de projeto de hardware e de
+software (simulador, síntese comportamental e lógica, gerador de código e depurador). Systems-on-Chip e co-projeto de hardware e software.
+
+INE5439
+
+Sistemas Embarcados
+
+Op
+
+72
+
+4
+
+INE5411
+
+Ementa livre sobre novas técnicas ou tendências em Arquitetura de Computadores.
+
+INE5440
+
+Tópicos Especiais em Arquitetura de
+Computadores
+
+Op
+
+72
+
+4
+
+INE5411
+
+Conceituação básica e Caracterização de um Sistema de Tempo Real. Escalonamento de Tempo Real: modelo de tarefas; abordagens de escalonamento de
+tempo real. Controle de acesso a recursos: uso de protocolos de acesso a recursos. Comunicação em Tempo Real: requisitos, protocolos. Sistemas
+Operacionais de Tempo Real: aspectos funcionais, aspectos temporais, estudo de casos. Linguagens de Programação de Tempo Real: características,
+requisitos, estudo de casos.
+
+INE5441
+
+Sistemas de Tempo Real
+
+Op
+
+72
+
+4
+
+INE5412
+
+Modelagem simplificada de transistores NMOS e PMOS. O inversor CMOS: característica de transferência, atraso, consumo estático e dinâmico. Lógica
+combinacional, flip-flops e registradores em CMOS. Estruturas regulares: ULA, PLA, ROM. Princípios básicos de processos de fabricação. Regras
+geométricas e elétricas de projeto. Scaling. Variabilidade em tecnologias submicrométricas. Estilos full e semi-custom, lógica programável pelo usuário.
+Leiaute. Níveis de abstração, metodologias de projeto e ferramentas de EDA (simuladores, analisadores, extratores, ferramentas de verificação e síntese).
+
+INE5442
+
+Circuitos e Sistemas Integrados
+
+Op
+
+72
+
+4
+
+INE5411
+
+Considerações iniciais sobre padrões. Técnicas simbólicas. Técnicas sub simbólicas: redes neurais. Raciocínio baseado em caso - estendendo RP com um
+framework de inteligência artificial. Técnicas estatísticas. Geração de padrões: análise de sinais e imagens. Criação de aplicação de reconhecimento de
+padrões.
+
+INE5443
+
+Reconhecimento de Padrões
+
+Op
+
+72
+
+4
+
+INE5420
+
+Op
+
+72
+
+4
+
+INE5353
+
+INE5417
+
+Op
+
+72
+
+4
+
+INE5354
+
+INE5417
+
+Estágio supervisionado na área de computação.
+
+INE5444
+
+Estágio Supervisionado I
+Estágio supervisionado na área de computação.
+
+INE5445
+
+Estágio Supervisionado II
+
+Ementa livre para assuntos relevantes na área de Sistemas de Infra-Estrutura.
+
+INE5446
+
+Tópicos Especiais em Sistemas de Infraestrutura I
+
+Op
+
+72
+
+4
+
+INE5412
+
+Ementa livre para assuntos relevantes na área de Sistemas de Infra-Estrutura.
+
+INE5447
+
+Tópicos Especiais em Sistemas de Infraestrutura II
+
+Op
+
+72
+
+4
+
+INE5412
+
+4
+
+(INE5417
+INE5608)
+
+4
+
+INE5412
+
+72
+
+4
+
+INE5412
+
+72
+
+4
+
+(INE5403
+INE5408)
+
+
+72
+
+4
+
+(INE5403
+INE5408)
+
+
+Ementa livre para assuntos relevantes na área de Aplicações Tecnológicas.
+
+INE5448
+
+Tópicos Especiais em Aplicações
+Tecnológicas I
+
+Op
+
+72
+
+ou
+
+Ementa livre para assuntos relevantes na área de Aplicações Tecnológicas.
+
+INE5449
+
+Tópicos Especiais em Aplicações
+Tecnológicas II
+
+Op
+
+72
+
+Ementa livre para assuntos relevantes na área de Aplicações Tecnológicas.
+
+INE5450
+
+Tópicos Especiais em Aplicações
+Tecnológicas III
+
+Op
+
+-Ementa livre para assuntos relevantes na área de Algoritmos.
+
+INE5451
+
+Tópicos Especiais em Algoritmos I
+
+Op
+
+-Ementa Livre para assuntos relevantes na área de Algoritmos
+
+INE5452
+
+Tópicos Especiais em Algoritmos II
+
+
+Op
+
+
+
+
+20071
+
+- A ementa é livre, podendo cobrir quaisquer temas avançados em gerência de dados que não tenham sido ministradas em outras disciplinas da área de
+Banco de Dados (BD). Os objetivos específicos e tópicos podem variar, conforme a atualidade dos temas na área.
+
+INE5454
+
+Tópicos Especiais em Gerência de Dados
+
+Op
+
+72
+
+4
+
+(INE5423
+INE5432
+INE5616)
+
+ou
+
+Testes. Automação de Testes. Ferramentas de Testes.
+
+INE5455
+
+Testes de Software
+
+Op
+
+72
+
+4
+
+(INE5417
+INE5608)
+
+
+O paradigma de orientação a componentes; componente; modelo de componente; estudo de um modelo de componente; modelagem de componente e de
+programa orientado a componentes com UML; prática de desenvolvimento baseada no paradigma de orientação a componentes.
+
+INE5456
+
+Desenvolvimento Orientado a
+Componentes com UML
+
+Op
+
+72
+
+4
+
+(INE5417
+INE5608)
+
+INE5457
+
+Big Data Management and Mining
+
+Op
+
+72
+
+4
+
+INE5423
+
+
+-Primitivas Criptográficas. Conceitos e protocolos de blockchain. Criptomoedas e aplicativos não financeiros em execução em blockchains. Desenvolvimento
+de contratos inteligentes.
+
+INE5458
+
+Tecnologias Blockchain e Criptomoedas
+
+Op
+
+72
+
+4
+
+Aplicações não-convencionais. Novos desafios de gerenciamento de dados. Bancos de dados pós-relacionais: categorias, conceitos, modelos de dados,
+manipulação de dados, modelagem
+
+INE5600
+
+Bancos de Dados III
+
+Op
+
+36
+
+2
+
+INE5432
+
+Introdução à Administração de Redes (sistemas de administração de redes, fontes, e fluxos de informação para administração e objetivos estratégicos);
+Administração Inovadora de Redes; Tecnologias e Suporte à Administração de Redes (TMN do ITU-T, OSI/NM da ISO, SNMP da Internet ou assemelhadas);
+Forças do Mercado de Administração de Redes (gerência proprietária, redes locais, e redes heterogêneas); Tendências em Administração e Gerência de
+Redes. Avaliação de plataformas de gerência, segurança da gerência de redes.
+
+INE5619
+
+Administração e Gerência de Redes de
+Computadores
+
+Op
+
+72
+
+4
+
+INE5422
+
+Cognição humana, Semiótica Computacional; Critérios e recomendações ergonômicas; Engenharia de requisitos visando a usabilidade, Técnicas de Análise
+Ergonômica do Trabalho; Técnicas de Concepção e de Especificação funcional da tarefa interativa; Técnicas de Projeto e Especificação da interface com o
+usuário; Técnicas de Prototipagem Off-line e On-line; Técnicas de avaliações heurísticas; Técnicas de inspeções ergonômicas, Norma ISO 9241, Técnica de
+ensaios de interação.
+
+INE5624
+
+Engenharia de Usabilidade
+
+Op
+
+72
+
+4
+
+INE5419
+
+Propriedades de agentes. Arquitetura de construção de agentes. Linguagens para programação de agentes. Estudo de casos de agentes implementados
+
+INE5628
+
+Sistemas Multiagentes
+
+Op
+
+72
+
+4
+
+INE5430
+
+Computação Ubíqua; Sistemas de Comunicação sem Fios; Serviços de Localização e Posicionamento; Transações e Gestão da Informação em Operação
+Desligada; Interfaces para dispositivos de dimensão muito reduzida; Eng. de Sistemas de Informação para suporte à mobilidade.
+
+INE5640
+
+Computação Móvel
+
+Op
+
+72
+
+4
+
+INE5422
+
+Conceitos básicos. Os Ecossistemas de Informação. O Ciclo de Vida do DW: Planejamento e Administração, Levantameto de Requisitos, Modelagem
+Dimensional, Projeto Físico, o Back-Room e o Froon-Room, Metadados, Arquiteturas, Implementação, Segurança e Internet. Implantação, Suporte e
+Treinamento.
+
+INE5643
+
+Data Warehouse
+
+Op
+
+72
+
+4
+
+INE5417
+
+variáveis, Técnicas de Data Mining para classificação, estimação, predição, análise de agrupamentos, análise de associação: redes neurais, árvores de
+decisão, regras de decisão, análise discriminante, regressão linear, regressão logística, análise de cluster, análise de componentes principais. Uso de
+softwares de data mining. Exercícios. Data Mining de caso.
+
+INE5644
+
+Data Mining
+
+Op
+
+72
+
+4
+
+INE5423
+
+Arquiteturas. Serviços. Protocolos de comunicação entre cliente e servidor e entre servidores. Representação de dados no cliente. Acesso a bases de dados.
+Escalabilidade. Linguagens de modelagem da interface com o usuário. Linguagens de programação no cliente e no servidor. Segurança. Instalação e
+configuração de servidores. Prática de programação.
+
+INE5646
+
+Programação para Web
+
+
+Op
+
+72
+
+4
+
+INE5417
+
+
+
+
+20071
+
+Introdução e sensibilização. Internacionalização de software: codificação de caracteres, sistemas de escrita, locales, algoritmos internacionalizados.
+Localização de software, de software web e de materiais relacionados. Ferramentas. Tópicos avançados.
+
+INE5653
+
+Introdução à Internacionalização e
+Localização de Software
+
+Op
+
+36
+
+2
+
+INE5419
+
+Escopo e aplicações da Lógica. Cálculos de seqüentes para as lógicas proposicional e quantificacional. Noções de semânticas. Exemplos de representação
+do conhecimento.
+
+INE5656
+
+Introdução à Lógica Simbólica
+
+Op
+
+36
+
+2
+
+Tópicos em Lógica Quantificacional. Cálculo de seqüentes para a Lógica Equacional Clássica. Semântica para a Lógica Equacional Clássica. Cálculo de
+seqüentes para uma Lógica Descritiva. Semântica para a Lógica Descritiva.
+
+INE5658
+
+Lógica Simbólica II
+
+Op
+
+36
+
+2
+
+INE5656
+
+Gestão de negócios pela visão de processos de negócio. Modelagem da arquitetura e de regras de negócio. Ciclo da gestão de processos de negócio.
+Notações e métodos para modelagem de processos. Tópicos avançados em modelagem de processos, incluindo introdução à automação e indicadores de
+processos e aos sistemas para gestão de processos, e integração com requisitos de sistema e desenvolvimento de software.
+
+INE5681
+
+Modelagem e Automação de Processos de
+Negócios
+
+Op
+
+72
+
+4
+
+INE5417
+
+Biologia computacional:: Fundamentos de biologia celular e molecular; Sistemas biológicos e bioengenharia; Métodos de bioinformática e de biotecnologia;
+Métodos de modelagem, simulação e análise de vias bioquímicas, redes metabólicas e sistemas biológicos. Computação biológica:: processamento
+bioquímico de informação; Fundamentos de biossensores e bioatuadores; Componentes de computação biológica; Síntese de circuitos digitais em sistemas
+orgânicos; Estudos de caso e estado da arte.
+
+INE7006
+
+Biologia Computacional e Computação
+Biológica
+
+Op
+
+72
+
+4
+
+INE5425
+
+
+MTM3100 Pré-Cálculo
+
+
+Op
+
+72
+
+4
+
+
+
+
+20071
+
+
+Atividades Complementares
+
+
+
+
+
+
+
+
+Realização de ações paralelas e complementares à formação acadêmica prevista nos demais componentes curriculares do projeto pedagógico do curso.
+
+INE7011
+
+Atividades Complementares 1
+
+Ob
+
+36
+
+2
+
+Realização de ações paralelas e complementares à formação acadêmica prevista nos demais componentes curriculares do projeto pedagógico do curso
+
+INE7012
+
+Atividades Complementares 2
+
+Op
+
+Observações
+menos 288h/a deve ser de disciplinas eletivas escolhidas no quadro de optativas do currículo e 144h/a pode ser de deisciplinas de
+caráter geral (livre escolha), oferecidas pela UFSC, obedecidos os pré-requisitos.
+Dispensar o aluno vinculado ao curriculo 2007.1 do curso, do cumprimento da disciplina: MTM5161 - Cálculo A - , que tenha
+cursado com aproveitamento a disciplina MTM5801 H Cálculo I, MTM7174 Cálculo B para Computação , que tenha cursado com
+aproveitamento a disciplina MTM5802H Cálculo IIMTM5145 Álgebra Linear, que tenha cursado com aproveitamento a disciplina
+O aluno do curso, vinculado ao currículo 1996.1 que migrar para o currículo 2007.1, que tenha cursado as disciplinas EEL5340
+Parágrafo 1º - Ficam dispensados do cumprimento da DISCIPLINA MTM3100 (Pré-Cálculo) todos os alunos com ingresso no curso
+até 2016.2, inclusive. Portaria 714/PROGRAD/2016.
+Parágrafo 2º - Ficam dispensados do cumprimento do pr´-requisitp MTM3100 (Pré-Cálculo) da DISCIPLINA MTM3101 (Cálculo I)
+todos os alunos com ingresso no curso até 2016.2, inclusive. Portaria 714/PROGRAD/2016
+Parágrafo 3º - Serás efetuada a matrícula na DISCIPLINA MTM3101 (Cáculo I) apenas se os alunos, com ingresso a partir de 2017.1
+inclusive, cumprirem a DISCIPLINA MTM3100 (Pré-Cálculo) mediante a aprovação na prova de proficiência em cálculo prevista no
+calendário acadêmico ou se cursarem com approvação a DISCIPLINA MTM3100 durante o semestre letivo. Portaria n]
+714/PROGRAD/2016.
+Art.5º - Para efeito de integralização curriuclar 2007.1 do Curso de Graduação em Ciências da Computação (208), os alunos que
+ingressaram a partir do primeiro semestre de 2019 (2019.1), inclusive, devem cumprir um mínimo de 3840 horas-aula (3200 horas
+definidas pelo CNE) para integralização curricular as quais são decompostas em 2898 horas-aula de disciplinas obrigatórias, 270
+horas-aula correspondentes ao Trabalho de Conclusão de Curso e 672 horas-aula obtidas pela soma das cargas horárias de
+disciplinas optativas (com a carga mínima de 288 horas-aula e máxima limitada a 636 horas-aula), de disciplinas extracurriculares (
+com carga horária máxima limitada a 348 horas-aula) e de atividades complementares ( com carga horária mínima de 36 horas-aula
+e máxima limitada a 384 horas-aula). Portaria nº 076/PROGRAD/2022.
+Art.6º - Para efeito de integralização do Currículo 2007.1 do Curso de Graduação em Ciências da Computação 208), os alunos que
+ingressaram até o segundo semestre de 2018 (2018.2), inclusive, devem cumprir um mínimo de 3600 horas-aula (3000 horas
+definidas pelo CNE) para integralização curricular as quais são decompostas em 2898 horas-aula de disciplinas obrigatórias, 270
+horas-aula correspondentes ao trabalho de Conclusão de Curso e 432 horas-aula obtidas pela soma das cargas horárias de
+disciplinas optativas ( com carga horária mínima de 288 horas-aula e máxima limitada a 432 horas aula) e de disciplinas
+extracurriculares ( com carga horária máxima limitada a 144 horas-aula). Portaria nº 076/PROGRAD/2022.
+
+Art.3º - "Dispensar de cursar a disciplina MTM3131 - Equções Diferenciais Ordinárias, os estudantes vinculadoss ao currículo 2007.1
+que cursaram com aprovação as disciplinas MTM5512 ou MTM3111 ou MTM5802 até o semestre 2022.1, inclusive". Portaria nº
+056/PROGRAD/2023.
+
+
+
+
+
