@@ -9,6 +9,8 @@ export interface Course {
   description?: string // Optional course description
   prerequisites?: string[] // Array of course IDs that are prerequisites
   corequisites?: string[] // Optional array of course IDs that are corequisites
+  equivalents?: string[] // Optional array of equivalent courses
+  type?: "mandatory" | "optional" // Whether the course is mandatory or optional
   phase: number // Semester/phase number (1-8+)
 }
 

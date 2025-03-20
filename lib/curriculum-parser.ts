@@ -15,7 +15,20 @@ interface RawCurriculumData {
   name: string
   department: string
   totalPhases: number
-  courses: Course[]
+  courses: RawCourse[]
+}
+
+// Interface to match output.json structure
+interface RawCourse {
+  id: string
+  name: string
+  type: "mandatory" | "optional"
+  credits: number
+  workload: number
+  prerequisites: string[]
+  equivalents: string[]
+  description: string
+  phase: number
 }
 
 export function parseCurriculumData(jsonData: RawCurriculumData): {
@@ -25,16 +38,32 @@ export function parseCurriculumData(jsonData: RawCurriculumData): {
   // Clear the course map before populating it
   courseMap.clear()
 
-  // Populate the course map
-  jsonData.courses.forEach(course => {
+  // Transform raw courses to Course type
+  const courses: Course[] = jsonData.courses.map(rawCourse => ({
+    id: rawCourse.id,
+    name: rawCourse.name,
+    type: rawCourse.type,
+    credits: rawCourse.credits,
+    workload: rawCourse.workload,
+    description: rawCourse.description,
+    prerequisites: rawCourse.prerequisites,
+    equivalents: rawCourse.equivalents,
+    phase: rawCourse.phase
+  }));
+
+  // Populate the course map with all courses (including optional ones)
+  courses.forEach(course => {
     courseMap.set(course.id, course)
   })
 
-  // Create phases array and populate with courses
+  // Filter for only mandatory courses for the phases
+  const mandatoryCourses = courses.filter(course => course.type === "mandatory");
+
+  // Create phases array and populate with mandatory courses only
   const phases: Phase[] = Array.from({ length: jsonData.totalPhases }, (_, i) => ({
     number: i + 1,
     name: `Phase ${i + 1}`,
-    courses: jsonData.courses.filter(course => course.phase === i + 1),
+    courses: mandatoryCourses.filter(course => course.phase === i + 1),
   }))
 
   // Create the curriculum object
@@ -49,7 +78,7 @@ export function parseCurriculumData(jsonData: RawCurriculumData): {
   // Clear positions array before populating it
   positions.length = 0
 
-  // Iterate through each phase to position courses
+  // Iterate through each phase to position courses (mandatory only)
   phases.forEach((phase, phaseIndex) => {
     phase.courses.forEach((course, courseIndex) => {
       positions.push({
