@@ -21,9 +21,7 @@
       "type": "mandatory",
       "credits": 2,
       "workload": 36,
-      "prerequisites": [
-        "EEL5105"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Uso versus funcionamento interno de computadores. Organização de Computadores. Teoria da Computação. Linguagem de Computador. Sistemas Operacionais. Redes de Computadores. Sistemas Distribuídos. Engenharia de Software. Matemática na Computação. Tecnologias da informação: Bancos de Dados, Computação Gráfica, Segurança, Inteligência Artificial. Computação e Ética.",
       "phase": 1
@@ -34,10 +32,7 @@
       "type": "mandatory",
       "credits": 6,
       "workload": 108,
-      "prerequisites": [
-        "INE5382",
-        "INE5401"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Algoritmo. Programação de computador. Resolução de problemas usando computador. Linguagem de Programação. Elementos de programação imperativa: variáveis simples, coleções uni e n dimensionais; tipos das variáveis; comandos; procedimentos e funções. Conceitos fundamentais do paradigma de Programação Orientada a Objetos: objeto, atributo, método, classe. Prática de programação usando alguma linguagem de programação orientada a objetos.",
       "phase": 1
@@ -48,16 +43,12 @@
       "type": "mandatory",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "MTM3101",
-        "MTM5161",
-        "MTM5115"
-      ],
+      "prerequisites": [],
       "equivalents": [
-        "MTM3101",
         "MTM5801",
+        "MTM5115",
         "MTM5161",
-        "MTM5115"
+        "MTM3101"
       ],
       "description": "Cálculo de funções de uma variável real: limites; continuidade; derivada; aplicações da derivada (taxas de variação, retas tangentes e normais, problemas de otimização e máximos e mínimos); integral definida e indefinida.",
       "phase": 1
@@ -68,10 +59,7 @@
       "type": "mandatory",
       "credits": 6,
       "workload": 108,
-      "prerequisites": [
-        "INE5383",
-        "INE5605"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Herança. Polimorfismo. Reusabilidade de software. Componentes. Criação e uso de bibliotecas de classes. Padrões de projeto. Interface Gráfica com o Usuário. Exceções. Relacionamentos entre classes: agregação, composição e especialização. Persistência de dados e de objetos. Prática de programação com alguma linguagem de programação orientada a objetos.",
       "phase": 2
@@ -82,10 +70,7 @@
       "type": "mandatory",
       "credits": 5,
       "workload": 90,
-      "prerequisites": [
-        "EEL5310",
-        "EEL5340"
-      ],
+      "prerequisites": [],
       "equivalents": [
         "EEL5310",
         "EEL5340"
@@ -99,11 +84,7 @@
       "type": "mandatory",
       "credits": 3,
       "workload": 54,
-      "prerequisites": [
-        "MTM5192",
-        "MTM7174",
-        "MTM5802"
-      ],
+      "prerequisites": [],
       "equivalents": [
         "EEL5310",
         "EEL5340"
@@ -117,14 +98,10 @@
       "type": "mandatory",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "MTM5245",
-        "MTM3121",
-        "MTM3112"
-      ],
+      "prerequisites": [],
       "equivalents": [
-        "MTM5245",
         "MTM5812",
+        "MTM5245",
         "MTM3112"
       ],
       "description": "-Aplicações da integral definida. Técnicas de integração (por partes, substituição trigonométrica, frações parciais). Integral imprópria. Álgebra vetorial. Estudo da reta e do plano. Curvas planas. Superfícies. Funções de várias variáveis. Derivadas parciais. Máximos e mínimos de funções de duas variáveis.",
@@ -136,13 +113,10 @@
       "type": "mandatory",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "MTM5245",
-        "MTM3112"
-      ],
+      "prerequisites": [],
       "equivalents": [
-        "MTM5245",
         "MTM5812",
+        "MTM5245",
         "MTM3112"
       ],
       "description": "-Matrizes. Determinantes. Sistemas lineares. Espaço vetorial real. Produto interno. Transformações lineares. Autovalores e autovetores de um operador linear. Diagonalização. Aplicações da Álgebra Linear.",
@@ -154,15 +128,11 @@
       "type": "mandatory",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5384",
-        "INE5408",
-        "INE5609"
-      ],
+      "prerequisites": [],
       "equivalents": [
-        "MTM3121",
         "MTM3120",
-        "INE5402"
+        "INE5402",
+        "MTM3121"
       ],
       "description": "Erros e Sistemas de Numeracão. Solução de equações algébricas e transcendentais. Solução de equações polinomiais. Sistemas de equações lineares e não lineares. Interpolação Ajustamento de curvas. Integração numérica. Solução numérica de equações diferenciais ordinárias e sistemas de equações diferenciais.",
       "phase": 3
@@ -173,15 +143,11 @@
       "type": "mandatory",
       "credits": 6,
       "workload": 108,
-      "prerequisites": [
-        "INE5410",
-        "INE5356",
-        "INE5404"
-      ],
+      "prerequisites": [],
       "equivalents": [
-        "MTM3121",
         "MTM3120",
-        "INE5402"
+        "INE5402",
+        "MTM3121"
       ],
       "description": "Alocação dinâmica de memória. Variáveis estáticas e dinâmicas. Estruturas lineares. Tabelas de Espalhamento. Árvores. Árvores de Pesquisa. Métodos de ordenação. Métodos de acesso a arquivos. Técnicas de implementações iterativas e recursivas de estruturas de dados. Complexidade dos algoritmos em estruturas de dados.",
       "phase": 3
@@ -192,14 +158,11 @@
       "type": "mandatory",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5356",
-        "INE5404"
-      ],
+      "prerequisites": [],
       "equivalents": [
-        "MTM3121",
         "MTM3120",
-        "INE5402"
+        "INE5402",
+        "MTM3121"
       ],
       "description": "Multiprogramação. Multitarefa. Execução concorrente. Recursos compartilhados e exclusão mútua. Regiões críticas. Coordenação de processos e threads. Semáforos. Monitores. Troca de mensagem. Programação concorrente orientada a objeto. Deadlock. Modelos de computação concorrente.",
       "phase": 3
@@ -211,15 +174,12 @@
       "credits": 6,
       "workload": 108,
       "prerequisites": [
-        "MTM7174",
-        "MTM5814",
-        "MTM3120"
+        "MTM3120",
+        "MTM3121"
       ],
       "equivalents": [
-        "MTM5192",
         "MTM5814",
-        "MTM3121",
-        "MTM3120",
+        "MTM5192",
         "MTM7174"
       ],
       "description": "Tendências tecnológicas na fabricação de CPUs e memórias. CPU: instruções e modos de endereçamento. Formatos de instruções e linguagem de montagem. Simulador e montador. Aritmética. Avaliação de desempenho. Datapath e unidade de controle. Alternativas de implementação (monociclo, multiciclo, pipeline, superescalar). Exceções e interrupções. Hazards estruturais, de dados e de controle. Hierarquia de memória e associatividade (cache e TLB). Dispositivos de entrada e saída: tipos, características e sua conexão à CPU e à memória. Comunicação com a CPU (polling, interrupção, DMA).",
@@ -232,15 +192,12 @@
       "credits": 4,
       "workload": 72,
       "prerequisites": [
-        "MTM7174",
-        "MTM5814",
-        "MTM3120"
+        "MTM3120",
+        "MTM3121"
       ],
       "equivalents": [
-        "MTM5192",
         "MTM5814",
-        "MTM3121",
-        "MTM3120",
+        "MTM5192",
         "MTM7174"
       ],
       "description": "-Equações diferenciais ordinárias de primeira ordem. Equações diferenciais ordinárias lineares homogêneas de ordem n. Equações diferenciais ordinárias lineares não homogêneas de ordem 2. Noções gerais de Transformada de Laplace. Sistemas de Equações Diferenciais.",
@@ -252,11 +209,7 @@
       "type": "mandatory",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5410",
-        "INE5413",
-        "INE5411"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Programação de Sistemas. Histórico de Sistemas Operacionais. Arquitetura de Sistemas Operacionais. Funcionalidades de Sistemas Operacionais. Gerência de Processos e Threads: Controle e Escalonamento. Impasses: Modelagem e Tratamento. Memória: Alocação, Gerência e Memória Virtual. Entrada e Saída: princípios de hardware e software, dispositivos periféricos. Sistema de Arquivos: Arquivos, Diretórios e Implementação. Proteção e Segurança. Sistemas com Múltiplos Processadores.",
       "phase": 4
@@ -267,11 +220,7 @@
       "type": "mandatory",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5324",
-        "INE5414",
-        "INE5408"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Grafos e grafos orientados. Representação de problemas com grafos. Caminhos, ciclos e caminho de custo mínimo. Conexidade e alcançabilidade. Árvores e árvore de custo mínimo. Coloração e planaridade de grafos. Grafos hamiltonianos e eulerianos. Fluxo máximo em redes. Estabilidade e emparelhamento em grafos. Problemas de cobertura e de travessia. Representações computacionais e complexidade de algoritmos em grafos.",
       "phase": 4
@@ -282,11 +231,7 @@
       "type": "mandatory",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5372",
-        "INE5403",
-        "INE5415"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Capacidade de canal. Taxa de transmissão. Codificação analógica-digital, digital-digital e digital-analógica. Princípios dos modelos das redes de computadores: OSI e TCP/IP. Meios de transmissão de dados. Serviços e tarefas ofertados na camada de enlace. Estudo de casos de protocolos e tecnologias de enlace de dados. Redes de comutação de circuito e de pacotes.",
       "phase": 4
@@ -297,11 +242,7 @@
       "type": "mandatory",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5363",
-        "INE5416",
-        "INE5364"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Programas, Máquinas e Computações. Máquinas de Turing. Funções Recursivas. Computabilidade. Decidibilidade. Análise e Complexidade de Algoritmos. Classes e complexidade de problemas computacionais.",
       "phase": 4
@@ -312,10 +253,7 @@
       "type": "mandatory",
       "credits": 5,
       "workload": 90,
-      "prerequisites": [
-        "INE5363",
-        "INE5364"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Caracterização e classificações dos paradigmas. Problemas tratáveis pelos paradigmas. Definição e caracterização dos principais paradigmas declarativos e imperativos. Programação em Lógica. Programação Funcional. Prática de programação com os principais paradigmas apresentados.",
       "phase": 4
@@ -326,10 +264,7 @@
       "type": "mandatory",
       "credits": 5,
       "workload": 90,
-      "prerequisites": [
-        "INE5408",
-        "INE5319"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Análise de requisitos: requisitos funcionais e requisitos não-funcionais; técnicas para levantamento e representação de requisitos, incluindo casos de uso. Modelagem OO: classe, atributo, associação, agregação e herança. Projeto OO: técnicas para projeto; padrões de projeto, componentes e frameworks; projeto de arquitetura; mapeamento objeto-relacional. Linguagem de especificação orientada a objetos. Métodos de análise e projeto orientados a objetos. Desenvolvimento de um software OO.",
       "phase": 4
@@ -340,11 +275,7 @@
       "type": "mandatory",
       "credits": 5,
       "workload": 90,
-      "prerequisites": [
-        "INE5418",
-        "INE5412",
-        "MTM3110"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Análise combinatória. Planejamento de uma pesquisa. Análise exploratória de dados. Probabilidade. Variáveis aleatórias discretas e contínuas. Principais modelos teóricos. Estimação de parâmetros. Testes de hipóteses.",
       "phase": 5
@@ -355,10 +286,7 @@
       "type": "mandatory",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5412",
-        "MTM3110"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Arquitetura de Sistemas Distribuídos. Paradigmas de Computação Distribuída: Troca de Mensagens, Cliente/Servidor, Comunicação em Grupo, Objetos Distribuídos. Comunicação entre Processos. Suporte de SO para Computação Distribuída. Sincronização em Sistemas Distribuídos. Consistência e Replicação de Dados em Sistemas Distribuídos. Sistemas de Arquivo Distribuídos. Computação GRID.",
       "phase": 5
@@ -369,10 +297,7 @@
       "type": "mandatory",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5614",
-        "INE5322"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Evolução da prática de desenvolvimento de software; qualidade de artefatos de software; modularidade e reusabilidade; modelagem estrutural e dinâmica em orientação a objetos, diferentes visões de um sistema; metodologias de análise e projeto orientadas a objetos; teste de software; manutenção de software; modelos de ciclo de vida; engenharia reversa; modelagem formal de sistemas; abordagens voltadas ao reuso de software; gerenciamento do processo de produção de software e técnicas de apoio ao gerenciamento do processo de produção de software; apoio automatizado ao desenvolvimento de software.",
       "phase": 5
@@ -383,15 +308,11 @@
       "type": "mandatory",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5421",
-        "INE5317",
-        "MTM3121"
-      ],
+      "prerequisites": [],
       "equivalents": [
-        "MTM3121",
+        "MTM3120",
         "INE5408",
-        "MTM3120"
+        "MTM3121"
       ],
       "description": "Computação Gráfica Básica. Sistema Gráfico Interativo. Transformações geométricas 2D e coordenadas homogêneas. Clipping. Curvas paramétricas em 2D e 3D. Estruturas de dados gráficas 3D. Navegação 3D. Projeções, perspectiva e clipping 3D. Superfícies paramétricas bicúbicas. Visualização em 3D contendo, Rayshading, Raycasting e Raytracing. Conversão por varredura e buffer de profundidade. Iluminação de objetos. Implementação de um rayshader. APIs Gráficas e OpenGL. Animação e utilização de modelos hierárquicos. Simulação de movimentação de animais e humanos. Realidade virtual e VRML.",
       "phase": 5
@@ -402,15 +323,11 @@
       "type": "mandatory",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5422",
-        "INE5344",
-        "INE5415"
-      ],
+      "prerequisites": [],
       "equivalents": [
-        "MTM3121",
+        "MTM3120",
         "INE5408",
-        "MTM3120"
+        "MTM3121"
       ],
       "description": "O processo de compilação. Linguagens e suas representações. Gramáticas: definição formal, classificação (Hierarquia de Chomsky), propriedades, problemas de decisão e aplicações. Gramáticas regulares, autômatos finitos, conjuntos regulares e expressões regulares. Gramáticas livres de contexto. Autômatos de pilha. Teoria de Parsing. Análise léxica e sintática.",
       "phase": 5
@@ -421,10 +338,7 @@
       "type": "mandatory",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5344",
-        "INE5415"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Camada de Rede TCP/IP: endereçamento, roteamento, protocolos. Camada de Aplicação: conceitos e protocolos. Aspectos de segurança em redes de computadores. Dispositivos de interconexão, conceito de processores de redes. Protocolos leves. Métodos formais para especificação e verificação de protocolos. Administração de redes de computadores.",
       "phase": 5
@@ -435,11 +349,7 @@
       "type": "mandatory",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5424",
-        "INE5357",
-        "INE5408"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Banco de Dados (BD). Sistema de Gerência de BD: funcionalidades, módulos principais, categorias de usuários, dicionário de dados. Modelo relacional: conceitos, restrições de integridade, álgebra relacional, cálculo relacional. Linguagens SQL: DDL, DML, restrições de integridade, visões, autorização de acesso. Modelagem de dados: etapas do projeto de um BD relacional, modelo Entidade-Relacionamento (ER), mapeamento ER-relacional. Teoria da Normalização: objetivo, dependências funcionais, formas normais.",
       "phase": 6
@@ -450,10 +360,7 @@
       "type": "mandatory",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5357",
-        "INE5412"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Desenvolvimento de Sistemas Operacionais: projeto lógico, arquitetura, inicialização de Sistemas Computacionais, componentes (processos, threads, escalonador, mecanismos de sincronização, gerenciadores de memória, sistemas de arquivos, drivers de dispositivos de entrada e saída), teste, depuração, estudos de caso.",
       "phase": 6
@@ -464,11 +371,7 @@
       "type": "mandatory",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5405",
-        "INE5426",
-        "INE5318"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Modelagem de sistemas. Modelos analíticos e Modelos de simulação. Processos estocásticos. Introdução à teoria das filas. Redes de filas. Geração de números pseudo-aleatórios. Geração de variáveis aleatórias. Metodologia de projetos de modelagem e simulação de sistemas. Modelos voltados à simulação: definição, taxonomia e desenvolvimento. Validação de modelos de simulação. Praticas de modelagem e simulação. Linguagens de simulação. Estudo de casos.",
       "phase": 6
@@ -479,10 +382,7 @@
       "type": "mandatory",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5421",
-        "INE5318"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Projeto de especificação de linguagens de programação. Implementação das etapas que compreendem o processo de compilação: Análise Léxica, Análise Sintática, Análise Semântica, Geração e Otimização de Código. Evolução e tendências da área de compiladores e linguagens de programação.",
       "phase": 6
@@ -493,11 +393,7 @@
       "type": "mandatory",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5371",
-        "INE5405",
-        "INE5413"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Projetos. Metodologias de planejamento e gestão de projetos. Áreas de conhecimento da gerência de projetos: Escopo, Tempo, Risco, Integração, Comunicação, Custo, Recursos Humanos, Aquisição, Qualidade. Grupos de processos: Iniciação, Planejamento, Execução, Controle, Encerramento. Técnicas de acompanhamento de projetos. Ferramentas computacionais de apoio ao planejamento e gerência de projetos. Estudo de casos.",
       "phase": 6
@@ -508,11 +404,7 @@
       "type": "mandatory",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5453",
-        "INE5416",
-        "INE5413"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Histórico, Teoria de Problemas, Paradigma Simbólico da IA, Modelagem de Agentes Inteligentes, Métodos de Busca, Representação de Conhecimento, Métodos de Inferência, Tratamento de Incertezas, Sistemas Especialistas, Lógica Nebulosa, Paradigma Conexionista da IA, Redes Neurais Diretas e Algoritmos de Aprendizado, Paradigma Evolucionário da IA, Algoritmos Genéticos.",
       "phase": 6
@@ -523,9 +415,7 @@
       "type": "mandatory",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5385"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Ética pessoal, profissional e pública na área da informática. Dilemas éticos do profissional da informática; privacidade, vírus, hacking, uso da internet, direitos autorais, etc. Desemprego e informatização. Responsabilidade social. O profissional e o mercado de trabalho. Trabalho e relações humanas. O empreendedorismo como opção do profissional da informática. Legislação: Política nacional e tendências atuais referentes à regulamentação da profissão.",
       "phase": 7
@@ -536,11 +426,7 @@
       "type": "mandatory",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5414",
-        "INE5639",
-        "INE5431"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Segurança em aplicações: programação segura, detecção de falhas, códigos maliciosos (malware). Segurança em sistemas operacionais: princípios de controle de acesso, sistemas confiáveis. Segurança em redes de computadores: ataques e defesas. Princípios de criptografia: criptografia simétrica e assimétrica, integridade de dados. Protocolos de autenticação: princípios, infra-estrutura de chaves públicas e aplicações (X.509, OpenPGP, SPKI, IBE), protocolos criptográficos (S/Mime, IPSec, SSL, OpenSSH, Kerberos, VPNs).",
       "phase": 7
@@ -551,10 +437,7 @@
       "type": "mandatory",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5414",
-        "INE5639"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Definição de sistemas multimídia e problemática envolvida. Representação digital de áudio, imagens e vídeos. Técnicas e padrões de compressão. Aplicações multimídia: caracterização e requisitos. Protocolos de transporte de mídia e de controle-sinalização. Qualidade de Serviço.",
       "phase": 7
@@ -565,11 +448,7 @@
       "type": "mandatory",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5327",
-        "INE5423",
-        "INE5427"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "SQL embutida: instruções estáticas e dinâmicas, cursores. Processamento de consultas: otimização algébrica; plano de execução de uma consulta considerando estimativas sobre os dados, índices, buffers e pipelines. Transações: definição, propriedades, estados. Recuperação de falhas: categorias de falhas, gerência de buffer, técnicas de recuperação. Controle de concorrência: teoria da serializabilidade, escalonadores otimistas e pessimistas, tratamento de deadlock. Noções básicas de bancos de dados distribuídos: arquiteturas, projeto, processamento de consultas, gerência de transações.",
       "phase": 7
@@ -580,11 +459,7 @@
       "type": "mandatory",
       "credits": 6,
       "workload": 108,
-      "prerequisites": [
-        "INE5327",
-        "INE5423",
-        "INE5427"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "4",
       "phase": 7
@@ -617,11 +492,7 @@
       "type": "mandatory",
       "credits": 9,
       "workload": 162,
-      "prerequisites": [
-        "INE5461",
-        "INE5462",
-        "INE5463"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Orientação para o desenvolvimento da fase final do projeto em Ciência da Computação. Defesa final do trabalho perante banca examinador.",
       "phase": 8
@@ -632,10 +503,7 @@
       "type": "optional",
       "credits": 2,
       "workload": 36,
-      "prerequisites": [
-        "INE5462",
-        "CAD5240"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Marketing Pessoal: aspectos da competitividade e pessoas: contexto e impactos no sucesso profissional. O fator profissional na apresentação do empreendedor: fatores de renovação e posicionamento para a excelência.",
       "phase": 8
@@ -646,10 +514,7 @@
       "type": "optional",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "CAD5240",
-        "CAD5146"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Planejamento. Desenvolvimento e controle de recursos humanos. Organização da função de pessoal. Recrutamento. Seleção. Integração. Manutenção e direção de pessoal.",
       "phase": 8
@@ -660,11 +525,7 @@
       "type": "optional",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "CAD5241",
-        "CAD5240",
-        "CAD5146"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Ementa disponível no Plano de Ensino do semestre em que a disciplina é/foi cursada.",
       "phase": 8
@@ -675,10 +536,7 @@
       "type": "optional",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "EEL7123",
-        "INE5346"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Conceitos, técnicas e metodologias pertinentes ao desenvolvimento de projetos integrados de software e hardware, projeto baseado em plataforma, arquiteturas de software e hardware, componentes de software e hardware, estratégias de implementação, microcontroladores, sistemas em chip único (system-on-a-chip), aplicações de tempo-real, aplicações distribuídas. Estudo de caso: inicialização de sistemas computacionais, firmware, tratadores de dispositivos, projeto integrado de software e hardware.",
       "phase": 8
@@ -689,9 +547,7 @@
       "type": "optional",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5411"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Fundamentos do projeto de computadores (mercados, custo, preço e desempenho). Arquiteturas de conjuntos de instruções (máquinas baseadas em acumulador, pilha e registradores, máquinas load-store). Arquiteturas RISC, CISC e DSP. Pipelining e emissão múltipla (máquinas superescalares e VLIW). Exploração de paralelismo entre instruções (escalonamento estático e dinâmico, previsão estática e dinâmica de desvios, execução especulativa, software pipelining, trace scheduling). Projeto de hierarquia de memória.",
       "phase": 8
@@ -702,10 +558,7 @@
       "type": "optional",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5436",
-        "INE5411"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Arquitetura de computadores modernos. Contextualização da taxonomia de Flynn (SISD,SIMD,MISD,MIMD). Redes de Interconexão. Multicomputadores. Multiprocessadores. Máquinas com Acesso Uniforme à Memória (UMA). Multiprocessores simétricos (SMP). Máquinas com Acesso Não Uniforme à Memória (NUMA). Máquinas com Coerência de Cache e Acesso Não Uniforme à Memória (ccNUMA). Processadores Massivamente Paralelos (MPP). Sistemas Distribuídos. Clusters. Grids.",
       "phase": 8
@@ -716,10 +569,7 @@
       "type": "optional",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5440",
-        "INE5411"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Especificação (requisitos, linguagens, níveis e estilos de descrição). Hardware: entrada e saída (sample-hold, conversores A/D e D/A, sensores e atuadores), unidades de processamento (microprocessadores, DSPs, ASIPs e lógica reconfigurável) e memórias (flash, cache e scratch pad). Eficiência energética: compiladores energeticamente conscientes e gerenciamento de potência (DVS e DPM). Compactação de código. Ferramentas de projeto de hardware e de software (simulador, síntese comportamental e lógica, gerador de código e depurador). Systems-on-Chip e co-projeto de hardware e software.",
       "phase": 8
@@ -730,10 +580,7 @@
       "type": "optional",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5440",
-        "INE5411"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Conceituação básica e Caracterização de um Sistema de Tempo Real. Escalonamento de Tempo Real: modelo de tarefas; abordagens de escalonamento de tempo real. Controle de acesso a recursos: uso de protocolos de acesso a recursos. Comunicação em Tempo Real: requisitos, protocolos. Sistemas Operacionais de Tempo Real: aspectos funcionais, aspectos temporais, estudo de casos. Linguagens de Programação de Tempo Real: características, requisitos, estudo de casos.",
       "phase": 8
@@ -744,10 +591,7 @@
       "type": "optional",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5417",
-        "INE5420"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Modelagem simplificada de transistores NMOS e PMOS. O inversor CMOS: característica de transferência, atraso, consumo estático e dinâmico. Lógica combinacional, flip-flops e registradores em CMOS. Estruturas regulares: ULA, PLA, ROM. Princípios básicos de processos de fabricação. Regras geométricas e elétricas de projeto. Scaling. Variabilidade em tecnologias submicrométricas. Estilos full e semi-custom, lógica programável pelo usuário. Leiaute. Níveis de abstração, metodologias de projeto e ferramentas de EDA (simuladores, analisadores, extratores, ferramentas de verificação e síntese).",
       "phase": 8
@@ -758,10 +602,7 @@
       "type": "optional",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5417",
-        "INE5420"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Considerações iniciais sobre padrões. Técnicas simbólicas. Técnicas sub simbólicas: redes neurais. Raciocínio baseado em caso - estendendo RP com um framework de inteligência artificial. Técnicas estatísticas. Geração de padrões: análise de sinais e imagens. Criação de aplicação de reconhecimento de padrões.",
       "phase": 8
@@ -772,10 +613,7 @@
       "type": "optional",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5417",
-        "INE5420"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "4",
       "phase": 8
@@ -786,11 +624,7 @@
       "type": "optional",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5417",
-        "INE5420",
-        "INE5412"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Ementa livre para assuntos relevantes na área de Sistemas de Infra-Estrutura.",
       "phase": 8
@@ -801,11 +635,7 @@
       "type": "optional",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5417",
-        "INE5420",
-        "INE5412"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Ementa livre para assuntos relevantes na área de Sistemas de Infra-Estrutura.",
       "phase": 8
@@ -816,11 +646,7 @@
       "type": "optional",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5616",
-        "INE5417",
-        "INE5455"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Habilitação: Bacharelado em Ciências da Computação - A ementa é livre, podendo cobrir quaisquer temas avançados em gerência de dados que não tenham sido ministradas em outras disciplinas da área de Banco de Dados (BD). Os objetivos específicos e tópicos podem variar, conforme a atualidade dos temas na área.",
       "phase": 8
@@ -831,11 +657,7 @@
       "type": "optional",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5608",
-        "INE5457",
-        "INE5417"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Conceitos Básicos. Níveis de Testes. Tipos de Testes. Técnicas de Testes. Planejamento e Execução de Testes de Software. Desenvolvimento Orientado a Testes. Automação de Testes. Ferramentas de Testes.",
       "phase": 8
@@ -846,11 +668,7 @@
       "type": "optional",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5600",
-        "INE5423",
-        "INE5458"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "( )",
       "phase": 8
@@ -861,10 +679,7 @@
       "type": "optional",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5600",
-        "INE5423"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "-Primitivas Criptográficas. Conceitos e protocolos de blockchain. Criptomoedas e aplicativos não financeiros em execução em blockchains. Desenvolvimento de contratos inteligentes.",
       "phase": 8
@@ -875,10 +690,7 @@
       "type": "optional",
       "credits": 2,
       "workload": 36,
-      "prerequisites": [
-        "INE5423",
-        "INE5458"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Aplicações não-convencionais. Novos desafios de gerenciamento de dados. Bancos de dados pós-relacionais: categorias, conceitos, modelos de dados, manipulação de dados, modelagem",
       "phase": 8
@@ -889,11 +701,7 @@
       "type": "optional",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5628",
-        "INE5430",
-        "INE5419"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Cognição humana, Semiótica Computacional; Critérios e recomendações ergonômicas; Engenharia de requisitos visando a usabilidade, Técnicas de Análise Ergonômica do Trabalho; Técnicas de Concepção e de Especificação funcional da tarefa interativa; Técnicas de Projeto e Especificação da interface com o usuário; Técnicas de Prototipagem Off-line e On-line; Técnicas de avaliações heurísticas; Técnicas de inspeções ergonômicas, Norma ISO 9241, Técnica de ensaios de interação.",
       "phase": 8
@@ -904,10 +712,7 @@
       "type": "optional",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5430",
-        "INE5640"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Propriedades de agentes. Arquitetura de construção de agentes. Linguagens para programação de agentes. Estudo de casos de agentes implementados",
       "phase": 8
@@ -918,10 +723,7 @@
       "type": "optional",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5643",
-        "INE5422"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Computação Ubíqua; Sistemas de Comunicação sem Fios; Serviços de Localização e Posicionamento; Transações e Gestão da Informação em Operação Desligada; Interfaces para dispositivos de dimensão muito reduzida; Eng. de Sistemas de Informação para suporte à mobilidade.",
       "phase": 8
@@ -932,10 +734,7 @@
       "type": "optional",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5640",
-        "INE5422"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Conceitos básicos. Os Ecossistemas de Informação. O Ciclo de Vida do DW: Planejamento e Administração, Levantameto de Requisitos, Modelagem Dimensional, Projeto Físico, o Back-Room e o Froon-Room, Metadados, Arquiteturas, Implementação, Segurança e Internet. Implantação, Suporte e Treinamento.",
       "phase": 8
@@ -946,10 +745,7 @@
       "type": "optional",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5646",
-        "INE5423"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Considerações iniciais da área e aplicações. Processos de descoberta do conhecimento (KDD) em base de dados. Análise exploratória de dados. Tipos de variáveis, Técnicas de Data Mining para classificação, estimação, predição, análise de agrupamentos, análise de associação: redes neurais, árvores de decisão, regras de decisão, análise discriminante, regressão linear, regressão logística, análise de cluster, análise de componentes principais. Uso de softwares de data mining. Exercícios. Data Mining de caso.",
       "phase": 8
@@ -960,10 +756,7 @@
       "type": "optional",
       "credits": 2,
       "workload": 36,
-      "prerequisites": [
-        "INE5419",
-        "INE5658"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Escopo e aplicações da Lógica. Cálculos de seqüentes para as lógicas proposicional e quantificacional. Noções de semânticas. Exemplos de representação do conhecimento.",
       "phase": 8
@@ -974,9 +767,7 @@
       "type": "optional",
       "credits": 2,
       "workload": 36,
-      "prerequisites": [
-        "INE5656"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Tópicos em Lógica Quantificacional. Cálculo de seqüentes para a Lógica Equacional Clássica. Semântica para a Lógica Equacional Clássica. Cálculo de seqüentes para uma Lógica Descritiva. Semântica para a Lógica Descritiva.",
       "phase": 8
@@ -987,10 +778,7 @@
       "type": "mandatory",
       "credits": 2,
       "workload": 36,
-      "prerequisites": [
-        "INE5425",
-        "MTM3100"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Realização de ações paralelas e complementares à formação acadêmica prevista nos demais componentes curriculares do projeto pedagógico do curso.",
       "phase": 8
@@ -1001,10 +789,7 @@
       "type": "optional",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5644",
-        "INE5423"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Arquiteturas. Serviços. Protocolos de comunicação entre cliente e servidor e entre servidores. Representação de dados no cliente. Acesso a bases de dados. Escalabilidade. Linguagens de modelagem da interface com o usuário. Linguagens de programação no cliente e no servidor. Segurança. Instalação e configuração de servidores. Prática de programação.",
       "phase": 8
@@ -1015,10 +800,7 @@
       "type": "optional",
       "credits": 4,
       "workload": 72,
-      "prerequisites": [
-        "INE5425",
-        "INE7006"
-      ],
+      "prerequisites": [],
       "equivalents": [],
       "description": "Conjuntos e aritmética básica; Cálculo com expressões algébricas; equações; inequações; funções.",
       "phase": 8
@@ -1044,19 +826,6 @@
       "equivalents": [],
       "description": "Disciplina optativa a ser escolhida pelo aluno.",
       "phase": 8
-    },
-    {
-      "id": "INE5403",
-      "name": "Fundamentos de Matemática Discreta para Computação",
-      "type": "mandatory",
-      "credits": 6,
-      "workload": 108,
-      "prerequisites": [],
-      "equivalents": [
-        "INE5381"
-      ],
-      "description": "Conjuntos, Seqüências e Somas. Lógica Proposicional, Lógica de Primeira Ordem, Lógica Matemática (Prova de Teoremas), Indução e Recursão. Análise Combinatória: Permutações e Combinações, O Princípio do Pombal, Relações de Recorrência. Relações: Propriedades de Relações, Relações de Equivalência, Fecho de Relações. Funções: Definição e Tipos. Composição de Funções, Crescimento de Funções. Relações de Ordenamento: Reticulados, Álgebras Booleanas. Estruturas Algébricas: Semigrupos e Grupos. Elementos de Teoria de Números. Aplicações da Matemática Discreta.",
-      "phase": 1
     }
   ]
 }
