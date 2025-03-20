@@ -99,9 +99,9 @@ export default function StudentCourseDetailsPanel({
 
           <div>
             <h4 className="text-sm font-medium text-muted-foreground">Prerequisites</h4>
-            {course.prerequisites.length > 0 ? (
+            {course.prerequisites?.length > 0 ? (
               <ul className="list-disc pl-5">
-                {course.prerequisites.map((prereq) => (
+                {course.prerequisites?.map((prereq) => (
                   <li key={prereq}>{prereq}</li>
                 ))}
               </ul>

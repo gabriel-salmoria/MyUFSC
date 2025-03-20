@@ -12,10 +12,25 @@ interface CourseBoxProps {
   position: CoursePosition
   onClick?: () => void
   studentCourse?: StudentCourse
+  isPlaceholder?: boolean
+  isEmpty?: boolean
 }
 
-export default function CourseBox({ course, position, onClick, studentCourse }: CourseBoxProps) {
+export default function CourseBox({ 
+  course, 
+  position, 
+  onClick, 
+  studentCourse,
+  isPlaceholder = false,
+  isEmpty = false,
+}: CourseBoxProps) {
   const getStatusColor = () => {
+    if (isPlaceholder) {
+      return isEmpty 
+        ? "border-gray-400 border-dashed bg-white/5" 
+        : "border-gray-300 bg-gray-80/30"
+    }
+
     if (!studentCourse) return "border-gray-500 bg-gray-100"
 
     switch (studentCourse.status) {
@@ -35,6 +50,7 @@ export default function CourseBox({ course, position, onClick, studentCourse }: 
   }
 
   const getStatusIcon = () => {
+    if (isPlaceholder) return null
     if (!studentCourse) return null
 
     switch (studentCourse.status) {
@@ -56,7 +72,8 @@ export default function CourseBox({ course, position, onClick, studentCourse }: 
   return (
     <div
       className={cn(
-        "absolute border-2 rounded p-2 cursor-pointer transition-all shadow-sm hover:shadow-md",
+        "absolute border-2 rounded p-2 transition-all",
+        !isPlaceholder && "cursor-pointer shadow-sm hover:shadow-md",
         getStatusColor()
       )}
       style={{
@@ -64,14 +81,19 @@ export default function CourseBox({ course, position, onClick, studentCourse }: 
         top: `${position.y}px`,
         width: `${position.width}px`,
         height: `${position.height}px`,
+        opacity: isPlaceholder ? 0.4 : 1,
       }}
-      onClick={onClick}
+      onClick={!isPlaceholder ? onClick : undefined}
     >
-      <div className="flex items-center justify-between">
-        <div className="text-xs font-bold">{course.id}</div>
-        {getStatusIcon()}
-      </div>
-      <div className="text-xs truncate">{course.name}</div>
+      {!isEmpty && (
+        <>
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-bold">{course.id}</div>
+            {getStatusIcon()}
+          </div>
+          <div className="text-xs truncate">{course.name}</div>
+        </>
+      )}
     </div>
   )
 }

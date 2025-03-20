@@ -16,6 +16,7 @@ export interface CoursePosition {
   y: number // Y coordinate (row position within phase)
   width: number // Width of the course box
   height: number // Height of the course box
+  isGhost?: boolean // Whether this is a ghost/placeholder box
 }
 
 /**

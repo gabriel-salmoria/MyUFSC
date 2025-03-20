@@ -33,37 +33,72 @@ export function parseStudentData(jsonData: RawStudentData): {
     })
   }
   
-  // Convert semesters object to array and process semester numbers
+  // Convert semesters object to array and identify the highest positive semester
   const semesterEntries = Object.entries(rawPlan.semesters)
     .map(([key, value]) => ({
       number: parseInt(key),
       courses: value.courses,
     }))
 
-  // Find the highest positive semester number to determine the current phase
-  const maxPositiveSemester = Math.max(
-    ...semesterEntries
-      .filter(entry => entry.number > 0)
-      .map(entry => entry.number)
-  )
-
-  // Sort semesters: completed ones first (positive numbers), then current (-1), then planned (< -1)
-  const sortedEntries = semesterEntries.sort((a, b) => {
-    // Helper function to get sort weight
-    const getWeight = (num: number) => {
-      if (num > 0) return num // Completed semesters keep their order
-      if (num === -1) return maxPositiveSemester + 1 // Current semester comes after completed
-      return maxPositiveSemester + 2 + Math.abs(num + 1) // Future semesters come last
-    }
-    return getWeight(a.number) - getWeight(b.number)
-  })
-
+  // Find the highest positive semester (completed semester)
+  const maxPositiveSemester = semesterEntries
+    .filter(entry => entry.number > 0)
+    .reduce((max, entry) => Math.max(max, entry.number), 0)
+  
   // Process each semester
   const semesters: StudentSemester[] = []
   const inProgressCourses: StudentCourse[] = []
   const plannedCourses: StudentCourse[] = []
 
-  sortedEntries.forEach(({ number, courses }) => {
+  // Custom sorting function:
+  // 1. Sort positive semesters (completed) in ascending order
+  // 2. Place current semester (-1) after completed semesters
+  // 3. Place future semesters (< -1) after the current semester
+  semesterEntries.sort((a, b) => {
+    // Both positive (completed) - sort normally
+    if (a.number > 0 && b.number > 0) {
+      return a.number - b.number
+    }
+    
+    // Current semester comes after all completed semesters
+    if (a.number === -1) return 1
+    if (b.number === -1) return -1
+    
+    // Future semesters come after current semester
+    if (a.number < -1 && b.number === -1) return 1
+    if (b.number < -1 && a.number === -1) return -1
+    
+    // Sort future semesters
+    if (a.number < -1 && b.number < -1) {
+      return b.number - a.number // Reverse order for future semesters
+    }
+    
+    // Positive semesters come before negative semesters
+    return b.number < 0 ? -1 : 1
+  })
+
+  // Process each semester with corrected numbering
+  semesterEntries.forEach((entry, index) => {
+    const { number, courses } = entry
+    
+    // Determine the display number:
+    // - Keep original numbers for completed semesters
+    // - Current semester (-1) gets maxPositiveSemester + 1
+    // - Future semesters get incremented from there
+    let displayNumber: number
+    
+    if (number > 0) {
+      // Completed semesters keep their original number
+      displayNumber = number
+    } else if (number === -1) {
+      // Current semester is next after the highest completed semester
+      displayNumber = maxPositiveSemester + 1
+    } else {
+      // Future semesters increment from current semester
+      const futureOffset = Math.abs(number + 1) // Convert -2, -3, etc. to 1, 2, etc.
+      displayNumber = maxPositiveSemester + 1 + futureOffset
+    }
+    
     const processedCourses: StudentCourse[] = []
 
     courses.forEach(courseCode => {
@@ -116,14 +151,8 @@ export function parseStudentData(jsonData: RawStudentData): {
 
     // Only add semesters with actual courses
     if (processedCourses.length > 0) {
-      const displayNumber = number === -1 
-        ? maxPositiveSemester + 1 // Current semester gets next number
-        : number < -1 
-          ? maxPositiveSemester + Math.abs(number + 1) // Future semesters increment from there
-          : number // Past semesters keep their number
-
       const semester: StudentSemester = {
-        number: displayNumber,
+        number: displayNumber, // Use the corrected display number
         year: new Date().getFullYear().toString(), // You might want to make this configurable
         courses: processedCourses,
         totalCredits: processedCourses.reduce((sum, course) => sum + course.credits, 0),

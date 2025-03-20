@@ -5,9 +5,9 @@ export interface Course {
   id: string // Course code (e.g., "INE5407")
   name: string // Course name (e.g., "Digital Systems")
   credits: number // Number of credits
-  workload: number // Total hours
+  workload?: number // Total hours
   description?: string // Optional course description
-  prerequisites: string[] // Array of course IDs that are prerequisites
+  prerequisites?: string[] // Array of course IDs that are prerequisites
   corequisites?: string[] // Optional array of course IDs that are corequisites
   phase: number // Semester/phase number (1-8+)
 }
