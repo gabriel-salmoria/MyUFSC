@@ -6,7 +6,7 @@ import { Schema } from "./schema.js";
 dotenv.config();
 const GEMINI_KEY = process.env.GEMINI_KEY;
 
-const genAI = new GoogleGenerativeAI("AIzaSyAtyw7GdvxV51KY1ZCI3Ugr-OotaE5Zh_0");
+const genAI = new GoogleGenerativeAI(GEMINI_KEY.toString());
 
 const model = genAI.getGenerativeModel({
      model: 'models/gemini-1.5-flash',
