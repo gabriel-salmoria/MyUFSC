@@ -27,7 +27,6 @@ export interface Phase {
  * Represents the complete curriculum structure
  */
 export interface Curriculum {
-  id: string // Curriculum identifier
   name: string // Name of the program (e.g., "Computer Science")
   department: string // Department offering the program
   totalPhases: number // Total number of phases/semesters

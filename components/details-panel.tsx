@@ -4,6 +4,7 @@ import type { Course } from "@/types/curriculum"
 import { type StudentCourse, CourseStatus } from "@/types/student-plan"
 import { Button } from "@/components/ui/button"
 import { X, Check, Clock, AlertTriangle } from "lucide-react"
+import { getCourseInfo } from "@/lib/curriculum-parser"
 
 interface StudentCourseDetailsPanelProps {
   course: Course
@@ -34,7 +35,7 @@ export default function StudentCourseDetailsPanel({
       // TODO: implement
       case CourseStatus.COMPLETED:
         return (
-          <div className="flex items-center gap-1 text-green-600 bg-green-50 px-2 py-1 rounded-full text-xs">
+          <div className="flex items-center gap-1 text-green-600 bg-green-50 px-3 py-1 rounded-full text-xs">
             <Check className="w-3 h-3" />
             Completed
           </div>
@@ -68,7 +69,7 @@ export default function StudentCourseDetailsPanel({
   return (
     <>
       <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
-      <div className="fixed right-0 top-0 h-full w-80 bg-white shadow-lg border-l p-4 z-50 overflow-y-auto transform translate-x-0 transition-transform duration-200">
+      <div className="fixed right-0 top-0 h-full bg-white shadow-lg border-l p-4 z-50 overflow-y-auto transform translate-x-0 transition-transform duration-200" style={{ width: "480px" }}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold">{course.id}</h3>
           <Button variant="ghost" size="icon" onClick={onClose}>
@@ -111,7 +112,7 @@ export default function StudentCourseDetailsPanel({
             {(course.prerequisites?.length ?? 0) > 0 ? (
               <ul className="list-disc pl-5">
                 {course.prerequisites?.map((prereq) => (
-                  <li key={prereq}>{prereq}</li>
+                  <li key={prereq}>{prereq} - {getCourseInfo(prereq)?.name}</li>
                 ))}
               </ul>
             ) : (

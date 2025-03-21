@@ -22,36 +22,69 @@ interface RawCurriculumData {
 interface RawCourse {
   id: string
   name: string
-  type: "mandatory" | "optional"
+  type: string  // Changed from "mandatory" | "optional" to string to handle "Ob" type
   credits: number
   workload: number
-  prerequisites: string[]
-  equivalents: string[]
+  prerequisites: string[] | null  // Changed to allow null
+  equivalents: string[] | null    // Changed to allow null
   description: string
   phase: number
+}
+
+// Function to clean up and normalize raw curriculum data
+function normalizeCurriculumData(jsonData: RawCurriculumData): RawCurriculumData {
+  // Make a deep copy to avoid modifying the original
+  const normalizedData = { ...jsonData, courses: [...jsonData.courses] };
+  
+  // Clean up each course
+  normalizedData.courses = normalizedData.courses.map(course => {
+    // Create a copy of the course to modify
+    return {
+      ...course,
+      // Ensure description doesn't have leading dashes
+      description: course.description?.startsWith('-') 
+        ? course.description.substring(1).trim() 
+        : course.description,
+      // Ensure type is properly capitalized and normalized
+      type: course.type?.trim() || "optional",
+      // Clean prerequisites array
+      prerequisites: course.prerequisites 
+        ? course.prerequisites.map(prereq => prereq.trim()).filter(Boolean)
+        : null,
+      // Clean equivalents array
+      equivalents: course.equivalents
+        ? course.equivalents.map(equiv => equiv.trim()).filter(Boolean)
+        : null
+    };
+  });
+  
+  return normalizedData;
 }
 
 export function parseCurriculumData(jsonData: RawCurriculumData): {
   curriculum: Curriculum
   visualization: CurriculumVisualization
 } {
+  // Normalize the data first
+  const normalizedData = normalizeCurriculumData(jsonData);
+  
   // Clear the course map before populating it
   courseMap.clear()
 
-  // Transform raw courses to Course type
-  const courses: Course[] = jsonData.courses.map(rawCourse => ({
+  // Transform raw courses to Course type with type mapping
+  const courses: Course[] = normalizedData.courses.map(rawCourse => ({
     id: rawCourse.id,
     name: rawCourse.name,
-    type: rawCourse.type,
+    type: mapCourseType(rawCourse.type),
     credits: rawCourse.credits,
     workload: rawCourse.workload,
     description: rawCourse.description,
-    prerequisites: rawCourse.prerequisites,
-    equivalents: rawCourse.equivalents,
+    prerequisites: rawCourse.prerequisites || [],  // Convert null to empty array
+    equivalents: rawCourse.equivalents || [],      // Convert null to empty array
     phase: rawCourse.phase
   }));
 
-  // Populate the course map with all courses (including optional ones)
+  // Populate the course map with all courses
   courses.forEach(course => {
     courseMap.set(course.id, course)
   })
@@ -60,7 +93,7 @@ export function parseCurriculumData(jsonData: RawCurriculumData): {
   const mandatoryCourses = courses.filter(course => course.type === "mandatory");
 
   // Create phases array and populate with mandatory courses only
-  const phases: Phase[] = Array.from({ length: jsonData.totalPhases }, (_, i) => ({
+  const phases: Phase[] = Array.from({ length: normalizedData.totalPhases }, (_, i) => ({
     number: i + 1,
     name: `Phase ${i + 1}`,
     courses: mandatoryCourses.filter(course => course.phase === i + 1),
@@ -68,10 +101,9 @@ export function parseCurriculumData(jsonData: RawCurriculumData): {
 
   // Create the curriculum object
   const curriculum: Curriculum = {
-    id: jsonData.id,
-    name: jsonData.name,
-    department: jsonData.department,
-    totalPhases: jsonData.totalPhases,
+    name: normalizedData.name,
+    department: normalizedData.department,
+    totalPhases: normalizedData.totalPhases,
     phases: phases,
   }
 
@@ -83,7 +115,7 @@ export function parseCurriculumData(jsonData: RawCurriculumData): {
     phase.courses.forEach((course, courseIndex) => {
       positions.push({
         courseId: course.id,
-        x: phaseIndex * PHASE_WIDTH + 30, // 20px padding from left
+        x: phaseIndex * PHASE_WIDTH + 30, // 30px padding from left
         y: courseIndex * VERTICAL_SPACING + 60, // 60px from top for phase header
         width: COURSE_WIDTH,
         height: COURSE_HEIGHT,
@@ -93,8 +125,8 @@ export function parseCurriculumData(jsonData: RawCurriculumData): {
 
   // Create the visualization object
   const visualization: CurriculumVisualization = {
-    id: `${jsonData.id}-vis`,
-    curriculumId: jsonData.id,
+    id: `${normalizedData.id}-vis`,
+    curriculumId: normalizedData.id,
     positions,
     phaseLabels: Object.fromEntries(
       phases.map((phase) => [
@@ -113,22 +145,55 @@ export function parseCurriculumData(jsonData: RawCurriculumData): {
   return { curriculum, visualization }
 }
 
+// Helper function to map course types from the JSON format to our application format
+function mapCourseType(type: string): "mandatory" | "optional" {
+  // Map "Ob" to "mandatory", anything else to "optional"
+  return type === "Ob" ? "mandatory" : "optional"
+}
+
 export function loadCurriculumFromJson(jsonPath: string): Promise<{
   curriculum: Curriculum
   visualization: CurriculumVisualization
 }> {
   return fetch(jsonPath)
-    .then((response) => response.json())
-    .then((data) => parseCurriculumData(data))
-    .catch((error) => {
-      console.error("Error loading curriculum data:", error)
-      throw error
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`Failed to load curriculum: ${response.status} ${response.statusText}`);
+      }
+      return response.json();
     })
+    .then((data) => {
+      // Validate minimum required data
+      if (!data.id || !data.name || !data.courses || !Array.isArray(data.courses)) {
+        console.error("Invalid curriculum data format:", data);
+        throw new Error("Invalid curriculum data format: missing required fields");
+      }
+      
+      console.log(`Successfully loaded curriculum: ${data.name} with ${data.courses.length} courses`);
+      return parseCurriculumData(data);
+    })
+    .catch((error) => {
+      console.error("Error loading curriculum data:", error);
+      throw error;
+    });
 }
 
 // Helper function to get course info by code
 export function getCourseInfo(courseCode: string): Course | undefined {
+  if (!courseCode) return undefined;
+  
+  // First try exact match
+  let course = courseMap.get(courseCode);
+  if (course) return course;
+  
   // Remove any class-specific suffix (e.g., "-05208")
-  const baseCode = courseCode.split("-")[0]
-  return courseMap.get(baseCode)
+  const baseCode = courseCode.split("-")[0];
+  course = courseMap.get(baseCode);
+  if (course) return course;
+  
+  // Try case-insensitive match as fallback
+  const upperCaseCode = baseCode.toUpperCase();
+  return Array.from(courseMap.entries()).find(
+    ([key]) => key.toUpperCase() === upperCaseCode
+  )?.[1];
 } 
