@@ -1,7 +1,8 @@
 import { SchemaType } from "@google/generative-ai";
 
 export const Schema = {
-  description: "University Curriculum Structure (3 Letters + 4 Digits (or hyphen) Course Codes)",
+  description: "University Curriculum Structure (3 Letters + 4 Digits (or hyphen) Course Codes)\
+  The number of phases is correspondant with the totalPhases part",
   type: SchemaType.OBJECT,
   properties: {
     name: {

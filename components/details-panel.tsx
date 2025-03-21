@@ -108,6 +108,19 @@ export default function StudentCourseDetailsPanel({
           )}
 
           <div>
+            <h4 className="text-sm font-medium text-muted-foreground"> Equivalents</h4>
+            {(course.equivalents?.length ?? 0) > 0 ? (
+              <ul className="list-disc pl-5">
+                {course.equivalents?.map((eq) => (
+                  <li key={eq}>{eq} {getCourseInfo(eq)?.name.toString()}</li>
+                ))}
+              </ul>
+            ) : (
+              <p>No equivalents</p>
+            )}
+          </div>
+
+          <div>
             <h4 className="text-sm font-medium text-muted-foreground">Prerequisites</h4>
             {(course.prerequisites?.length ?? 0) > 0 ? (
               <ul className="list-disc pl-5">
