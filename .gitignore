@@ -3,6 +3,7 @@
 # dependencies
 /node_modules
 
+
 # next.js
 /.next/
 /out/
@@ -17,7 +18,7 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files
-.env*
+*.env*
 
 # vercel
 .vercel
