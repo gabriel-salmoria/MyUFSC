@@ -1,13 +1,29 @@
 "use client"
 
+// react apenas
 import type React from "react"
 import { useRef, useState } from "react"
-import type { Course } from "@/types/curriculum"
+
+
+// tipos de dados
 import type { StudentPlan, StudentCourse } from "@/types/student-plan"
 import type { CoursePosition } from "@/types/visualization"
 import { courseMap } from "@/lib/curriculum-parser"
+
+
+// componentes visuais da ui
 import PhaseHeader from "./phase-header"
 import CourseBox from "./course-box"
+
+
+const TOTAL_SEMESTERS = 8 
+const BOXES_PER_COLUMN = 6
+const BOX_WIDTH = 140
+const BOX_HEIGHT = 50
+const BOX_SPACING_X = 200
+const BOX_SPACING_Y = 60
+const LEFT_PADDING = 30
+
 
 interface ProgressVisualizerProps {
   studentPlan: StudentPlan
@@ -15,14 +31,7 @@ interface ProgressVisualizerProps {
   height?: number
 }
 
-const TOTAL_SEMESTERS = 8 // Total number of semesters in the degree
-const BOXES_PER_COLUMN = 6 // Number of boxes in each column
-const BOX_WIDTH = 140
-const BOX_HEIGHT = 50
-const BOX_SPACING_X = 200 // Space between columns
-const BOX_SPACING_Y = 60 // Space between rows
-const LEFT_PADDING = 30
-
+// visualizador de progresso, que mostra as disciplinas ja cursadas e as que faltam
 export default function ProgressVisualizer({
   studentPlan,
   onCourseClick,
@@ -31,10 +40,9 @@ export default function ProgressVisualizer({
   const containerRef = useRef<HTMLDivElement>(null)
   const [pan, setPan] = useState({ x: 0, y: 0 })
 
-  // Calculate total width for 8 semesters
   const totalWidth = TOTAL_SEMESTERS * BOX_SPACING_X
 
-  // Create a map of taken courses for quick lookup
+  // cria um map de disciplinas ja cursadas para busca rapida depois
   const takenCoursesMap = new Map<string, StudentCourse>()
   studentPlan.semesters.forEach(semester => {
     semester.courses.forEach(course => {
@@ -42,10 +50,9 @@ export default function ProgressVisualizer({
     })
   })
 
-  // Create visualization data for the student's courses
   const positions: CoursePosition[] = []
   
-  // First, position all taken courses
+  // primeiro, posiciona todas as disciplinas ja cursadas
   studentPlan.semesters.forEach((semester, semesterIndex) => {
     semester.courses.forEach((studentCourse, courseIndex) => {
       positions.push({
@@ -58,14 +65,12 @@ export default function ProgressVisualizer({
     })
   })
 
-  // Create ghost boxes for all phases
+  // preenche os slots vazios com ghost boxes
   for (let phase = 1; phase <= TOTAL_SEMESTERS; phase++) {
-    // Get courses already placed in this phase
     const coursesInPhase = Array.from(positions)
       .filter(pos => Math.floor(pos.x / BOX_SPACING_X) === phase - 1)
       .length
 
-    // Fill remaining slots in the column with ghost boxes
     for (let slot = coursesInPhase; slot < BOXES_PER_COLUMN; slot++) {
       positions.push({
         courseId: `ghost-${phase}-${slot}`,
@@ -78,7 +83,7 @@ export default function ProgressVisualizer({
     }
   }
 
-  // Create phase headers for all semesters
+  // cria os headers das fases
   const phases = Array.from({ length: TOTAL_SEMESTERS }, (_, i) => {
     const existingSemester = studentPlan.semesters.find(s => s.number === i + 1)
     return {
@@ -104,7 +109,7 @@ export default function ProgressVisualizer({
             height: `${Math.max(height, (BOXES_PER_COLUMN + 1) * BOX_SPACING_Y)}px`,
           }}
         >
-          {/* Phase Headers */}
+          {/* header de fase */}
           <div className="flex w-full">
             {phases.map((phase) => (
               <PhaseHeader 
@@ -115,7 +120,7 @@ export default function ProgressVisualizer({
             ))}
           </div>
 
-          {/* Vertical Divider Lines */}
+          {/* linhas divisorias */}
           {Array.from({ length: TOTAL_SEMESTERS - 1 }, (_, i) => (
             <div
               key={`divider-${i}`}
@@ -126,7 +131,7 @@ export default function ProgressVisualizer({
             />
           ))}
 
-          {/* Course Boxes */}
+          {/* quadradinhos de cada disciplina*/}
           {positions.map((position) => {
             if (position.isGhost) {
               return (
@@ -134,7 +139,6 @@ export default function ProgressVisualizer({
                   key={position.courseId}
                   course={{ id: "", name: "", phase: 0, credits: 0, workload: 0, prerequisites: [] }}
                   position={position}
-                  isPlaceholder={true}
                   isEmpty={true}
                 />
               )
@@ -152,7 +156,6 @@ export default function ProgressVisualizer({
                 position={position}
                 studentCourse={studentCourse}
                 onClick={() => studentCourse && onCourseClick?.(studentCourse)}
-                isPlaceholder={false}
                 isEmpty={false}
               />
             )

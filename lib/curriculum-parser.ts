@@ -1,14 +1,21 @@
 import type { Curriculum, Course, Phase } from "@/types/curriculum"
 import type { CurriculumVisualization, CoursePosition } from "@/types/visualization"
 
+
 const positions: CoursePosition[] = []
+
+
+// preciso mover essas constantes pra um arquivo separado
 const COURSE_WIDTH = 140
 const COURSE_HEIGHT = 50
 const PHASE_WIDTH = 200
 const VERTICAL_SPACING = 60
 
-// Course map to store course information by code
+
+// mapa de disciplinas para consulta
 export const courseMap = new Map<string, Course>()
+
+
 
 interface RawCurriculumData {
   id: string
@@ -18,115 +25,104 @@ interface RawCurriculumData {
   courses: RawCourse[]
 }
 
-// Interface to match output.json structure
+// interface para o json do bgl do aluno
 interface RawCourse {
   id: string
   name: string
-  type: string  // Changed from "mandatory" | "optional" to string to handle "Ob" type
+  type: string
   credits: number
   workload: number
-  prerequisites: string[] | null  // Changed to allow null
-  equivalents: string[] | null    // Changed to allow null
+  prerequisites: string[] | null
+  equivalents: string[] | null
   description: string
   phase: number
 }
 
-// Function to clean up and normalize raw curriculum data
-function normalizeCurriculumData(jsonData: RawCurriculumData): RawCurriculumData {
-  // Make a deep copy to avoid modifying the original
-  const normalizedData = { ...jsonData, courses: [...jsonData.courses] };
+
+
+// funcao para pegar as informacoes de uma disciplina pelo codigo
+// basicamente uma consulta no hashmap mas melhor e especializada
+export function getCourseInfo(courseCode: string): Course | undefined {
+  if (!courseCode) return undefined;
   
-  // Clean up each course
-  normalizedData.courses = normalizedData.courses.map(course => {
-    // Create a copy of the course to modify
-    return {
-      ...course,
-      // Ensure description doesn't have leading dashes
-      description: course.description?.startsWith('-') 
-        ? course.description.substring(1).trim() 
-        : course.description,
-      // Ensure type is properly capitalized and normalized
-      type: course.type?.trim() || "optional",
-      // Clean prerequisites array
-      prerequisites: course.prerequisites 
-        ? course.prerequisites.map(prereq => prereq.trim()).filter(Boolean)
-        : null,
-      // Clean equivalents array
-      equivalents: course.equivalents
-        ? course.equivalents.map(equiv => equiv.trim()).filter(Boolean)
-        : null
-    };
-  });
+  // primeiro tenta o match exato
+  let course = courseMap.get(courseCode);
+  if (course) return course;
   
-  return normalizedData;
+  // remove o sufixo de classe (e.g., "-05208")
+  const baseCode = courseCode.split("-")[0];
+  course = courseMap.get(baseCode);
+  if (course) return course;
+
+}
+
+
+function mapCourseType(type: string): "mandatory" | "optional" {
+  return type === "Ob" ? "mandatory" : "optional"
 }
 
 export function parseCurriculumData(jsonData: RawCurriculumData): {
   curriculum: Curriculum
   visualization: CurriculumVisualization
 } {
-  // Normalize the data first
-  const normalizedData = normalizeCurriculumData(jsonData);
   
   // Clear the course map before populating it
   courseMap.clear()
 
   // Transform raw courses to Course type with type mapping
-  const courses: Course[] = normalizedData.courses.map(rawCourse => ({
+  const courses: Course[] = jsonData.courses.map(rawCourse => ({
     id: rawCourse.id,
     name: rawCourse.name,
     type: mapCourseType(rawCourse.type),
     credits: rawCourse.credits,
     workload: rawCourse.workload,
     description: rawCourse.description,
-    prerequisites: rawCourse.prerequisites || [],  // Convert null to empty array
-    equivalents: rawCourse.equivalents || [],      // Convert null to empty array
+    prerequisites: rawCourse.prerequisites || [],
+    equivalents: rawCourse.equivalents || [],
     phase: rawCourse.phase
   }));
 
-  // Populate the course map with all courses
   courses.forEach(course => {
     courseMap.set(course.id, course)
   })
 
-  // Filter for only mandatory courses for the phases
+  // por enquanto pegamos apenas as obrigatorias
   const mandatoryCourses = courses.filter(course => course.type === "mandatory");
 
-  // Create phases array and populate with mandatory courses only
-  const phases: Phase[] = Array.from({ length: normalizedData.totalPhases }, (_, i) => ({
+  // cria os arrays de fases
+  const phases: Phase[] = Array.from({ length: jsonData.totalPhases }, (_, i) => ({
     number: i + 1,
     name: `Phase ${i + 1}`,
     courses: mandatoryCourses.filter(course => course.phase === i + 1),
   }))
 
-  // Create the curriculum object
+  // cria o objeto do curriculo (similar ao do curso, mas feito pelo aluno) 
   const curriculum: Curriculum = {
-    name: normalizedData.name,
-    department: normalizedData.department,
-    totalPhases: normalizedData.totalPhases,
+    name: jsonData.name,
+    department: jsonData.department,
+    totalPhases: jsonData.totalPhases,
     phases: phases,
   }
 
-  // Clear positions array before populating it
   positions.length = 0
 
-  // Iterate through each phase to position courses (mandatory only)
+  // posiciona as disciplinas
   phases.forEach((phase, phaseIndex) => {
     phase.courses.forEach((course, courseIndex) => {
       positions.push({
         courseId: course.id,
-        x: phaseIndex * PHASE_WIDTH + 30, // 30px padding from left
-        y: courseIndex * VERTICAL_SPACING + 60, // 60px from top for phase header
+        x: phaseIndex * PHASE_WIDTH + 30,
+        y: courseIndex * VERTICAL_SPACING + 60,
         width: COURSE_WIDTH,
         height: COURSE_HEIGHT,
       })
     })
   })
 
-  // Create the visualization object
+  // cria o componente da ui
   const visualization: CurriculumVisualization = {
-    id: `${normalizedData.id}-vis`,
-    curriculumId: normalizedData.id,
+    id: `${jsonData.id}-vis`,
+    curriculumId: jsonData.id,
     positions,
     phaseLabels: Object.fromEntries(
       phases.map((phase) => [
@@ -145,12 +141,9 @@ export function parseCurriculumData(jsonData: RawCurriculumData): {
   return { curriculum, visualization }
 }
 
-// Helper function to map course types from the JSON format to our application format
-function mapCourseType(type: string): "mandatory" | "optional" {
-  // Map "Ob" to "mandatory", anything else to "optional"
-  return type === "Ob" ? "mandatory" : "optional"
-}
 
+
+// fetch pra pegar o json do curriculo (eventualmente vai estar no servidor)
 export function loadCurriculumFromJson(jsonPath: string): Promise<{
   curriculum: Curriculum
   visualization: CurriculumVisualization
@@ -163,7 +156,7 @@ export function loadCurriculumFromJson(jsonPath: string): Promise<{
       return response.json();
     })
     .then((data) => {
-      // Validate minimum required data
+      // valida o formato do json
       if (!data.id || !data.name || !data.courses || !Array.isArray(data.courses)) {
         console.error("Invalid curriculum data format:", data);
         throw new Error("Invalid curriculum data format: missing required fields");
@@ -178,22 +171,4 @@ export function loadCurriculumFromJson(jsonPath: string): Promise<{
     });
 }
 
-// Helper function to get course info by code
-export function getCourseInfo(courseCode: string): Course | undefined {
-  if (!courseCode) return undefined;
-  
-  // First try exact match
-  let course = courseMap.get(courseCode);
-  if (course) return course;
-  
-  // Remove any class-specific suffix (e.g., "-05208")
-  const baseCode = courseCode.split("-")[0];
-  course = courseMap.get(baseCode);
-  if (course) return course;
-  
-  // Try case-insensitive match as fallback
-  const upperCaseCode = baseCode.toUpperCase();
-  return Array.from(courseMap.entries()).find(
-    ([key]) => key.toUpperCase() === upperCaseCode
-  )?.[1];
-} 
+ 

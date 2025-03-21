@@ -47,7 +47,7 @@ export default function Home() {
       setCurriculumData(currData)
 
       // Then parse student data
-      const student = parseStudentData(studentData as any) // TODO: Fix the type issue with studentData
+      const student = parseStudentData(studentData as any) // TODO: fck this linter
       setStudentInfo(student)
     } catch (error) {
       console.error("Error loading data:", error)
@@ -56,7 +56,8 @@ export default function Home() {
     }
   }, [])
 
-  // calculate container height
+
+  // calcula a altura da container
   const containerHeight = useMemo(() => {
     if (!curriculumData) return 400
 
@@ -77,6 +78,7 @@ export default function Home() {
       </div>
     )
   }
+
 
   if (!curriculumData || !studentInfo || !studentInfo.currentPlan) {
     return (

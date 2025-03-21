@@ -7,6 +7,7 @@ interface PhaseHeaderProps {
   width: number
 }
 
+// header da fase, que aparece no topo de cada fase, esse aqui é batota
 export default function PhaseHeader({ phase, width }: PhaseHeaderProps) {
   return (
     <div

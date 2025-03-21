@@ -13,13 +13,16 @@ interface StudentCourseDetailsPanelProps {
   onStatusChange?: (courseId: string, status: CourseStatus) => void
 }
 
+// painel de detalhes da disciplina, que aparece quando clica no quadradinho da disciplina
+// é meio batota, nao tem muita coisa sendo calculada, só gera ele mesmo, pega toda a info do course 
 export default function StudentCourseDetailsPanel({
   course,
   studentCourse,
   onClose,
   onStatusChange,
 }: StudentCourseDetailsPanelProps) {
-  // Add safety check to prevent rendering if course is undefined
+
+  // meio de seguranca, nao renderiza se nao houver course, mas acho q da pra tirar dps
   if (!course) {
     return null
   }
@@ -32,7 +35,7 @@ export default function StudentCourseDetailsPanel({
 
     switch (studentCourse.status) {
 
-      // TODO: implement
+      // TODO: implementar o status
       case CourseStatus.COMPLETED:
         return (
           <div className="flex items-center gap-1 text-green-600 bg-green-50 px-3 py-1 rounded-full text-xs">

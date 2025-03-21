@@ -1,11 +1,17 @@
 "use client"
 
+// react apenas
+import { Check, Clock, AlertTriangle } from "lucide-react"
+
+// utils
+import { cn } from "@/lib/utils"
+
+// tipos de dados
 import type { Course } from "@/types/curriculum"
 import type { CoursePosition } from "@/types/visualization"
 import type { StudentCourse } from "@/types/student-plan"
 import { CourseStatus } from "@/types/student-plan"
-import { cn } from "@/lib/utils"
-import { Check, Clock, AlertTriangle } from "lucide-react"
+
 
 interface CourseBoxProps {
   course: Course
@@ -16,16 +22,21 @@ interface CourseBoxProps {
   isEmpty?: boolean
 }
 
+
+// quadradinho de cada disciplina, que aparece nos visualizadores
+// recebe um course e uma posicao, e renderiza o quadradinho
+// so tem bastantinho switch case pra decidir a cor e o icone dele
 export default function CourseBox({ 
   course, 
   position, 
   onClick, 
   studentCourse,
-  isPlaceholder = false,
   isEmpty = false,
 }: CourseBoxProps) {
+
+  // pega cor
   const getStatusColor = () => {
-    if (isPlaceholder) {
+    if (isEmpty) {
       return isEmpty 
         ? "border-gray-400 border-dashed bg-white/5" 
         : "border-gray-300 bg-gray-80/30"
@@ -49,8 +60,9 @@ export default function CourseBox({
     }
   }
 
+  // pega icone
   const getStatusIcon = () => {
-    if (isPlaceholder) return null
+    if (isEmpty) return null
     if (!studentCourse) return null
 
     switch (studentCourse.status) {
@@ -73,7 +85,7 @@ export default function CourseBox({
     <div
       className={cn(
         "absolute border-2 rounded p-2 transition-all",
-        !isPlaceholder && "cursor-pointer shadow-sm hover:shadow-md",
+        !isEmpty && "cursor-pointer shadow-sm hover:shadow-md",
         getStatusColor()
       )}
       style={{
@@ -81,9 +93,9 @@ export default function CourseBox({
         top: `${position.y}px`,
         width: `${position.width}px`,
         height: `${position.height}px`,
-        opacity: isPlaceholder ? 0.4 : 1,
+        opacity: isEmpty ? 0.4 : 1,
       }}
-      onClick={!isPlaceholder ? onClick : undefined}
+      onClick={!isEmpty ? onClick : undefined}
     >
       {!isEmpty && (
         <>
