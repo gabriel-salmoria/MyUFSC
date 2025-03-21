@@ -3,10 +3,10 @@ import * as fs from 'fs';
 import * as dotenv from 'dotenv';
 import { Schema } from "./schema.js";
 
-dotenv.config();
+dotenv.config({ path: '../variables.env' });
 const GEMINI_KEY = process.env.GEMINI_KEY;
 
-const genAI = new GoogleGenerativeAI(GEMINI_KEY.toString());
+const genAI = new GoogleGenerativeAI(GEMINI_KEY);
 
 const model = genAI.getGenerativeModel({
      model: 'models/gemini-1.5-flash',

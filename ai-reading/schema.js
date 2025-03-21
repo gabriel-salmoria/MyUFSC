@@ -56,7 +56,7 @@ export const Schema = {
             description: "List of course IDs that are prerequisites",
             items: {
               type: SchemaType.STRING,
-              pattern: "^[A-Za-z]{3}\\d{4}$", // Regular expression for prerequisites
+              pattern: "^[A-Za-z]{3}\\d{4}|^-+.*$", // Regular expression for prerequisites
             },
             nullable: true,
           },
