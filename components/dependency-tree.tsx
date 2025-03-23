@@ -16,12 +16,23 @@ interface DependencyTreeProps {
 interface Connection {
   from: string
   to: string
+  depth: number // Add depth to track connection level
 }
+
+// Define color gradient for different depths
+const DEPTH_COLORS = [
+  '#3b82f6', // blue-500 (root)
+  '#8b5cf6', // violet-500 (depth 1)
+  '#ec4899', // pink-500 (depth 2)
+  '#f97316', // orange-500 (depth 3+)
+]
 
 export default function DependencyTree({ course, isVisible, onClose }: DependencyTreeProps) {
   const [connections, setConnections] = useState<Connection[]>([])
   const [clickedCourse, setClickedCourse] = useState<Course | null>(null)
   const [prerequisiteCourses, setPrerequisiteCourses] = useState<Course[]>([])
+  // Map to store course depth information
+  const [coursesDepth, setCoursesDepth] = useState<Map<string, number>>(new Map())
   
   // Find all prerequisites when the selected course changes
   useEffect(() => {
@@ -33,34 +44,42 @@ export default function DependencyTree({ course, isVisible, onClose }: Dependenc
     const prerequisites: Course[] = []
     const connections: Connection[] = []
     const visitedIds = new Set<string>()
+    const depthMap = new Map<string, number>()
     
-    const findPrerequisites = (currentCourse: Course) => {
+    const findPrerequisites = (currentCourse: Course, depth: number = 0) => {
       if (!currentCourse.prerequisites || currentCourse.prerequisites.length === 0) return
       
       currentCourse.prerequisites.forEach(prereqId => {
         const prereqCourse = courseMap.get(prereqId)
         if (!prereqCourse) return
         
-        // Add connection
+        // Add connection with depth information
         connections.push({
           from: currentCourse.id,
-          to: prereqCourse.id
+          to: prereqCourse.id,
+          depth: depth
         })
         
-        // Only add to prerequisites list if not already visited
-        if (!visitedIds.has(prereqCourse.id)) {
-          prerequisites.push(prereqCourse)
+        // Only add to prerequisites list if not already visited or found at lower depth
+        if (!visitedIds.has(prereqCourse.id) || depthMap.get(prereqCourse.id)! > depth + 1) {
+          // If first time visiting, add to prerequisites array
+          if (!visitedIds.has(prereqCourse.id)) {
+            prerequisites.push(prereqCourse)
+          }
+          
+          // Mark as visited and store depth
           visitedIds.add(prereqCourse.id)
+          depthMap.set(prereqCourse.id, depth + 1)
           
           // Recursively find prerequisites of this course
-          findPrerequisites(prereqCourse)
+          findPrerequisites(prereqCourse, depth + 1)
         }
       })
     }
     
     // Start recursive search
     findPrerequisites(course)
-    
+    setCoursesDepth(depthMap)
     setPrerequisiteCourses(prerequisites)
     setConnections(connections)
     
@@ -73,24 +92,57 @@ export default function DependencyTree({ course, isVisible, onClose }: Dependenc
     
     // Apply highlight effect to all course nodes that are prerequisites
     setTimeout(() => {
+      // Find dashboard containers - these are the main visualization containers
+      const dashboardContainers = document.querySelectorAll('.border.rounded-lg.overflow-hidden.shadow-md')
+      if (!dashboardContainers.length) return
+      
+      // Determine which dashboard container is the source of the click
+      let sourceDashboard: Element | null = null
+      
+      // First, find which dashboard contains the clicked course
+      for (const dashboard of dashboardContainers) {
+        const courseElement = dashboard.querySelector(`[data-course-id="${course.id}"]`)
+        if (courseElement) {
+          sourceDashboard = dashboard
+          break
+        }
+      }
+      
+      if (!sourceDashboard) {
+        console.warn('Could not find source dashboard for dependency view')
+        return // If we can't find the source dashboard, exit
+      }
+      
       // Find all instances of the clicked course on the page
-      const allClickedElements = document.querySelectorAll(`[data-course-id="${course.id}"]`)
+      const allClickedElements = sourceDashboard.querySelectorAll(`[data-course-id="${course.id}"]`)
       if (allClickedElements.length > 0) {
         allClickedElements.forEach(element => {
           element.classList.add('ring-4', 'ring-blue-500', 'ring-opacity-75', 'z-20')
         })
       }
       
-      // Highlight all prerequisites - all instances of each prerequisite
+      // Highlight all prerequisites with different colors based on depth
       prerequisites.forEach(prereq => {
-        const prereqElements = document.querySelectorAll(`[data-course-id="${prereq.id}"]`)
+        // Only look for prerequisites within the same dashboard container
+        const prereqElements = sourceDashboard!.querySelectorAll(`[data-course-id="${prereq.id}"]`)
+        const depth = depthMap.get(prereq.id) || 1
+        const colorIndex = Math.min(depth, DEPTH_COLORS.length - 1)
+        
         prereqElements.forEach(element => {
-          element.classList.add('ring-2', 'ring-green-500', 'ring-opacity-75', 'z-10')
+          element.classList.add('ring-2', 'z-10')
+          // Apply color directly using style
+          if (element instanceof HTMLElement) {
+            element.style.setProperty('--tw-ring-color', DEPTH_COLORS[colorIndex])
+            element.style.setProperty('--tw-ring-opacity', '0.75')
+          }
         })
       })
       
       // Add SVG for connections directly to the dashboard
-      drawConnectionLines(course, prerequisites, connections)
+      drawConnectionLines(course, prerequisites, connections, sourceDashboard)
+      
+      // Add a subtle highlight to the source dashboard to emphasize it
+      sourceDashboard.classList.add('ring-1', 'ring-inset', 'ring-blue-300')
       
       // Add event listeners for scrolling and clicking outside
       const handleScroll = () => {
@@ -138,6 +190,17 @@ export default function DependencyTree({ course, isVisible, onClose }: Dependenc
         'ring-4', 'ring-2', 'ring-blue-500', 'ring-green-500', 
         'ring-opacity-75', 'z-20', 'z-10'
       )
+      
+      // Clear any inline styles for colors
+      if (element instanceof HTMLElement) {
+        element.style.removeProperty('--tw-ring-color')
+        element.style.removeProperty('--tw-ring-opacity')
+      }
+    })
+    
+    // Remove dashboard highlights
+    document.querySelectorAll('.border.rounded-lg.overflow-hidden.shadow-md').forEach(dashboard => {
+      dashboard.classList.remove('ring-1', 'ring-inset', 'ring-blue-300')
     })
     
     // Remove SVG connection lines
@@ -163,7 +226,8 @@ export default function DependencyTree({ course, isVisible, onClose }: Dependenc
   const drawConnectionLines = (
     centerCourse: Course, 
     prerequisites: Course[], 
-    connections: Connection[]
+    connections: Connection[],
+    sourceDashboard: Element
   ) => {
     // First remove any existing lines
     const existingLines = document.getElementById('dependency-connections')
@@ -191,9 +255,9 @@ export default function DependencyTree({ course, isVisible, onClose }: Dependenc
       sourceVisualization = "electives"
     }
     
-    // Get all course elements
+    // Get all course elements within the source dashboard
     const courseElements = new Map<string, {element: Element, rect: DOMRect}[]>()
-    document.querySelectorAll('[data-course-id]').forEach(element => {
+    sourceDashboard.querySelectorAll('[data-course-id]').forEach(element => {
       const id = element.getAttribute('data-course-id')
       if (id) {
         if (!courseElements.has(id)) {
@@ -222,21 +286,6 @@ export default function DependencyTree({ course, isVisible, onClose }: Dependenc
       const elements = courseElements.get(courseId) || []
       if (elements.length === 0) return null
       
-      // If only one element, use it
-      if (elements.length === 1) return elements[0]
-      
-      // Try to match by visualization source
-      if (sourceVisualization === "curriculum") {
-        // For curriculum view, select elements in the top section
-        // Just use a simple y-coordinate heuristic - top half of screen is likely curriculum
-        const curriculumElements = elements.filter(e => e.rect.top < window.innerHeight / 2)
-        if (curriculumElements.length > 0) return curriculumElements[0]
-      } else if (sourceVisualization === "progress") {
-        // For progress view, select elements in the bottom section
-        const progressElements = elements.filter(e => e.rect.top > window.innerHeight / 2)
-        if (progressElements.length > 0) return progressElements[0]
-      }
-      
       // Default to the first element if we can't determine
       return elements[0]
     }
@@ -248,9 +297,9 @@ export default function DependencyTree({ course, isVisible, onClose }: Dependenc
       
       if (!sourceElement || !targetElement) return
       
-      // Mark the elements visually
-      sourceElement.element.classList.add('ring-4', 'ring-blue-500', 'ring-opacity-75', 'z-20')
-      targetElement.element.classList.add('ring-2', 'ring-green-500', 'ring-opacity-75', 'z-10')
+      // Get color based on depth
+      const colorIndex = Math.min(connection.depth, DEPTH_COLORS.length - 1)
+      const strokeColor = DEPTH_COLORS[colorIndex]
       
       // Calculate line positions
       const x1 = sourceElement.rect.left + sourceElement.rect.width / 2
@@ -264,8 +313,8 @@ export default function DependencyTree({ course, isVisible, onClose }: Dependenc
       line.setAttribute('y1', y1.toString())
       line.setAttribute('x2', x2.toString())
       line.setAttribute('y2', y2.toString())
-      line.setAttribute('stroke', connection.from === centerCourse.id ? '#3b82f6' : '#6b7280')
-      line.setAttribute('stroke-width', '2')
+      line.setAttribute('stroke', strokeColor)
+      line.setAttribute('stroke-width', `${3 - Math.min(connection.depth, 2)}`)
       line.setAttribute('stroke-dasharray', '1')
       
       // Animate the line
