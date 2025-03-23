@@ -1,7 +1,8 @@
-
+import { ComponentType } from 'react'
 
 // representa uma disciplina
 export interface Course {
+  ui?: ComponentType<any>    // referencia para o componente de visualizacao da disciplina
   id: string                        // codigo da disciplina (e.g., "INE5407")
   name: string                      // nome da disciplina (e.g., "Digital Systems")
   credits: number                   // numero de creditos

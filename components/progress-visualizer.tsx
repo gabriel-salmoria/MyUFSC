@@ -2,7 +2,7 @@
 
 // react apenas
 import type React from "react"
-import { useRef, useState } from "react"
+import { useRef, useState, useEffect, useMemo } from "react"
 
 
 // tipos de dados
@@ -18,11 +18,11 @@ import CourseBox from "./course-box"
 
 const TOTAL_SEMESTERS = 8 
 const BOXES_PER_COLUMN = 6
-const BOX_WIDTH = 140
+const MIN_BOX_WIDTH = 140
 const BOX_HEIGHT = 50
-const BOX_SPACING_X = 200
 const BOX_SPACING_Y = 60
 const LEFT_PADDING = 30
+const MIN_PHASE_WIDTH = 200
 
 
 interface ProgressVisualizerProps {
@@ -39,8 +39,41 @@ export default function ProgressVisualizer({
 }: ProgressVisualizerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [pan, setPan] = useState({ x: 0, y: 0 })
+  const [phaseWidth, setPhaseWidth] = useState(MIN_PHASE_WIDTH)
 
-  const totalWidth = TOTAL_SEMESTERS * BOX_SPACING_X
+  // Calculate dynamic phase width based on container size
+  useEffect(() => {
+    const updatePhaseWidth = () => {
+      if (containerRef.current) {
+        const containerWidth = containerRef.current.clientWidth
+        // Calculate phase width: max of MIN_PHASE_WIDTH or container width divided by semesters
+        const calculatedWidth = Math.max(MIN_PHASE_WIDTH, containerWidth / TOTAL_SEMESTERS)
+        setPhaseWidth(calculatedWidth)
+      }
+    }
+
+    // Initial calculation
+    updatePhaseWidth()
+    
+    // Add resize listener
+    const resizeObserver = new ResizeObserver(updatePhaseWidth)
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current)
+    }
+
+    // Cleanup
+    return () => {
+      resizeObserver.disconnect()
+    }
+  }, [])
+
+  // Calculate box width proportional to phase width
+  const boxWidth = useMemo(() => {
+    // Calculate proportional box width, but ensure it's at least MIN_BOX_WIDTH
+    return Math.max(MIN_BOX_WIDTH, phaseWidth * 0.7)
+  }, [phaseWidth])
+
+  const totalWidth = TOTAL_SEMESTERS * phaseWidth
 
   // cria um map de disciplinas ja cursadas para busca rapida depois
   const takenCoursesMap = new Map<string, StudentCourse>()
@@ -54,12 +87,15 @@ export default function ProgressVisualizer({
   
   // primeiro, posiciona todas as disciplinas ja cursadas
   studentPlan.semesters.forEach((semester, semesterIndex) => {
+    // Calculate horizontal centering within the phase
+    const xOffset = (phaseWidth - boxWidth) / 2
+    
     semester.courses.forEach((studentCourse, courseIndex) => {
       positions.push({
         courseId: studentCourse.course.id,
-        x: semesterIndex * BOX_SPACING_X + LEFT_PADDING,
+        x: semesterIndex * phaseWidth + xOffset,
         y: courseIndex * BOX_SPACING_Y + BOX_SPACING_Y,
-        width: BOX_WIDTH,
+        width: boxWidth,
         height: BOX_HEIGHT,
       })
     })
@@ -67,16 +103,22 @@ export default function ProgressVisualizer({
 
   // preenche os slots vazios com ghost boxes
   for (let phase = 1; phase <= TOTAL_SEMESTERS; phase++) {
+    // Calculate horizontal centering within the phase
+    const xOffset = (phaseWidth - boxWidth) / 2
+    
     const coursesInPhase = Array.from(positions)
-      .filter(pos => Math.floor(pos.x / BOX_SPACING_X) === phase - 1)
+      .filter(pos => {
+        const phaseOfPosition = Math.floor(pos.x / phaseWidth);
+        return phaseOfPosition === phase - 1;
+      })
       .length
 
     for (let slot = coursesInPhase; slot < BOXES_PER_COLUMN; slot++) {
       positions.push({
         courseId: `ghost-${phase}-${slot}`,
-        x: (phase - 1) * BOX_SPACING_X + LEFT_PADDING,
+        x: (phase - 1) * phaseWidth + xOffset,
         y: slot * BOX_SPACING_Y + BOX_SPACING_Y,
-        width: BOX_WIDTH,
+        width: boxWidth,
         height: BOX_HEIGHT,
         isGhost: true,
       })
@@ -115,7 +157,7 @@ export default function ProgressVisualizer({
               <PhaseHeader 
                 key={`phase-${phase.originalIndex}`} 
                 phase={phase} 
-                width={BOX_SPACING_X} 
+                width={phaseWidth} 
               />
             ))}
           </div>
@@ -126,7 +168,7 @@ export default function ProgressVisualizer({
               key={`divider-${i}`}
               className="absolute top-10 bottom-0 w-px bg-gray-300"
               style={{
-                left: `${(i + 1) * BOX_SPACING_X}px`,
+                left: `${(i + 1) * phaseWidth}px`,
               }}
             />
           ))}
@@ -149,14 +191,24 @@ export default function ProgressVisualizer({
 
             const studentCourse = takenCoursesMap.get(position.courseId)
 
-            return (
+            // Create a unique CourseBox for this course and store it
+            const CourseBoxInstance = (props: any) => (
               <CourseBox
-                key={`${position.courseId}-${position.x}-${position.y}`}
+                {...props}
                 course={course}
-                position={position}
                 studentCourse={studentCourse}
-                onClick={() => studentCourse && onCourseClick?.(studentCourse)}
                 isEmpty={false}
+              />
+            );
+            
+            // Store this specific instance in the course
+            course.ui = CourseBoxInstance;
+
+            return (
+              <CourseBoxInstance
+                key={`${position.courseId}-${position.x}-${position.y}`}
+                position={position}
+                onClick={() => studentCourse && onCourseClick?.(studentCourse)}
               />
             )
           })}
