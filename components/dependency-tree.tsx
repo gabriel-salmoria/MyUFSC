@@ -21,10 +21,10 @@ interface Connection {
 
 // Define color gradient for different depths
 const DEPTH_COLORS = [
-  '#3b82f6', // blue-500 (root)
-  '#8b5cf6', // violet-500 (depth 1)
-  '#ec4899', // pink-500 (depth 2)
-  '#f97316', // orange-500 (depth 3+)
+  '#4287f5', // brighter blue (root)
+  '#9d6ffd', // brighter violet (depth 1)
+  '#ff59a8', // brighter pink (depth 2)
+  '#ff8534', // brighter orange (depth 3+)
 ]
 
 export default function DependencyTree({ course, isVisible, onClose }: DependencyTreeProps) {
@@ -125,8 +125,8 @@ export default function DependencyTree({ course, isVisible, onClose }: Dependenc
             element.style.zIndex = '30' // Set z-index using inline style
             element.style.transform = 'scale(1.02)'
             element.style.transition = 'all 0.3s ease'
-            element.style.filter = 'brightness(1.08)'
-            element.style.boxShadow = '0 0 20px rgba(59, 130, 246, 0.4)'
+            element.style.filter = 'brightness(1.1) contrast(1.05)'
+            element.style.boxShadow = '0 0 25px rgba(66, 135, 245, 0.5), 0 0 10px rgba(255, 255, 255, 0.8)'
           }
         })
       }
@@ -181,9 +181,9 @@ export default function DependencyTree({ course, isVisible, onClose }: Dependenc
             element.style.transform = 'scale(1.02)'
             element.style.transition = 'all 0.3s ease'
             // Add subtle brightness increase
-            element.style.filter = 'brightness(1.08)'
+            element.style.filter = 'brightness(1.1) contrast(1.05)'
             // Add subtle glow effect with box-shadow
-            element.style.boxShadow = '0 0 20px rgba(59, 130, 246, 0.4)'
+            element.style.boxShadow = '0 0 25px rgba(66, 135, 245, 0.5), 0 0 10px rgba(255, 255, 255, 0.8)'
           }
         }
       })
@@ -386,11 +386,42 @@ export default function DependencyTree({ course, isVisible, onClose }: Dependenc
       const colorIndex = Math.min(connection.depth, DEPTH_COLORS.length - 1)
       const strokeColor = DEPTH_COLORS[colorIndex]
       
-      // Calculate line positions
-      const x1 = sourceElement.rect.left + sourceElement.rect.width / 2
-      const y1 = sourceElement.rect.top + sourceElement.rect.height / 2
-      const x2 = targetElement.rect.left + targetElement.rect.width / 2
-      const y2 = targetElement.rect.top + targetElement.rect.height / 2
+      // Calculate centers first
+      const sourceCenterX = sourceElement.rect.left + sourceElement.rect.width / 2
+      const sourceCenterY = sourceElement.rect.top + sourceElement.rect.height / 2
+      const targetCenterX = targetElement.rect.left + targetElement.rect.width / 2
+      const targetCenterY = targetElement.rect.top + targetElement.rect.height / 2
+      
+      // Calculate angle between centers
+      const angle = Math.atan2(targetCenterY - sourceCenterY, targetCenterX - sourceCenterX)
+      
+      // Add a small gap between the box edge and line (in pixels)
+      const edgeGap = 4
+      
+      // Calculate intersection points with borders
+      let x1, y1, x2, y2
+      
+      // Source point
+      if (Math.abs(Math.cos(angle)) > Math.abs(Math.sin(angle))) {
+        // Mostly horizontal - use left/right edge
+        x1 = sourceCenterX + ((sourceElement.rect.width / 2) + edgeGap) * Math.sign(Math.cos(angle))
+        y1 = sourceCenterY + (Math.tan(angle) * (sourceElement.rect.width / 2 + edgeGap)) * Math.sign(Math.cos(angle))
+      } else {
+        // Mostly vertical - use top/bottom edge
+        y1 = sourceCenterY + ((sourceElement.rect.height / 2) + edgeGap) * Math.sign(Math.sin(angle))
+        x1 = sourceCenterX + (((sourceElement.rect.height / 2) + edgeGap) / Math.tan(angle)) * Math.sign(Math.sin(angle))
+      }
+      
+      // Target point (opposite direction)
+      if (Math.abs(Math.cos(angle)) > Math.abs(Math.sin(angle))) {
+        // Mostly horizontal - use left/right edge
+        x2 = targetCenterX - ((targetElement.rect.width / 2) + edgeGap) * Math.sign(Math.cos(angle))
+        y2 = targetCenterY - (Math.tan(angle) * (targetElement.rect.width / 2 + edgeGap)) * Math.sign(Math.cos(angle))
+      } else {
+        // Mostly vertical - use top/bottom edge
+        y2 = targetCenterY - ((targetElement.rect.height / 2) + edgeGap) * Math.sign(Math.sin(angle))
+        x2 = targetCenterX - (((targetElement.rect.height / 2) + edgeGap) / Math.tan(angle)) * Math.sign(Math.sin(angle))
+      }
       
       // Create line element
       const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
@@ -399,13 +430,14 @@ export default function DependencyTree({ course, isVisible, onClose }: Dependenc
       line.setAttribute('x2', x2.toString())
       line.setAttribute('y2', y2.toString())
       line.setAttribute('stroke', strokeColor)
-      line.setAttribute('stroke-width', `${3 - Math.min(connection.depth, 2)}`)
+      // Slightly thicker lines for better visibility
+      line.setAttribute('stroke-width', `${5 - Math.min(connection.depth, 2)}`)
       line.setAttribute('stroke-dasharray', '1')
       
       // Animate the line
       line.innerHTML = `
         <animate attributeName="stroke-dashoffset" from="1" to="0" dur="0.5s" fill="freeze" />
-        <animate attributeName="opacity" from="0" to="0.75" dur="0.3s" fill="freeze" />
+        <animate attributeName="opacity" from="0" to="0.85" dur="0.3s" fill="freeze" />
       `
       
       svg.appendChild(line)
