@@ -392,35 +392,65 @@ export default function DependencyTree({ course, isVisible, onClose }: Dependenc
       const targetCenterX = targetElement.rect.left + targetElement.rect.width / 2
       const targetCenterY = targetElement.rect.top + targetElement.rect.height / 2
       
+      // Calculate vector between centers
+      const dx = targetCenterX - sourceCenterX
+      const dy = targetCenterY - sourceCenterY
+      
       // Calculate angle between centers
-      const angle = Math.atan2(targetCenterY - sourceCenterY, targetCenterX - sourceCenterX)
+      const angle = Math.atan2(dy, dx)
       
       // Add a small gap between the box edge and line (in pixels)
       const edgeGap = 4
       
-      // Calculate intersection points with borders
-      let x1, y1, x2, y2
+      // Calculate direction vector (normalized)
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      const dirX = dx / distance
+      const dirY = dy / distance
       
-      // Source point
-      if (Math.abs(Math.cos(angle)) > Math.abs(Math.sin(angle))) {
-        // Mostly horizontal - use left/right edge
-        x1 = sourceCenterX + ((sourceElement.rect.width / 2) + edgeGap) * Math.sign(Math.cos(angle))
-        y1 = sourceCenterY + (Math.tan(angle) * (sourceElement.rect.width / 2 + edgeGap)) * Math.sign(Math.cos(angle))
+      // Calculate intersection points with borders for source box
+      let x1, y1
+      
+      // For the source point, we need to find where the line exits the box
+      const sourceHalfWidth = sourceElement.rect.width / 2
+      const sourceHalfHeight = sourceElement.rect.height / 2
+      
+      // Calculate intersection with vertical edges (left/right)
+      const txVert = dirX === 0 ? Infinity : sourceHalfWidth / Math.abs(dirX)
+      // Calculate intersection with horizontal edges (top/bottom)
+      const tyHor = dirY === 0 ? Infinity : sourceHalfHeight / Math.abs(dirY)
+      
+      // Use the nearest intersection
+      if (txVert < tyHor) {
+        // Exit through left or right edge
+        x1 = sourceCenterX + (sourceHalfWidth + edgeGap) * Math.sign(dirX)
+        y1 = sourceCenterY + dirY * (txVert + edgeGap)
       } else {
-        // Mostly vertical - use top/bottom edge
-        y1 = sourceCenterY + ((sourceElement.rect.height / 2) + edgeGap) * Math.sign(Math.sin(angle))
-        x1 = sourceCenterX + (((sourceElement.rect.height / 2) + edgeGap) / Math.tan(angle)) * Math.sign(Math.sin(angle))
+        // Exit through top or bottom edge
+        x1 = sourceCenterX + dirX * (tyHor + edgeGap)
+        y1 = sourceCenterY + (sourceHalfHeight + edgeGap) * Math.sign(dirY)
       }
       
-      // Target point (opposite direction)
-      if (Math.abs(Math.cos(angle)) > Math.abs(Math.sin(angle))) {
-        // Mostly horizontal - use left/right edge
-        x2 = targetCenterX - ((targetElement.rect.width / 2) + edgeGap) * Math.sign(Math.cos(angle))
-        y2 = targetCenterY - (Math.tan(angle) * (targetElement.rect.width / 2 + edgeGap)) * Math.sign(Math.cos(angle))
+      // Calculate intersection points with borders for target box
+      let x2, y2
+      
+      // For the target point, we find where the line enters the box (opposite direction)
+      const targetHalfWidth = targetElement.rect.width / 2
+      const targetHalfHeight = targetElement.rect.height / 2
+      
+      // Calculate intersection with vertical edges (left/right) for target
+      const txVertTarget = dirX === 0 ? Infinity : targetHalfWidth / Math.abs(dirX)
+      // Calculate intersection with horizontal edges (top/bottom) for target
+      const tyHorTarget = dirY === 0 ? Infinity : targetHalfHeight / Math.abs(dirY)
+      
+      // Use the nearest intersection, but in opposite direction
+      if (txVertTarget < tyHorTarget) {
+        // Enter through left or right edge
+        x2 = targetCenterX - (targetHalfWidth + edgeGap) * Math.sign(dirX)
+        y2 = targetCenterY - dirY * (txVertTarget + edgeGap)
       } else {
-        // Mostly vertical - use top/bottom edge
-        y2 = targetCenterY - ((targetElement.rect.height / 2) + edgeGap) * Math.sign(Math.sin(angle))
-        x2 = targetCenterX - (((targetElement.rect.height / 2) + edgeGap) / Math.tan(angle)) * Math.sign(Math.sin(angle))
+        // Enter through top or bottom edge
+        x2 = targetCenterX - dirX * (tyHorTarget + edgeGap)
+        y2 = targetCenterY - (targetHalfHeight + edgeGap) * Math.sign(dirY)
       }
       
       // Create line element
