@@ -6,6 +6,7 @@ import { useState, useEffect, useMemo } from "react"
 import CurriculumVisualizer from "@/components/curriculum-visualizer"
 import ProgressVisualizer from "@/components/progress-visualizer"
 import StudentCourseDetailsPanel from "@/components/details-panel"
+import GridVisualizer from "@/components/grid-visualizer"
 
 
 // types
@@ -17,6 +18,7 @@ import type { StudentInfo, StudentCourse } from "@/types/student-plan"
 // parsers
 import { parseCurriculumData } from "@/lib/curriculum-parser"
 import { parseStudentData } from "@/lib/student-parser"
+import { courseMap } from "@/lib/curriculum-parser"
 
 
 // json data
@@ -26,13 +28,17 @@ import studentData from "@/data/student.json"
 
 
 export default function Home() {
+  enum ViewMode {
+    CURRICULUM = "curriculum",
+    ELECTIVES = "electives"
+  }
 
   const [curriculumData, setCurriculumData] = useState<{
     curriculum: Curriculum 
     visualization: CurriculumVisualization 
   } | null>(null)
 
-
+  const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.CURRICULUM)
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
   const [selectedStudentCourse, setSelectedStudentCourse] = useState<StudentCourse | null>(null)
   const [studentInfo, setStudentInfo] = useState<StudentInfo | null>(null)
@@ -56,6 +62,42 @@ export default function Home() {
     }
   }, [])
 
+  // Get all elective courses from the courseMap
+  const electiveCourses = useMemo(() => {
+    // Get all courses from the courseMap
+    const allCourses = Array.from(courseMap.values());
+    
+    // Filter for optional courses only
+    const optionalCourses = allCourses.filter(course => course.type === "optional");
+    
+    // Filter out courses that are already in the curriculum visualization
+    // to avoid showing the same courses twice
+    const curriculumCourseIds = new Set<string>();
+    if (curriculumData) {
+      curriculumData.curriculum.phases.forEach(phase => {
+        phase.courses.forEach(course => {
+          curriculumCourseIds.add(course.id);
+        });
+      });
+    }
+    
+    // Return only the electives that aren't already in the curriculum
+    return optionalCourses.filter(course => !curriculumCourseIds.has(course.id));
+  }, [curriculumData]);
+
+  // Create a map of student courses for electives
+  const studentCoursesMap = useMemo(() => {
+    if (!studentInfo?.currentPlan) return new Map<string, StudentCourse>();
+    
+    const map = new Map<string, StudentCourse>();
+    studentInfo.currentPlan.semesters.forEach(semester => {
+      semester.courses.forEach(course => {
+        map.set(course.course.id, course);
+      });
+    });
+    
+    return map;
+  }, [studentInfo]);
 
   // calcula a altura da container
   const containerHeight = useMemo(() => {
@@ -88,6 +130,9 @@ export default function Home() {
     )
   }
 
+  const toggleView = () => {
+    setViewMode(viewMode === ViewMode.CURRICULUM ? ViewMode.ELECTIVES : ViewMode.CURRICULUM);
+  };
 
 
   return (
@@ -98,17 +143,37 @@ export default function Home() {
 
       <div className="flex-1 p-6 space-y-6">
         <div>
-          <h2 className="text-xl font-semibold mb-2">Curriculum Overview</h2>
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="text-xl font-semibold">
+              {viewMode === ViewMode.CURRICULUM ? "Curriculum Overview" : "Elective Courses"}
+            </h2>
+            <button
+              onClick={toggleView}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+            >
+              Show {viewMode === ViewMode.CURRICULUM ? "Electives" : "Curriculum"}
+            </button>
+          </div>
+          
           <div
             className="border rounded-lg overflow-hidden shadow-md"
             style={{ height: `${containerHeight}px` }}
           >
-            <CurriculumVisualizer
-              curriculum={curriculumData.curriculum}
-              visualization={curriculumData.visualization}
-              onCourseClick={setSelectedCourse}
-              height={containerHeight}
-            />
+            {viewMode === ViewMode.CURRICULUM ? (
+              <CurriculumVisualizer
+                curriculum={curriculumData.curriculum}
+                visualization={curriculumData.visualization}
+                onCourseClick={setSelectedCourse}
+                height={containerHeight}
+              />
+            ) : (
+              <GridVisualizer
+                courses={electiveCourses}
+                studentCourses={studentCoursesMap}
+                onCourseClick={setSelectedCourse}
+                height={containerHeight}
+              />
+            )}
           </div>
         </div>
 
