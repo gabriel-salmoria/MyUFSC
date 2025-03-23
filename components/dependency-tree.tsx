@@ -117,7 +117,17 @@ export default function DependencyTree({ course, isVisible, onClose }: Dependenc
       const allClickedElements = sourceDashboard.querySelectorAll(`[data-course-id="${course.id}"]`)
       if (allClickedElements.length > 0) {
         allClickedElements.forEach(element => {
-          element.classList.add('ring-4', 'ring-blue-500', 'ring-opacity-75', 'z-20')
+          element.classList.add('ring-4', 'ring-blue-500', 'ring-opacity-75')
+          element.classList.add('bg-white') // Ensure background is white
+          
+          // Apply consistent styling with other highlighted courses
+          if (element instanceof HTMLElement) {
+            element.style.zIndex = '30' // Set z-index using inline style
+            element.style.transform = 'scale(1.02)'
+            element.style.transition = 'all 0.3s ease'
+            element.style.filter = 'brightness(1.08)'
+            element.style.boxShadow = '0 0 20px rgba(59, 130, 246, 0.4)'
+          }
         })
       }
       
@@ -143,6 +153,59 @@ export default function DependencyTree({ course, isVisible, onClose }: Dependenc
       
       // Add a subtle highlight to the source dashboard to emphasize it
       sourceDashboard.classList.add('ring-1', 'ring-inset', 'ring-blue-300')
+      
+      // Process the courses first before adding the overlay
+      // Dim all courses that aren't part of the dependency tree
+      const allCourseElements = sourceDashboard.querySelectorAll('[data-course-id]')
+      const highlightedCourseIds = new Set([course.id, ...prerequisites.map(c => c.id)])
+      
+      allCourseElements.forEach(element => {
+        const courseId = element.getAttribute('data-course-id')
+        if (courseId && !highlightedCourseIds.has(courseId)) {
+          // Add semi-transparent overlay to non-highlighted courses
+          element.classList.add('opacity-40', 'bg-gray-100')
+          
+          // Add transition effect for smoother appearance
+          if (element instanceof HTMLElement) {
+            element.style.transition = 'all 0.3s ease'
+            element.style.zIndex = '1' // Above background, below highlighted courses
+          }
+        } else if (courseId && highlightedCourseIds.has(courseId)) {
+          // Make highlighted courses stand out more
+          element.classList.add('shadow-lg') // Styling for highlight
+          element.classList.add('bg-white') // Ensure background is white
+          
+          // Add subtle scale effect to highlighted courses
+          if (element instanceof HTMLElement) {
+            element.style.zIndex = '30' // Higher z-index to appear above the overlay
+            element.style.transform = 'scale(1.02)'
+            element.style.transition = 'all 0.3s ease'
+            // Add subtle brightness increase
+            element.style.filter = 'brightness(1.08)'
+            // Add subtle glow effect with box-shadow
+            element.style.boxShadow = '0 0 20px rgba(59, 130, 246, 0.4)'
+          }
+        }
+      })
+      
+      // Instead of adding an overlay, let's darken the background of the dashboard directly
+      // Find the dashboard's inner container or background elements
+      const bgElement = sourceDashboard.querySelector('.relative')
+      if (bgElement instanceof HTMLElement) {
+        // Create and append an overlay div as the first child
+        const overlay = document.createElement('div')
+        overlay.className = 'absolute inset-0 pointer-events-none z-0'
+        overlay.style.backgroundColor = 'rgba(17, 24, 39, 0.1)' // Dark gray with opacity
+        overlay.style.transition = 'opacity 0.3s ease'
+        overlay.id = 'dashboard-overlay'
+        
+        // Add the overlay as the first child to be behind all courses
+        if (bgElement.firstChild) {
+          bgElement.insertBefore(overlay, bgElement.firstChild)
+        } else {
+          bgElement.appendChild(overlay)
+        }
+      }
       
       // Add event listeners for scrolling and clicking outside
       const handleScroll = () => {
@@ -188,19 +251,35 @@ export default function DependencyTree({ course, isVisible, onClose }: Dependenc
     document.querySelectorAll('[data-course-id]').forEach(element => {
       element.classList.remove(
         'ring-4', 'ring-2', 'ring-blue-500', 'ring-green-500', 
-        'ring-opacity-75', 'z-20', 'z-10'
+        'ring-opacity-75', 'z-30', 'z-20', 'z-10', 'opacity-40', 'shadow-lg', 'bg-white', 'bg-gray-100'
       )
       
       // Clear any inline styles for colors
       if (element instanceof HTMLElement) {
+        // Reset all styling properties we might have set
         element.style.removeProperty('--tw-ring-color')
         element.style.removeProperty('--tw-ring-opacity')
+        element.style.removeProperty('transform')
+        element.style.removeProperty('transition')
+        element.style.removeProperty('filter')
+        element.style.removeProperty('box-shadow')
+        element.style.removeProperty('background-color')
+        element.style.removeProperty('opacity')
+        element.style.removeProperty('z-index')
       }
     })
     
     // Remove dashboard highlights
     document.querySelectorAll('.border.rounded-lg.overflow-hidden.shadow-md').forEach(dashboard => {
       dashboard.classList.remove('ring-1', 'ring-inset', 'ring-blue-300')
+      
+      // Reset dashboard positioning
+      if (dashboard instanceof HTMLElement) {
+        dashboard.style.removeProperty('position')
+      }
+      
+      // Remove dashboard overlay
+      dashboard.querySelectorAll('#dashboard-overlay').forEach(overlay => overlay.remove())
     })
     
     // Remove SVG connection lines
@@ -219,6 +298,12 @@ export default function DependencyTree({ course, isVisible, onClose }: Dependenc
     const infoBanner = document.getElementById('dependency-info-banner')
     if (infoBanner) {
       infoBanner.remove()
+    }
+    
+    // Remove overlay
+    const overlay = document.getElementById('dependency-overlay')
+    if (overlay) {
+      overlay.remove()
     }
   }
   
