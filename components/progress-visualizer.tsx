@@ -191,7 +191,7 @@ export default function ProgressVisualizer({
 
             const studentCourse = takenCoursesMap.get(position.courseId)
 
-            // Create a unique CourseBox for this course and store it
+            // Create a unique CourseBox for this course
             const CourseBoxInstance = (props: any) => (
               <CourseBox
                 {...props}
@@ -202,7 +202,7 @@ export default function ProgressVisualizer({
             );
             
             // Store this specific instance in the course
-            course.ui = CourseBoxInstance;
+            course.ui_progress = CourseBoxInstance;
 
             return (
               <CourseBoxInstance

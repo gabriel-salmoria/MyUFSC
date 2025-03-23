@@ -96,6 +96,7 @@ export default function CourseBox({
         opacity: isEmpty ? 0.4 : 1,
       }}
       onClick={!isEmpty ? onClick : undefined}
+      data-course-id={course.id}
     >
       {!isEmpty && (
         <>

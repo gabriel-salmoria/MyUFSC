@@ -141,7 +141,7 @@ export default function CurriculumVisualizer({
               );
               
               // Store this specific instance in the course
-              course.ui = CourseBoxInstance;
+              course.ui_curriculum = CourseBoxInstance;
 
               return (
                 <CourseBoxInstance 

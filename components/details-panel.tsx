@@ -3,7 +3,7 @@
 import type { Course } from "@/types/curriculum"
 import { type StudentCourse, CourseStatus } from "@/types/student-plan"
 import { Button } from "@/components/ui/button"
-import { X, Check, Clock, AlertTriangle } from "lucide-react"
+import { X, Check, Clock, AlertTriangle, GitGraph } from "lucide-react"
 import { getCourseInfo } from "@/lib/curriculum-parser"
 
 interface StudentCourseDetailsPanelProps {
@@ -11,6 +11,7 @@ interface StudentCourseDetailsPanelProps {
   studentCourse?: StudentCourse
   onClose: () => void
   onStatusChange?: (courseId: string, status: CourseStatus) => void
+  onViewDependencies?: () => void
 }
 
 // painel de detalhes da disciplina, que aparece quando clica no quadradinho da disciplina
@@ -20,6 +21,7 @@ export default function StudentCourseDetailsPanel({
   studentCourse,
   onClose,
   onStatusChange,
+  onViewDependencies,
 }: StudentCourseDetailsPanelProps) {
 
   // meio de seguranca, nao renderiza se nao houver course, mas acho q da pra tirar dps
@@ -147,6 +149,18 @@ export default function StudentCourseDetailsPanel({
 
 
         <div className="mt-6 space-y-2">
+          {/* View Dependencies button */}
+          {course.prerequisites && course.prerequisites.length > 0 && onViewDependencies && (
+            <Button
+              variant="secondary"
+              className="w-full flex items-center justify-center gap-2"
+              onClick={onViewDependencies}
+            >
+              <GitGraph className="h-4 w-4" />
+              View Dependency Tree
+            </Button>
+          )}
+
           {!studentCourse || studentCourse.status === CourseStatus.PLANNED ? (
             <Button className="w-full" onClick={() => onStatusChange?.(course.id, CourseStatus.IN_PROGRESS)}>
               Mark as In Progress

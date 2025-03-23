@@ -7,6 +7,7 @@ import CurriculumVisualizer from "@/components/curriculum-visualizer"
 import ProgressVisualizer from "@/components/progress-visualizer"
 import StudentCourseDetailsPanel from "@/components/details-panel"
 import GridVisualizer from "@/components/grid-visualizer"
+import DependencyTree from "@/components/dependency-tree"
 
 
 // types
@@ -41,6 +42,8 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.CURRICULUM)
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
   const [selectedStudentCourse, setSelectedStudentCourse] = useState<StudentCourse | null>(null)
+  const [showDependencyTree, setShowDependencyTree] = useState(false)
+  const [dependencyCourse, setDependencyCourse] = useState<Course | null>(null)
   const [studentInfo, setStudentInfo] = useState<StudentInfo | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -61,6 +64,31 @@ export default function Home() {
       setIsLoading(false)
     }
   }, [])
+
+  // Handler for showing dependency tree
+  const handleViewDependencies = (course: Course) => {
+    setDependencyCourse(course)
+    setShowDependencyTree(true)
+    // Close the details panel when viewing dependencies
+    setSelectedCourse(null)
+    setSelectedStudentCourse(null)
+  }
+
+  // Handler for hiding dependency tree
+  const handleCloseDependencyTree = () => {
+    setShowDependencyTree(false)
+    setDependencyCourse(null)
+  }
+
+  // Handler for course click with dependency tree option
+  const handleCourseClick = (course: Course) => {
+    setSelectedCourse(course)
+  }
+
+  // Handler for student course click with dependency tree option
+  const handleStudentCourseClick = (studentCourse: StudentCourse) => {
+    setSelectedStudentCourse(studentCourse)
+  }
 
   // Get all elective courses from the courseMap
   const electiveCourses = useMemo(() => {
@@ -163,14 +191,14 @@ export default function Home() {
               <CurriculumVisualizer
                 curriculum={curriculumData.curriculum}
                 visualization={curriculumData.visualization}
-                onCourseClick={setSelectedCourse}
+                onCourseClick={handleCourseClick}
                 height={containerHeight}
               />
             ) : (
               <GridVisualizer
                 courses={electiveCourses}
                 studentCourses={studentCoursesMap}
-                onCourseClick={setSelectedCourse}
+                onCourseClick={handleCourseClick}
                 height={containerHeight}
               />
             )}
@@ -185,7 +213,7 @@ export default function Home() {
           >
             <ProgressVisualizer
               studentPlan={studentInfo.currentPlan}
-              onCourseClick={setSelectedStudentCourse}
+              onCourseClick={handleStudentCourseClick}
               height={containerHeight}
             />
           </div>
@@ -196,6 +224,7 @@ export default function Home() {
         <StudentCourseDetailsPanel
           course={selectedCourse}
           onClose={() => setSelectedCourse(null)}
+          onViewDependencies={() => handleViewDependencies(selectedCourse)}
         />
       )}
 
@@ -204,6 +233,16 @@ export default function Home() {
           course={selectedStudentCourse.course}
           studentCourse={selectedStudentCourse}
           onClose={() => setSelectedStudentCourse(null)}
+          onViewDependencies={() => handleViewDependencies(selectedStudentCourse.course)}
+        />
+      )}
+
+      {/* Dependency Tree Visualization */}
+      {dependencyCourse && (
+        <DependencyTree
+          course={dependencyCourse}
+          isVisible={showDependencyTree}
+          onClose={handleCloseDependencyTree}
         />
       )}
     </main>

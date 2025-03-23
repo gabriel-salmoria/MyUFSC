@@ -2,7 +2,6 @@ import { ComponentType } from 'react'
 
 // representa uma disciplina
 export interface Course {
-  ui?: ComponentType<any>    // referencia para o componente de visualizacao da disciplina
   id: string                        // codigo da disciplina (e.g., "INE5407")
   name: string                      // nome da disciplina (e.g., "Digital Systems")
   credits: number                   // numero de creditos
@@ -12,6 +11,12 @@ export interface Course {
   equivalents?: string[]            // array opcional de codigos de disciplinas que sao equivalentes
   type?: "mandatory" | "optional"   // se a disciplina e obrigatoria ou opcional
   phase: number                     // numero da fase recomendada (1-8+)
+  
+  // UI component references for different visualizations
+  ui?: ComponentType<any>           // General reference (legacy)
+  ui_curriculum?: ComponentType<any> // Reference in curriculum visualizer
+  ui_progress?: ComponentType<any>  // Reference in progress visualizer
+  ui_electives?: ComponentType<any> // Reference in electives visualizer
 }
 
 // ta bem simples, basicamente um container
