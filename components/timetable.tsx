@@ -28,6 +28,18 @@ const TIME_SLOTS = [
   { id: "21:10", label: "21:10" },
 ]
 
+// Color palette for courses
+const COURSE_COLORS = [
+  "border-blue-400 bg-blue-50",
+  "border-yellow-400 bg-yellow-50",
+  "border-green-400 bg-green-50",
+  "border-purple-400 bg-purple-50",
+  "border-cyan-400 bg-cyan-50",
+  "border-pink-400 bg-pink-50",
+  "border-indigo-400 bg-indigo-50",
+  "border-orange-400 bg-orange-50",
+];
+
 interface TimetableProps {
   studentInfo: StudentInfo
   onCourseClick?: (course: StudentCourse) => void
@@ -55,7 +67,7 @@ export default function Timetable({ studentInfo, onCourseClick }: TimetableProps
       const courseId = course.course.id
       const courseTimes = scheduleData[courseId as keyof typeof scheduleData]
       
-      if (!courseTimes) return
+      if (!courseTimes || !Array.isArray(courseTimes)) return
       
       courseTimes.forEach((timeEntry: any) => {
         const { day, startTime } = timeEntry
@@ -78,12 +90,25 @@ export default function Timetable({ studentInfo, onCourseClick }: TimetableProps
     return schedule
   }, [currentCourses])
 
+  // Create a map of course IDs to color indices
+  const courseColorMap = useMemo(() => {
+    const colorMap = new Map<string, string>();
+    currentCourses.forEach((course, index) => {
+      const colorIndex = index % COURSE_COLORS.length;
+      colorMap.set(course.course.id, COURSE_COLORS[colorIndex]);
+    });
+    return colorMap;
+  }, [currentCourses]);
+
+  // Get the color for a course based on its index
+  const getCourseColor = (courseId: string) => {
+    return courseColorMap.get(courseId) || "border-gray-300 bg-gray-50";
+  };
+
   return (
     <div className="flex flex-col md:flex-row gap-4">
       {/* Timetable - 2/3 width */}
       <div className="w-full md:w-2/3 rounded-lg border shadow-sm overflow-hidden">
-        <h2 className="p-3 font-semibold text-lg border-b bg-white">Weekly Schedule</h2>
-        
         <div className="w-full overflow-auto">
           <table className="w-full border-collapse bg-white table-fixed">
             <colgroup>
@@ -94,9 +119,9 @@ export default function Timetable({ studentInfo, onCourseClick }: TimetableProps
             </colgroup>
             <thead>
               <tr>
-                <th className="border bg-gray-50 p-2 font-medium"></th>
+                <th className="border bg-gray-100 p-2 font-medium"></th>
                 {DAYS.map((day, index) => (
-                  <th key={index} className="border bg-gray-50 p-2 text-sm font-medium text-center">
+                  <th key={index} className="border bg-gray-100 p-3 text-sm font-bold text-center">
                     {day}
                   </th>
                 ))}
@@ -106,7 +131,7 @@ export default function Timetable({ studentInfo, onCourseClick }: TimetableProps
               {TIME_SLOTS.map((slot) => (
                 <tr key={slot.id} className="h-14">
                   {/* Time label */}
-                  <td className="border bg-gray-50 p-2 text-xs font-medium text-center">
+                  <td className="border bg-gray-50 p-2 text-xs font-bold text-center">
                     {slot.label}
                   </td>
                   
@@ -122,12 +147,8 @@ export default function Timetable({ studentInfo, onCourseClick }: TimetableProps
                         {courseAtSlot && (
                           <div 
                             className={cn(
-                              "border rounded p-1 h-full w-full cursor-pointer",
-                              courseAtSlot.course.id.startsWith("INE5430") ? "border-blue-400 bg-blue-50" :
-                              courseAtSlot.course.id.startsWith("INE5431") ? "border-yellow-400 bg-yellow-50" :
-                              courseAtSlot.course.id.startsWith("INE5432") ? "border-cyan-400 bg-cyan-50" :
-                              courseAtSlot.course.id.startsWith("INE5429") ? "border-blue-400 bg-blue-50" :
-                              "border-gray-300 bg-gray-50"
+                              "border-2 rounded p-1 h-full w-full cursor-pointer",
+                              getCourseColor(courseAtSlot.course.id)
                             )}
                             onClick={() => onCourseClick && onCourseClick(courseAtSlot)}
                           >
@@ -154,10 +175,6 @@ export default function Timetable({ studentInfo, onCourseClick }: TimetableProps
             </tbody>
           </table>
         </div>
-        
-        <div className="p-2 text-xs text-gray-500 text-center border-t">
-          Não se esqueça de fazer sua matrícula no <a href="https://cagr.sistemas.ufsc.br/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">CAGR</a>! Este aplicativo não tem nenhum vínculo com a UFSC.
-        </div>
       </div>
       
       {/* Course Stats Sidebar */}
@@ -169,4 +186,4 @@ export default function Timetable({ studentInfo, onCourseClick }: TimetableProps
       </div>
     </div>
   )
-} 
+}

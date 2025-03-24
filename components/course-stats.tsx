@@ -5,6 +5,30 @@ import { cn } from "@/lib/utils"
 import type { StudentCourse } from "@/types/student-plan"
 import scheduleData from "@/data/schedule.json"
 
+// Color palette for courses
+const COURSE_COLORS = [
+  "border-blue-400 bg-blue-50",
+  "border-yellow-400 bg-yellow-50",
+  "border-green-400 bg-green-50",
+  "border-purple-400 bg-purple-50",
+  "border-cyan-400 bg-cyan-50",
+  "border-pink-400 bg-pink-50",
+  "border-indigo-400 bg-indigo-50",
+  "border-orange-400 bg-orange-50",
+];
+
+// Color palette for selected state (darker tones)
+const SELECTED_COLORS = [
+  "border-blue-600 bg-blue-100",
+  "border-yellow-600 bg-yellow-100",
+  "border-green-600 bg-green-100",
+  "border-purple-600 bg-purple-100",
+  "border-cyan-600 bg-cyan-100",
+  "border-pink-600 bg-pink-100",
+  "border-indigo-600 bg-indigo-100",
+  "border-orange-600 bg-orange-100",
+];
+
 interface CourseStatsProps {
   courses: StudentCourse[]
   onCourseClick?: (course: StudentCourse) => void
@@ -33,13 +57,31 @@ export default function CourseStats({ courses, onCourseClick }: CourseStatsProps
     }, 0)
   }, [courses])
 
+  // Map courses to colors
+  const courseColorMap = useMemo(() => {
+    const colorMap = new Map<string, string>();
+    courses.forEach((course, index) => {
+      const colorIndex = index % COURSE_COLORS.length;
+      colorMap.set(course.course.id, COURSE_COLORS[colorIndex]);
+    });
+    return colorMap;
+  }, [courses]);
+
+  // Map courses to selected colors (darker tones)
+  const selectedColorMap = useMemo(() => {
+    const colorMap = new Map<string, string>();
+    courses.forEach((course, index) => {
+      const colorIndex = index % SELECTED_COLORS.length;
+      colorMap.set(course.course.id, SELECTED_COLORS[colorIndex]);
+    });
+    return colorMap;
+  }, [courses]);
+
   // Get the course color based on its ID
-  const getCourseColor = (courseId: string) => {
-    if (courseId.startsWith("INE5430")) return "border-blue-400 bg-blue-50"
-    if (courseId.startsWith("INE5431")) return "border-yellow-400 bg-yellow-50"
-    if (courseId.startsWith("INE5432")) return "border-cyan-400 bg-cyan-50"
-    if (courseId.startsWith("INE5429")) return "border-blue-400 bg-blue-50"
-    return "border-gray-300 bg-gray-50"
+  const getCourseColor = (courseId: string, isSelected: boolean = false) => {
+    return isSelected 
+      ? selectedColorMap.get(courseId) || "border-gray-500 bg-gray-100" 
+      : courseColorMap.get(courseId) || "border-gray-300 bg-gray-50";
   }
 
   // Handle course click in the sidebar
@@ -57,13 +99,13 @@ export default function CourseStats({ courses, onCourseClick }: CourseStatsProps
     if (!selectedCourse) return []
     
     // Get professors from the schedule data
-    const professorsData = (scheduleData as any).professors[selectedCourse.course.id]
+    const professorsData = (scheduleData as any).professors?.[selectedCourse.course.id]
     return professorsData || []
   }, [selectedCourse])
 
   return (
     <div className="w-full rounded-lg border shadow-sm overflow-hidden">
-      <h2 className="p-3 font-semibold text-lg border-b bg-white">Course Stats</h2>
+      <h2 className="p-3 font-semibold text-lg border-b bg-gray-100">Course Stats</h2>
       <div className="p-4">
         <div className="space-y-6">
           {/* Current Courses Section */}
@@ -74,9 +116,9 @@ export default function CourseStats({ courses, onCourseClick }: CourseStatsProps
                 <div 
                   key={course.course.id}
                   className={cn(
-                    "p-2 rounded border text-xs cursor-pointer hover:shadow-sm transition-shadow h-full",
-                    selectedCourse?.course.id === course.course.id ? "ring-2 ring-blue-400" : "",
-                    getCourseColor(course.course.id)
+                    "p-2 rounded border-2 text-xs cursor-pointer hover:shadow-sm transition-shadow h-full",
+                    selectedCourse?.course.id === course.course.id ? "" : "",
+                    getCourseColor(course.course.id, selectedCourse?.course.id === course.course.id)
                   )}
                   onClick={(e) => handleCourseClick(course, e)}
                 >
@@ -103,18 +145,6 @@ export default function CourseStats({ courses, onCourseClick }: CourseStatsProps
             </div>
           </div>
           
-          {/* Course Progress */}
-          <div>
-            <h3 className="text-sm font-medium mb-2">Semester Progress</h3>
-            <div className="w-full bg-gray-200 rounded-full h-2.5">
-              <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: '45%' }}></div>
-            </div>
-            <div className="flex justify-between mt-1 text-xs text-gray-500">
-              <span>Week 9 of 20</span>
-              <span>45%</span>
-            </div>
-          </div>
-          
           {/* Professor/Class Chooser - Only displayed when a course is selected */}
           {selectedCourse && (
             <div>
@@ -128,7 +158,7 @@ export default function CourseStats({ courses, onCourseClick }: CourseStatsProps
                 </button>
               </div>
               
-              <div className={cn("p-3 mb-3 rounded-lg", getCourseColor(selectedCourse.course.id))}>
+              <div className={cn("p-3 mb-3 rounded-lg border-2", getCourseColor(selectedCourse.course.id, true))}>
                 <div className="font-bold">{selectedCourse.course.id}</div>
                 <div className="text-sm">{selectedCourse.course.name}</div>
               </div>
@@ -141,8 +171,8 @@ export default function CourseStats({ courses, onCourseClick }: CourseStatsProps
                       className={cn(
                         "p-3 border rounded-lg cursor-pointer",
                         selectedProfessor === professor.professorId 
-                          ? "border-blue-400 bg-blue-50" 
-                          : "border-gray-200 hover:border-blue-200"
+                          ? "border-gray-500 bg-gray-100" 
+                          : "border-gray-200 hover:border-gray-300"
                       )}
                       onClick={(e) => {
                         e.stopPropagation()
