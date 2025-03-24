@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { cn } from "@/lib/utils"
 import CourseStats from "@/components/course-stats"
 import type { StudentInfo, StudentCourse } from "@/types/student-plan"
@@ -45,7 +45,23 @@ interface TimetableProps {
   onCourseClick?: (course: StudentCourse) => void
 }
 
+// Type for professor schedule data
+type ScheduleEntry = {
+  day: number;
+  startTime: string;
+};
+
+// Type for professor overrides
+type ProfessorOverride = {
+  courseId: string;
+  professorId: string;
+  schedule: ScheduleEntry[];
+};
+
 export default function Timetable({ studentInfo, onCourseClick }: TimetableProps) {
+  // State for professor overrides
+  const [professorOverrides, setProfessorOverrides] = useState<ProfessorOverride[]>([]);
+
   // Get current courses that are in progress
   const currentCourses = useMemo(() => {
     if (!studentInfo?.currentPlan) return []
@@ -53,6 +69,62 @@ export default function Timetable({ studentInfo, onCourseClick }: TimetableProps
     return studentInfo.currentPlan.inProgressCourses
   }, [studentInfo])
 
+  // Handle professor selection
+  const handleProfessorSelect = (course: StudentCourse, professorId: string) => {
+    // Get the professor data
+    const professorData = (scheduleData as any).professors?.[course.course.id]?.find(
+      (p: any) => p.professorId === professorId
+    );
+    
+    if (!professorData) return;
+    
+    // Parse the professor's schedule
+    const scheduleText = professorData.schedule;
+    const daysMap = {
+      "Segunda": 0,
+      "Terça": 1,
+      "Quarta": 2,
+      "Quinta": 3,
+      "Sexta": 4,
+      "Sábado": 5
+    };
+    
+    // Create new schedule entries in the exact same format as the default schedule
+    const scheduleEntries: ScheduleEntry[] = [];
+    
+    // Parse "Terça/Quinta 13:30-15:10" format
+    if (scheduleText) {
+      const parts = scheduleText.split(' ');
+      if (parts.length >= 2) {
+        const daysPart = parts[0];
+        const timePart = parts[1];
+        const daysList = daysPart.split('/');
+        const [startTime, endTime] = timePart.split('-');
+        
+        // For each day mentioned, add a schedule entry
+        daysList.forEach((dayName: string) => {
+          const dayIndex = daysMap[dayName as keyof typeof daysMap];
+          if (dayIndex === undefined || !startTime) return;
+          
+          // Add exactly 2 slots like the original schedule format
+          scheduleEntries.push({
+            day: dayIndex,
+            startTime: startTime
+          });
+        });
+      }
+    }
+    
+    // Update professor overrides
+    setProfessorOverrides(prev => 
+      prev.filter(o => o.courseId !== course.course.id).concat({
+        courseId: course.course.id,
+        professorId,
+        schedule: scheduleEntries
+      })
+    );
+  };
+  
   // Create a mapping of time slots to courses
   const courseSchedule = useMemo(() => {
     const schedule: Record<string, Record<string, StudentCourse>> = {}
@@ -62,33 +134,72 @@ export default function Timetable({ studentInfo, onCourseClick }: TimetableProps
       schedule[slot.id] = {}
     })
     
-    // Populate schedule based on scheduleData JSON
-    currentCourses.forEach(course => {
-      const courseId = course.course.id
-      const courseTimes = scheduleData[courseId as keyof typeof scheduleData]
-      
-      if (!courseTimes || !Array.isArray(courseTimes)) return
-      
-      courseTimes.forEach((timeEntry: any) => {
-        const { day, startTime } = timeEntry
-        
-        // Find all time slots covered by this course session
-        const startTimeIndex = TIME_SLOTS.findIndex(slot => slot.id === startTime)
-        if (startTimeIndex === -1) return
-        
-        // Add course to its time slots
-        schedule[startTime][day] = course
-        
-        // For two-hour classes, find the second hour slot
-        if (startTimeIndex + 1 < TIME_SLOTS.length) {
-          const nextSlotId = TIME_SLOTS[startTimeIndex + 1].id
-          schedule[nextSlotId][day] = course
-        }
-      })
-    })
+    // Clear existing schedule first
+    TIME_SLOTS.forEach(slot => {
+      DAYS.forEach((_, dayIndex) => {
+        schedule[slot.id][dayIndex] = undefined as any;
+      });
+    });
     
-    return schedule
-  }, [currentCourses])
+    // Track courses that have professor overrides
+    const overriddenCourses = new Set(
+      professorOverrides.map(override => override.courseId)
+    );
+    
+    // Process default schedules for courses without overrides
+    currentCourses.forEach(course => {
+      const courseId = course.course.id;
+      
+      // Skip if this course has a professor override
+      if (overriddenCourses.has(courseId)) return;
+      
+      // Get the default course times
+      const courseTimes = scheduleData[courseId as keyof typeof scheduleData];
+      if (!courseTimes || !Array.isArray(courseTimes)) return;
+      
+      // Apply the default schedule
+      courseTimes.forEach((timeEntry: any) => {
+        const { day, startTime } = timeEntry;
+        const startSlotIndex = TIME_SLOTS.findIndex(slot => slot.id === startTime);
+        
+        if (startSlotIndex === -1) return;
+        
+        // Add the course to the start time slot
+        schedule[startTime][day] = course;
+        
+        // Add the course to the next time slot (for 2-hour classes)
+        if (startSlotIndex + 1 < TIME_SLOTS.length) {
+          const nextSlotId = TIME_SLOTS[startSlotIndex + 1].id;
+          schedule[nextSlotId][day] = course;
+        }
+      });
+    });
+    
+    // Process professor overrides
+    professorOverrides.forEach(override => {
+      const course = currentCourses.find(c => c.course.id === override.courseId);
+      if (!course) return;
+      
+      // Process each schedule entry
+      override.schedule.forEach(entry => {
+        const { day, startTime } = entry;
+        const startSlotIndex = TIME_SLOTS.findIndex(slot => slot.id === startTime);
+        
+        if (startSlotIndex === -1) return;
+        
+        // Add the course to the start time slot
+        schedule[startTime][day] = course;
+        
+        // Add the course to the next time slot (for 2-hour classes)
+        if (startSlotIndex + 1 < TIME_SLOTS.length) {
+          const nextSlotId = TIME_SLOTS[startSlotIndex + 1].id;
+          schedule[nextSlotId][day] = course;
+        }
+      });
+    });
+    
+    return schedule;
+  }, [currentCourses, professorOverrides]);
 
   // Create a map of course IDs to color indices
   const courseColorMap = useMemo(() => {
@@ -182,6 +293,7 @@ export default function Timetable({ studentInfo, onCourseClick }: TimetableProps
         <CourseStats 
           courses={currentCourses} 
           onCourseClick={onCourseClick}
+          onProfessorSelect={handleProfessorSelect}
         />
       </div>
     </div>

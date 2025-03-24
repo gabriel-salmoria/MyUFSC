@@ -32,6 +32,7 @@ const SELECTED_COLORS = [
 interface CourseStatsProps {
   courses: StudentCourse[]
   onCourseClick?: (course: StudentCourse) => void
+  onProfessorSelect?: (course: StudentCourse, professorId: string) => void
 }
 
 // Type for professor data from schedule.json
@@ -44,7 +45,7 @@ type ProfessorData = {
   maxStudents: number;
 }
 
-export default function CourseStats({ courses, onCourseClick }: CourseStatsProps) {
+export default function CourseStats({ courses, onCourseClick, onProfessorSelect }: CourseStatsProps) {
   // State for the selected course
   const [selectedCourse, setSelectedCourse] = useState<StudentCourse | null>(null)
   const [selectedProfessor, setSelectedProfessor] = useState<string | null>(null)
@@ -92,6 +93,19 @@ export default function CourseStats({ courses, onCourseClick }: CourseStatsProps
     // Toggle selection state
     setSelectedCourse(prev => prev?.course.id === course.course.id ? null : course)
     setSelectedProfessor(null)
+  }
+
+  // Handle professor selection
+  const handleProfessorSelect = (professorId: string, event: React.MouseEvent) => {
+    event.stopPropagation()
+    
+    // Update selected professor
+    setSelectedProfessor(professorId)
+    
+    // Call the callback if provided and a course is selected
+    if (selectedCourse && onProfessorSelect) {
+      onProfessorSelect(selectedCourse, professorId)
+    }
   }
 
   // Get professors for the selected course
@@ -163,48 +177,47 @@ export default function CourseStats({ courses, onCourseClick }: CourseStatsProps
                 <div className="text-sm">{selectedCourse.course.name}</div>
               </div>
               
-              <div className="space-y-2">
-                {professors.length > 0 ? (
-                  professors.map(professor => (
-                    <div 
-                      key={professor.professorId}
-                      className={cn(
-                        "p-3 border rounded-lg cursor-pointer",
-                        selectedProfessor === professor.professorId 
-                          ? "border-gray-500 bg-gray-100" 
-                          : "border-gray-200 hover:border-gray-300"
-                      )}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setSelectedProfessor(professor.professorId)
-                      }}
-                    >
-                      <div className="flex justify-between">
-                        <div className="font-medium text-sm">{professor.name}</div>
-                        <div className="text-xs bg-gray-100 px-2 py-0.5 rounded">
-                          {professor.classNumber}
+              <div className="max-h-60 overflow-y-auto pr-1">
+                <div className="space-y-2">
+                  {professors.length > 0 ? (
+                    professors.map(professor => (
+                      <div 
+                        key={professor.professorId}
+                        className={cn(
+                          "p-3 border rounded-lg cursor-pointer",
+                          selectedProfessor === professor.professorId 
+                            ? "border-gray-500 bg-gray-100" 
+                            : "border-gray-200 hover:border-gray-300"
+                        )}
+                        onClick={(e) => handleProfessorSelect(professor.professorId, e)}
+                      >
+                        <div className="flex justify-between">
+                          <div className="font-medium text-sm">{professor.name}</div>
+                          <div className="text-xs bg-gray-100 px-2 py-0.5 rounded">
+                            {professor.classNumber}
+                          </div>
+                        </div>
+                        <div className="text-xs mt-1">{professor.schedule}</div>
+                        <div className="mt-2 text-xs text-gray-500">
+                          <div className="flex justify-between mb-1">
+                            <span>Enrollment</span>
+                            <span>{professor.enrolledStudents}/{professor.maxStudents}</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-1.5">
+                            <div 
+                              className="bg-green-500 h-1.5 rounded-full" 
+                              style={{ width: `${(professor.enrolledStudents / professor.maxStudents) * 100}%` }}
+                            ></div>
+                          </div>
                         </div>
                       </div>
-                      <div className="text-xs mt-1">{professor.schedule}</div>
-                      <div className="mt-2 text-xs text-gray-500">
-                        <div className="flex justify-between mb-1">
-                          <span>Enrollment</span>
-                          <span>{professor.enrolledStudents}/{professor.maxStudents}</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-1.5">
-                          <div 
-                            className="bg-green-500 h-1.5 rounded-full" 
-                            style={{ width: `${(professor.enrolledStudents / professor.maxStudents) * 100}%` }}
-                          ></div>
-                        </div>
-                      </div>
+                    ))
+                  ) : (
+                    <div className="text-sm text-gray-500 text-center py-4">
+                      No class options available for this course
                     </div>
-                  ))
-                ) : (
-                  <div className="text-sm text-gray-500 text-center py-4">
-                    No class options available for this course
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           )}
