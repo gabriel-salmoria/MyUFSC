@@ -23,25 +23,84 @@ export default function CourseHighlighter({
   useEffect(() => {
     if (!dashboardRef.current || courseElements.size === 0) return
     
-    // Apply highlights
-    applyHighlights()
+    // Add styles to document head for consistent rendering across environments
+    addHighlightStyles()
     
+    // First apply all transitions before changing visual properties
+    applyTransitions()
+    
+    // Then apply the visual changes
+    requestAnimationFrame(() => {
+      highlightMainCourse()
+      highlightPrerequisites()
+      dimNonHighlightedCourses()
+    })
+
     // Clean up on unmount
     return () => {
       cleanupHighlights()
+      removeHighlightStyles()
     }
   }, [dashboardRef.current, courseElements, course.id, prerequisiteCourses])
   
-  // Apply highlighting to courses
-  const applyHighlights = () => {
-    // Highlight main course
-    highlightMainCourse()
+  // Add CSS styles to document to ensure consistent rendering across environments
+  const addHighlightStyles = () => {
+    const styleId = 'dependency-tree-highlight-styles'
     
-    // Highlight prerequisites
-    highlightPrerequisites()
+    // Only add if not already present
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style')
+      style.id = styleId
+      style.textContent = `
+        .course-transition {
+          transition: all 0.3s ease !important;
+        }
+        
+        .course-highlight-main {
+          z-index: 30 !important;
+          transform: scale(1.02) !important;
+          filter: brightness(1.1) contrast(1.05) !important;
+          box-shadow: 0 0 25px rgba(66, 135, 245, 0.5), 0 0 10px rgba(255, 255, 255, 0.8) !important;
+          background-color: white !important;
+        }
+        
+        .course-highlight-prereq {
+          z-index: 20 !important;
+          transform: scale(1.01) !important;
+          filter: brightness(1.05) !important;
+          box-shadow: 0 0 15px rgba(66, 135, 245, 0.4) !important;
+          background-color: white !important;
+        }
+        
+        .course-highlight-dimmed {
+          opacity: 0.80 !important; /* Brighter opacity */
+          z-index: 1 !important;
+          background-color: #f9fafb !important; /* Lighter background */
+          filter: brightness(0.98) !important; /* Less darkening */
+        }
+      `
+      document.head.appendChild(style)
+    }
+  }
+  
+  // Apply transitions first before any visual changes to prevent flashing
+  const applyTransitions = () => {
+    if (!dashboardRef.current) return
     
-    // Dim non-highlighted courses
-    dimNonHighlightedCourses()
+    // Add transitions to all course elements first
+    dashboardRef.current.querySelectorAll('[data-course-id]').forEach(element => {
+      if (element instanceof HTMLElement) {
+        element.classList.add('course-transition')
+      }
+    })
+  }
+  
+  // Remove added styles when component unmounts
+  const removeHighlightStyles = () => {
+    const styleElement = document.getElementById('dependency-tree-highlight-styles')
+    if (styleElement) {
+      styleElement.remove()
+    }
   }
   
   // Highlight the main/selected course
@@ -49,15 +108,8 @@ export default function CourseHighlighter({
     const mainCourseElements = courseElements.get(course.id) || []
     mainCourseElements.forEach(element => {
       if (element instanceof HTMLElement) {
-        // Add Tailwind classes
-        element.classList.add('ring-4', 'ring-blue-500', 'ring-opacity-75', 'bg-white')
-        
-        // Add styling that's not easily done with Tailwind
-        element.style.zIndex = '30'
-        element.style.transform = 'scale(1.02)'
-        element.style.transition = 'all 0.3s ease'
-        element.style.filter = 'brightness(1.1) contrast(1.05)'
-        element.style.boxShadow = '0 0 25px rgba(66, 135, 245, 0.5), 0 0 10px rgba(255, 255, 255, 0.8)'
+        // Add Tailwind classes and our custom class
+        element.classList.add('ring-4', 'ring-blue-500', 'ring-opacity-75', 'course-highlight-main')
       }
     })
   }
@@ -71,7 +123,7 @@ export default function CourseHighlighter({
       
       prereqElements.forEach(element => {
         if (element instanceof HTMLElement) {
-          element.classList.add('ring-2', 'z-10')
+          element.classList.add('ring-2', 'shadow-lg', 'course-highlight-prereq')
           element.style.setProperty('--tw-ring-color', DEPTH_COLORS[colorIndex])
           element.style.setProperty('--tw-ring-opacity', '0.75')
         }
@@ -79,7 +131,6 @@ export default function CourseHighlighter({
     })
   }
   
-  // Dim courses that are not part of the dependency tree
   const dimNonHighlightedCourses = () => {
     if (!dashboardRef.current) return
     
@@ -89,32 +140,21 @@ export default function CourseHighlighter({
       const courseId = element.getAttribute('data-course-id')
       if (courseId && !highlightedCourseIds.has(courseId)) {
         if (element instanceof HTMLElement) {
-          element.classList.add('opacity-40', 'bg-gray-100')
-          element.style.transition = 'all 0.3s ease'
-          element.style.zIndex = '1'
-        }
-      } else if (courseId && highlightedCourseIds.has(courseId) && courseId !== course.id) {
-        // Add extra styling to other highlighted courses (prerequisites)
-        if (element instanceof HTMLElement) {
-          element.classList.add('shadow-lg', 'bg-white')
-          element.style.zIndex = '20'
-          element.style.transform = 'scale(1.01)'
-          element.style.transition = 'all 0.3s ease'
-          element.style.filter = 'brightness(1.05)'
-          element.style.boxShadow = '0 0 15px rgba(66, 135, 245, 0.4)'
+          element.classList.add('course-highlight-dimmed')
         }
       }
     })
   }
   
-  // Clean up all highlights
   const cleanupHighlights = () => {
     document.querySelectorAll('[data-course-id]').forEach(element => {
-      // Remove Tailwind classes
+      // Remove all classes including our custom ones
       element.classList.remove(
         'ring-4', 'ring-2', 'ring-blue-500', 'ring-green-500', 
         'ring-opacity-75', 'z-30', 'z-20', 'z-10', 'opacity-40', 
-        'shadow-lg', 'bg-white', 'bg-gray-100'
+        'shadow-lg', 'bg-white', 'bg-gray-100',
+        'course-highlight-main', 'course-highlight-prereq', 'course-highlight-dimmed',
+        'course-transition'
       )
       
       // Remove inline styles
