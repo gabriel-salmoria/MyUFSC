@@ -119,7 +119,8 @@ export default function CourseBox({
         courseId: course.id,
         courseName: course.name,
         coursePhase: course.phase,
-        courseCredits: course.credits
+        courseCredits: course.credits,
+        sourceVisualizer: studentCourse ? 'progress' : 'curriculum'
       }))
       
       // Call the drag start handler if provided

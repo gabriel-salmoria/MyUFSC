@@ -109,16 +109,19 @@ export default function ProgressVisualizer({
     // Calculate horizontal centering within the phase
     const xOffset = (phaseWidth - boxWidth) / 2
     
+    // Find courses in this specific phase
     const coursesInPhase = Array.from(positions)
       .filter(pos => {
         const phaseOfPosition = Math.floor(pos.x / phaseWidth);
         return phaseOfPosition === phase - 1;
       })
       .length
-
+    
+    // Add ghost boxes to fill the remaining slots in this phase
+    // Use the correct phase number in the ID to ensure proper drop handling
     for (let slot = coursesInPhase; slot < BOXES_PER_COLUMN; slot++) {
       positions.push({
-        courseId: `ghost-${phase}-${slot}`,
+        courseId: `ghost-${phase}-${slot}`, // Use the actual phase number in the ID
         x: (phase - 1) * phaseWidth + xOffset,
         y: slot * BOX_SPACING_Y + BOX_SPACING_Y,
         width: boxWidth,
@@ -181,6 +184,7 @@ export default function ProgressVisualizer({
             if (position.isGhost) {
               // Extract semester and position info from ghost ID
               const matches = position.courseId.match(/ghost-(\d+)-(\d+)/)
+              // NOTE: The first match group is the phase number (1-based)
               const semesterIndex = matches ? parseInt(matches[1]) : 0
               const positionIndex = matches ? parseInt(matches[2]) : 0
               
@@ -225,6 +229,8 @@ export default function ProgressVisualizer({
                             dropTarget.classList.remove('bg-green-50/50', 'border-green-500')
                           }, 500)
                           
+                          // Important: Use semesterIndex directly as the phase number
+                          // The semesterIndex is 1-based (Phase 1, 2, 3...) matching the expected number in handleCourseDropped
                           onCourseDropped(course, semesterIndex, positionIndex)
                         }
                       }
@@ -250,6 +256,7 @@ export default function ProgressVisualizer({
                 course={course}
                 studentCourse={studentCourse}
                 isEmpty={false}
+                isDraggable={true}
               />
             );
             
@@ -261,6 +268,7 @@ export default function ProgressVisualizer({
                 key={`${position.courseId}-${position.x}-${position.y}`}
                 position={position}
                 onClick={() => studentCourse && onCourseClick?.(studentCourse)}
+                onDragStart={() => course && console.log(`Started dragging course ${course.id} from progress visualizer`)}
               />
             )
           })}
