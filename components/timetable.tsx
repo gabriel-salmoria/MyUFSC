@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 import { cn } from "@/lib/utils"
 import CourseStats from "@/components/course-stats"
+import type { Course } from "@/types/curriculum"
 import type { StudentInfo, StudentCourse } from "@/types/student-plan"
 import type { CoursePosition } from "@/types/visualization"
 import scheduleData from "@/data/schedule.json"
@@ -43,6 +44,7 @@ const COURSE_COLORS = [
 interface TimetableProps {
   studentInfo: StudentInfo
   onCourseClick?: (course: StudentCourse) => void
+  onAddCourse?: (course: Course) => void
 }
 
 // Type for professor schedule data
@@ -58,7 +60,7 @@ type ProfessorOverride = {
   schedule: ScheduleEntry[];
 };
 
-export default function Timetable({ studentInfo, onCourseClick }: TimetableProps) {
+export default function Timetable({ studentInfo, onCourseClick, onAddCourse }: TimetableProps) {
   // State for professor overrides
   const [professorOverrides, setProfessorOverrides] = useState<ProfessorOverride[]>([]);
 
@@ -294,6 +296,7 @@ export default function Timetable({ studentInfo, onCourseClick }: TimetableProps
           courses={currentCourses} 
           onCourseClick={onCourseClick}
           onProfessorSelect={handleProfessorSelect}
+          onAddCourse={onAddCourse}
         />
       </div>
     </div>

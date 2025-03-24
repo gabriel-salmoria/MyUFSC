@@ -15,6 +15,7 @@ import Timetable from "@/components/timetable"
 import type { Curriculum, Course } from "@/types/curriculum"
 import type { CurriculumVisualization } from "@/types/visualization"
 import type { StudentInfo, StudentCourse } from "@/types/student-plan"
+import { CourseStatus } from "@/types/student-plan"
 
 
 // parsers
@@ -89,6 +90,19 @@ export default function Home() {
   // Handler for student course click with dependency tree option
   const handleStudentCourseClick = (studentCourse: StudentCourse) => {
     setSelectedStudentCourse(studentCourse)
+  }
+
+  // Handler for adding a new course from search
+  const handleAddCourse = (course: Course) => {
+    // Create a new StudentCourse from the curriculum course
+    const newStudentCourse = {
+      course,
+      status: CourseStatus.IN_PROGRESS,
+    } as StudentCourse;
+    
+    // Here you would normally add the course to the student's plan in a real app
+    // For now, we'll just show the course details panel
+    setSelectedStudentCourse(newStudentCourse)
   }
 
   // Get all elective courses from the courseMap
@@ -225,6 +239,7 @@ export default function Home() {
           <Timetable
             studentInfo={studentInfo}
             onCourseClick={handleStudentCourseClick}
+            onAddCourse={handleAddCourse}
           />
         </div>
       </div>

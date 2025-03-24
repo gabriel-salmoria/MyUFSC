@@ -2,26 +2,37 @@
 
 import { useState, useEffect, useRef } from "react"
 import { cn } from "@/lib/utils"
+import type { Course } from "@/types/curriculum"
 import type { StudentCourse } from "@/types/student-plan"
+import { courseMap } from "@/lib/curriculum-parser"
 
 interface SearchPopupProps {
   isOpen: boolean
   onClose: () => void
   searchTerm: string
-  courses: StudentCourse[]
-  onSelectCourse: (course: StudentCourse) => void
+  currentCourses: StudentCourse[]
+  onSelectCourse: (course: StudentCourse | Course, isCurrentCourse: boolean) => void
   onSearchTermChange: (term: string) => void
+}
+
+// Result entry for display in search popup
+interface SearchResult {
+  id: string
+  name: string
+  credits: number
+  isCurrentCourse: boolean
+  originalCourse: StudentCourse | Course
 }
 
 export default function SearchPopup({ 
   isOpen, 
   onClose, 
   searchTerm, 
-  courses, 
+  currentCourses, 
   onSelectCourse,
   onSearchTermChange
 }: SearchPopupProps) {
-  const [filteredCourses, setFilteredCourses] = useState<StudentCourse[]>([])
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [activeIndex, setActiveIndex] = useState(0)
   const popupRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -40,12 +51,13 @@ export default function SearchPopup({
         onClose()
       } else if (e.key === "ArrowDown") {
         e.preventDefault()
-        setActiveIndex(prev => Math.min(prev + 1, filteredCourses.length - 1))
+        setActiveIndex(prev => Math.min(prev + 1, searchResults.length - 1))
       } else if (e.key === "ArrowUp") {
         e.preventDefault()
         setActiveIndex(prev => Math.max(prev - 1, 0))
-      } else if (e.key === "Enter" && filteredCourses.length > 0) {
-        onSelectCourse(filteredCourses[activeIndex])
+      } else if (e.key === "Enter" && searchResults.length > 0) {
+        const result = searchResults[activeIndex]
+        onSelectCourse(result.originalCourse, result.isCurrentCourse)
         onClose()
       }
     }
@@ -57,24 +69,98 @@ export default function SearchPopup({
     return () => {
       window.removeEventListener("keydown", handleKeyDown)
     }
-  }, [isOpen, onClose, filteredCourses, activeIndex, onSelectCourse])
+  }, [isOpen, onClose, searchResults, activeIndex, onSelectCourse])
 
   // Filter courses based on search term
   useEffect(() => {
+    // Map of current course IDs for quick lookup
+    const currentCourseIds = new Set(currentCourses.map(c => c.course.id))
+    
+    // Prepare results array
+    const results: SearchResult[] = []
+    
     if (!searchTerm.trim()) {
-      setFilteredCourses(courses)
+      // Show all available courses from the curriculum when no search term
+      const allCourses = Array.from(courseMap.values())
+        // Filter out "Optativa X" placeholder courses
+        .filter(course => !course.id.includes("Optativa"))
+      
+      // First add current courses
+      currentCourses.forEach(course => {
+        // Skip placeholder optativa courses
+        if (course.course.id.includes("Optativa")) return
+        
+        results.push({
+          id: course.course.id,
+          name: course.course.name,
+          credits: course.course.credits,
+          isCurrentCourse: true,
+          originalCourse: course
+        })
+      })
+      
+      // Then add all other available courses
+      allCourses.forEach(course => {
+        // Skip if already in current courses
+        if (currentCourseIds.has(course.id)) return
+        
+        results.push({
+          id: course.id,
+          name: course.name,
+          credits: course.credits,
+          isCurrentCourse: false,
+          originalCourse: course
+        })
+      })
+      
+      setSearchResults(results)
       return
     }
 
+    // Search term exists, filter based on it
     const term = searchTerm.toLowerCase()
-    const filtered = courses.filter(course => 
-      course.course.id.toLowerCase().includes(term) || 
-      course.course.name.toLowerCase().includes(term)
-    )
     
-    setFilteredCourses(filtered)
+    // First check current courses
+    currentCourses.forEach(course => {
+      // Skip placeholder optativa courses
+      if (course.course.id.includes("Optativa")) return
+      
+      if (
+        course.course.id.toLowerCase().includes(term) || 
+        course.course.name.toLowerCase().includes(term)
+      ) {
+        results.push({
+          id: course.course.id,
+          name: course.course.name,
+          credits: course.course.credits,
+          isCurrentCourse: true,
+          originalCourse: course
+        })
+      }
+    })
+    
+    // Then check all available courses in the curriculum
+    courseMap.forEach(course => {
+      // Skip if already in current courses or if it's an optativa placeholder
+      if (currentCourseIds.has(course.id) || course.id.includes("Optativa")) return
+      
+      if (
+        course.id.toLowerCase().includes(term) || 
+        course.name.toLowerCase().includes(term)
+      ) {
+        results.push({
+          id: course.id,
+          name: course.name,
+          credits: course.credits,
+          isCurrentCourse: false,
+          originalCourse: course
+        })
+      }
+    })
+    
+    setSearchResults(results)
     setActiveIndex(0)
-  }, [searchTerm, courses])
+  }, [searchTerm, currentCourses])
 
   // Handle click outside to close
   useEffect(() => {
@@ -109,7 +195,7 @@ export default function SearchPopup({
               <path d="m21 21-4.3-4.3"></path>
             </svg>
             <div className="text-sm text-gray-500">
-              Showing {filteredCourses.length} result{filteredCourses.length !== 1 ? 's' : ''}
+              Showing {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}
             </div>
           </div>
           
@@ -124,7 +210,7 @@ export default function SearchPopup({
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="Search courses..."
+              placeholder="Search all curriculum courses..."
               className="w-full py-2 pl-10 pr-4 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
               value={searchTerm}
               onChange={e => onSearchTermChange(e.target.value)}
@@ -134,32 +220,90 @@ export default function SearchPopup({
         </div>
         
         <div className="overflow-y-auto" style={{ maxHeight: "50vh" }}>
-          {filteredCourses.length > 0 ? (
-            <div className="divide-y">
-              {filteredCourses.map((course, index) => (
-                <div 
-                  key={course.course.id}
-                  className={cn(
-                    "p-3 hover:bg-gray-50 cursor-pointer transition-colors",
-                    activeIndex === index ? "bg-blue-50" : ""
-                  )}
-                  onClick={() => {
-                    onSelectCourse(course)
-                    onClose()
-                  }}
-                  onMouseEnter={() => setActiveIndex(index)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="font-medium">{course.course.id}</div>
-                    <div className="text-xs text-gray-500">Credits: {course.course.credits}</div>
+          {searchResults.length > 0 ? (
+            <div>
+              {/* Group for current courses */}
+              {searchResults.some(result => result.isCurrentCourse) && (
+                <div className="pt-2">
+                  <div className="px-3 py-1 text-xs font-medium text-gray-500 bg-gray-50">Your Courses</div>
+                  <div className="divide-y">
+                    {searchResults
+                      .filter(result => result.isCurrentCourse)
+                      .map((result, index) => {
+                        const resultIndex = searchResults.findIndex(r => r.id === result.id && r.isCurrentCourse === result.isCurrentCourse);
+                        return (
+                          <div 
+                            key={`${result.id}-${result.isCurrentCourse}`}
+                            className={cn(
+                              "p-3 hover:bg-gray-50 cursor-pointer transition-colors",
+                              activeIndex === resultIndex ? "bg-blue-50" : ""
+                            )}
+                            onClick={() => {
+                              onSelectCourse(result.originalCourse, result.isCurrentCourse)
+                              onClose()
+                            }}
+                            onMouseEnter={() => setActiveIndex(resultIndex)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="font-medium">{result.id}</div>
+                                <div className="text-sm text-gray-700">{result.name}</div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">
+                                  Enrolled
+                                </span>
+                                <span className="text-sm text-gray-500">{result.credits} cr</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                   </div>
-                  <div className="text-sm text-gray-700">{course.course.name}</div>
                 </div>
-              ))}
+              )}
+              
+              {/* Group for available curriculum courses */}
+              {searchResults.some(result => !result.isCurrentCourse) && (
+                <div className="pt-2">
+                  <div className="px-3 py-1 text-xs font-medium text-gray-500 bg-gray-50">Available Courses</div>
+                  <div className="divide-y">
+                    {searchResults
+                      .filter(result => !result.isCurrentCourse)
+                      .map((result, index) => {
+                        const resultIndex = searchResults.findIndex(r => r.id === result.id && r.isCurrentCourse === result.isCurrentCourse);
+                        return (
+                          <div 
+                            key={`${result.id}-${result.isCurrentCourse}`}
+                            className={cn(
+                              "p-3 hover:bg-gray-50 cursor-pointer transition-colors",
+                              activeIndex === resultIndex ? "bg-blue-50" : ""
+                            )}
+                            onClick={() => {
+                              onSelectCourse(result.originalCourse, result.isCurrentCourse)
+                              onClose()
+                            }}
+                            onMouseEnter={() => setActiveIndex(resultIndex)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="font-medium">{result.id}</div>
+                                <div className="text-sm text-gray-700">{result.name}</div>
+                              </div>
+                              <div className="flex items-center">
+                                <span className="text-sm text-gray-500">{result.credits} cr</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
-            <div className="p-4 text-center text-gray-500">
-              No courses found matching "{searchTerm}"
+            <div className="p-3 text-center text-gray-500">
+              {searchTerm ? `No courses found matching "${searchTerm}"` : "No courses found"}
             </div>
           )}
         </div>

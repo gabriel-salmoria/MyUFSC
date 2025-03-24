@@ -2,7 +2,8 @@
 
 import { useMemo, useState, useRef, useEffect } from "react"
 import { cn } from "@/lib/utils"
-import type { StudentCourse } from "@/types/student-plan"
+import type { Course } from "@/types/curriculum" 
+import type { StudentCourse, CourseStatus } from "@/types/student-plan"
 import scheduleData from "@/data/schedule.json"
 import SearchPopup from "./search-popup"
 
@@ -34,6 +35,7 @@ interface CourseStatsProps {
   courses: StudentCourse[]
   onCourseClick?: (course: StudentCourse) => void
   onProfessorSelect?: (course: StudentCourse, professorId: string) => void
+  onAddCourse?: (course: Course) => void
 }
 
 // Type for professor data from schedule.json
@@ -46,7 +48,7 @@ type ProfessorData = {
   maxStudents: number;
 }
 
-export default function CourseStats({ courses, onCourseClick, onProfessorSelect }: CourseStatsProps) {
+export default function CourseStats({ courses, onCourseClick, onProfessorSelect, onAddCourse }: CourseStatsProps) {
   // State for the selected course
   const [selectedCourse, setSelectedCourse] = useState<StudentCourse | null>(null)
   const [selectedProfessor, setSelectedProfessor] = useState<string | null>(null)
@@ -82,10 +84,17 @@ export default function CourseStats({ courses, onCourseClick, onProfessorSelect 
   }, [])
 
   // Handle search course selection
-  const handleSelectSearchedCourse = (course: StudentCourse) => {
-    setSelectedCourse(course)
-    if (onCourseClick) {
-      onCourseClick(course)
+  const handleSelectSearchedCourse = (course: StudentCourse | Course, isCurrentCourse: boolean) => {
+    if (isCurrentCourse) {
+      // It's a student course that's already enrolled
+      const studentCourse = course as StudentCourse
+      setSelectedCourse(studentCourse)
+      if (onCourseClick) {
+        onCourseClick(studentCourse)
+      }
+    } else if (onAddCourse) {
+      // It's a curriculum course that needs to be added
+      onAddCourse(course as Course)
     }
   }
 
@@ -173,7 +182,7 @@ export default function CourseStats({ courses, onCourseClick, onProfessorSelect 
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Search courses... (Press / to focus)"
+                placeholder="Search all curriculum courses... (Press / to focus)"
                 className="w-full py-2 pl-10 pr-4 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
@@ -293,7 +302,7 @@ export default function CourseStats({ courses, onCourseClick, onProfessorSelect 
           setSearchTerm("")
         }}
         searchTerm={searchTerm}
-        courses={courses}
+        currentCourses={courses}
         onSelectCourse={handleSelectSearchedCourse}
         onSearchTermChange={setSearchTerm}
       />
