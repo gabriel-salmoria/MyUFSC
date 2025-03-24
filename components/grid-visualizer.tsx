@@ -20,6 +20,7 @@ interface GridVisualizerProps {
   courses: Course[]
   studentCourses?: Map<string, StudentCourse>
   onCourseClick?: (course: Course) => void
+  onDragStart?: (course: Course) => void
   height?: number
 }
 
@@ -27,6 +28,7 @@ export default function GridVisualizer({
   courses,
   studentCourses,
   onCourseClick,
+  onDragStart,
   height = 500,
 }: GridVisualizerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -130,6 +132,7 @@ export default function GridVisualizer({
                 course={course}
                 studentCourse={studentCourse}
                 isEmpty={false}
+                isDraggable={true}
               />
             )
             
@@ -141,6 +144,7 @@ export default function GridVisualizer({
                 key={`${course.id}-${position.x}-${position.y}`}
                 position={position}
                 onClick={() => onCourseClick?.(course)}
+                onDragStart={() => onDragStart?.(course)}
               />
             )
           })}

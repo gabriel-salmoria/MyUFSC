@@ -20,6 +20,7 @@ interface CurriculumVisualizerProps {
   curriculum: Curriculum
   visualization: CurriculumVisualization
   onCourseClick?: (course: Course) => void
+  onDragStart?: (course: Course) => void
   height: number
 }
 
@@ -31,6 +32,7 @@ export default function CurriculumVisualizer({
   curriculum,
   visualization,
   onCourseClick,
+  onDragStart,
   height
 }: CurriculumVisualizerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -137,6 +139,7 @@ export default function CurriculumVisualizer({
                   {...props}
                   course={course}
                   isEmpty={false}
+                  isDraggable={true}
                 />
               );
               
@@ -148,6 +151,7 @@ export default function CurriculumVisualizer({
                   key={course.id} 
                   position={position} 
                   onClick={() => onCourseClick?.(course)} 
+                  onDragStart={() => onDragStart?.(course)}
                 />
               )
             })

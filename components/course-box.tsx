@@ -2,6 +2,7 @@
 
 // react apenas
 import { Check, Clock, AlertTriangle } from "lucide-react"
+import { useRef, useEffect } from "react"
 
 // utils
 import { cn } from "@/lib/utils"
@@ -20,6 +21,8 @@ interface CourseBoxProps {
   studentCourse?: StudentCourse
   isPlaceholder?: boolean
   isEmpty?: boolean
+  isDraggable?: boolean
+  onDragStart?: (course: Course) => void
 }
 
 
@@ -32,7 +35,10 @@ export default function CourseBox({
   onClick, 
   studentCourse,
   isEmpty = false,
+  isDraggable = false,
+  onDragStart,
 }: CourseBoxProps) {
+  const courseBoxRef = useRef<HTMLDivElement>(null)
 
   // pega cor
   const getStatusColor = () => {
@@ -81,11 +87,66 @@ export default function CourseBox({
     }
   }
 
+  // Set up drag events
+  useEffect(() => {
+    const el = courseBoxRef.current
+    if (!el || !isDraggable || isEmpty) return
+
+    const handleDragStart = (e: DragEvent) => {
+      // Create a ghost image for dragging
+      const ghostEl = document.createElement('div')
+      ghostEl.className = `border-2 rounded p-2 shadow-md ${getStatusColor()}`
+      ghostEl.style.width = `${position.width}px`
+      ghostEl.style.height = `${position.height}px`
+      ghostEl.style.opacity = '0.8'
+      ghostEl.innerHTML = `
+        <div class="flex items-center justify-between">
+          <div class="text-xs font-bold">${course.id}</div>
+        </div>
+        <div class="text-xs truncate">${course.name}</div>
+      `
+      
+      // Position off-screen to not interfere with the actual drag
+      ghostEl.style.position = 'absolute'
+      ghostEl.style.left = '-9999px'
+      document.body.appendChild(ghostEl)
+      
+      // Set the drag image
+      e.dataTransfer?.setDragImage(ghostEl, position.width / 2, position.height / 2)
+      
+      // Set the drag data
+      e.dataTransfer?.setData('application/json', JSON.stringify({
+        courseId: course.id,
+        courseName: course.name,
+        coursePhase: course.phase,
+        courseCredits: course.credits
+      }))
+      
+      // Call the drag start handler if provided
+      if (onDragStart) {
+        onDragStart(course)
+      }
+      
+      // Clean up the ghost element after a short delay
+      setTimeout(() => {
+        document.body.removeChild(ghostEl)
+      }, 100)
+    }
+
+    el.addEventListener('dragstart', handleDragStart)
+    
+    return () => {
+      el.removeEventListener('dragstart', handleDragStart)
+    }
+  }, [course, position, isDraggable, isEmpty, onDragStart, getStatusColor])
+
   return (
     <div
+      ref={courseBoxRef}
       className={cn(
         "absolute border-2 rounded p-2 transition-all",
         !isEmpty && "cursor-pointer shadow-sm hover:shadow-md",
+        isDraggable && !isEmpty && "cursor-grab active:cursor-grabbing",
         getStatusColor()
       )}
       style={{
@@ -97,6 +158,9 @@ export default function CourseBox({
       }}
       onClick={!isEmpty ? onClick : undefined}
       data-course-id={course.id}
+      draggable={isDraggable && !isEmpty}
+      role={isDraggable && !isEmpty ? "button" : undefined}
+      aria-label={isDraggable && !isEmpty ? `Drag course ${course.id}` : undefined}
     >
       {!isEmpty && (
         <>

@@ -105,6 +105,63 @@ export default function Home() {
     setSelectedStudentCourse(newStudentCourse)
   }
 
+  // Handler for dropping a course on the progress visualizer
+  const handleCourseDropped = (course: Course, semesterIndex: number, positionIndex: number) => {
+    if (!studentInfo) return;
+    
+    console.log(`Dropped course ${course.id} on semester ${semesterIndex} at position ${positionIndex}`);
+    
+    // Create a new StudentCourse for the dropped course
+    const newStudentCourse: StudentCourse = {
+      course,
+      status: CourseStatus.PLANNED,
+    } as StudentCourse;
+    
+    // Create a deep copy of the student info to avoid mutation issues
+    const updatedStudentInfo = JSON.parse(JSON.stringify(studentInfo));
+    
+    if (!updatedStudentInfo.currentPlan) {
+      return; // No current plan to update
+    }
+    
+    // Find or create the semester
+    let semesterToUpdate = updatedStudentInfo.currentPlan.semesters.find(
+      (s: { number: number }) => s.number === semesterIndex
+    );
+    
+    if (!semesterToUpdate) {
+      // Create a new semester if it doesn't exist
+      semesterToUpdate = {
+        number: semesterIndex,
+        courses: [],
+        totalCredits: 0
+      };
+      updatedStudentInfo.currentPlan.semesters.push(semesterToUpdate);
+      
+      // Keep semesters sorted
+      updatedStudentInfo.currentPlan.semesters.sort((a: { number: number }, b: { number: number }) => a.number - b.number);
+    }
+    
+    // Check if course is already in this semester
+    const courseExists = semesterToUpdate.courses.some((c: { course: { id: string } }) => c.course.id === course.id);
+    
+    if (!courseExists) {
+      // Insert course at the specific position index
+      if (positionIndex >= 0 && positionIndex <= semesterToUpdate.courses.length) {
+        semesterToUpdate.courses.splice(positionIndex, 0, newStudentCourse);
+      } else {
+        // Fallback to push if position is invalid
+        semesterToUpdate.courses.push(newStudentCourse);
+      }
+      
+      // Update semester total credits
+      semesterToUpdate.totalCredits += course.credits;
+    }
+    
+    // Update the student info state with our changes
+    setStudentInfo(updatedStudentInfo);
+  }
+
   // Get all elective courses from the courseMap
   const electiveCourses = useMemo(() => {
     // Get all courses from the courseMap
@@ -155,6 +212,11 @@ export default function Home() {
     return calculatedHeight
   }, [curriculumData])
 
+  // Handler for dragging a course from the curriculum or electives
+  const handleCourseDragStart = (course: Course) => {
+    console.log(`Started dragging course ${course.id}`);
+    // You could set some state here if needed
+  }
 
   if (isLoading) {
     return (
@@ -207,6 +269,7 @@ export default function Home() {
                 curriculum={curriculumData.curriculum}
                 visualization={curriculumData.visualization}
                 onCourseClick={handleCourseClick}
+                onDragStart={handleCourseDragStart}
                 height={containerHeight}
               />
             ) : (
@@ -214,6 +277,7 @@ export default function Home() {
                 courses={electiveCourses}
                 studentCourses={studentCoursesMap}
                 onCourseClick={handleCourseClick}
+                onDragStart={handleCourseDragStart}
                 height={containerHeight}
               />
             )}
@@ -229,6 +293,7 @@ export default function Home() {
             <ProgressVisualizer
               studentPlan={studentInfo.currentPlan}
               onCourseClick={handleStudentCourseClick}
+              onCourseDropped={handleCourseDropped}
               height={containerHeight}
             />
           </div>

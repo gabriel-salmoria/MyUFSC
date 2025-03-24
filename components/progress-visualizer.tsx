@@ -8,6 +8,7 @@ import { useRef, useState, useEffect, useMemo } from "react"
 // tipos de dados
 import type { StudentPlan, StudentCourse } from "@/types/student-plan"
 import type { CoursePosition } from "@/types/visualization"
+import type { Course } from "@/types/curriculum"
 import { courseMap } from "@/lib/curriculum-parser"
 
 
@@ -28,6 +29,7 @@ const MIN_PHASE_WIDTH = 200
 interface ProgressVisualizerProps {
   studentPlan: StudentPlan
   onCourseClick?: (course: StudentCourse) => void
+  onCourseDropped?: (course: Course, semesterIndex: number, position: number) => void
   height?: number
 }
 
@@ -35,6 +37,7 @@ interface ProgressVisualizerProps {
 export default function ProgressVisualizer({
   studentPlan,
   onCourseClick,
+  onCourseDropped,
   height = 500,
 }: ProgressVisualizerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -176,12 +179,61 @@ export default function ProgressVisualizer({
           {/* quadradinhos de cada disciplina*/}
           {positions.map((position) => {
             if (position.isGhost) {
+              // Extract semester and position info from ghost ID
+              const matches = position.courseId.match(/ghost-(\d+)-(\d+)/)
+              const semesterIndex = matches ? parseInt(matches[1]) : 0
+              const positionIndex = matches ? parseInt(matches[2]) : 0
+              
+              // Create a drop target for ghost boxes
               return (
-                <CourseBox
+                <div
                   key={position.courseId}
-                  course={{ id: "", name: "", phase: 0, credits: 0, workload: 0, prerequisites: [] }}
-                  position={position}
-                  isEmpty={true}
+                  className="absolute border-2 border-dashed rounded border-gray-400 bg-white/5 transition-all hover:bg-gray-50/50"
+                  style={{
+                    left: `${position.x}px`,
+                    top: `${position.y}px`,
+                    width: `${position.width}px`,
+                    height: `${position.height}px`,
+                    opacity: 0.4,
+                  }}
+                  onDragOver={(e) => {
+                    // Prevent default to allow drop
+                    e.preventDefault()
+                    e.currentTarget.classList.add('bg-blue-50/50', 'border-blue-400')
+                  }}
+                  onDragLeave={(e) => {
+                    e.currentTarget.classList.remove('bg-blue-50/50', 'border-blue-400')
+                  }}
+                  onDragEnter={(e) => {
+                    e.preventDefault()
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    e.currentTarget.classList.remove('bg-blue-50/50', 'border-blue-400')
+                    
+                    try {
+                      const data = JSON.parse(e.dataTransfer.getData('application/json'))
+                      if (data.courseId && onCourseDropped) {
+                        const course = courseMap.get(data.courseId)
+                        if (course) {
+                          // Store a reference to the element
+                          const dropTarget = e.currentTarget;
+                          // Show success animation
+                          dropTarget.classList.add('bg-green-50/50', 'border-green-500')
+                          setTimeout(() => {
+                            // Use stored reference instead of e.currentTarget
+                            dropTarget.classList.remove('bg-green-50/50', 'border-green-500')
+                          }, 500)
+                          
+                          onCourseDropped(course, semesterIndex, positionIndex)
+                        }
+                      }
+                    } catch (error) {
+                      console.error('Error parsing drop data:', error)
+                    }
+                  }}
+                  data-semester={semesterIndex}
+                  data-position={positionIndex}
                 />
               )
             }
