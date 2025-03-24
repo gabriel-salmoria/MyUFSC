@@ -1,9 +1,10 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useRef, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import type { StudentCourse } from "@/types/student-plan"
 import scheduleData from "@/data/schedule.json"
+import SearchPopup from "./search-popup"
 
 // Color palette for courses
 const COURSE_COLORS = [
@@ -49,6 +50,44 @@ export default function CourseStats({ courses, onCourseClick, onProfessorSelect 
   // State for the selected course
   const [selectedCourse, setSelectedCourse] = useState<StudentCourse | null>(null)
   const [selectedProfessor, setSelectedProfessor] = useState<string | null>(null)
+  
+  // Search functionality
+  const [searchTerm, setSearchTerm] = useState("")
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Handle key press for search input
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "/") {
+      e.preventDefault()
+      searchInputRef.current?.focus()
+    } else if (e.key === "Escape") {
+      searchInputRef.current?.blur()
+    } else if (e.key !== "Escape" && e.key !== "Tab") {
+      setIsSearchOpen(true)
+    }
+  }
+
+  // Add global keyboard shortcut
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement !== searchInputRef.current) {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+      }
+    }
+    
+    window.addEventListener("keydown", handleGlobalKeyDown)
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown)
+  }, [])
+
+  // Handle search course selection
+  const handleSelectSearchedCourse = (course: StudentCourse) => {
+    setSelectedCourse(course)
+    if (onCourseClick) {
+      onCourseClick(course)
+    }
+  }
 
   // Calculate total weekly hours
   const weeklyHours = useMemo(() => {
@@ -122,6 +161,28 @@ export default function CourseStats({ courses, onCourseClick, onProfessorSelect 
       <h2 className="p-3 font-semibold text-lg border-b bg-gray-100">Course Stats</h2>
       <div className="p-4">
         <div className="space-y-6">
+          {/* Search Box */}
+          <div className="mb-4">
+            <div className="relative">
+              <div className="absolute left-3 top-2.5 text-gray-400">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <path d="m21 21-4.3-4.3"></path>
+                </svg>
+              </div>
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search courses... (Press / to focus)"
+                className="w-full py-2 pl-10 pr-4 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                onFocus={() => setIsSearchOpen(true)}
+                onKeyDown={handleSearchKeyDown}
+              />
+            </div>
+          </div>
+          
           {/* Current Courses Section */}
           <div>
             <h3 className="text-sm font-medium mb-2">Current Courses</h3>
@@ -223,6 +284,19 @@ export default function CourseStats({ courses, onCourseClick, onProfessorSelect 
           )}
         </div>
       </div>
+      
+      {/* Search Popup */}
+      <SearchPopup
+        isOpen={isSearchOpen}
+        onClose={() => {
+          setIsSearchOpen(false)
+          setSearchTerm("")
+        }}
+        searchTerm={searchTerm}
+        courses={courses}
+        onSelectCourse={handleSelectSearchedCourse}
+        onSearchTermChange={setSearchTerm}
+      />
     </div>
   )
 }
