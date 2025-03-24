@@ -339,6 +339,169 @@ export default function Home() {
     }
   }
 
+  // Handler for changing the status of a course or adding it to the student plan
+  const handleCourseStatusChange = (courseId: string, status: CourseStatus) => {
+    if (!studentInfo) return;
+    
+    console.log(`Changing course ${courseId} status to ${status}`);
+    
+    // Create a deep copy of student info to avoid mutation issues
+    const updatedStudentInfo = JSON.parse(JSON.stringify(studentInfo));
+    
+    if (!updatedStudentInfo.currentPlan) {
+      updatedStudentInfo.currentPlan = {
+        semesters: []
+      };
+    }
+    
+    // Find the course in the courseMap
+    const course = courseMap.get(courseId);
+    if (!course) {
+      console.error(`Course ${courseId} not found in course map`);
+      return;
+    }
+    
+    // Check if the course already exists in any semester
+    let courseFound = false;
+    
+    updatedStudentInfo.currentPlan.semesters.forEach((semester: any) => {
+      const courseIndex = semester.courses.findIndex((c: any) => c.course.id === courseId);
+      
+      if (courseIndex >= 0) {
+        // Update the existing course status
+        semester.courses[courseIndex].status = status;
+        
+        // If changing to PLANNED status, remove any grade
+        if (status === CourseStatus.PLANNED) {
+          delete semester.courses[courseIndex].grade;
+        }
+        
+        courseFound = true;
+      }
+    });
+    
+    // If the course wasn't found in any semester, add it to a new semester
+    if (!courseFound) {
+      // Determine the target semester to add the course to
+      const recommendedPhase = course.phase || 1;
+      
+      // Find or create the semester matching the recommended phase
+      let targetSemester = updatedStudentInfo.currentPlan.semesters.find(
+        (s: any) => s.number === recommendedPhase
+      );
+      
+      if (!targetSemester) {
+        // Create all semesters up to the recommended phase if they don't exist
+        for (let i = 1; i <= recommendedPhase; i++) {
+          const semesterExists = updatedStudentInfo.currentPlan.semesters.some(
+            (s: any) => s.number === i
+          );
+          
+          if (!semesterExists) {
+            updatedStudentInfo.currentPlan.semesters.push({
+              number: i,
+              courses: [],
+              totalCredits: 0
+            });
+          }
+        }
+        
+        // Sort semesters
+        updatedStudentInfo.currentPlan.semesters.sort(
+          (a: any, b: any) => a.number - b.number
+        );
+        
+        // Get the target semester again after creating it
+        targetSemester = updatedStudentInfo.currentPlan.semesters.find(
+          (s: any) => s.number === recommendedPhase
+        );
+      }
+      
+      // Add the course to the target semester
+      const newStudentCourse: StudentCourse = {
+        course: course,
+        status: status,
+        // Copy required properties from the original course
+        id: course.id,
+        name: course.name,
+        credits: course.credits,
+        description: course.description,
+        workload: course.workload,
+        prerequisites: course.prerequisites,
+        equivalents: course.equivalents,
+        type: course.type,
+      };
+      
+      targetSemester.courses.push(newStudentCourse);
+      targetSemester.totalCredits += course.credits || 0;
+    }
+    
+    // Update the student info state
+    setStudentInfo(updatedStudentInfo);
+    
+    // If the course is selected, update the selected student course
+    if (selectedCourse && selectedCourse.id === courseId) {
+      // Find the updated student course
+      const updatedStudentCourse = updatedStudentInfo.currentPlan.semesters
+        .flatMap((s: any) => s.courses)
+        .find((c: any) => c.course.id === courseId);
+      
+      if (updatedStudentCourse) {
+        setSelectedStudentCourse(updatedStudentCourse);
+      }
+    }
+  }
+
+  // Handler for changing a course grade
+  const handleCourseGradeChange = (courseId: string, grade: number) => {
+    if (!studentInfo) return;
+    
+    // Round the grade to the nearest 0.5
+    const roundedGrade = Math.round(grade * 2) / 2;
+    
+    console.log(`Setting grade for course ${courseId} to ${roundedGrade} (rounded from ${grade})`);
+    
+    // Create a deep copy of student info to avoid mutation issues
+    const updatedStudentInfo = JSON.parse(JSON.stringify(studentInfo));
+    
+    if (!updatedStudentInfo.currentPlan) {
+      return; // No current plan to update
+    }
+    
+    // Find the course in any semester
+    let courseUpdated = false;
+    
+    updatedStudentInfo.currentPlan.semesters.forEach((semester: any) => {
+      const courseIndex = semester.courses.findIndex((c: any) => c.course.id === courseId);
+      
+      if (courseIndex >= 0) {
+        // Update the course grade with the rounded value
+        semester.courses[courseIndex].grade = roundedGrade;
+        
+        // We don't automatically change the status here anymore
+        // The status will be changed by handleCourseStatusChange when called from the details panel
+        
+        courseUpdated = true;
+      }
+    });
+    
+    if (courseUpdated) {
+      // Update the student info state
+      setStudentInfo(updatedStudentInfo);
+      
+      // If the course is selected, update the selected student course with the new grade
+      if (selectedStudentCourse && selectedStudentCourse.course.id === courseId) {
+        const updatedStudentCourse = updatedStudentInfo.currentPlan.semesters
+          .flatMap((s: any) => s.courses)
+          .find((c: any) => c.course.id === courseId);
+        
+        if (updatedStudentCourse) {
+          setSelectedStudentCourse(updatedStudentCourse);
+        }
+      }
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -435,6 +598,8 @@ export default function Home() {
           course={selectedCourse}
           onClose={() => setSelectedCourse(null)}
           onViewDependencies={() => handleViewDependencies(selectedCourse)}
+          onStatusChange={handleCourseStatusChange}
+          onGradeChange={handleCourseGradeChange}
         />
       )}
 
@@ -444,6 +609,8 @@ export default function Home() {
           studentCourse={selectedStudentCourse}
           onClose={() => setSelectedStudentCourse(null)}
           onViewDependencies={() => handleViewDependencies(selectedStudentCourse.course)}
+          onStatusChange={handleCourseStatusChange}
+          onGradeChange={handleCourseGradeChange}
         />
       )}
 
