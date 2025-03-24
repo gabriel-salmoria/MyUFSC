@@ -8,6 +8,7 @@ import ProgressVisualizer from "@/components/progress-visualizer"
 import StudentCourseDetailsPanel from "@/components/details-panel"
 import GridVisualizer from "@/components/grid-visualizer"
 import DependencyTree from "@/components/dependency-tree"
+import Timetable from "@/components/timetable"
 
 
 // types
@@ -217,6 +218,14 @@ export default function Home() {
               height={containerHeight}
             />
           </div>
+        </div>
+        
+        <div>
+          <h2 className="text-xl font-semibold mb-2">Weekly Schedule</h2>
+          <Timetable
+            studentInfo={studentInfo}
+            onCourseClick={handleStudentCourseClick}
+          />
         </div>
       </div>
 
