@@ -136,8 +136,7 @@ export default function GridVisualizer({
               />
             )
             
-            // Store this instance in the course
-            course.ui_electives = CourseBoxInstance
+            // Use the component directly, don't store it in the course object
             
             return (
               <CourseBoxInstance

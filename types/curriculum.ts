@@ -12,11 +12,8 @@ export interface Course {
   type?: "mandatory" | "optional"   // se a disciplina e obrigatoria ou opcional
   phase: number                     // numero da fase recomendada (1-8+)
   
-  // UI component references for different visualizations
-  ui?: ComponentType<any>           // General reference (legacy)
-  ui_curriculum?: ComponentType<any> // Reference in curriculum visualizer
-  ui_progress?: ComponentType<any>  // Reference in progress visualizer
-  ui_electives?: ComponentType<any> // Reference in electives visualizer
+  // No longer storing UI components in the course object
+  // This prevents issues with read-only objects in Zustand/Immer
 }
 
 // ta bem simples, basicamente um container

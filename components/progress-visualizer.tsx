@@ -73,7 +73,7 @@ export default function ProgressVisualizer({
   // Calculate box width proportional to phase width
   const boxWidth = useMemo(() => {
     // Calculate proportional box width, but ensure it's at least MIN_BOX_WIDTH
-    return Math.max(MIN_BOX_WIDTH, phaseWidth * 0.7)
+    return Math.max(MIN_BOX_WIDTH, phaseWidth * 0.8)
   }, [phaseWidth])
 
   const totalWidth = TOTAL_SEMESTERS * phaseWidth
@@ -260,15 +260,13 @@ export default function ProgressVisualizer({
               />
             );
             
-            // Store this specific instance in the course
-            course.ui_progress = CourseBoxInstance;
+            // Use the component directly instead of storing it
 
             return (
               <CourseBoxInstance
                 key={`${position.courseId}-${position.x}-${position.y}`}
                 position={position}
                 onClick={() => studentCourse && onCourseClick?.(studentCourse)}
-                onDragStart={() => course && console.log(`Started dragging course ${course.id} from progress visualizer`)}
               />
             )
           })}

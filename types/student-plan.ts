@@ -37,8 +37,6 @@ export interface StudentSemester {
 export interface StudentPlan {
   id: string
   semesters: StudentSemester[]
-  inProgressCourses: StudentCourse[]
-  plannedCourses: StudentCourse[]
 }
 
 export interface StudentInfo {
@@ -46,5 +44,6 @@ export interface StudentInfo {
   studentId: string
   name: string
   currentPlan: StudentPlan | null
+  currentSemester: string
   plans: StudentPlan[]
 }

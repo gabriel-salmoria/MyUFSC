@@ -20,7 +20,6 @@ interface CurriculumVisualizerProps {
   curriculum: Curriculum
   visualization: CurriculumVisualization
   onCourseClick?: (course: Course) => void
-  onDragStart?: (course: Course) => void
   height: number
 }
 
@@ -32,7 +31,6 @@ export default function CurriculumVisualizer({
   curriculum,
   visualization,
   onCourseClick,
-  onDragStart,
   height
 }: CurriculumVisualizerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -68,7 +66,7 @@ export default function CurriculumVisualizer({
   // Calculate box width proportional to phase width
   const boxWidth = useMemo(() => {
     // Calculate proportional box width, but ensure it's at least MIN_BOX_WIDTH
-    return Math.max(MIN_BOX_WIDTH, phaseWidth * 0.7)
+    return Math.max(MIN_BOX_WIDTH, phaseWidth * 0.8)
   }, [phaseWidth])
 
   // calcula a largura total do curriculo
@@ -133,7 +131,7 @@ export default function CurriculumVisualizer({
                 height: BOX_HEIGHT
               }
               
-              // Create a unique CourseBox for this course and store it
+              // Create a unique CourseBox for this course
               const CourseBoxInstance = (props: any) => (
                 <CourseBox
                   {...props}
@@ -143,15 +141,13 @@ export default function CurriculumVisualizer({
                 />
               );
               
-              // Store this specific instance in the course
-              course.ui_curriculum = CourseBoxInstance;
+              // We no longer store this instance in the course, just use it directly
 
               return (
                 <CourseBoxInstance 
                   key={course.id} 
                   position={position} 
                   onClick={() => onCourseClick?.(course)} 
-                  onDragStart={() => onDragStart?.(course)}
                 />
               )
             })

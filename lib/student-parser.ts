@@ -1,5 +1,3 @@
-
-
 // tipos de dados
 import type { StudentInfo, StudentPlan, StudentCourse, StudentSemester } from "@/types/student-plan"
 import { CourseStatus } from "@/types/student-plan"
@@ -173,6 +171,7 @@ export function parseStudentData(jsonData: RawStudentData): StudentInfo {
     name: jsonData.name,
     currentPlan,
     plans,
+    currentSemester: jsonData.currentSemester,
   }
 
   return studentInfo
