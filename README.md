@@ -13,8 +13,8 @@
 
 
 ### better coding, clean code
-[ ] change behavior of course modification, deep copy is extremely bad
-[ ] refactor code so that main page file is not so goddamn big
+[x] change behavior of course modification, deep copy is extremely bad
+[x] refactor code so that main page file is not so goddamn big
 
 [ ] move creation of the empty semesters to the student parser so that we don't create nothing at runtime
 

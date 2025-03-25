@@ -14,7 +14,6 @@ import CourseBox from "./course-box"
 const MIN_PHASE_WIDTH = 200
 const MIN_BOX_WIDTH = 140
 const BOX_HEIGHT = 50
-const LEFT_PADDING = 30
 
 interface CurriculumVisualizerProps {
   curriculum: Curriculum

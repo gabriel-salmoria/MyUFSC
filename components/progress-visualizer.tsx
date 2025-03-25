@@ -22,7 +22,6 @@ const BOXES_PER_COLUMN = 6
 const MIN_BOX_WIDTH = 140
 const BOX_HEIGHT = 50
 const BOX_SPACING_Y = 60
-const LEFT_PADDING = 30
 const MIN_PHASE_WIDTH = 200
 
 

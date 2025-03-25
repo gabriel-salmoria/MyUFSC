@@ -17,7 +17,6 @@ interface StudentCourseDetailsPanelProps {
 }
 
 // painel de detalhes da disciplina, que aparece quando clica no quadradinho da disciplina
-// é meio batota, nao tem muita coisa sendo calculada, só gera ele mesmo, pega toda a info do course 
 export default function StudentCourseDetailsPanel({
   course,
   studentCourse,
@@ -85,48 +84,6 @@ export default function StudentCourseDetailsPanel({
       setGradeInput(studentCourse?.grade !== undefined ? studentCourse.grade.toString() : '');
     }
   };
-
-  const getStatusBadge = () => {
-    if (!studentCourse){
-      console.log("No student course found", course)
-       return null
-    }
-
-    switch (studentCourse.status) {
-
-      // TODO: implementar o status
-      case CourseStatus.COMPLETED:
-        return (
-          <div className="flex items-center gap-1 text-green-600 bg-green-50 px-3 py-1 rounded-full text-xs">
-            <Check className="w-3 h-3" />
-            Completed
-          </div>
-        )
-      case CourseStatus.IN_PROGRESS:
-        return (
-          <div className="flex items-center gap-1 text-blue-600 bg-blue-50 px-2 py-1 rounded-full text-xs">
-            <Clock className="w-3 h-3" />
-            In Progress
-          </div>
-        )
-      case CourseStatus.PLANNED:
-        return (
-          <div className="flex items-center gap-1 text-purple-600 bg-purple-50 px-2 py-1 rounded-full text-xs">
-            <Clock className="w-3 h-3" />
-            Planned
-          </div>
-        )
-      case CourseStatus.FAILED:
-        return (
-          <div className="flex items-center gap-1 text-red-600 bg-red-50 px-2 py-1 rounded-full text-xs">
-            <AlertTriangle className="w-3 h-3" />
-            Failed
-          </div>
-        )
-      default:
-        return null
-    }
-  }
 
   return (
     <>

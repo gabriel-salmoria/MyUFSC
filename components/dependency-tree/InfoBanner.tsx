@@ -23,7 +23,7 @@ export default function InfoBanner({ message, duration = 3000 }: InfoBannerProps
     <AnimatePresence>
       {isVisible && (
         <motion.div
-          className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-black/75 text-white px-4 py-2 rounded-full text-sm shadow-lg z-50"
+          className="fixed bottom-4 left-0 right-0 flex justify-center items-center"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 10 }}
@@ -32,7 +32,9 @@ export default function InfoBanner({ message, duration = 3000 }: InfoBannerProps
             exit: { duration: 0.2 }
           }}
         >
-          {message}
+          <div className="bg-black/75 text-white px-4 py-2 rounded-full text-sm shadow-lg">
+            {message}
+          </div>
         </motion.div>
       )}
     </AnimatePresence>

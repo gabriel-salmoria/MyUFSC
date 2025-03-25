@@ -7,7 +7,6 @@ import { useDependencyGraph } from "@/hooks/useDependencyGraph"
 import { useDashboardRef } from "@/hooks/useDashboardRef"
 import ConnectionLines from "./dependency-tree/ConnectionLines"
 import CourseHighlighter from "./dependency-tree/CourseHighlighter"
-import CloseButton from "./dependency-tree/CloseButton"
 import InfoBanner from "./dependency-tree/InfoBanner"
 
 interface DependencyTreeProps {
@@ -100,12 +99,6 @@ export default function DependencyTree({ course, isVisible, onClose }: Dependenc
               connections={connections}
               courseElements={courseElements}
             />,
-            document.body
-          )}
-          
-          {/* Close Button */}
-          {createPortal(
-            <CloseButton onClose={onClose} />,
             document.body
           )}
           
