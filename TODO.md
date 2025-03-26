@@ -18,7 +18,7 @@
 [ ] organize the schedule.json so that it has a better structure (follow cagr rules)
 [ ] add the class locations to the stats and in json
 
-[ ] move ui constants to a configuration file so that everything is nice and organized
+[x] move ui constants to a configuration file so that everything is nice and organized
 
 ## Functionality Completion
 [ ] update the timetable when adding a course to the current phase

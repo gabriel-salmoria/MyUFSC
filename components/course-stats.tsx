@@ -7,9 +7,6 @@ import type { StudentCourse, CourseStatus } from "@/types/student-plan"
 import scheduleData from "@/data/schedule.json"
 import SearchPopup from "./search-popup"
 
-// config
-import { COURSE_COLORS, SELECTED_COLORS, STATUS_COLORS } from "@/config/visualization"
-
 interface CourseStatsProps {
   courses: StudentCourse[]
   onCourseClick?: (course: StudentCourse) => void
@@ -85,31 +82,29 @@ export default function CourseStats({ courses, onCourseClick, onProfessorSelect,
     }, 0)
   }, [courses])
 
+  // Array of course color classes to use
+  const courseClasses = [
+    "course-in-progress",
+    "course-exempted", 
+    "course-completed",
+    "course-planned",
+    "course-failed",
+    "course-default"
+  ];
+
   // Map courses to colors
   const courseColorMap = useMemo(() => {
     const colorMap = new Map<string, string>();
     courses.forEach((course, index) => {
-      const colorIndex = index % COURSE_COLORS.length;
-      colorMap.set(course.course.id, COURSE_COLORS[colorIndex]);
-    });
-    return colorMap;
-  }, [courses]);
-
-  // Map courses to selected colors (darker tones)
-  const selectedColorMap = useMemo(() => {
-    const colorMap = new Map<string, string>();
-    courses.forEach((course, index) => {
-      const colorIndex = index % SELECTED_COLORS.length;
-      colorMap.set(course.course.id, SELECTED_COLORS[colorIndex]);
+      const colorIndex = index % courseClasses.length;
+      colorMap.set(course.course.id, courseClasses[colorIndex]);
     });
     return colorMap;
   }, [courses]);
 
   // Get the course color based on its ID
   const getCourseColor = (courseId: string, isSelected: boolean = false) => {
-    return isSelected 
-      ? selectedColorMap.get(courseId) || STATUS_COLORS.DEFAULT
-      : courseColorMap.get(courseId) || STATUS_COLORS.DEFAULT;
+    return courseColorMap.get(courseId) || "course-default";
   }
 
   // Handle course click in the sidebar

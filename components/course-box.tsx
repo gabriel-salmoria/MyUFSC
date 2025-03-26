@@ -14,7 +14,7 @@ import type { StudentCourse } from "@/types/student-plan"
 import { CourseStatus } from "@/types/student-plan"
 
 // config
-import { COURSE_BOX, STATUS_COLORS } from "@/config/visualization"
+import { COURSE_BOX } from "@/config/visualization"
 
 interface CourseBoxProps {
   course: Course
@@ -46,25 +46,25 @@ export default function CourseBox({
   const getStatusColor = () => {
     if (isEmpty) {
       return isEmpty 
-        ? STATUS_COLORS.EMPTY
-        : STATUS_COLORS.EMPTY_ALT
+        ? "course-empty"
+        : "course-empty-alt"
     }
 
-    if (!studentCourse) return STATUS_COLORS.DEFAULT
+    if (!studentCourse) return "course-default"
 
     switch (studentCourse.status) {
       case CourseStatus.COMPLETED:
-        return STATUS_COLORS.COMPLETED
+        return "course-completed"
       case CourseStatus.IN_PROGRESS:
-        return STATUS_COLORS.IN_PROGRESS
+        return "course-in-progress"
       case CourseStatus.FAILED:
-        return STATUS_COLORS.FAILED
+        return "course-failed"
       case CourseStatus.PLANNED:
-        return STATUS_COLORS.PLANNED
+        return "course-planned"
       case CourseStatus.EXEMPTED:
-        return STATUS_COLORS.EXEMPTED
+        return "course-exempted"
       default:
-        return STATUS_COLORS.DEFAULT
+        return "course-default"
     }
   }
 
@@ -97,7 +97,7 @@ export default function CourseBox({
     const handleDragStart = (e: DragEvent) => {
       // Create a ghost image for dragging
       const ghostEl = document.createElement('div')
-      ghostEl.className = `border-2 rounded p-2 shadow-md ${getStatusColor()}`
+      ghostEl.className = `rounded p-2 shadow-md ${getStatusColor()}`
       ghostEl.style.width = `${position.width}px`
       ghostEl.style.height = `${position.height}px`
       ghostEl.innerHTML = `
@@ -146,7 +146,7 @@ export default function CourseBox({
     <div
       ref={courseBoxRef}
       className={cn(
-        "absolute border-2 rounded p-2 transition-all",
+        "absolute rounded p-2 transition-all",
         !isEmpty && "cursor-pointer shadow-sm hover:shadow-md",
         isDraggable && !isEmpty && "cursor-grab active:cursor-grabbing",
         getStatusColor()

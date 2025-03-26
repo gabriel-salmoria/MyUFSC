@@ -8,7 +8,17 @@ import type { StudentInfo, StudentCourse } from "@/types/student-plan"
 import { CourseStatus } from "@/types/student-plan"
 import type { CoursePosition } from "@/types/visualization"
 import scheduleData from "@/data/schedule.json"
-import { TIMETABLE, COURSE_COLORS } from "@/config/visualization"
+import { TIMETABLE } from "@/config/visualization"
+
+// Define course color classes to use for timetable
+const TIMETABLE_COLORS = [
+  "course-in-progress",
+  "course-exempted",
+  "course-completed",
+  "course-planned",
+  "course-failed",
+  "course-default",
+] as const
 
 interface TimetableProps {
   studentInfo: StudentInfo
@@ -171,15 +181,15 @@ export default function Timetable({ studentInfo, onCourseClick, onAddCourse }: T
   const courseColorMap = useMemo(() => {
     const colorMap = new Map<string, string>();
     currentCourses.forEach((course, index) => {
-      const colorIndex = index % COURSE_COLORS.length;
-      colorMap.set(course.course.id, COURSE_COLORS[colorIndex]);
+      const colorIndex = index % TIMETABLE_COLORS.length;
+      colorMap.set(course.course.id, TIMETABLE_COLORS[colorIndex]);
     });
     return colorMap;
   }, [currentCourses]);
 
   // Get the color for a course based on its index
   const getCourseColor = (courseId: string) => {
-    return courseColorMap.get(courseId) || "border-gray-300 bg-gray-50";
+    return courseColorMap.get(courseId) || "course-default";
   };
 
   const [selectedCourse, setSelectedCourse] = useState<StudentCourse | null>(null)
