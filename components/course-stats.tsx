@@ -8,6 +8,7 @@ import { CourseStatus } from "@/types/student-plan"
 import scheduleData from "@/data/schedule.json"
 import SearchPopup from "./search-popup"
 import { CSS_CLASSES, STATUS_CLASSES } from "@/styles/course-theme"
+import { useStudentStore } from "@/lib/student-store"
 
 interface CourseStatsProps {
   courses: StudentCourse[]
@@ -34,6 +35,7 @@ export default function CourseStats({ courses, onCourseClick, onProfessorSelect,
   const [searchTerm, setSearchTerm] = useState("")
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const studentStore = useStudentStore()
 
   // Handle key press for search input
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
@@ -69,9 +71,16 @@ export default function CourseStats({ courses, onCourseClick, onProfessorSelect,
         onCourseClick(studentCourse)
       }
     }
-
-    else if (onAddCourse) {
-      onAddCourse(course as Course)
+    else {
+      // If onAddCourse is provided, use it
+      if (onAddCourse) {
+        onAddCourse(course as Course)
+      }
+      // Otherwise use the store directly
+      else {
+        const newCourse = course as Course
+        studentStore.changeCourseStatus(newCourse.id, CourseStatus.IN_PROGRESS, newCourse)
+      }
     }
   }
 

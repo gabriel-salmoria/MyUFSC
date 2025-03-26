@@ -1,11 +1,14 @@
 // tipos de dados
 import type { StudentInfo, StudentPlan, StudentCourse, StudentSemester } from "@/types/student-plan"
 import { CourseStatus } from "@/types/student-plan"
+import type { CoursePosition } from "@/types/visualization"
 
 
 // funcao auxiliar para pegar as informacoes de uma disciplina
-import { getCourseInfo } from "./curriculum-parser"
+import { getCourseInfo, courseMap } from "./curriculum-parser"
 
+// configuracoes
+import { COURSE_BOX, PHASE } from "@/styles/visualization"
 
 
 // interface para o json da info do aluno
@@ -30,6 +33,57 @@ interface RawStudentData {
       }
     }
   }>
+}
+
+/**
+ * Calculate positions for all courses in the student plan 
+ */
+export function calculateStudentPositions(
+  studentPlan: StudentPlan, 
+  phaseWidth: number = PHASE.MIN_WIDTH
+): { 
+  positions: CoursePosition[], 
+  courseMap: Map<string, StudentCourse> 
+} {
+  // Calculate box width based on phase width
+  const boxWidth = Math.max(COURSE_BOX.MIN_WIDTH, phaseWidth * COURSE_BOX.WIDTH_FACTOR)
+  
+  // Create course positions and map
+  const positions: CoursePosition[] = []
+  const studentCourseMap = new Map<string, StudentCourse>()
+  
+  // First, add all actual courses
+  studentPlan.semesters.forEach((semester, semesterIndex) => {
+    const xOffset = (phaseWidth - boxWidth) / 2
+    
+    semester.courses.forEach((course, courseIndex) => {
+      // Add the actual course
+      positions.push({
+        courseId: course.course.id,
+        x: semesterIndex * phaseWidth + xOffset,
+        y: courseIndex * COURSE_BOX.SPACING_Y + COURSE_BOX.SPACING_Y,
+        width: boxWidth,
+        height: COURSE_BOX.HEIGHT,
+      })
+      
+      // Store for lookup
+      studentCourseMap.set(course.course.id, course)
+    })
+    
+    // Add ghost boxes for empty slots
+    for (let i = semester.courses.length; i < PHASE.BOXES_PER_COLUMN; i++) {
+      positions.push({
+        courseId: `ghost-${semester.number}-${i}`,
+        x: semesterIndex * phaseWidth + xOffset,
+        y: i * COURSE_BOX.SPACING_Y + COURSE_BOX.SPACING_Y,
+        width: boxWidth,
+        height: COURSE_BOX.HEIGHT,
+        isGhost: true,
+      })
+    }
+  })
+  
+  return { positions, courseMap: studentCourseMap }
 }
 
 export function parseStudentData(jsonData: RawStudentData): StudentInfo {
@@ -77,21 +131,37 @@ export function parseStudentData(jsonData: RawStudentData): StudentInfo {
 
   // processa todos os planos
   const plans: StudentPlan[] = jsonData.plans.map(rawPlan => {
-    const semesters: StudentSemester[] = []
-    const inProgressCourses: StudentCourse[] = []
-    const plannedCourses: StudentCourse[] = []
-
-
-    // adiciona os semestres cursados primeiro (sao estaticos agnosticos ao plano)
-    Array.from(completedSemesters.entries())
-      .sort(([a], [b]) => a - b)
-      .forEach(([_, semester]) => {
-        semesters.push(semester)
+    // Initialize all semesters upfront (from 1 to TOTAL_SEMESTERS)
+    const allSemesters: StudentSemester[] = []
+    
+    // Create all semester objects with empty arrays
+    for (let i = 1; i <= PHASE.TOTAL_SEMESTERS; i++) {
+      allSemesters.push({
+        number: i,
+        courses: [],
+        totalCredits: 0
       })
+    }
+    
+    // Map for quick semester lookup
+    const semestersMap = new Map<number, StudentSemester>(
+      allSemesters.map(semester => [semester.number, semester])
+    )
+    
+    // First, add completed courses from past semesters
+    Array.from(completedSemesters.entries()).forEach(([semesterNumber, completedSemester]) => {
+      const existingSemester = semestersMap.get(semesterNumber)
+      if (existingSemester) {
+        // Replace the courses in the existing semester
+        existingSemester.courses = [...completedSemester.courses]
+        existingSemester.totalCredits = completedSemester.totalCredits
+      }
+    })
 
-
-    // processa o semestre atual e futuro (incluidos no plano)
+    // Process current and future semesters (from the plan)
     const currentSemesterNum = parseInt(jsonData.currentSemester)
+    
+    // Get courses for current and future semesters from the plan
     const semesterEntries = Object.entries(rawPlan.semesters)
       .map(([key, value]) => ({
         number: parseInt(key),
@@ -99,14 +169,17 @@ export function parseStudentData(jsonData: RawStudentData): StudentInfo {
       }))
       .filter(entry => entry.number >= currentSemesterNum)
 
-    semesterEntries.sort((a, b) => a.number - b.number)
-
-
-    // processa cada semestre
+    // Process each semester from the plan
     semesterEntries.forEach(entry => {
       const { number, courses } = entry
-      const processedCourses: StudentCourse[] = []
-
+      const targetSemester = semestersMap.get(number)
+      
+      if (!targetSemester) {
+        console.warn(`Semester ${number} not found in the initialized semesters`)
+        return
+      }
+      
+      // Process each course
       courses.forEach(courseCode => {
         const courseInfo = getCourseInfo(courseCode)
         if (!courseInfo) {
@@ -131,31 +204,34 @@ export function parseStudentData(jsonData: RawStudentData): StudentInfo {
           class: courseCode.includes("-") ? courseCode.split("-")[1] : undefined,
         }
 
-        processedCourses.push(studentCourse)
+        // Add to the target semester
+        targetSemester.courses.push(studentCourse)
+      })
+      
+      // Update the semester's total credits
+      targetSemester.totalCredits = targetSemester.courses.reduce(
+        (sum, course) => sum + course.credits, 0
+      )
+    })
 
-        // Add to appropriate lists
-        if (status === CourseStatus.IN_PROGRESS) {
-          inProgressCourses.push(studentCourse)
-        } else if (status === CourseStatus.PLANNED) {
-          plannedCourses.push(studentCourse)
+    // Collect all courses by status for quick access
+    const inProgressCourses: StudentCourse[] = []
+    const plannedCourses: StudentCourse[] = []
+    
+    allSemesters.forEach(semester => {
+      semester.courses.forEach(course => {
+        if (course.status === CourseStatus.IN_PROGRESS) {
+          inProgressCourses.push(course)
+        } else if (course.status === CourseStatus.PLANNED) {
+          plannedCourses.push(course)
         }
       })
-
-      // adiciona o semestre se tiver disciplinas
-      if (processedCourses.length > 0) {
-        const semester: StudentSemester = {
-          number,
-          courses: processedCourses,
-          totalCredits: processedCourses.reduce((sum, course) => sum + course.credits, 0),
-        }
-        semesters.push(semester)
-      }
     })
 
     // Create the student plan
     return {
       id: rawPlan.id,
-      semesters,
+      semesters: allSemesters,
       inProgressCourses,
       plannedCourses,
     }

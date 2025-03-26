@@ -33,22 +33,32 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
       
       const plan = state.studentInfo.currentPlan
       
-      // Find target semester or create it
-      let targetSemester = plan.semesters.find(s => s.number === semesterNumber)
+      // First check if the course already exists in any semester
+      let existingInSemester = false
+      
+      for (const semester of plan.semesters) {
+        const courseIndex = semester.courses.findIndex(c => c.course.id === course.id)
+        if (courseIndex >= 0) {
+          existingInSemester = true
+          break
+        }
+      }
+      
+      // If the course already exists somewhere, use moveCourse instead
+      if (existingInSemester) {
+        // Call moveCourse directly as we're inside a producer function
+        state.moveCourse(course.id, semesterNumber, positionIndex)
+        return
+      }
+      
+      // If not, continue with adding a new course
+      
+      // Find target semester - should always exist since we initialize all semesters
+      const targetSemester = plan.semesters.find(s => s.number === semesterNumber)
       
       if (!targetSemester) {
-        // Create the new semester
-        targetSemester = {
-          number: semesterNumber,
-          courses: [],
-          totalCredits: 0
-        }
-        
-        // Add the new semester
-        plan.semesters.push(targetSemester)
-        
-        // Sort semesters by number
-        plan.semesters.sort((a, b) => a.number - b.number)
+        console.error(`Target semester ${semesterNumber} not found, should never happen`)
+        return
       }
       
       // Create the new student course
@@ -108,20 +118,12 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
       sourceSemester.courses.splice(courseIndex, 1)
       sourceSemester.totalCredits -= courseToMove.credits || 0
       
-      // Find or create target semester
-      let targetSemester = plan.semesters.find(s => s.number === targetSemesterNumber)
+      // Find target semester - should always exist since we initialize all semesters
+      const targetSemester = plan.semesters.find(s => s.number === targetSemesterNumber)
       
       if (!targetSemester) {
-        // Create target semester
-        targetSemester = {
-          number: targetSemesterNumber,
-          courses: [],
-          totalCredits: 0
-        }
-        plan.semesters.push(targetSemester)
-        
-        // Sort semesters by number
-        plan.semesters.sort((a, b) => a.number - b.number)
+        console.error(`Target semester ${targetSemesterNumber} not found, should never happen`)
+        return
       }
       
       // Insert course at target position
@@ -200,49 +202,31 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
         // Determine the target semester to add the course to
         const recommendedPhase = course.phase || 1
         
-        // Find or create the semester matching the recommended phase
-        let targetSemester = plan.semesters.find(s => s.number === recommendedPhase)
+        // Find semester matching the recommended phase - should always exist now
+        const targetSemester = plan.semesters.find(s => s.number === recommendedPhase)
         
         if (!targetSemester) {
-          // Create all semesters up to the recommended phase if they don't exist
-          for (let i = 1; i <= recommendedPhase; i++) {
-            const semesterExists = plan.semesters.some(s => s.number === i)
-            
-            if (!semesterExists) {
-              plan.semesters.push({
-                number: i,
-                courses: [],
-                totalCredits: 0
-              })
-            }
-          }
-          
-          // Sort semesters
-          plan.semesters.sort((a, b) => a.number - b.number)
-          
-          // Get the target semester again after creating it
-          targetSemester = plan.semesters.find(s => s.number === recommendedPhase)
+          console.error(`Target semester ${recommendedPhase} not found, should never happen`)
+          return
         }
         
-        if (targetSemester) {
-          // Add the course to the target semester
-          const newStudentCourse: StudentCourse = {
-            course: course,
-            status: status,
-            // Copy required properties from the original course
-            id: course.id,
-            name: course.name,
-            credits: course.credits,
-            description: course.description,
-            workload: course.workload,
-            prerequisites: course.prerequisites,
-            equivalents: course.equivalents,
-            type: course.type,
-          }
-          
-          targetSemester.courses.push(newStudentCourse)
-          targetSemester.totalCredits += course.credits || 0
+        // Add the course to the target semester
+        const newStudentCourse: StudentCourse = {
+          course: course,
+          status: status,
+          // Copy required properties from the original course
+          id: course.id,
+          name: course.name,
+          credits: course.credits,
+          description: course.description,
+          workload: course.workload,
+          prerequisites: course.prerequisites,
+          equivalents: course.equivalents,
+          type: course.type,
         }
+        
+        targetSemester.courses.push(newStudentCourse)
+        targetSemester.totalCredits += course.credits || 0
       }
     })
   ),

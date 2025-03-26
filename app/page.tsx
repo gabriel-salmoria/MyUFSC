@@ -85,96 +85,6 @@ export default function Home() {
     setDependencyCourse(null)
   }
 
-  // Handler for course click with dependency tree option
-  const handleCourseClick = (course: Course) => {
-    setSelectedCourse(course)
-  }
-
-  // Handler for student course click with dependency tree option
-  const handleStudentCourseClick = (studentCourse: StudentCourse) => {
-    setSelectedStudentCourse(studentCourse)
-  }
-
-  // Handler for adding a new course from search
-  const handleAddCourse = (course: Course) => {
-    // Create a new StudentCourse from the curriculum course
-    const newStudentCourse = {
-      course,
-      status: CourseStatus.IN_PROGRESS,
-    } as StudentCourse;
-    
-    // Here you would normally add the course to the student's plan in a real app
-    // For now, we'll just show the course details panel
-    setSelectedStudentCourse(newStudentCourse)
-  }
-
-  // Handler for dropping a course on the progress visualizer
-  const handleCourseDropped = (course: Course, semesterIndex: number, positionIndex: number) => {
-    if (!studentInfo) return;
-    
-    console.log(`Dropped course ${course.id} on semester ${semesterIndex} at position ${positionIndex}`);
-    
-    // Check if the course already exists in any semester
-    let existingCourse: StudentCourse | undefined;
-    let existingSemesterIndex = -1;
-    
-    if (studentInfo.currentPlan) {
-      // Find the course in any semester
-      for (const semester of studentInfo.currentPlan.semesters) {
-        const courseIndex = semester.courses.findIndex((c) => c.course.id === course.id);
-        if (courseIndex >= 0) {
-          existingSemesterIndex = semester.number;
-          break;
-        }
-      }
-    }
-    
-    // If course exists somewhere else, move it
-    if (existingSemesterIndex >= 0) {
-      studentStore.moveCourse(course.id, semesterIndex, positionIndex);
-    } else {
-      // Add the course as new
-      studentStore.addCourseToSemester(course, semesterIndex, positionIndex);
-    }
-  }
-
-  // Get all elective courses from the courseMap
-  const electiveCourses = useMemo(() => {
-    // Get all courses from the courseMap
-    const allCourses = Array.from(courseMap.values());
-    
-    // Filter for optional courses only
-    const optionalCourses = allCourses.filter(course => course.type === "optional");
-    
-    // Filter out courses that are already in the curriculum visualization
-    // to avoid showing the same courses twice
-    const curriculumCourseIds = new Set<string>();
-    if (curriculumData) {
-      curriculumData.curriculum.phases.forEach(phase => {
-        phase.courses.forEach(course => {
-          curriculumCourseIds.add(course.id);
-        });
-      });
-    }
-    
-    // Return only the electives that aren't already in the curriculum
-    return optionalCourses.filter(course => !curriculumCourseIds.has(course.id));
-  }, [curriculumData]);
-
-  // Create a map of student courses for electives
-  const studentCoursesMap = useMemo(() => {
-    if (!studentInfo?.currentPlan) return new Map<string, StudentCourse>();
-    
-    const map = new Map<string, StudentCourse>();
-    studentInfo.currentPlan.semesters.forEach(semester => {
-      semester.courses.forEach(course => {
-        map.set(course.course.id, course);
-      });
-    });
-    
-    return map;
-  }, [studentInfo]);
-
   // calcula a altura da container
   const containerHeight = useMemo(() => {
     if (!curriculumData) return 400
@@ -188,62 +98,6 @@ export default function Home() {
     return calculatedHeight
   }, [curriculumData])
 
-  // Handler for removing a course from the student plan when dropped on trash
-  const handleRemoveCourse = (courseId: string) => {
-    if (!studentInfo || !studentInfo.currentPlan) return;
-    
-    // Use the store action instead of deep copying
-    studentStore.removeCourse(courseId);
-  }
-
-  // Handler for changing the status of a course or adding it to the student plan
-  const handleCourseStatusChange = (courseId: string, status: CourseStatus) => {
-    if (!studentInfo) return;
-    
-    console.log(`Changing course ${courseId} status to ${status}`);
-    
-    // Find the course in the courseMap
-    const course = courseMap.get(courseId);
-    if (!course) {
-      console.error(`Course ${courseId} not found in course map`);
-      return;
-    }
-    
-    // Use the store action with course data
-    studentStore.changeCourseStatus(courseId, status, course);
-    
-    // If the course is selected, update the selected student course
-    if (selectedCourse && selectedCourse.id === courseId && studentInfo.currentPlan) {
-      // Find the updated student course
-      const updatedStudentCourse = studentInfo.currentPlan.semesters
-        .flatMap((s) => s.courses)
-        .find((c) => c.course.id === courseId);
-      
-      if (updatedStudentCourse) {
-        setSelectedStudentCourse(updatedStudentCourse);
-      }
-    }
-  }
-
-  // Handler for changing a course grade
-  const handleCourseGradeChange = (courseId: string, grade: number) => {
-    if (!studentInfo) return;
-    
-    // Use the store action
-    studentStore.setCourseGrade(courseId, grade);
-    
-    // If the course is selected, update the selected student course with the new grade
-    if (selectedStudentCourse && selectedStudentCourse.course.id === courseId && studentInfo.currentPlan) {
-      const updatedStudentCourse = studentInfo.currentPlan.semesters
-        .flatMap((s) => s.courses)
-        .find((c) => c.course.id === courseId);
-      
-      if (updatedStudentCourse) {
-        setSelectedStudentCourse(updatedStudentCourse);
-      }
-    }
-  }
-
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -252,7 +106,6 @@ export default function Home() {
     )
   }
 
-
   if (!curriculumData || !studentInfo || !studentInfo.currentPlan) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -260,6 +113,13 @@ export default function Home() {
       </div>
     )
   }
+
+  // Get all elective courses from the courseMap
+  const electiveCourses = Array.from(courseMap.values())
+    .filter(course => course.type === "optional")
+    .filter(course => !curriculumData.curriculum.phases.some(phase => 
+      phase.courses.some(c => c.id === course.id)
+    ));
 
   const toggleView = () => {
     setViewMode(viewMode === ViewMode.CURRICULUM ? ViewMode.ELECTIVES : ViewMode.CURRICULUM);
@@ -294,14 +154,16 @@ export default function Home() {
               <CurriculumVisualizer
                 curriculum={curriculumData.curriculum}
                 visualization={curriculumData.visualization}
-                onCourseClick={handleCourseClick}
+                onCourseClick={setSelectedCourse}
                 height={containerHeight}
               />
             ) : (
               <GridVisualizer
                 courses={electiveCourses}
-                studentCourses={studentCoursesMap}
-                onCourseClick={handleCourseClick}
+                studentCourses={new Map(studentInfo.currentPlan.semesters.flatMap(semester => 
+                  semester.courses.map(course => [course.course.id, course])
+                ))}
+                onCourseClick={setSelectedCourse}
                 height={containerHeight}
               />
             )}
@@ -316,8 +178,8 @@ export default function Home() {
           >
             <ProgressVisualizer
               studentPlan={studentInfo.currentPlan}
-              onCourseClick={handleStudentCourseClick}
-              onCourseDropped={handleCourseDropped}
+              onCourseClick={setSelectedStudentCourse}
+              onCourseDropped={studentStore.addCourseToSemester}
               height={containerHeight}
             />
           </div>
@@ -327,8 +189,7 @@ export default function Home() {
           <h2 className="text-xl font-semibold mb-2">Weekly Schedule</h2>
           <Timetable
             studentInfo={studentInfo}
-            onCourseClick={handleStudentCourseClick}
-            onAddCourse={handleAddCourse}
+            onCourseClick={setSelectedStudentCourse}
           />
         </div>
       </div>
@@ -338,8 +199,8 @@ export default function Home() {
           course={selectedCourse}
           onClose={() => setSelectedCourse(null)}
           onViewDependencies={() => handleViewDependencies(selectedCourse)}
-          onStatusChange={handleCourseStatusChange}
-          onGradeChange={handleCourseGradeChange}
+          onStatusChange={studentStore.changeCourseStatus}
+          onGradeChange={studentStore.setCourseGrade}
         />
       )}
 
@@ -349,8 +210,8 @@ export default function Home() {
           studentCourse={selectedStudentCourse}
           onClose={() => setSelectedStudentCourse(null)}
           onViewDependencies={() => handleViewDependencies(selectedStudentCourse.course)}
-          onStatusChange={handleCourseStatusChange}
-          onGradeChange={handleCourseGradeChange}
+          onStatusChange={studentStore.changeCourseStatus}
+          onGradeChange={studentStore.setCourseGrade}
         />
       )}
 
@@ -364,7 +225,7 @@ export default function Home() {
       )}
       
       {/* Trash Drop Zone - Only appears when dragging a course */}
-      <TrashDropZone onRemoveCourse={handleRemoveCourse} />
+      <TrashDropZone onRemoveCourse={studentStore.removeCourse} />
     </main>
   )
 }

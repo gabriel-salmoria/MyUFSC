@@ -10,6 +10,7 @@ import type { StudentPlan, StudentCourse } from "@/types/student-plan"
 import type { CoursePosition } from "@/types/visualization"
 import type { Course } from "@/types/curriculum"
 import { courseMap } from "@/lib/curriculum-parser"
+import { calculateStudentPositions } from "@/lib/student-parser"
 
 
 // componentes visuais da ui
@@ -74,69 +75,10 @@ export default function ProgressVisualizer({
 
   const totalWidth = PHASE.TOTAL_SEMESTERS * phaseWidth
 
-  // cria um map de disciplinas ja cursadas para busca rapida depois
-  const takenCoursesMap = new Map<string, StudentCourse>()
-  studentPlan.semesters.forEach(semester => {
-    semester.courses.forEach(course => {
-      takenCoursesMap.set(course.course.id, course)
-    })
-  })
-
-  const positions: CoursePosition[] = []
-  
-  // primeiro, posiciona todas as disciplinas ja cursadas
-  studentPlan.semesters.forEach((semester, semesterIndex) => {
-    // Calculate horizontal centering within the phase
-    const xOffset = (phaseWidth - boxWidth) / 2
-    
-    semester.courses.forEach((studentCourse, courseIndex) => {
-      positions.push({
-        courseId: studentCourse.course.id,
-        x: semesterIndex * phaseWidth + xOffset,
-        y: courseIndex * COURSE_BOX.SPACING_Y + COURSE_BOX.SPACING_Y,
-        width: boxWidth,
-        height: COURSE_BOX.HEIGHT,
-      })
-    })
-  })
-
-  // preenche os slots vazios com ghost boxes
-  for (let phase = 1; phase <= PHASE.TOTAL_SEMESTERS; phase++) {
-    // Calculate horizontal centering within the phase
-    const xOffset = (phaseWidth - boxWidth) / 2
-    
-    // Find courses in this specific phase
-    const coursesInPhase = Array.from(positions)
-      .filter(pos => {
-        const phaseOfPosition = Math.floor(pos.x / phaseWidth);
-        return phaseOfPosition === phase - 1;
-      })
-      .length
-    
-    // Add ghost boxes to fill the remaining slots in this phase
-    // Use the correct phase number in the ID to ensure proper drop handling
-    for (let slot = coursesInPhase; slot < PHASE.BOXES_PER_COLUMN; slot++) {
-      positions.push({
-        courseId: `ghost-${phase}-${slot}`, // Use the actual phase number in the ID
-        x: (phase - 1) * phaseWidth + xOffset,
-        y: slot * COURSE_BOX.SPACING_Y + COURSE_BOX.SPACING_Y,
-        width: boxWidth,
-        height: COURSE_BOX.HEIGHT,
-        isGhost: true,
-      })
-    }
-  }
-
-  // cria os headers das fases
-  const phases = Array.from({ length: PHASE.TOTAL_SEMESTERS }, (_, i) => {
-    const existingSemester = studentPlan.semesters.find(s => s.number === i + 1)
-    return {
-      number: i + 1,
-      name: `Phase ${i + 1}`,
-      courses: existingSemester?.courses.map(sc => sc.course) || [],
-      originalIndex: i,
-    }
-  })
+  // Use the calculateStudentPositions function
+  const { positions, courseMap: studentCourseMap } = useMemo(() => {
+    return calculateStudentPositions(studentPlan, phaseWidth)
+  }, [studentPlan, phaseWidth])
 
   return (
     <div className="flex flex-col w-full h-full">
@@ -155,10 +97,14 @@ export default function ProgressVisualizer({
         >
           {/* header de fase */}
           <div className="flex w-full">
-            {phases.map((phase) => (
+            {studentPlan.semesters.map((semester, index) => (
               <PhaseHeader 
-                key={`phase-${phase.originalIndex}`} 
-                phase={phase} 
+                key={`phase-${index}`} 
+                phase={{
+                  number: semester.number,
+                  name: `Phase ${semester.number}`,
+                  courses: semester.courses.map(sc => sc.course),
+                }} 
                 width={phaseWidth} 
               />
             ))}
@@ -225,8 +171,7 @@ export default function ProgressVisualizer({
                             dropTarget.classList.remove(CSS_CLASSES.GHOST_BOX_DROP_SUCCESS)
                           }, 500)
                           
-                          // Important: Use semesterIndex directly as the phase number
-                          // The semesterIndex is 1-based (Phase 1, 2, 3...) matching the expected number in handleCourseDropped
+                          // Use the actual semester number, not index
                           onCourseDropped(course, semesterIndex, positionIndex)
                         }
                       }
@@ -243,7 +188,7 @@ export default function ProgressVisualizer({
             const course = courseMap.get(position.courseId)
             if (!course) return null
 
-            const studentCourse = takenCoursesMap.get(position.courseId)
+            const studentCourse = studentCourseMap.get(position.courseId)
 
             // Create a unique CourseBox for this course
             const CourseBoxInstance = (props: any) => (
@@ -255,8 +200,6 @@ export default function ProgressVisualizer({
                 isDraggable={true}
               />
             );
-            
-            // Use the component directly instead of storing it
 
             return (
               <CourseBoxInstance
