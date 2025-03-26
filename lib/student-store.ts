@@ -33,59 +33,72 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
       
       const plan = state.studentInfo.currentPlan
       
-      // First check if the course already exists in any semester
+      // Check if course already exists in any semester
       let existingInSemester = false
+      let sourcePosition = { semesterIndex: -1, courseIndex: -1 }
       
-      for (const semester of plan.semesters) {
+      // Find the course in any semester
+      for (let i = 0; i < plan.semesters.length; i++) {
+        const semester = plan.semesters[i]
         const courseIndex = semester.courses.findIndex(c => c.course.id === course.id)
+        
         if (courseIndex >= 0) {
           existingInSemester = true
+          sourcePosition = { semesterIndex: i, courseIndex: courseIndex }
           break
         }
       }
       
-      // If the course already exists somewhere, use moveCourse instead
-      if (existingInSemester) {
-        // Call moveCourse directly as we're inside a producer function
-        state.moveCourse(course.id, semesterNumber, positionIndex)
-        return
-      }
-      
-      // If not, continue with adding a new course
-      
-      // Find target semester - should always exist since we initialize all semesters
+      // Find the target semester
       const targetSemester = plan.semesters.find(s => s.number === semesterNumber)
-      
       if (!targetSemester) {
-        console.error(`Target semester ${semesterNumber} not found, should never happen`)
+        console.error(`Target semester ${semesterNumber} not found`)
         return
       }
       
-      // Create the new student course
-      const newStudentCourse: StudentCourse = {
-        course,
-        status: CourseStatus.PLANNED,
-        // Copy required properties
-        id: course.id,
-        name: course.name,
-        credits: course.credits,
-        description: course.description,
-        workload: course.workload,
-        prerequisites: course.prerequisites,
-        equivalents: course.equivalents,
-        type: course.type,
-      }
-      
-      // Insert at the position or append
-      if (positionIndex >= 0 && positionIndex <= targetSemester.courses.length) {
-        targetSemester.courses.splice(positionIndex, 0, newStudentCourse)
+      if (existingInSemester) {
+        // If course exists, simply move it
+        const sourceSemester = plan.semesters[sourcePosition.semesterIndex]
+        const courseToMove = sourceSemester.courses[sourcePosition.courseIndex]
+        
+        // Remove from source semester
+        sourceSemester.courses.splice(sourcePosition.courseIndex, 1)
+        sourceSemester.totalCredits -= courseToMove.credits || 0
+        
+        // Add to target semester
+        if (positionIndex >= 0 && positionIndex <= targetSemester.courses.length) {
+          targetSemester.courses.splice(positionIndex, 0, courseToMove)
+        } else {
+          targetSemester.courses.push(courseToMove)
+        }
+        
+        // Update target semester credits
+        targetSemester.totalCredits += courseToMove.credits || 0
       } else {
-        targetSemester.courses.push(newStudentCourse)
+        // If course doesn't exist, create a new instance
+        const newStudentCourse: StudentCourse = {
+          course,
+          status: CourseStatus.PLANNED,
+          id: course.id,
+          name: course.name,
+          credits: course.credits,
+          description: course.description,
+          workload: course.workload,
+          prerequisites: course.prerequisites,
+          equivalents: course.equivalents,
+          type: course.type,
+        }
+        
+        // Add to target semester
+        if (positionIndex >= 0 && positionIndex <= targetSemester.courses.length) {
+          targetSemester.courses.splice(positionIndex, 0, newStudentCourse)
+        } else {
+          targetSemester.courses.push(newStudentCourse)
+        }
+        
+        // Update semester credits
+        targetSemester.totalCredits += course.credits || 0
       }
-      
-      // Update the semester's total credits
-      targetSemester.totalCredits += course.credits || 0
-      
     })
   ),
   

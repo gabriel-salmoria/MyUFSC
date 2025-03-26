@@ -162,16 +162,14 @@ export default function ProgressVisualizer({
                       if (data.courseId && onCourseDropped) {
                         const course = courseMap.get(data.courseId)
                         if (course) {
-                          // Store a reference to the element
-                          const dropTarget = e.currentTarget;
                           // Show success animation
+                          const dropTarget = e.currentTarget
                           dropTarget.classList.add(CSS_CLASSES.GHOST_BOX_DROP_SUCCESS)
                           setTimeout(() => {
-                            // Use stored reference instead of e.currentTarget
                             dropTarget.classList.remove(CSS_CLASSES.GHOST_BOX_DROP_SUCCESS)
                           }, 500)
                           
-                          // Use the actual semester number, not index
+                          // Call onCourseDropped with the target position
                           onCourseDropped(course, semesterIndex, positionIndex)
                         }
                       }

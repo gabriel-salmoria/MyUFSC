@@ -114,7 +114,10 @@ export default function TrashDropZone({ onRemoveCourse }: TrashDropZoneProps) {
           setIsActive(false)
           
           try {
-            const data = JSON.parse(e.dataTransfer.getData('application/json'))
+            const dragData = e.dataTransfer.getData('application/json') || e.dataTransfer.getData('text/plain')
+            if (!dragData) return
+            
+            const data = JSON.parse(dragData)
             if (data.courseId && data.sourceVisualizer === 'progress') {
               onRemoveCourse(data.courseId)
               // Hide the trash component immediately after removing the course

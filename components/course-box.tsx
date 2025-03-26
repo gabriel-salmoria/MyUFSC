@@ -96,6 +96,11 @@ export default function CourseBox({
     if (!el || !isDraggable || isEmpty) return
 
     const handleDragStart = (e: DragEvent) => {
+      if (!e.dataTransfer) return
+      
+      // Set effects
+      e.dataTransfer.effectAllowed = 'move'
+      
       // Create a ghost image for dragging
       const ghostEl = document.createElement('div')
       ghostEl.className = `${CSS_CLASSES.COURSE_BOX} ${getStatusClass()}`
@@ -114,16 +119,19 @@ export default function CourseBox({
       document.body.appendChild(ghostEl)
       
       // Set the drag image
-      e.dataTransfer?.setDragImage(ghostEl, position.width / 2, position.height / 2)
+      e.dataTransfer.setDragImage(ghostEl, position.width / 2, position.height / 2)
       
-      // Set the drag data
-      e.dataTransfer?.setData('application/json', JSON.stringify({
+      // Set the drag data - include both application/json and text/plain
+      const dragData = JSON.stringify({
         courseId: course.id,
         courseName: course.name,
         coursePhase: course.phase,
         courseCredits: course.credits,
         sourceVisualizer: studentCourse ? 'progress' : 'curriculum'
-      }))
+      })
+      
+      e.dataTransfer.setData('application/json', dragData)
+      e.dataTransfer.setData('text/plain', dragData)
       
       // Call the drag start handler if provided
       if (onDragStart) {
