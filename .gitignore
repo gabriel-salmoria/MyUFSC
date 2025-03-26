@@ -26,3 +26,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Rust
+/target/
+**/target/
+**/*.rs.bk
+*.pdb
+Cargo.lock
