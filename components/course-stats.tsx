@@ -12,6 +12,7 @@ import { useStudentStore } from "@/lib/student-store"
 
 interface CourseStatsProps {
   courses: StudentCourse[]
+  timetableData?: any // Optional timetable data (parsed MatrUFSC or default)
   onCourseClick?: (course: StudentCourse) => void
   onProfessorSelect?: (course: StudentCourse, professorId: string) => void
   onAddCourse?: (course: Course) => void
@@ -27,7 +28,7 @@ type ProfessorData = {
   maxStudents: number;
 }
 
-export default function CourseStats({ courses, onCourseClick, onProfessorSelect, onAddCourse }: CourseStatsProps) {
+export default function CourseStats({ courses, timetableData, onCourseClick, onProfessorSelect, onAddCourse }: CourseStatsProps) {
   // State for the selected course
   const [selectedCourse, setSelectedCourse] = useState<StudentCourse | null>(null)
   const [selectedProfessor, setSelectedProfessor] = useState<string | null>(null)
@@ -36,6 +37,9 @@ export default function CourseStats({ courses, onCourseClick, onProfessorSelect,
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const studentStore = useStudentStore()
+
+  // Use provided timetable data or fall back to default schedule data
+  const scheduleDataToUse = timetableData || scheduleData
 
   // Handle key press for search input
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
@@ -137,9 +141,9 @@ export default function CourseStats({ courses, onCourseClick, onProfessorSelect,
     if (!selectedCourse) return []
     
     // Get professors from the schedule data
-    const professorsData = (scheduleData as any).professors?.[selectedCourse.course.id]
+    const professorsData = scheduleDataToUse.professors?.[selectedCourse.course.id]
     return professorsData || []
-  }, [selectedCourse])
+  }, [selectedCourse, scheduleDataToUse])
 
   return (
     <div className={CSS_CLASSES.STATS_CONTAINER}>
@@ -198,93 +202,58 @@ export default function CourseStats({ courses, onCourseClick, onProfessorSelect,
             <div className={CSS_CLASSES.STATS_SUMMARY_CARD}>
               <h3 className="text-sm font-medium mb-1">Total Credits</h3>
               <div className="text-2xl font-bold">
-                {courses.reduce((total, course) => total + course.course.credits, 0)}
+                {weeklyHours}
               </div>
-            </div>
-            
-            <div className={CSS_CLASSES.STATS_SUMMARY_CARD}>
-              <h3 className="text-sm font-medium mb-1">Weekly Hours</h3>
-              <div className="text-2xl font-bold">{weeklyHours}</div>
             </div>
           </div>
           
-          {/* Professor/Class Chooser - Only displayed when a course is selected */}
-          {selectedCourse && (
+          {/* Professor Selection */}
+          {selectedCourse && professors.length > 0 && (
             <div className={CSS_CLASSES.STATS_SECTION}>
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-medium">Class Options</h3>
-                <button 
-                  className="text-xs text-blue-500 hover:text-blue-700"
-                  onClick={() => setSelectedCourse(null)}
-                >
-                  Close
-                </button>
-              </div>
-              
-              <div className={cn(CSS_CLASSES.STATS_COURSE_CARD, getCourseColor(selectedCourse.course.id))}>
-                <div className={CSS_CLASSES.COURSE_ID}>{selectedCourse.course.id}</div>
-                <div className={CSS_CLASSES.COURSE_NAME}>{selectedCourse.course.name}</div>
-              </div>
-              
-              <div className="max-h-60 overflow-y-auto pr-1 mt-3">
-                <div className="space-y-2">
-                  {professors.length > 0 ? (
-                    professors.map(professor => (
-                      <div 
-                        key={professor.professorId}
-                        className={cn(
-                          CSS_CLASSES.STATS_PROFESSOR_CARD,
-                          selectedProfessor === professor.professorId && CSS_CLASSES.STATS_PROFESSOR_ACTIVE
-                        )}
-                        onClick={(e) => handleProfessorSelect(professor.professorId, e)}
-                      >
-                        <div className="flex justify-between">
-                          <div className="font-medium text-sm">{professor.name}</div>
-                          <div className="text-xs bg-gray-100 px-2 py-0.5 rounded">
-                            {professor.classNumber}
-                          </div>
-                        </div>
-                        <div className="text-xs mt-1">{professor.schedule}</div>
-                        <div className="mt-2 text-xs text-gray-500">
-                          <div className="flex justify-between mb-1">
-                            <span>Enrollment</span>
-                            <span>{professor.enrolledStudents}/{professor.maxStudents}</span>
-                          </div>
-                          <div className={CSS_CLASSES.STATS_ENROLLMENT_BAR}>
-                            <div 
-                              className={CSS_CLASSES.STATS_ENROLLMENT_PROGRESS}
-                              style={{ 
-                                width: `${Math.min(100, (professor.enrolledStudents / professor.maxStudents) * 100)}%` 
-                              }}
-                            />
-                          </div>
-                        </div>
+              <h3 className="text-sm font-medium mb-2">Professors for {selectedCourse.course.id}</h3>
+              <div className={CSS_CLASSES.STATS_GRID}>
+                {professors.map(professor => (
+                  <div
+                    key={professor.professorId}
+                    className={cn(
+                      CSS_CLASSES.STATS_PROFESSOR_CARD,
+                      selectedProfessor === professor.professorId && CSS_CLASSES.STATS_PROFESSOR_ACTIVE
+                    )}
+                    onClick={(e) => handleProfessorSelect(professor.professorId, e)}
+                  >
+                    <div className="font-medium">{professor.name}</div>
+                    <div className="text-sm text-gray-600">{professor.classNumber}</div>
+                    <div className="text-xs text-gray-500 mt-1">{professor.schedule}</div>
+                    
+                    {/* Enrollment Progress Bar */}
+                    <div className="mt-2">
+                      <div className="text-xs text-gray-500 flex justify-between mb-1">
+                        <span>Enrollment: {professor.enrolledStudents}/{professor.maxStudents}</span>
+                        <span>{Math.round((professor.enrolledStudents / professor.maxStudents) * 100)}%</span>
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-sm text-gray-500 text-center py-4">
-                      No professor information available
+                      <div className={CSS_CLASSES.STATS_ENROLLMENT_BAR}>
+                        <div 
+                          className={CSS_CLASSES.STATS_ENROLLMENT_PROGRESS}
+                          style={{ width: `${(professor.enrolledStudents / professor.maxStudents) * 100}%` }}
+                        ></div>
+                      </div>
                     </div>
-                  )}
-                </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
         </div>
       </div>
       
-      {/* Search Popup */}
-      <SearchPopup
-        isOpen={isSearchOpen}
-        onClose={() => {
-          setIsSearchOpen(false)
-          setSearchTerm("")
-        }}
-        searchTerm={searchTerm}
-        currentCourses={courses}
-        onSelectCourse={handleSelectSearchedCourse}
-        onSearchTermChange={setSearchTerm}
-      />
+      {/* Search popup */}
+      {isSearchOpen && (
+        <SearchPopup
+          searchTerm={searchTerm}
+          onSelect={handleSelectSearchedCourse}
+          onClose={() => setIsSearchOpen(false)}
+        />
+      )}
     </div>
   )
 }

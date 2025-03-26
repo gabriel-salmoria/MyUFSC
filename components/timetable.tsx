@@ -10,6 +10,7 @@ import type { CoursePosition } from "@/types/visualization"
 import scheduleData from "@/data/schedule.json"
 import { TIMETABLE } from "@/styles/visualization"
 import { CSS_CLASSES, STATUS_CLASSES } from "@/styles/course-theme"
+import { parseMatrufscData } from "@/lib/parsers/matrufsc-parser"
 
 // Define course color classes to use for timetable
 const TIMETABLE_COLORS = [
@@ -23,6 +24,7 @@ const TIMETABLE_COLORS = [
 
 interface TimetableProps {
   studentInfo: StudentInfo
+  matrufscData?: any // Optional MatrUFSC data that can be parsed
   onCourseClick?: (course: StudentCourse) => void
   onAddCourse?: (course: Course) => void
 }
@@ -31,6 +33,7 @@ interface TimetableProps {
 type ScheduleEntry = {
   day: number;
   startTime: string;
+  endTime?: string;
 };
 
 // Type for professor overrides
@@ -40,9 +43,35 @@ type ProfessorOverride = {
   schedule: ScheduleEntry[];
 };
 
-export default function Timetable({ studentInfo, onCourseClick, onAddCourse }: TimetableProps) {
+// Type for professors data
+interface Professor {
+  professorId: string;
+  name: string;
+  classNumber: string;
+  schedule: string;
+  enrolledStudents: number;
+  maxStudents: number;
+}
+
+// Type for schedule data
+interface ScheduleData {
+  [courseId: string]: ScheduleEntry[] | { [key: string]: Professor[] };
+  professors: {
+    [courseId: string]: Professor[];
+  };
+}
+
+export default function Timetable({ studentInfo, matrufscData, onCourseClick, onAddCourse }: TimetableProps) {
   // State for professor overrides
   const [professorOverrides, setProfessorOverrides] = useState<ProfessorOverride[]>([]);
+
+  // Use either the parsed MatrUFSC data or the default schedule data
+  const timetableData = useMemo(() => {
+    if (matrufscData) {
+      return parseMatrufscData(matrufscData);
+    }
+    return scheduleData as unknown as ScheduleData;
+  }, [matrufscData]);
 
   // Get current courses that are in progress
   const currentCourses = useMemo(() => {
@@ -56,9 +85,10 @@ export default function Timetable({ studentInfo, onCourseClick, onAddCourse }: T
 
   // Handle professor selection
   const handleProfessorSelect = (course: StudentCourse, professorId: string) => {
-    // Get the professor data
-    const professorData = (scheduleData as any).professors?.[course.course.id]?.find(
-      (p: any) => p.professorId === professorId
+    // Get the professor data - use the parsed data if available
+    const professorsForCourse = timetableData.professors[course.course.id];
+    const professorData = professorsForCourse?.find(
+      (p) => p.professorId === professorId
     );
     
     if (!professorData) return;
@@ -86,7 +116,8 @@ export default function Timetable({ studentInfo, onCourseClick, onAddCourse }: T
           // Add exactly 2 slots like the original schedule format
           scheduleEntries.push({
             day: dayIndex,
-            startTime: startTime
+            startTime: startTime,
+            endTime: endTime
           });
         });
       }
@@ -130,12 +161,12 @@ export default function Timetable({ studentInfo, onCourseClick, onAddCourse }: T
       // Skip if this course has a professor override
       if (overriddenCourses.has(courseId)) return;
       
-      // Get the default course times
-      const courseTimes = scheduleData[courseId as keyof typeof scheduleData];
+      // Get the course times from either parsed data or default data
+      const courseTimes = timetableData[courseId];
       if (!courseTimes || !Array.isArray(courseTimes)) return;
       
       // Apply the default schedule
-      courseTimes.forEach((timeEntry: any) => {
+      courseTimes.forEach((timeEntry: ScheduleEntry) => {
         const { day, startTime } = timeEntry;
         const startSlotIndex = TIMETABLE.TIME_SLOTS.findIndex(slot => slot.id === startTime);
         
@@ -176,7 +207,7 @@ export default function Timetable({ studentInfo, onCourseClick, onAddCourse }: T
     });
     
     return schedule;
-  }, [currentCourses, professorOverrides]);
+  }, [currentCourses, professorOverrides, timetableData]);
 
   // Create a map of course IDs to color indices
   const courseColorMap = useMemo(() => {
@@ -264,6 +295,7 @@ export default function Timetable({ studentInfo, onCourseClick, onAddCourse }: T
       <div className="w-full md:w-1/3">
         <CourseStats
           courses={currentCourses}
+          timetableData={timetableData}
           onCourseClick={(course) => {
             setSelectedCourse(course);
             onCourseClick?.(course);

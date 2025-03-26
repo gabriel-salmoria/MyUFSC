@@ -22,6 +22,7 @@ import { CourseStatus } from "@/types/student-plan"
 // parsers
 import { parseCurriculumData, getCourseInfo, courseMap } from "@/lib/curriculum-parser"
 import { parseStudentData } from "@/lib/student-parser"
+import { parseMatrufscData } from "@/lib/parsers/matrufsc-parser"
 
 
 // json data
@@ -47,6 +48,9 @@ export default function Home() {
   const [selectedStudentCourse, setSelectedStudentCourse] = useState<StudentCourse | null>(null)
   const [showDependencyTree, setShowDependencyTree] = useState(false)
   const [dependencyCourse, setDependencyCourse] = useState<Course | null>(null)
+  const [matrufscData, setMatrufscData] = useState<any>(null)
+  const [isLoadingMatrufscData, setIsLoadingMatrufscData] = useState(false)
+  const [selectedCampus, setSelectedCampus] = useState<string>('FLO')
   const studentStore = useStudentStore()
   const studentInfo = studentStore.studentInfo
   const setStudentInfo = studentStore.setStudentInfo
@@ -70,6 +74,38 @@ export default function Home() {
     }
   }, [])
 
+  // Fetch and load MatrUFSC data
+  useEffect(() => {
+    const fetchCampusData = async () => {
+      try {
+        setIsLoadingMatrufscData(true)
+        console.log(`Fetching MatrUFSC data for ${selectedCampus} campus...`)
+        
+        // Fetch only the FLO campus data
+        const response = await fetch(`/api/matrufsc?campus=${selectedCampus}`);
+        
+        if (!response.ok) {
+          throw new Error(`Error fetching campus data: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        setMatrufscData(data);
+        console.log(`${selectedCampus} campus data loaded successfully`);
+        
+        // Log the number of courses (for debugging)
+        if (data && data[selectedCampus] && Array.isArray(data[selectedCampus])) {
+          console.log(`${selectedCampus} campus has ${data[selectedCampus].length} courses`);
+        }
+      } catch (error) {
+        console.error(`Error fetching MatrUFSC data:`, error);
+      } finally {
+        setIsLoadingMatrufscData(false);
+      }
+    };
+    
+    fetchCampusData();
+  }, [selectedCampus]);
+
   // Handler for showing dependency tree
   const handleViewDependencies = (course: Course) => {
     setDependencyCourse(course)
@@ -83,6 +119,22 @@ export default function Home() {
   const handleCloseDependencyTree = () => {
     setShowDependencyTree(false)
     setDependencyCourse(null)
+  }
+
+  // Add course from MatrUFSC to student plan
+  const handleAddCourse = (course: Course) => {
+    if (!studentInfo?.currentPlan) return
+    
+    console.log("Adding course to plan:", course)
+    
+    // Default to adding to the current semester (assuming first semester is current)
+    const currentSemester = studentInfo.currentPlan.semesters[0]
+    if (currentSemester) {
+      studentStore.addCourseToSemester(course, currentSemester.number, -1)
+      
+      // Show feedback or notification
+      console.log(`Added ${course.id} to semester ${currentSemester.number}`)
+    }
   }
 
   // calcula a altura da container
@@ -186,10 +238,35 @@ export default function Home() {
         </div>
         
         <div>
-          <h2 className="text-xl font-semibold mb-2">Weekly Schedule</h2>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-xl font-semibold">
+              Weekly Schedule
+              {isLoadingMatrufscData && <span className="ml-2 text-sm text-gray-500">(Loading MatrUFSC data...)</span>}
+              {matrufscData && !isLoadingMatrufscData && (
+                <span className="ml-2 text-sm text-gray-500">
+                  (Using data from {selectedCampus} campus)
+                </span>
+              )}
+            </h2>
+            
+            <select 
+              value={selectedCampus}
+              onChange={(e) => setSelectedCampus(e.target.value)}
+              className="bg-white border rounded px-3 py-1 text-sm"
+            >
+              <option value="FLO">Florianópolis</option>
+              <option value="BLN">Blumenau</option>
+              <option value="JOI">Joinville</option>
+              <option value="CBS">Curitibanos</option>
+              <option value="ARA">Araranguá</option>
+            </select>
+          </div>
+          
           <Timetable
             studentInfo={studentInfo}
+            matrufscData={matrufscData}
             onCourseClick={setSelectedStudentCourse}
+            onAddCourse={handleAddCourse}
           />
         </div>
       </div>
