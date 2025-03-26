@@ -32,6 +32,8 @@ export default function StudentCourseDetailsPanel({
   const [isEditingGrade, setIsEditingGrade] = useState<boolean>(false);
   const [gradeError, setGradeError] = useState<string>('');
 
+
+
   // Update grade input when studentCourse changes
   useEffect(() => {
     if (studentCourse?.grade !== undefined) {

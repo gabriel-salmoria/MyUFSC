@@ -3,9 +3,11 @@
 import { useMemo, useState, useRef, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import type { Course } from "@/types/curriculum" 
-import type { StudentCourse, CourseStatus } from "@/types/student-plan"
+import type { StudentCourse } from "@/types/student-plan"
+import { CourseStatus } from "@/types/student-plan"
 import scheduleData from "@/data/schedule.json"
 import SearchPopup from "./search-popup"
+import { CSS_CLASSES, STATUS_CLASSES } from "@/styles/course-theme"
 
 interface CourseStatsProps {
   courses: StudentCourse[]
@@ -29,7 +31,6 @@ export default function CourseStats({ courses, onCourseClick, onProfessorSelect,
   const [selectedCourse, setSelectedCourse] = useState<StudentCourse | null>(null)
   const [selectedProfessor, setSelectedProfessor] = useState<string | null>(null)
   
-  // Search functionality
   const [searchTerm, setSearchTerm] = useState("")
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -59,17 +60,17 @@ export default function CourseStats({ courses, onCourseClick, onProfessorSelect,
     return () => window.removeEventListener("keydown", handleGlobalKeyDown)
   }, [])
 
-  // Handle search course selection
   const handleSelectSearchedCourse = (course: StudentCourse | Course, isCurrentCourse: boolean) => {
     if (isCurrentCourse) {
-      // It's a student course that's already enrolled
       const studentCourse = course as StudentCourse
       setSelectedCourse(studentCourse)
+
       if (onCourseClick) {
         onCourseClick(studentCourse)
       }
-    } else if (onAddCourse) {
-      // It's a curriculum course that needs to be added
+    }
+
+    else if (onAddCourse) {
       onAddCourse(course as Course)
     }
   }
@@ -77,47 +78,39 @@ export default function CourseStats({ courses, onCourseClick, onProfessorSelect,
   // Calculate total weekly hours
   const weeklyHours = useMemo(() => {
     return courses.reduce((total, course) => {
-      // Assuming each course has class hours equivalent to credits * 2
-      return total + (course.course.credits * 2)
+      return total + (course.course.credits)
     }, 0)
   }, [courses])
 
-  // Array of course color classes to use
-  const courseClasses = [
-    "course-in-progress",
-    "course-exempted", 
-    "course-completed",
-    "course-planned",
-    "course-failed",
-    "course-default"
-  ];
-
-  // Map courses to colors
   const courseColorMap = useMemo(() => {
-    const colorMap = new Map<string, string>();
-    courses.forEach((course, index) => {
-      const colorIndex = index % courseClasses.length;
-      colorMap.set(course.course.id, courseClasses[colorIndex]);
-    });
-    return colorMap;
+    const statusToClassMap: Record<string, string> = {
+      [CourseStatus.COMPLETED]: STATUS_CLASSES.COMPLETED,
+      [CourseStatus.IN_PROGRESS]: STATUS_CLASSES.IN_PROGRESS,
+      [CourseStatus.FAILED]: STATUS_CLASSES.FAILED,
+      [CourseStatus.PLANNED]: STATUS_CLASSES.PLANNED,
+      [CourseStatus.EXEMPTED]: STATUS_CLASSES.EXEMPTED,
+    };
+    
+    return new Map(
+      courses.map(course => [
+        course.course.id,
+        statusToClassMap[course.status] || STATUS_CLASSES.DEFAULT
+      ])
+    );
   }, [courses]);
 
   // Get the course color based on its ID
-  const getCourseColor = (courseId: string, isSelected: boolean = false) => {
-    return courseColorMap.get(courseId) || "course-default";
+  const getCourseColor = (courseId: string) => {
+    return courseColorMap.get(courseId) || STATUS_CLASSES.DEFAULT;
   }
 
-  // Handle course click in the sidebar
   const handleCourseClick = (course: StudentCourse, event: React.MouseEvent) => {
-    // Prevent event propagation to avoid triggering parent handlers
     event.stopPropagation()
     
-    // Toggle selection state
     setSelectedCourse(prev => prev?.course.id === course.course.id ? null : course)
     setSelectedProfessor(null)
   }
 
-  // Handle professor selection
   const handleProfessorSelect = (professorId: string, event: React.MouseEvent) => {
     event.stopPropagation()
     
@@ -140,15 +133,19 @@ export default function CourseStats({ courses, onCourseClick, onProfessorSelect,
   }, [selectedCourse])
 
   return (
-    <div className="w-full rounded-lg border shadow-sm overflow-hidden">
-      <h2 className="p-3 font-semibold text-lg border-b bg-gray-100">Course Stats</h2>
+    <div className={CSS_CLASSES.STATS_CONTAINER}>
+      <h2 className={CSS_CLASSES.STATS_HEADER}>Course Stats</h2>
       <div className="p-4">
         <div className="space-y-6">
           {/* Search Box */}
           <div className="mb-4">
             <div className="relative">
-              <div className="absolute left-3 top-2.5 text-gray-400">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+              <div className={CSS_CLASSES.STATS_SEARCH_ICON}>
+                <svg xmlns="http://www.w3.org/2000/svg"
+                      width="16" height="16" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                      strokeLinejoin="round" className="h-4 w-4">
+
                   <circle cx="11" cy="11" r="8"></circle>
                   <path d="m21 21-4.3-4.3"></path>
                 </svg>
@@ -157,7 +154,7 @@ export default function CourseStats({ courses, onCourseClick, onProfessorSelect,
                 ref={searchInputRef}
                 type="text"
                 placeholder="Search all curriculum courses... (Press / to focus)"
-                className="w-full py-2 pl-10 pr-4 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                className={CSS_CLASSES.STATS_SEARCH}
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 onFocus={() => setIsSearchOpen(true)}
@@ -167,21 +164,20 @@ export default function CourseStats({ courses, onCourseClick, onProfessorSelect,
           </div>
           
           {/* Current Courses Section */}
-          <div>
+          <div className={CSS_CLASSES.STATS_SECTION}>
             <h3 className="text-sm font-medium mb-2">Current Courses</h3>
-            <div className="grid grid-cols-2 gap-2">
+            <div className={CSS_CLASSES.STATS_GRID}>
               {courses.map(course => (
                 <div 
                   key={course.course.id}
                   className={cn(
-                    "p-2 rounded border-2 text-xs cursor-pointer hover:shadow-sm transition-shadow h-full",
-                    selectedCourse?.course.id === course.course.id ? "" : "",
-                    getCourseColor(course.course.id, selectedCourse?.course.id === course.course.id)
+                    CSS_CLASSES.STATS_COURSE_CARD,
+                    getCourseColor(course.course.id)
                   )}
                   onClick={(e) => handleCourseClick(course, e)}
                 >
-                  <div className="font-bold text-center">{course.course.id}</div>
-                  <div className="text-center line-clamp-2">{course.course.name}</div>
+                  <div className={CSS_CLASSES.COURSE_ID}>{course.course.id}</div>
+                  <div className={CSS_CLASSES.COURSE_NAME}>{course.course.name}</div>
                   <div className="mt-1 text-gray-500 text-center">Credits: {course.course.credits}</div>
                 </div>
               ))}
@@ -189,15 +185,15 @@ export default function CourseStats({ courses, onCourseClick, onProfessorSelect,
           </div>
           
           {/* Credits Summary */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-3 border rounded-lg bg-gray-50">
+          <div className={CSS_CLASSES.STATS_GRID}>
+            <div className={CSS_CLASSES.STATS_SUMMARY_CARD}>
               <h3 className="text-sm font-medium mb-1">Total Credits</h3>
               <div className="text-2xl font-bold">
                 {courses.reduce((total, course) => total + course.course.credits, 0)}
               </div>
             </div>
             
-            <div className="p-3 border rounded-lg bg-gray-50">
+            <div className={CSS_CLASSES.STATS_SUMMARY_CARD}>
               <h3 className="text-sm font-medium mb-1">Weekly Hours</h3>
               <div className="text-2xl font-bold">{weeklyHours}</div>
             </div>
@@ -205,7 +201,7 @@ export default function CourseStats({ courses, onCourseClick, onProfessorSelect,
           
           {/* Professor/Class Chooser - Only displayed when a course is selected */}
           {selectedCourse && (
-            <div>
+            <div className={CSS_CLASSES.STATS_SECTION}>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-medium">Class Options</h3>
                 <button 
@@ -216,22 +212,20 @@ export default function CourseStats({ courses, onCourseClick, onProfessorSelect,
                 </button>
               </div>
               
-              <div className={cn("p-3 mb-3 rounded-lg border-2", getCourseColor(selectedCourse.course.id, true))}>
-                <div className="font-bold">{selectedCourse.course.id}</div>
-                <div className="text-sm">{selectedCourse.course.name}</div>
+              <div className={cn(CSS_CLASSES.STATS_COURSE_CARD, getCourseColor(selectedCourse.course.id))}>
+                <div className={CSS_CLASSES.COURSE_ID}>{selectedCourse.course.id}</div>
+                <div className={CSS_CLASSES.COURSE_NAME}>{selectedCourse.course.name}</div>
               </div>
               
-              <div className="max-h-60 overflow-y-auto pr-1">
+              <div className="max-h-60 overflow-y-auto pr-1 mt-3">
                 <div className="space-y-2">
                   {professors.length > 0 ? (
                     professors.map(professor => (
                       <div 
                         key={professor.professorId}
                         className={cn(
-                          "p-3 border rounded-lg cursor-pointer",
-                          selectedProfessor === professor.professorId 
-                            ? "border-gray-500 bg-gray-100" 
-                            : "border-gray-200 hover:border-gray-300"
+                          CSS_CLASSES.STATS_PROFESSOR_CARD,
+                          selectedProfessor === professor.professorId && CSS_CLASSES.STATS_PROFESSOR_ACTIVE
                         )}
                         onClick={(e) => handleProfessorSelect(professor.professorId, e)}
                       >
@@ -247,18 +241,20 @@ export default function CourseStats({ courses, onCourseClick, onProfessorSelect,
                             <span>Enrollment</span>
                             <span>{professor.enrolledStudents}/{professor.maxStudents}</span>
                           </div>
-                          <div className="w-full bg-gray-200 rounded-full h-1.5">
+                          <div className={CSS_CLASSES.STATS_ENROLLMENT_BAR}>
                             <div 
-                              className="bg-green-500 h-1.5 rounded-full" 
-                              style={{ width: `${(professor.enrolledStudents / professor.maxStudents) * 100}%` }}
-                            ></div>
+                              className={CSS_CLASSES.STATS_ENROLLMENT_PROGRESS}
+                              style={{ 
+                                width: `${Math.min(100, (professor.enrolledStudents / professor.maxStudents) * 100)}%` 
+                              }}
+                            />
                           </div>
                         </div>
                       </div>
                     ))
                   ) : (
                     <div className="text-sm text-gray-500 text-center py-4">
-                      No class options available for this course
+                      No professor information available
                     </div>
                   )}
                 </div>

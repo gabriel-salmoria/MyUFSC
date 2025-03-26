@@ -19,6 +19,7 @@ import CourseBox from "./course-box"
 
 // config
 import { COURSE_BOX, PHASE } from "@/config/visualization"
+import { CSS_CLASSES } from "@/styles/course-theme"
 
 
 interface ProgressVisualizerProps {
@@ -167,7 +168,7 @@ export default function ProgressVisualizer({
           {Array.from({ length: PHASE.TOTAL_SEMESTERS - 1 }, (_, i) => (
             <div
               key={`divider-${i}`}
-              className="absolute top-10 bottom-0 w-px bg-gray-300"
+              className={CSS_CLASSES.PHASE_DIVIDER}
               style={{
                 left: `${(i + 1) * phaseWidth}px`,
               }}
@@ -187,7 +188,7 @@ export default function ProgressVisualizer({
               return (
                 <div
                   key={position.courseId}
-                  className="absolute border-2 border-dashed rounded border-gray-400 bg-white/5 transition-all hover:bg-gray-50/50"
+                  className={CSS_CLASSES.GHOST_BOX}
                   style={{
                     left: `${position.x}px`,
                     top: `${position.y}px`,
@@ -198,17 +199,17 @@ export default function ProgressVisualizer({
                   onDragOver={(e) => {
                     // Prevent default to allow drop
                     e.preventDefault()
-                    e.currentTarget.classList.add('bg-blue-50/50', 'border-blue-400')
+                    e.currentTarget.classList.add(CSS_CLASSES.GHOST_BOX_DRAG_OVER)
                   }}
                   onDragLeave={(e) => {
-                    e.currentTarget.classList.remove('bg-blue-50/50', 'border-blue-400')
+                    e.currentTarget.classList.remove(CSS_CLASSES.GHOST_BOX_DRAG_OVER)
                   }}
                   onDragEnter={(e) => {
                     e.preventDefault()
                   }}
                   onDrop={(e) => {
                     e.preventDefault()
-                    e.currentTarget.classList.remove('bg-blue-50/50', 'border-blue-400')
+                    e.currentTarget.classList.remove(CSS_CLASSES.GHOST_BOX_DRAG_OVER)
                     
                     try {
                       const data = JSON.parse(e.dataTransfer.getData('application/json'))
@@ -218,10 +219,10 @@ export default function ProgressVisualizer({
                           // Store a reference to the element
                           const dropTarget = e.currentTarget;
                           // Show success animation
-                          dropTarget.classList.add('bg-green-50/50', 'border-green-500')
+                          dropTarget.classList.add(CSS_CLASSES.GHOST_BOX_DROP_SUCCESS)
                           setTimeout(() => {
                             // Use stored reference instead of e.currentTarget
-                            dropTarget.classList.remove('bg-green-50/50', 'border-green-500')
+                            dropTarget.classList.remove(CSS_CLASSES.GHOST_BOX_DROP_SUCCESS)
                           }, 500)
                           
                           // Important: Use semesterIndex directly as the phase number

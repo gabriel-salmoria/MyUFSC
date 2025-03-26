@@ -9,15 +9,16 @@ import { CourseStatus } from "@/types/student-plan"
 import type { CoursePosition } from "@/types/visualization"
 import scheduleData from "@/data/schedule.json"
 import { TIMETABLE } from "@/config/visualization"
+import { CSS_CLASSES, STATUS_CLASSES } from "@/styles/course-theme"
 
 // Define course color classes to use for timetable
 const TIMETABLE_COLORS = [
-  "course-in-progress",
-  "course-exempted",
-  "course-completed",
-  "course-planned",
-  "course-failed",
-  "course-default",
+  STATUS_CLASSES.IN_PROGRESS,
+  STATUS_CLASSES.EXEMPTED,
+  STATUS_CLASSES.COMPLETED,
+  STATUS_CLASSES.PLANNED,
+  STATUS_CLASSES.FAILED,
+  STATUS_CLASSES.DEFAULT,
 ] as const
 
 interface TimetableProps {
@@ -189,7 +190,7 @@ export default function Timetable({ studentInfo, onCourseClick, onAddCourse }: T
 
   // Get the color for a course based on its index
   const getCourseColor = (courseId: string) => {
-    return courseColorMap.get(courseId) || "course-default";
+    return courseColorMap.get(courseId) || STATUS_CLASSES.DEFAULT;
   };
 
   const [selectedCourse, setSelectedCourse] = useState<StudentCourse | null>(null)
@@ -197,62 +198,65 @@ export default function Timetable({ studentInfo, onCourseClick, onAddCourse }: T
   return (
     <div className="flex flex-col md:flex-row gap-4">
       {/* Timetable - 2/3 width */}
-      <div className="w-full md:w-2/3 rounded-lg border shadow-sm overflow-hidden">
-        <div className="w-full overflow-auto">
-          <table className="w-full border-collapse bg-white table-fixed">
-            <colgroup>
-              <col style={{ width: '80px' }} />
-              {TIMETABLE.DAYS.map((_, index) => (
-                <col key={index} style={{ width: `${100 / TIMETABLE.DAYS.length}%` }} />
-              ))}
-            </colgroup>
-            <thead>
-              <tr>
-                <th className="border bg-gray-100 p-2 font-medium"></th>
-                {TIMETABLE.DAYS.map((day, index) => (
-                  <th key={index} className="border bg-gray-100 p-3 text-sm font-bold text-center">
-                    {day}
-                  </th>
+      <div className="w-full md:w-2/3">
+        <div className={CSS_CLASSES.TIMETABLE_CONTAINER}>
+          <div className="w-full overflow-auto">
+            <table className={CSS_CLASSES.TIMETABLE_TABLE}>
+              <colgroup>
+                <col style={{ width: '80px' }} />
+                {TIMETABLE.DAYS.map((_, index) => (
+                  <col key={index} style={{ width: `${100 / TIMETABLE.DAYS.length}%` }} />
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {TIMETABLE.TIME_SLOTS.map((slot) => (
-                <tr key={slot.id} className="h-14">
-                  {/* Time label */}
-                  <td className="border bg-gray-50 p-2 text-xs font-bold text-center">
-                    {slot.label}
-                  </td>
-                  {/* Course cells */}
-                  {TIMETABLE.DAYS.map((_, dayIndex) => {
-                    const course = courseSchedule[slot.id]?.[dayIndex];
-                    if (!course) return <td key={dayIndex} className="border" />;
-
-                    return (
-                      <td
-                        key={dayIndex}
-                        className="border p-1"
-                        onClick={() => onCourseClick?.(course)}
-                      >
-                        <div
-                          className={cn(
-                            "p-1 rounded cursor-pointer",
-                            getCourseColor(course.course.id),
-                            selectedCourse?.course.id === course.course.id && "ring-2 ring-blue-500"
-                          )}
-                        >
-                          <div className="font-bold text-xs">{course.course.id}</div>
-                          <div className="text-xs text-gray-900 truncate">
-                            {course.course.name}
-                          </div>
-                        </div>
-                      </td>
-                    );
-                  })}
+              </colgroup>
+              <thead>
+                <tr>
+                  <th className={CSS_CLASSES.TIMETABLE_HEADER}></th>
+                  {TIMETABLE.DAYS.map((day, index) => (
+                    <th key={index} className={CSS_CLASSES.TIMETABLE_HEADER}>
+                      {day}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {TIMETABLE.TIME_SLOTS.map((slot) => (
+                  <tr key={slot.id} className="h-14">
+                    {/* Time label */}
+                    <td className={CSS_CLASSES.TIMETABLE_TIME_CELL}>
+                      {slot.label}
+                    </td>
+                    {/* Course cells */}
+                    {TIMETABLE.DAYS.map((_, dayIndex) => {
+                      const course = courseSchedule[slot.id]?.[dayIndex];
+                      if (!course) return <td key={dayIndex} className={CSS_CLASSES.TIMETABLE_CELL} />;
+
+                      return (
+                        <td
+                          key={dayIndex}
+                          className={CSS_CLASSES.TIMETABLE_CELL}
+                          onClick={() => {
+                            setSelectedCourse(course);
+                            onCourseClick?.(course);
+                          }}
+                        >
+                          <div
+                            className={cn(
+                              CSS_CLASSES.TIMETABLE_COURSE,
+                              getCourseColor(course.course.id),
+                              selectedCourse?.course.id === course.course.id && CSS_CLASSES.COURSE_SELECTED
+                            )}
+                          >
+                            <div className={CSS_CLASSES.COURSE_ID}>{course.course.id}</div>
+                            <div className={CSS_CLASSES.COURSE_NAME}>{course.course.name}</div>
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -260,7 +264,10 @@ export default function Timetable({ studentInfo, onCourseClick, onAddCourse }: T
       <div className="w-full md:w-1/3">
         <CourseStats
           courses={currentCourses}
-          onCourseClick={onCourseClick}
+          onCourseClick={(course) => {
+            setSelectedCourse(course);
+            onCourseClick?.(course);
+          }}
           onAddCourse={onAddCourse}
           onProfessorSelect={handleProfessorSelect}
         />

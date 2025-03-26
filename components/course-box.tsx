@@ -15,6 +15,7 @@ import { CourseStatus } from "@/types/student-plan"
 
 // config
 import { COURSE_BOX } from "@/config/visualization"
+import { STATUS_CLASSES, CSS_CLASSES, STATUS_COLORS } from "@/styles/course-theme"
 
 interface CourseBoxProps {
   course: Course
@@ -42,48 +43,48 @@ export default function CourseBox({
 }: CourseBoxProps) {
   const courseBoxRef = useRef<HTMLDivElement>(null)
 
-  // pega cor
-  const getStatusColor = () => {
+  // Get appropriate status class based on course status
+  const getStatusClass = () => {
     if (isEmpty) {
       return isEmpty 
-        ? "course-empty"
-        : "course-empty-alt"
+        ? STATUS_CLASSES.EMPTY
+        : STATUS_CLASSES.EMPTY_ALT
     }
 
-    if (!studentCourse) return "course-default"
+    if (!studentCourse) return STATUS_CLASSES.DEFAULT
 
     switch (studentCourse.status) {
       case CourseStatus.COMPLETED:
-        return "course-completed"
+        return STATUS_CLASSES.COMPLETED
       case CourseStatus.IN_PROGRESS:
-        return "course-in-progress"
+        return STATUS_CLASSES.IN_PROGRESS
       case CourseStatus.FAILED:
-        return "course-failed"
+        return STATUS_CLASSES.FAILED
       case CourseStatus.PLANNED:
-        return "course-planned"
+        return STATUS_CLASSES.PLANNED
       case CourseStatus.EXEMPTED:
-        return "course-exempted"
+        return STATUS_CLASSES.EXEMPTED
       default:
-        return "course-default"
+        return STATUS_CLASSES.DEFAULT
     }
   }
 
-  // pega icone
+  // Get appropriate status icon based on course status
   const getStatusIcon = () => {
     if (isEmpty) return null
     if (!studentCourse) return null
 
     switch (studentCourse.status) {
       case CourseStatus.COMPLETED:
-        return <Check className="w-3 h-3 text-green-600" />
+        return <Check className="w-3 h-3" style={{ color: STATUS_COLORS.COMPLETED.icon }} />
       case CourseStatus.IN_PROGRESS:
-        return <Clock className="w-3 h-3 text-blue-600" />
+        return <Clock className="w-3 h-3" style={{ color: STATUS_COLORS.IN_PROGRESS.icon }} />
       case CourseStatus.FAILED:
-        return <AlertTriangle className="w-3 h-3 text-red-600" />
+        return <AlertTriangle className="w-3 h-3" style={{ color: STATUS_COLORS.FAILED.icon }} />
       case CourseStatus.PLANNED:
-        return <Clock className="w-3 h-3 text-purple-600" />
+        return <Clock className="w-3 h-3" style={{ color: STATUS_COLORS.PLANNED.icon }} />
       case CourseStatus.EXEMPTED:
-        return <Check className="w-3 h-3 text-yellow-600" />
+        return <Check className="w-3 h-3" style={{ color: STATUS_COLORS.EXEMPTED.icon }} />
       default:
         return null
     }
@@ -97,14 +98,14 @@ export default function CourseBox({
     const handleDragStart = (e: DragEvent) => {
       // Create a ghost image for dragging
       const ghostEl = document.createElement('div')
-      ghostEl.className = `rounded p-2 shadow-md ${getStatusColor()}`
+      ghostEl.className = `${CSS_CLASSES.COURSE_BOX} ${getStatusClass()}`
       ghostEl.style.width = `${position.width}px`
       ghostEl.style.height = `${position.height}px`
       ghostEl.innerHTML = `
         <div class="flex items-center justify-between">
-          <div class="text-xs font-bold">${course.id}</div>
+          <div class="${CSS_CLASSES.COURSE_ID}">${course.id}</div>
         </div>
-        <div class="text-xs truncate">${course.name}</div>
+        <div class="${CSS_CLASSES.COURSE_NAME}">${course.name}</div>
       `
       
       // Position off-screen to not interfere with the actual drag
@@ -140,16 +141,15 @@ export default function CourseBox({
     return () => {
       el.removeEventListener('dragstart', handleDragStart)
     }
-  }, [course, position, isDraggable, isEmpty, onDragStart, getStatusColor])
+  }, [course, position, isDraggable, isEmpty, onDragStart, getStatusClass])
 
   return (
     <div
       ref={courseBoxRef}
       className={cn(
-        "absolute rounded p-2 transition-all",
-        !isEmpty && "cursor-pointer shadow-sm hover:shadow-md",
-        isDraggable && !isEmpty && "cursor-grab active:cursor-grabbing",
-        getStatusColor()
+        CSS_CLASSES.COURSE_BOX,
+        getStatusClass(),
+        isDraggable && !isEmpty && CSS_CLASSES.DRAGGABLE
       )}
       style={{
         left: `${position.x}px`,
@@ -167,10 +167,10 @@ export default function CourseBox({
       {!isEmpty && (
         <>
           <div className="flex items-center justify-between">
-            <div className="text-xs font-bold">{course.id}</div>
+            <div className={CSS_CLASSES.COURSE_ID}>{course.id}</div>
             {getStatusIcon()}
           </div>
-          <div className="text-xs truncate">{course.name}</div>
+          <div className={CSS_CLASSES.COURSE_NAME}>{course.name}</div>
         </>
       )}
     </div>
