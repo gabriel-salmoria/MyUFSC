@@ -5,41 +5,10 @@ import { cn } from "@/lib/utils"
 import CourseStats from "@/components/course-stats"
 import type { Course } from "@/types/curriculum"
 import type { StudentInfo, StudentCourse } from "@/types/student-plan"
+import { CourseStatus } from "@/types/student-plan"
 import type { CoursePosition } from "@/types/visualization"
 import scheduleData from "@/data/schedule.json"
-
-// Days of the week
-const DAYS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"]
-
-// Time slots
-const TIME_SLOTS = [
-  { id: "07:30", label: "07:30" },
-  { id: "08:20", label: "08:20" },
-  { id: "09:10", label: "09:10" },
-  { id: "10:10", label: "10:10" },
-  { id: "11:00", label: "11:00" },
-  { id: "13:30", label: "13:30" },
-  { id: "14:20", label: "14:20" },
-  { id: "15:10", label: "15:10" },
-  { id: "16:20", label: "16:20" },
-  { id: "17:10", label: "17:10" },
-  { id: "18:30", label: "18:30" },
-  { id: "19:20", label: "19:20" },
-  { id: "20:20", label: "20:20" },
-  { id: "21:10", label: "21:10" },
-]
-
-// Color palette for courses
-const COURSE_COLORS = [
-  "border-blue-400 bg-blue-50",
-  "border-yellow-400 bg-yellow-50",
-  "border-green-400 bg-green-50",
-  "border-purple-400 bg-purple-50",
-  "border-cyan-400 bg-cyan-50",
-  "border-pink-400 bg-pink-50",
-  "border-indigo-400 bg-indigo-50",
-  "border-orange-400 bg-orange-50",
-];
+import { TIMETABLE, COURSE_COLORS } from "@/config/visualization"
 
 interface TimetableProps {
   studentInfo: StudentInfo
@@ -68,7 +37,10 @@ export default function Timetable({ studentInfo, onCourseClick, onAddCourse }: T
   const currentCourses = useMemo(() => {
     if (!studentInfo?.currentPlan) return []
     
-    return studentInfo.currentPlan.inProgressCourses
+    // Flatten all courses from all semesters and filter for in-progress ones
+    return studentInfo.currentPlan.semesters
+      .flatMap(semester => semester.courses)
+      .filter(course => course.status === CourseStatus.IN_PROGRESS)
   }, [studentInfo])
 
   // Handle professor selection
@@ -82,14 +54,6 @@ export default function Timetable({ studentInfo, onCourseClick, onAddCourse }: T
     
     // Parse the professor's schedule
     const scheduleText = professorData.schedule;
-    const daysMap = {
-      "Segunda": 0,
-      "Terça": 1,
-      "Quarta": 2,
-      "Quinta": 3,
-      "Sexta": 4,
-      "Sábado": 5
-    };
     
     // Create new schedule entries in the exact same format as the default schedule
     const scheduleEntries: ScheduleEntry[] = [];
@@ -105,7 +69,7 @@ export default function Timetable({ studentInfo, onCourseClick, onAddCourse }: T
         
         // For each day mentioned, add a schedule entry
         daysList.forEach((dayName: string) => {
-          const dayIndex = daysMap[dayName as keyof typeof daysMap];
+          const dayIndex = TIMETABLE.DAYS_MAP[dayName as keyof typeof TIMETABLE.DAYS_MAP];
           if (dayIndex === undefined || !startTime) return;
           
           // Add exactly 2 slots like the original schedule format
@@ -132,13 +96,13 @@ export default function Timetable({ studentInfo, onCourseClick, onAddCourse }: T
     const schedule: Record<string, Record<string, StudentCourse>> = {}
     
     // Initialize empty schedule grid
-    TIME_SLOTS.forEach(slot => {
+    TIMETABLE.TIME_SLOTS.forEach(slot => {
       schedule[slot.id] = {}
     })
     
     // Clear existing schedule first
-    TIME_SLOTS.forEach(slot => {
-      DAYS.forEach((_, dayIndex) => {
+    TIMETABLE.TIME_SLOTS.forEach(slot => {
+      TIMETABLE.DAYS.forEach((_, dayIndex) => {
         schedule[slot.id][dayIndex] = undefined as any;
       });
     });
@@ -162,7 +126,7 @@ export default function Timetable({ studentInfo, onCourseClick, onAddCourse }: T
       // Apply the default schedule
       courseTimes.forEach((timeEntry: any) => {
         const { day, startTime } = timeEntry;
-        const startSlotIndex = TIME_SLOTS.findIndex(slot => slot.id === startTime);
+        const startSlotIndex = TIMETABLE.TIME_SLOTS.findIndex(slot => slot.id === startTime);
         
         if (startSlotIndex === -1) return;
         
@@ -170,8 +134,8 @@ export default function Timetable({ studentInfo, onCourseClick, onAddCourse }: T
         schedule[startTime][day] = course;
         
         // Add the course to the next time slot (for 2-hour classes)
-        if (startSlotIndex + 1 < TIME_SLOTS.length) {
-          const nextSlotId = TIME_SLOTS[startSlotIndex + 1].id;
+        if (startSlotIndex + 1 < TIMETABLE.TIME_SLOTS.length) {
+          const nextSlotId = TIMETABLE.TIME_SLOTS[startSlotIndex + 1].id;
           schedule[nextSlotId][day] = course;
         }
       });
@@ -185,7 +149,7 @@ export default function Timetable({ studentInfo, onCourseClick, onAddCourse }: T
       // Process each schedule entry
       override.schedule.forEach(entry => {
         const { day, startTime } = entry;
-        const startSlotIndex = TIME_SLOTS.findIndex(slot => slot.id === startTime);
+        const startSlotIndex = TIMETABLE.TIME_SLOTS.findIndex(slot => slot.id === startTime);
         
         if (startSlotIndex === -1) return;
         
@@ -193,8 +157,8 @@ export default function Timetable({ studentInfo, onCourseClick, onAddCourse }: T
         schedule[startTime][day] = course;
         
         // Add the course to the next time slot (for 2-hour classes)
-        if (startSlotIndex + 1 < TIME_SLOTS.length) {
-          const nextSlotId = TIME_SLOTS[startSlotIndex + 1].id;
+        if (startSlotIndex + 1 < TIMETABLE.TIME_SLOTS.length) {
+          const nextSlotId = TIMETABLE.TIME_SLOTS[startSlotIndex + 1].id;
           schedule[nextSlotId][day] = course;
         }
       });
@@ -218,6 +182,8 @@ export default function Timetable({ studentInfo, onCourseClick, onAddCourse }: T
     return courseColorMap.get(courseId) || "border-gray-300 bg-gray-50";
   };
 
+  const [selectedCourse, setSelectedCourse] = useState<StudentCourse | null>(null)
+
   return (
     <div className="flex flex-col md:flex-row gap-4">
       {/* Timetable - 2/3 width */}
@@ -226,14 +192,14 @@ export default function Timetable({ studentInfo, onCourseClick, onAddCourse }: T
           <table className="w-full border-collapse bg-white table-fixed">
             <colgroup>
               <col style={{ width: '80px' }} />
-              {DAYS.map((_, index) => (
-                <col key={index} style={{ width: `${100 / DAYS.length}%` }} />
+              {TIMETABLE.DAYS.map((_, index) => (
+                <col key={index} style={{ width: `${100 / TIMETABLE.DAYS.length}%` }} />
               ))}
             </colgroup>
             <thead>
               <tr>
                 <th className="border bg-gray-100 p-2 font-medium"></th>
-                {DAYS.map((day, index) => (
+                {TIMETABLE.DAYS.map((day, index) => (
                   <th key={index} className="border bg-gray-100 p-3 text-sm font-bold text-center">
                     {day}
                   </th>
@@ -241,47 +207,37 @@ export default function Timetable({ studentInfo, onCourseClick, onAddCourse }: T
               </tr>
             </thead>
             <tbody>
-              {TIME_SLOTS.map((slot) => (
+              {TIMETABLE.TIME_SLOTS.map((slot) => (
                 <tr key={slot.id} className="h-14">
                   {/* Time label */}
                   <td className="border bg-gray-50 p-2 text-xs font-bold text-center">
                     {slot.label}
                   </td>
-                  
-                  {/* Course cells for each day */}
-                  {DAYS.map((_, dayIndex) => {
-                    const courseAtSlot = courseSchedule[slot.id][dayIndex]
-                    
+                  {/* Course cells */}
+                  {TIMETABLE.DAYS.map((_, dayIndex) => {
+                    const course = courseSchedule[slot.id]?.[dayIndex];
+                    if (!course) return <td key={dayIndex} className="border" />;
+
                     return (
-                      <td 
-                        key={`${dayIndex}-${slot.id}`} 
+                      <td
+                        key={dayIndex}
                         className="border p-1"
+                        onClick={() => onCourseClick?.(course)}
                       >
-                        {courseAtSlot && (
-                          <div 
-                            className={cn(
-                              "border-2 rounded p-1 h-full w-full cursor-pointer",
-                              getCourseColor(courseAtSlot.course.id)
-                            )}
-                            onClick={() => onCourseClick && onCourseClick(courseAtSlot)}
-                          >
-                            <div className="flex justify-between items-center">
-                              <div className="text-xs font-bold">{courseAtSlot.course.id}</div>
-                              <div className="text-blue-500">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
-                                  <circle cx="12" cy="12" r="10"></circle>
-                                  <line x1="12" y1="8" x2="12" y2="12"></line>
-                                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                                </svg>
-                              </div>
-                            </div>
-                            <div className="text-xs">
-                              {courseAtSlot.course.name}
-                            </div>
+                        <div
+                          className={cn(
+                            "p-1 rounded cursor-pointer",
+                            getCourseColor(course.course.id),
+                            selectedCourse?.course.id === course.course.id && "ring-2 ring-blue-500"
+                          )}
+                        >
+                          <div className="font-bold text-xs">{course.course.id}</div>
+                          <div className="text-xs text-gray-900 truncate">
+                            {course.course.name}
                           </div>
-                        )}
+                        </div>
                       </td>
-                    )
+                    );
                   })}
                 </tr>
               ))}
@@ -289,14 +245,14 @@ export default function Timetable({ studentInfo, onCourseClick, onAddCourse }: T
           </table>
         </div>
       </div>
-      
-      {/* Course Stats Sidebar */}
+
+      {/* Course Stats - 1/3 width */}
       <div className="w-full md:w-1/3">
-        <CourseStats 
-          courses={currentCourses} 
+        <CourseStats
+          courses={currentCourses}
           onCourseClick={onCourseClick}
-          onProfessorSelect={handleProfessorSelect}
           onAddCourse={onAddCourse}
+          onProfessorSelect={handleProfessorSelect}
         />
       </div>
     </div>

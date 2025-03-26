@@ -7,29 +7,8 @@ import type { StudentCourse, CourseStatus } from "@/types/student-plan"
 import scheduleData from "@/data/schedule.json"
 import SearchPopup from "./search-popup"
 
-// Color palette for courses
-const COURSE_COLORS = [
-  "border-blue-400 bg-blue-50",
-  "border-yellow-400 bg-yellow-50",
-  "border-green-400 bg-green-50",
-  "border-purple-400 bg-purple-50",
-  "border-cyan-400 bg-cyan-50",
-  "border-pink-400 bg-pink-50",
-  "border-indigo-400 bg-indigo-50",
-  "border-orange-400 bg-orange-50",
-];
-
-// Color palette for selected state (darker tones)
-const SELECTED_COLORS = [
-  "border-blue-600 bg-blue-100",
-  "border-yellow-600 bg-yellow-100",
-  "border-green-600 bg-green-100",
-  "border-purple-600 bg-purple-100",
-  "border-cyan-600 bg-cyan-100",
-  "border-pink-600 bg-pink-100",
-  "border-indigo-600 bg-indigo-100",
-  "border-orange-600 bg-orange-100",
-];
+// config
+import { COURSE_COLORS, SELECTED_COLORS, STATUS_COLORS } from "@/config/visualization"
 
 interface CourseStatsProps {
   courses: StudentCourse[]
@@ -129,8 +108,8 @@ export default function CourseStats({ courses, onCourseClick, onProfessorSelect,
   // Get the course color based on its ID
   const getCourseColor = (courseId: string, isSelected: boolean = false) => {
     return isSelected 
-      ? selectedColorMap.get(courseId) || "border-gray-500 bg-gray-100" 
-      : courseColorMap.get(courseId) || "border-gray-300 bg-gray-50";
+      ? selectedColorMap.get(courseId) || STATUS_COLORS.DEFAULT
+      : courseColorMap.get(courseId) || STATUS_COLORS.DEFAULT;
   }
 
   // Handle course click in the sidebar

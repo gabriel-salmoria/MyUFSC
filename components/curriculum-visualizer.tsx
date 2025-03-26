@@ -11,9 +11,8 @@ import type { CurriculumVisualization } from "@/types/visualization"
 import PhaseHeader from "./phase-header"
 import CourseBox from "./course-box"
 
-const MIN_PHASE_WIDTH = 200
-const MIN_BOX_WIDTH = 140
-const BOX_HEIGHT = 50
+// config
+import { COURSE_BOX, PHASE } from "@/config/visualization"
 
 interface CurriculumVisualizerProps {
   curriculum: Curriculum
@@ -34,7 +33,7 @@ export default function CurriculumVisualizer({
 }: CurriculumVisualizerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [pan, setPan] = useState({ x: 0, y: 0 })
-  const [phaseWidth, setPhaseWidth] = useState(MIN_PHASE_WIDTH)
+  const [phaseWidth, setPhaseWidth] = useState<number>(PHASE.MIN_WIDTH)
 
   // Calculate dynamic phase width based on container size
   useEffect(() => {
@@ -42,7 +41,7 @@ export default function CurriculumVisualizer({
       if (containerRef.current) {
         const containerWidth = containerRef.current.clientWidth
         // Calculate phase width: max of MIN_PHASE_WIDTH or container width divided by phases
-        const calculatedWidth = Math.max(MIN_PHASE_WIDTH, containerWidth / curriculum.totalPhases)
+        const calculatedWidth = Math.max(PHASE.MIN_WIDTH, containerWidth / curriculum.totalPhases)
         setPhaseWidth(calculatedWidth)
       }
     }
@@ -65,7 +64,7 @@ export default function CurriculumVisualizer({
   // Calculate box width proportional to phase width
   const boxWidth = useMemo(() => {
     // Calculate proportional box width, but ensure it's at least MIN_BOX_WIDTH
-    return Math.max(MIN_BOX_WIDTH, phaseWidth * 0.8)
+    return Math.max(COURSE_BOX.MIN_WIDTH, phaseWidth * COURSE_BOX.WIDTH_FACTOR)
   }, [phaseWidth])
 
   // calcula a largura total do curriculo
@@ -127,7 +126,7 @@ export default function CurriculumVisualizer({
                 ...originalPosition,
                 x: phaseIndex * phaseWidth + xOffset, 
                 width: boxWidth,
-                height: BOX_HEIGHT
+                height: COURSE_BOX.HEIGHT
               }
               
               // Create a unique CourseBox for this course

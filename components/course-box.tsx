@@ -13,6 +13,8 @@ import type { CoursePosition } from "@/types/visualization"
 import type { StudentCourse } from "@/types/student-plan"
 import { CourseStatus } from "@/types/student-plan"
 
+// config
+import { COURSE_BOX, STATUS_COLORS } from "@/config/visualization"
 
 interface CourseBoxProps {
   course: Course
@@ -44,25 +46,25 @@ export default function CourseBox({
   const getStatusColor = () => {
     if (isEmpty) {
       return isEmpty 
-        ? "border-gray-400 border-dashed bg-white/5" 
-        : "border-gray-300 bg-gray-80/30"
+        ? STATUS_COLORS.EMPTY
+        : STATUS_COLORS.EMPTY_ALT
     }
 
-    if (!studentCourse) return "border-gray-500 bg-gray-100"
+    if (!studentCourse) return STATUS_COLORS.DEFAULT
 
     switch (studentCourse.status) {
       case CourseStatus.COMPLETED:
-        return "border-green-500 bg-green-50"
+        return STATUS_COLORS.COMPLETED
       case CourseStatus.IN_PROGRESS:
-        return "border-blue-500 bg-blue-50"
+        return STATUS_COLORS.IN_PROGRESS
       case CourseStatus.FAILED:
-        return "border-red-500 bg-red-50"
+        return STATUS_COLORS.FAILED
       case CourseStatus.PLANNED:
-        return "border-purple-500 bg-purple-50"
+        return STATUS_COLORS.PLANNED
       case CourseStatus.EXEMPTED:
-        return "border-yellow-500 bg-yellow-50"
+        return STATUS_COLORS.EXEMPTED
       default:
-        return "border-gray-500 bg-gray-100"
+        return STATUS_COLORS.DEFAULT
     }
   }
 
@@ -98,7 +100,6 @@ export default function CourseBox({
       ghostEl.className = `border-2 rounded p-2 shadow-md ${getStatusColor()}`
       ghostEl.style.width = `${position.width}px`
       ghostEl.style.height = `${position.height}px`
-      ghostEl.style.opacity = '0.8'
       ghostEl.innerHTML = `
         <div class="flex items-center justify-between">
           <div class="text-xs font-bold">${course.id}</div>
@@ -155,7 +156,7 @@ export default function CourseBox({
         top: `${position.y}px`,
         width: `${position.width}px`,
         height: `${position.height}px`,
-        opacity: isEmpty ? 0.4 : 1,
+        opacity: isEmpty && !studentCourse ? 0.4 : 1,
       }}
       onClick={!isEmpty ? onClick : undefined}
       data-course-id={course.id}

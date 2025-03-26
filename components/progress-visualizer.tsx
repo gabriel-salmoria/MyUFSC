@@ -17,12 +17,8 @@ import PhaseHeader from "./phase-header"
 import CourseBox from "./course-box"
 
 
-const TOTAL_SEMESTERS = 8 
-const BOXES_PER_COLUMN = 6
-const MIN_BOX_WIDTH = 140
-const BOX_HEIGHT = 50
-const BOX_SPACING_Y = 60
-const MIN_PHASE_WIDTH = 200
+// config
+import { COURSE_BOX, PHASE } from "@/config/visualization"
 
 
 interface ProgressVisualizerProps {
@@ -41,7 +37,7 @@ export default function ProgressVisualizer({
 }: ProgressVisualizerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [pan, setPan] = useState({ x: 0, y: 0 })
-  const [phaseWidth, setPhaseWidth] = useState(MIN_PHASE_WIDTH)
+  const [phaseWidth, setPhaseWidth] = useState<number>(PHASE.MIN_WIDTH)
 
   // Calculate dynamic phase width based on container size
   useEffect(() => {
@@ -49,7 +45,7 @@ export default function ProgressVisualizer({
       if (containerRef.current) {
         const containerWidth = containerRef.current.clientWidth
         // Calculate phase width: max of MIN_PHASE_WIDTH or container width divided by semesters
-        const calculatedWidth = Math.max(MIN_PHASE_WIDTH, containerWidth / TOTAL_SEMESTERS)
+        const calculatedWidth = Math.max(PHASE.MIN_WIDTH, containerWidth / PHASE.TOTAL_SEMESTERS)
         setPhaseWidth(calculatedWidth)
       }
     }
@@ -72,10 +68,10 @@ export default function ProgressVisualizer({
   // Calculate box width proportional to phase width
   const boxWidth = useMemo(() => {
     // Calculate proportional box width, but ensure it's at least MIN_BOX_WIDTH
-    return Math.max(MIN_BOX_WIDTH, phaseWidth * 0.8)
+    return Math.max(COURSE_BOX.MIN_WIDTH, phaseWidth * COURSE_BOX.WIDTH_FACTOR)
   }, [phaseWidth])
 
-  const totalWidth = TOTAL_SEMESTERS * phaseWidth
+  const totalWidth = PHASE.TOTAL_SEMESTERS * phaseWidth
 
   // cria um map de disciplinas ja cursadas para busca rapida depois
   const takenCoursesMap = new Map<string, StudentCourse>()
@@ -96,15 +92,15 @@ export default function ProgressVisualizer({
       positions.push({
         courseId: studentCourse.course.id,
         x: semesterIndex * phaseWidth + xOffset,
-        y: courseIndex * BOX_SPACING_Y + BOX_SPACING_Y,
+        y: courseIndex * COURSE_BOX.SPACING_Y + COURSE_BOX.SPACING_Y,
         width: boxWidth,
-        height: BOX_HEIGHT,
+        height: COURSE_BOX.HEIGHT,
       })
     })
   })
 
   // preenche os slots vazios com ghost boxes
-  for (let phase = 1; phase <= TOTAL_SEMESTERS; phase++) {
+  for (let phase = 1; phase <= PHASE.TOTAL_SEMESTERS; phase++) {
     // Calculate horizontal centering within the phase
     const xOffset = (phaseWidth - boxWidth) / 2
     
@@ -118,20 +114,20 @@ export default function ProgressVisualizer({
     
     // Add ghost boxes to fill the remaining slots in this phase
     // Use the correct phase number in the ID to ensure proper drop handling
-    for (let slot = coursesInPhase; slot < BOXES_PER_COLUMN; slot++) {
+    for (let slot = coursesInPhase; slot < PHASE.BOXES_PER_COLUMN; slot++) {
       positions.push({
         courseId: `ghost-${phase}-${slot}`, // Use the actual phase number in the ID
         x: (phase - 1) * phaseWidth + xOffset,
-        y: slot * BOX_SPACING_Y + BOX_SPACING_Y,
+        y: slot * COURSE_BOX.SPACING_Y + COURSE_BOX.SPACING_Y,
         width: boxWidth,
-        height: BOX_HEIGHT,
+        height: COURSE_BOX.HEIGHT,
         isGhost: true,
       })
     }
   }
 
   // cria os headers das fases
-  const phases = Array.from({ length: TOTAL_SEMESTERS }, (_, i) => {
+  const phases = Array.from({ length: PHASE.TOTAL_SEMESTERS }, (_, i) => {
     const existingSemester = studentPlan.semesters.find(s => s.number === i + 1)
     return {
       number: i + 1,
@@ -153,7 +149,7 @@ export default function ProgressVisualizer({
             transform: `translate(${pan.x}px, ${pan.y}px)`,
             transformOrigin: "0 0",
             width: totalWidth,
-            height: `${Math.max(height, (BOXES_PER_COLUMN + 1) * BOX_SPACING_Y)}px`,
+            height: `${Math.max(height, (PHASE.BOXES_PER_COLUMN + 1) * COURSE_BOX.SPACING_Y)}px`,
           }}
         >
           {/* header de fase */}
@@ -168,7 +164,7 @@ export default function ProgressVisualizer({
           </div>
 
           {/* linhas divisorias */}
-          {Array.from({ length: TOTAL_SEMESTERS - 1 }, (_, i) => (
+          {Array.from({ length: PHASE.TOTAL_SEMESTERS - 1 }, (_, i) => (
             <div
               key={`divider-${i}`}
               className="absolute top-10 bottom-0 w-px bg-gray-300"
@@ -197,7 +193,7 @@ export default function ProgressVisualizer({
                     top: `${position.y}px`,
                     width: `${position.width}px`,
                     height: `${position.height}px`,
-                    opacity: 0.4,
+                    opacity: COURSE_BOX.GHOST_OPACITY,
                   }}
                   onDragOver={(e) => {
                     // Prevent default to allow drop

@@ -10,11 +10,8 @@ import type { StudentCourse } from "@/types/student-plan"
 // components
 import CourseBox from "./course-box"
 
-// constants
-const MIN_BOX_WIDTH = 140
-const BOX_HEIGHT = 50
-const BOX_MARGIN = 20
-const GRID_PADDING = 30
+// config
+import { COURSE_BOX, GRID } from "@/config/visualization"
 
 interface GridVisualizerProps {
   courses: Course[]
@@ -61,15 +58,15 @@ export default function GridVisualizer({
   // Calculate optimal box width and columns based on container width
   const { boxWidth, columns } = useMemo(() => {
     // Start with a minimum of 3 columns or as many as can fit with MIN_BOX_WIDTH
-    const maxPossibleColumns = Math.floor((containerWidth - GRID_PADDING * 2) / (MIN_BOX_WIDTH + BOX_MARGIN * 2))
-    const optimalColumns = Math.max(3, Math.min(maxPossibleColumns, 8))
+    const maxPossibleColumns = Math.floor((containerWidth - GRID.PADDING * 2) / (COURSE_BOX.MIN_WIDTH + COURSE_BOX.MARGIN * 2))
+    const optimalColumns = Math.max(GRID.MIN_COLUMNS, Math.min(maxPossibleColumns, GRID.MAX_COLUMNS))
     
     // Calculate width based on available space and number of columns
-    const availableWidth = containerWidth - GRID_PADDING
-    const optimalBoxWidth = Math.floor((availableWidth / optimalColumns) - (BOX_MARGIN ))
+    const availableWidth = containerWidth - GRID.PADDING
+    const optimalBoxWidth = Math.floor((availableWidth / optimalColumns) - (COURSE_BOX.MARGIN))
     
     return {
-      boxWidth: Math.max(MIN_BOX_WIDTH, optimalBoxWidth),
+      boxWidth: Math.max(COURSE_BOX.MIN_WIDTH, optimalBoxWidth),
       columns: optimalColumns
     }
   }, [containerWidth])
@@ -82,15 +79,15 @@ export default function GridVisualizer({
       const row = Math.floor(index / columns)
       const col = index % columns
       
-      const x = GRID_PADDING + col * (boxWidth + BOX_MARGIN)
-      const y = GRID_PADDING + row * (BOX_HEIGHT + BOX_MARGIN ) 
+      const x = GRID.PADDING + col * (boxWidth + COURSE_BOX.MARGIN)
+      const y = GRID.PADDING + row * (COURSE_BOX.HEIGHT + COURSE_BOX.MARGIN) 
       
       result.push({
         courseId: course.id,
         x,
         y,
         width: boxWidth,
-        height: BOX_HEIGHT
+        height: COURSE_BOX.HEIGHT
       })
     })
     
@@ -101,7 +98,7 @@ export default function GridVisualizer({
   const totalRows = Math.ceil(courses.length / columns)
   const contentHeight = Math.max(
     height,
-    GRID_PADDING * 2 + totalRows * (BOX_HEIGHT + BOX_MARGIN * 2)
+    GRID.PADDING * 2 + totalRows * (COURSE_BOX.HEIGHT + COURSE_BOX.MARGIN * 2)
   )
 
   return (

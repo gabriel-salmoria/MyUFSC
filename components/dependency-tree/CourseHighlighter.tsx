@@ -3,6 +3,7 @@
 import { useEffect, RefObject } from 'react'
 import type { Course } from '@/types/curriculum'
 import { DEPTH_COLORS } from './ConnectionLines'
+import { HIGHLIGHT } from "@/config/visualization"
 
 interface CourseHighlighterProps {
   dashboardRef: RefObject<Element | null>
@@ -53,30 +54,30 @@ export default function CourseHighlighter({
       style.id = styleId
       style.textContent = `
         .course-transition {
-          transition: all 0.3s ease !important;
+          transition: all ${HIGHLIGHT.TRANSITION_DURATION} ease !important;
         }
         
         .course-highlight-main {
           z-index: 30 !important;
-          transform: scale(1.02) !important;
-          filter: brightness(1.1) contrast(1.05) !important;
-          box-shadow: 0 0 25px rgba(66, 135, 245, 0.5), 0 0 10px rgba(255, 255, 255, 0.8) !important;
+          transform: scale(${HIGHLIGHT.MAIN_SCALE}) !important;
+          filter: brightness(${HIGHLIGHT.MAIN_BRIGHTNESS}) contrast(${HIGHLIGHT.MAIN_CONTRAST}) !important;
+          box-shadow: ${HIGHLIGHT.MAIN_SHADOW} !important;
           background-color: white !important;
         }
         
         .course-highlight-prereq {
           z-index: 20 !important;
-          transform: scale(1.01) !important;
-          filter: brightness(1.05) !important;
-          box-shadow: 0 0 15px rgba(66, 135, 245, 0.4) !important;
+          transform: scale(${HIGHLIGHT.PREREQ_SCALE}) !important;
+          filter: brightness(${HIGHLIGHT.PREREQ_BRIGHTNESS}) !important;
+          box-shadow: ${HIGHLIGHT.PREREQ_SHADOW} !important;
           background-color: white !important;
         }
         
         .course-highlight-dimmed {
-          opacity: 0.80 !important; /* Brighter opacity */
+          opacity: ${HIGHLIGHT.DIM_OPACITY} !important;
           z-index: 1 !important;
-          background-color: #f9fafb !important; /* Lighter background */
-          filter: brightness(0.98) !important; /* Less darkening */
+          background-color: ${HIGHLIGHT.DIM_BACKGROUND} !important;
+          filter: brightness(${HIGHLIGHT.DIM_BRIGHTNESS}) !important;
         }
       `
       document.head.appendChild(style)
