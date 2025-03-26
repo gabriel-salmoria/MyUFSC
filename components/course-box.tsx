@@ -14,7 +14,7 @@ import type { StudentCourse } from "@/types/student-plan"
 import { CourseStatus } from "@/types/student-plan"
 
 // config
-import { COURSE_BOX } from "@/config/visualization"
+import { COURSE_BOX } from "@/styles/visualization"
 import { STATUS_CLASSES, CSS_CLASSES, STATUS_COLORS } from "@/styles/course-theme"
 
 interface CourseBoxProps {

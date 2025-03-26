@@ -11,7 +11,7 @@ import type { StudentCourse } from "@/types/student-plan"
 import CourseBox from "./course-box"
 
 // config
-import { COURSE_BOX, GRID } from "@/config/visualization"
+import { COURSE_BOX, GRID } from "@/styles/visualization"
 
 interface GridVisualizerProps {
   courses: Course[]

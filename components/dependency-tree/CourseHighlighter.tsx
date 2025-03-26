@@ -3,7 +3,7 @@
 import { useEffect, RefObject } from 'react'
 import type { Course } from '@/types/curriculum'
 import { DEPTH_COLORS } from './ConnectionLines'
-import { HIGHLIGHT } from "@/config/visualization"
+import { HIGHLIGHT } from "@/styles/visualization"
 
 interface CourseHighlighterProps {
   dashboardRef: RefObject<Element | null>

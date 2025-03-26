@@ -18,7 +18,7 @@ import CourseBox from "./course-box"
 
 
 // config
-import { COURSE_BOX, PHASE } from "@/config/visualization"
+import { COURSE_BOX, PHASE } from "@/styles/visualization"
 import { CSS_CLASSES } from "@/styles/course-theme"
 
 

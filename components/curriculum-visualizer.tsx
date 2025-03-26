@@ -12,7 +12,7 @@ import PhaseHeader from "./phase-header"
 import CourseBox from "./course-box"
 
 // config
-import { COURSE_BOX, PHASE } from "@/config/visualization"
+import { COURSE_BOX, PHASE } from "@/styles/visualization"
 
 interface CurriculumVisualizerProps {
   curriculum: Curriculum

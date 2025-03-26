@@ -8,7 +8,7 @@ import type { StudentInfo, StudentCourse } from "@/types/student-plan"
 import { CourseStatus } from "@/types/student-plan"
 import type { CoursePosition } from "@/types/visualization"
 import scheduleData from "@/data/schedule.json"
-import { TIMETABLE } from "@/config/visualization"
+import { TIMETABLE } from "@/styles/visualization"
 import { CSS_CLASSES, STATUS_CLASSES } from "@/styles/course-theme"
 
 // Define course color classes to use for timetable
