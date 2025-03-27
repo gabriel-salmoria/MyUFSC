@@ -386,7 +386,7 @@ export default function Timetable({
                                 className={cn(
                                   CSS_CLASSES.TIMETABLE_COURSE,
                                   "flex-1 min-w-0", // Allow shrinking
-                                  courseData.isConflicting && "border-red-500 border",
+                                  courseData.isConflicting && "border-[3px] border-red-600",
                                   getCourseColor(courseData.course.course.id),
                                   selectedCourse?.course.id === courseData.course.course.id && CSS_CLASSES.COURSE_SELECTED
                                 )}
@@ -432,6 +432,8 @@ export default function Timetable({
           }}
           onAddCourse={onAddCourse}
           onProfessorSelect={handleProfessorSelect}
+          coursesInTimetable={professorOverrides.map(o => o.courseId)}
+          courseColors={courseColors}
         />
       </div>
     </div>

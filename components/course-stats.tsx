@@ -10,12 +10,24 @@ import SearchPopup from "./search-popup"
 import { CSS_CLASSES, STATUS_CLASSES } from "@/styles/course-theme"
 import { useStudentStore } from "@/lib/student-store"
 
+// Define course color classes to use for timetable
+const TIMETABLE_COLORS = [
+  STATUS_CLASSES.IN_PROGRESS,
+  STATUS_CLASSES.EXEMPTED,
+  STATUS_CLASSES.COMPLETED,
+  STATUS_CLASSES.PLANNED,
+  STATUS_CLASSES.FAILED,
+  STATUS_CLASSES.DEFAULT,
+] as const
+
 interface CourseStatsProps {
   courses: StudentCourse[]
   timetableData?: any // Optional timetable data (parsed MatrUFSC or default)
   onCourseClick?: (course: StudentCourse) => void
   onProfessorSelect?: (course: StudentCourse, professorId: string) => void
   onAddCourse?: (course: Course) => void
+  coursesInTimetable?: string[] // New prop with IDs of courses in timetable
+  courseColors?: Map<string, string> // Color map from timetable component
 }
 
 // Type for professor data from schedule.json
@@ -28,7 +40,7 @@ type ProfessorData = {
   maxStudents: number;
 }
 
-export default function CourseStats({ courses, timetableData, onCourseClick, onProfessorSelect, onAddCourse }: CourseStatsProps) {
+export default function CourseStats({ courses, timetableData, onCourseClick, onProfessorSelect, onAddCourse, coursesInTimetable = [], courseColors }: CourseStatsProps) {
   // State for the selected course
   const [selectedCourse, setSelectedCourse] = useState<StudentCourse | null>(null)
   const [selectedProfessor, setSelectedProfessor] = useState<string | null>(null)
@@ -95,26 +107,14 @@ export default function CourseStats({ courses, timetableData, onCourseClick, onP
     }, 0)
   }, [courses])
 
-  const courseColorMap = useMemo(() => {
-    const statusToClassMap: Record<string, string> = {
-      [CourseStatus.COMPLETED]: STATUS_CLASSES.COMPLETED,
-      [CourseStatus.IN_PROGRESS]: STATUS_CLASSES.IN_PROGRESS,
-      [CourseStatus.FAILED]: STATUS_CLASSES.FAILED,
-      [CourseStatus.PLANNED]: STATUS_CLASSES.PLANNED,
-      [CourseStatus.EXEMPTED]: STATUS_CLASSES.EXEMPTED,
-    };
-    
-    return new Map(
-      courses.map(course => [
-        course.course.id,
-        statusToClassMap[course.status] || STATUS_CLASSES.DEFAULT
-      ])
-    );
-  }, [courses]);
-
   // Get the course color based on its ID
   const getCourseColor = (courseId: string) => {
-    return courseColorMap.get(courseId) || STATUS_CLASSES.DEFAULT;
+    // If the course is in the timetable, use its color from courseColors map
+    if (courseColors && coursesInTimetable.includes(courseId)) {
+      return courseColors.get(courseId) || STATUS_CLASSES.DEFAULT;
+    }
+    // Otherwise use default color
+    return STATUS_CLASSES.DEFAULT;
   }
 
   const handleCourseClick = (course: StudentCourse, event: React.MouseEvent) => {
