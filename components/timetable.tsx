@@ -57,6 +57,10 @@ interface ScheduleData {
   };
 }
 
+// Type for conflicts tracking
+type ConflictKey = `${string}-${number}-${string}`;
+type ConflictMap = Map<ConflictKey, Set<string>>;
+
 export default function Timetable({ 
   studentInfo, 
   matrufscData, 
@@ -219,10 +223,6 @@ export default function Timetable({
     // Initialize empty schedule grid
     TIMETABLE.TIME_SLOTS.forEach(slot => {
       schedule[slot.id] = {}
-    })
-    
-    // Clear existing schedule first
-    TIMETABLE.TIME_SLOTS.forEach(slot => {
       TIMETABLE.DAYS.forEach((_, dayIndex) => {
         schedule[slot.id][dayIndex] = {
           courses: []
@@ -230,43 +230,52 @@ export default function Timetable({
       });
     });
     
-    // Process professor overrides
+    // First pass: Place all courses in their slots
     professorOverrides.forEach(override => {
       const course = selectedPhaseCourses.find(c => c.course.id === override.courseId);
       if (!course) return;
       
-      // Process each schedule entry
       override.schedule.forEach(entry => {
         const { day, startTime, endTime } = entry;
         if (!endTime) return;
 
         const startSlotIndex = TIMETABLE.TIME_SLOTS.findIndex(slot => slot.id === startTime);
+        if (startSlotIndex === -1) return;
+        
         const endSlotIndex = TIMETABLE.TIME_SLOTS.findIndex(slot => {
           const slotTime = parseInt(slot.id.replace(':', ''));
           const endTime = parseInt(entry.endTime!.replace(':', ''));
           return slotTime >= endTime;
         });
-        
-        if (startSlotIndex === -1) return;
         const lastSlotIndex = endSlotIndex === -1 ? TIMETABLE.TIME_SLOTS.length : endSlotIndex;
         
         // Fill all slots between start and end time
         for (let i = startSlotIndex; i < lastSlotIndex; i++) {
           const slotId = TIMETABLE.TIME_SLOTS[i].id;
-          const conflictKey = `${override.courseId}-${day}-${startTime}`;
-          const hasConflict = conflicts.has(conflictKey);
-          
-          // Add this course to the slot's courses array
           schedule[slotId][day].courses.push({
             course,
-            isConflicting: hasConflict
+            isConflicting: false // Initially set to false, will update in second pass
+          });
+        }
+      });
+    });
+    
+    // Second pass: Check for conflicts within each time slot
+    TIMETABLE.TIME_SLOTS.forEach(slot => {
+      TIMETABLE.DAYS.forEach((_, dayIndex) => {
+        const cellCourses = schedule[slot.id][dayIndex].courses;
+        
+        // If there's more than one course in this slot, they're all conflicting
+        if (cellCourses.length > 1) {
+          cellCourses.forEach(courseData => {
+            courseData.isConflicting = true;
           });
         }
       });
     });
     
     return schedule;
-  }, [selectedPhaseCourses, professorOverrides, conflicts]);
+  }, [selectedPhaseCourses, professorOverrides]);
 
   // Create a map of course IDs to color indices
   const courseColorMap = useMemo(() => {
@@ -281,11 +290,7 @@ export default function Timetable({
   }, [selectedPhaseCourses, courseColors]);
 
   // Get the color for a course based on conflicts
-  const getCourseColor = (courseId: string, conflictingCourseId?: string) => {
-    // If there's a conflict, show the conflicting course's color
-    if (conflictingCourseId) {
-      return courseColors.get(conflictingCourseId) || STATUS_CLASSES.DEFAULT;
-    }
+  const getCourseColor = (courseId: string) => {
     return courseColors.get(courseId) || STATUS_CLASSES.DEFAULT;
   };
 
