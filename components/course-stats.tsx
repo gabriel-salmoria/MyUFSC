@@ -7,18 +7,11 @@ import type { StudentCourse } from "@/types/student-plan"
 import { CourseStatus } from "@/types/student-plan"
 import scheduleData from "@/data/schedule.json"
 import SearchPopup from "./search-popup"
-import { CSS_CLASSES, STATUS_CLASSES } from "@/styles/course-theme"
+import { CSS_CLASSES, TIMETABLE_COLOR_CLASSES, STATUS_CLASSES } from "@/styles/course-theme"
 import { useStudentStore } from "@/lib/student-store"
 
 // Define course color classes to use for timetable
-const TIMETABLE_COLORS = [
-  STATUS_CLASSES.IN_PROGRESS,
-  STATUS_CLASSES.EXEMPTED,
-  STATUS_CLASSES.COMPLETED,
-  STATUS_CLASSES.PLANNED,
-  STATUS_CLASSES.FAILED,
-  STATUS_CLASSES.DEFAULT,
-] as const
+const TIMETABLE_COLORS = TIMETABLE_COLOR_CLASSES;
 
 interface CourseStatsProps {
   courses: StudentCourse[]
@@ -28,6 +21,7 @@ interface CourseStatsProps {
   onAddCourse?: (course: Course) => void
   coursesInTimetable?: string[] // New prop with IDs of courses in timetable
   courseColors?: Map<string, string> // Color map from timetable component
+  onRemoveCourse?: (courseId: string) => void // New prop for removing a course
 }
 
 // Type for professor data from schedule.json
@@ -40,7 +34,7 @@ type ProfessorData = {
   maxStudents: number;
 }
 
-export default function CourseStats({ courses, timetableData, onCourseClick, onProfessorSelect, onAddCourse, coursesInTimetable = [], courseColors }: CourseStatsProps) {
+export default function CourseStats({ courses, timetableData, onCourseClick, onProfessorSelect, onAddCourse, coursesInTimetable = [], courseColors, onRemoveCourse }: CourseStatsProps) {
   // State for the selected course
   const [selectedCourse, setSelectedCourse] = useState<StudentCourse | null>(null)
   const [selectedProfessor, setSelectedProfessor] = useState<string | null>(null)
@@ -210,7 +204,17 @@ export default function CourseStats({ courses, timetableData, onCourseClick, onP
           {/* Professor Selection */}
           {selectedCourse && professors.length > 0 && (
             <div className={CSS_CLASSES.STATS_SECTION}>
-              <h3 className="text-sm font-medium mb-2">Professors for {selectedCourse.course.id}</h3>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium">Professors for {selectedCourse.course.id}</h3>
+                {coursesInTimetable.includes(selectedCourse.course.id) && (
+                  <button
+                    onClick={() => onRemoveCourse?.(selectedCourse.course.id)}
+                    className="text-sm text-red-600 hover:text-red-700 font-medium"
+                  >
+                    Remove from timetable
+                  </button>
+                )}
+              </div>
               <div className="max-h-[300px] overflow-y-auto pr-2">
                 <div className={CSS_CLASSES.STATS_GRID}>
                   {professors.map(professor => (

@@ -9,18 +9,11 @@ import { CourseStatus } from "@/types/student-plan"
 import type { CoursePosition } from "@/types/visualization"
 import scheduleData from "@/data/schedule.json"
 import { TIMETABLE } from "@/styles/visualization"
-import { CSS_CLASSES, STATUS_CLASSES } from "@/styles/course-theme"
+import { CSS_CLASSES, TIMETABLE_COLOR_CLASSES, STATUS_CLASSES } from "@/styles/course-theme"
 import { parseMatrufscData } from "@/lib/parsers/matrufsc-parser"
 
 // Define course color classes to use for timetable
-const TIMETABLE_COLORS = [
-  STATUS_CLASSES.IN_PROGRESS,
-  STATUS_CLASSES.EXEMPTED,
-  STATUS_CLASSES.COMPLETED,
-  STATUS_CLASSES.PLANNED,
-  STATUS_CLASSES.FAILED,
-  STATUS_CLASSES.DEFAULT,
-] as const
+const TIMETABLE_COLORS = TIMETABLE_COLOR_CLASSES;
 
 interface TimetableProps {
   studentInfo: StudentInfo
@@ -156,32 +149,43 @@ export default function Timetable({
       });
     }
 
-    // Track new conflicts
-    const newConflicts = new Map(conflicts);
+    // Update professor overrides first
+    const newProfessorOverrides = [
+      ...professorOverrides.filter(o => o.courseId !== course.course.id),
+      {
+        courseId: course.course.id,
+        professorId,
+        schedule: scheduleEntries
+      }
+    ];
+
+    // Clear existing conflicts and rebuild from scratch
+    const newConflicts = new Map<string, Set<string>>();
     
-    // Go through all existing professor overrides to find conflicts
-    professorOverrides.forEach(override => {
-      if (override.courseId === course.course.id) return; // Skip the current course
-
-      override.schedule.forEach(existingEntry => {
-        if (!existingEntry.endTime) return;
-
-        scheduleEntries.forEach(newEntry => {
-          if (existingEntry.day === newEntry.day && newEntry.endTime) {
-            const existingStart = timeToMinutes(existingEntry.startTime);
-            const existingEnd = timeToMinutes(existingEntry.endTime as any);
-            const newStart = timeToMinutes(newEntry.startTime);
-            const newEnd = timeToMinutes(newEntry.endTime);
-
-            // Check for actual overlap
-            if (
-              (newStart >= existingStart && newStart < existingEnd) || 
-              (newEnd > existingStart && newEnd <= existingEnd) || 
-              (newStart < existingStart && newEnd > existingEnd)
-            ) {
+    // Check all courses against each other for conflicts
+    for (let i = 0; i < newProfessorOverrides.length; i++) {
+      for (let j = i + 1; j < newProfessorOverrides.length; j++) {
+        const override1 = newProfessorOverrides[i];
+        const override2 = newProfessorOverrides[j];
+        
+        override1.schedule.forEach(entry1 => {
+          if (!entry1.endTime) return;
+          
+          override2.schedule.forEach(entry2 => {
+            if (!entry2.endTime || entry1.day !== entry2.day) return;
+            
+            const start1 = timeToMinutes(entry1.startTime);
+            const end1 = timeToMinutes(entry1.endTime as string);
+            const start2 = timeToMinutes(entry2.startTime);
+            const end2 = timeToMinutes(entry2.endTime as string);
+            
+            // Check for overlap
+            if ((start1 >= start2 && start1 < end2) || 
+                (end1 > start2 && end1 <= end2) || 
+                (start1 < start2 && end1 > end2)) {
               // Add conflict for both courses
-              const key1 = `${override.courseId}-${existingEntry.day}-${existingEntry.startTime}`;
-              const key2 = `${course.course.id}-${newEntry.day}-${newEntry.startTime}`;
+              const key1 = `${override1.courseId}-${entry1.day}-${entry1.startTime}`;
+              const key2 = `${override2.courseId}-${entry2.day}-${entry2.startTime}`;
               
               if (!newConflicts.has(key1)) {
                 newConflicts.set(key1, new Set());
@@ -190,25 +194,17 @@ export default function Timetable({
                 newConflicts.set(key2, new Set());
               }
               
-              newConflicts.get(key1)!.add(course.course.id);
-              newConflicts.get(key2)!.add(override.courseId);
+              newConflicts.get(key1)!.add(override2.courseId);
+              newConflicts.get(key2)!.add(override1.courseId);
             }
-          }
+          });
         });
-      });
-    });
+      }
+    }
 
-    // Update conflicts state
+    // Update both states
+    setProfessorOverrides(newProfessorOverrides);
     setConflicts(newConflicts);
-    
-    // Update professor overrides
-    setProfessorOverrides(prev => 
-      prev.filter(o => o.courseId !== course.course.id).concat({
-        courseId: course.course.id,
-        professorId,
-        schedule: scheduleEntries
-      })
-    );
   };
   
   // Create a mapping of time slots to courses
@@ -294,6 +290,12 @@ export default function Timetable({
   };
 
   const [selectedCourse, setSelectedCourse] = useState<StudentCourse | null>(null)
+
+  // Handle removing a course from the timetable
+  const handleRemoveCourse = (courseId: string) => {
+    setProfessorOverrides(prev => prev.filter(o => o.courseId !== courseId));
+    setConflicts(new Map()); // Reset conflicts when removing a course
+  };
 
   return (
     <div className="flex flex-col md:flex-row gap-4">
@@ -434,6 +436,7 @@ export default function Timetable({
           onProfessorSelect={handleProfessorSelect}
           coursesInTimetable={professorOverrides.map(o => o.courseId)}
           courseColors={courseColors}
+          onRemoveCourse={handleRemoveCourse}
         />
       </div>
     </div>

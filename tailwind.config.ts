@@ -88,7 +88,50 @@ const config: Config = {
                     border: '#6b7280', // gray-500
                     bg: '#f3f4f6', // gray-100
                 },
-            }
+            },
+            // Timetable specific colors - distinct and visually pleasing palette
+            timetable: {
+                blue: {
+                    border: '#3b82f6', // blue-500
+                    bg: '#dbeafe', // blue-100
+                },
+                purple: {
+                    border: '#8b5cf6', // purple-500
+                    bg: '#ede9fe', // purple-100
+                },
+                green: {
+                    border: '#22c55e', // green-500
+                    bg: '#dcfce7', // green-100
+                },
+                yellow: {
+                    border: '#eab308', // yellow-500
+                    bg: '#fef9c3', // yellow-100
+                },
+                orange: {
+                    border: '#f97316', // orange-500
+                    bg: '#ffedd5', // orange-100
+                },
+                teal: {
+                    border: '#14b8a6', // teal-500
+                    bg: '#ccfbf1', // teal-100
+                },
+                indigo: {
+                    border: '#6366f1', // indigo-500
+                    bg: '#e0e7ff', // indigo-100
+                },
+                pink: {
+                    border: '#ec4899', // pink-500
+                    bg: '#fce7f3', // pink-100
+                },
+                sky: {
+                    border: '#0ea5e9', // sky-500
+                    bg: '#e0f2fe', // sky-100
+                },
+                lime: {
+                    border: '#84cc16', // lime-500
+                    bg: '#ecfccb', // lime-100
+                },
+            },
   		},
   		borderRadius: {
   			lg: 'var(--radius)',
@@ -266,6 +309,48 @@ const config: Config = {
           '&:hover': {
             boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
           },
+        },
+        
+        // Timetable color classes
+        '.timetable-blue': {
+          borderColor: '#3b82f6',
+          backgroundColor: '#dbeafe',
+        },
+        '.timetable-purple': {
+          borderColor: '#8b5cf6',
+          backgroundColor: '#ede9fe',
+        },
+        '.timetable-green': {
+          borderColor: '#22c55e',
+          backgroundColor: '#dcfce7',
+        },
+        '.timetable-yellow': {
+          borderColor: '#eab308',
+          backgroundColor: '#fef9c3',
+        },
+        '.timetable-orange': {
+          borderColor: '#f97316',
+          backgroundColor: '#ffedd5',
+        },
+        '.timetable-teal': {
+          borderColor: '#14b8a6',
+          backgroundColor: '#ccfbf1',
+        },
+        '.timetable-indigo': {
+          borderColor: '#6366f1',
+          backgroundColor: '#e0e7ff',
+        },
+        '.timetable-pink': {
+          borderColor: '#ec4899',
+          backgroundColor: '#fce7f3',
+        },
+        '.timetable-sky': {
+          borderColor: '#0ea5e9',
+          backgroundColor: '#e0f2fe',
+        },
+        '.timetable-lime': {
+          borderColor: '#84cc16',
+          backgroundColor: '#ecfccb',
         },
         
         // Course content styling

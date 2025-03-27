@@ -104,6 +104,20 @@ export const STATUS_CLASSES = {
   EMPTY_ALT: "course-empty-alt",
 };
 
+// Timetable-specific color classes
+export const TIMETABLE_COLOR_CLASSES = [
+  "timetable-blue",
+  "timetable-purple",
+  "timetable-green",
+  "timetable-yellow",
+  "timetable-orange",
+  "timetable-teal",
+  "timetable-indigo",
+  "timetable-pink",
+  "timetable-sky",
+  "timetable-lime",
+] as const;
+
 // Base CSS classes for components
 export const CSS_CLASSES = {
   COURSE_BOX: "course-box",
