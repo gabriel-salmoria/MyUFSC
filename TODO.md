@@ -13,10 +13,10 @@
 [x] change behavior of course modification, deep copy is extremely bad
 [x] refactor code so that main page file is not so goddamn big
 
-[ ] move creation of the empty semesters to the student parser so that we don't create nothing at runtime
+[x] move creation of the empty semesters to the student parser so that we don't create nothing at runtime
 
-[ ] organize the schedule.json so that it has a better structure (follow cagr rules)
-[ ] add the class locations to the stats and in json
+[x] organize the schedule.json so that it has a better structure (follow cagr rules)
+[x] add the class locations to the stats and in json
 
 [x] move ui constants to a configuration file so that everything is nice and organized
 

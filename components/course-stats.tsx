@@ -211,35 +211,37 @@ export default function CourseStats({ courses, timetableData, onCourseClick, onP
           {selectedCourse && professors.length > 0 && (
             <div className={CSS_CLASSES.STATS_SECTION}>
               <h3 className="text-sm font-medium mb-2">Professors for {selectedCourse.course.id}</h3>
-              <div className={CSS_CLASSES.STATS_GRID}>
-                {professors.map(professor => (
-                  <div
-                    key={professor.professorId}
-                    className={cn(
-                      CSS_CLASSES.STATS_PROFESSOR_CARD,
-                      selectedProfessor === professor.professorId && CSS_CLASSES.STATS_PROFESSOR_ACTIVE
-                    )}
-                    onClick={(e) => handleProfessorSelect(professor.professorId, e)}
-                  >
-                    <div className="font-medium">{professor.name}</div>
-                    <div className="text-sm text-gray-600">{professor.classNumber}</div>
-                    <div className="text-xs text-gray-500 mt-1">{professor.schedule}</div>
-                    
-                    {/* Enrollment Progress Bar */}
-                    <div className="mt-2">
-                      <div className="text-xs text-gray-500 flex justify-between mb-1">
-                        <span>Enrollment: {professor.enrolledStudents}/{professor.maxStudents}</span>
-                        <span>{Math.round((professor.enrolledStudents / professor.maxStudents) * 100)}%</span>
-                      </div>
-                      <div className={CSS_CLASSES.STATS_ENROLLMENT_BAR}>
-                        <div 
-                          className={CSS_CLASSES.STATS_ENROLLMENT_PROGRESS}
-                          style={{ width: `${(professor.enrolledStudents / professor.maxStudents) * 100}%` }}
-                        ></div>
+              <div className="max-h-[300px] overflow-y-auto pr-2">
+                <div className={CSS_CLASSES.STATS_GRID}>
+                  {professors.map(professor => (
+                    <div
+                      key={professor.professorId}
+                      className={cn(
+                        CSS_CLASSES.STATS_PROFESSOR_CARD,
+                        selectedProfessor === professor.professorId && CSS_CLASSES.STATS_PROFESSOR_ACTIVE
+                      )}
+                      onClick={(e) => handleProfessorSelect(professor.professorId, e)}
+                    >
+                      <div className="font-medium">{professor.name}</div>
+                      <div className="text-sm text-gray-600">{professor.classNumber}</div>
+                      <div className="text-xs text-gray-500 mt-1">{professor.schedule}</div>
+                      
+                      {/* Enrollment Progress Bar */}
+                      <div className="mt-2">
+                        <div className="text-xs text-gray-500 flex justify-between mb-1">
+                          <span>Enrollment: {professor.enrolledStudents}/{professor.maxStudents}</span>
+                          <span>{Math.round((professor.enrolledStudents / professor.maxStudents) * 100)}%</span>
+                        </div>
+                        <div className={CSS_CLASSES.STATS_ENROLLMENT_BAR}>
+                          <div 
+                            className={CSS_CLASSES.STATS_ENROLLMENT_PROGRESS}
+                            style={{ width: `${(professor.enrolledStudents / professor.maxStudents) * 100}%` }}
+                          ></div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           )}

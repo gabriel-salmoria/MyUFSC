@@ -238,35 +238,14 @@ export default function Home() {
         </div>
         
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-xl font-semibold">
-              Weekly Schedule
-              {isLoadingMatrufscData && <span className="ml-2 text-sm text-gray-500">(Loading MatrUFSC data...)</span>}
-              {matrufscData && !isLoadingMatrufscData && (
-                <span className="ml-2 text-sm text-gray-500">
-                  (Using data from {selectedCampus} campus)
-                </span>
-              )}
-            </h2>
-            
-            <select 
-              value={selectedCampus}
-              onChange={(e) => setSelectedCampus(e.target.value)}
-              className="bg-white border rounded px-3 py-1 text-sm"
-            >
-              <option value="FLO">Florianópolis</option>
-              <option value="BLN">Blumenau</option>
-              <option value="JOI">Joinville</option>
-              <option value="CBS">Curitibanos</option>
-              <option value="ARA">Araranguá</option>
-            </select>
-          </div>
-          
           <Timetable
             studentInfo={studentInfo}
             matrufscData={matrufscData}
             onCourseClick={setSelectedStudentCourse}
             onAddCourse={handleAddCourse}
+            selectedCampus={selectedCampus}
+            isLoadingMatrufscData={isLoadingMatrufscData}
+            onCampusChange={setSelectedCampus}
           />
         </div>
       </div>
