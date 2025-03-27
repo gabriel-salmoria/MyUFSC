@@ -79,6 +79,8 @@ export default function Timetable({
   const [selectedPhase, setSelectedPhase] = useState<number>(1);
   // State to maintain consistent colors for courses
   const [courseColors] = useState(() => new Map<string, string>());
+  // State to track conflicting slots
+  const [conflicts, setConflicts] = useState<Map<string, Set<string>>>(new Map());
 
   // Use either the parsed MatrUFSC data or the default schedule data
   const timetableData = useMemo(() => {
@@ -123,15 +125,19 @@ export default function Timetable({
     // Create new schedule entries in the exact same format as the default schedule
     const scheduleEntries: ScheduleEntry[] = [];
     
-    // Parse schedule text that can contain multiple time slots like "Terça 15:10-16:50, Sexta 09:10-11:40"
+    // Helper function to convert time string to minutes since midnight
+    const timeToMinutes = (time: string): number => {
+      const [hours, minutes] = time.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+
+    // Parse schedule text that can contain multiple time slots
     if (scheduleText) {
-      // Split by comma to handle multiple time slots
       const timeSlots = scheduleText.split(',').map(s => s.trim());
       
       timeSlots.forEach(timeSlot => {
         const parts = timeSlot.split(' ');
         if (parts.length >= 2) {
-          // Handle multiple days (e.g., "Segunda/Quarta")
           const days = parts[0].split('/');
           const timePart = parts[1];
           const [startTime, endTime] = timePart.split('-');
@@ -150,17 +156,10 @@ export default function Timetable({
       });
     }
 
-    // Check for conflicts with existing courses
-    let hasConflict = false;
-    let conflictingCourse: StudentCourse | null = null;
-
-    // Helper function to convert time string to minutes since midnight
-    const timeToMinutes = (time: string): number => {
-      const [hours, minutes] = time.split(':').map(Number);
-      return hours * 60 + minutes;
-    };
-
-    // Go through all existing professor overrides
+    // Track new conflicts
+    const newConflicts = new Map(conflicts);
+    
+    // Go through all existing professor overrides to find conflicts
     professorOverrides.forEach(override => {
       if (override.courseId === course.course.id) return; // Skip the current course
 
@@ -170,33 +169,39 @@ export default function Timetable({
         scheduleEntries.forEach(newEntry => {
           if (existingEntry.day === newEntry.day && newEntry.endTime) {
             const existingStart = timeToMinutes(existingEntry.startTime);
-            const existingEnd = timeToMinutes(existingEntry.endTime);
+            const existingEnd = timeToMinutes(existingEntry.endTime as any);
             const newStart = timeToMinutes(newEntry.startTime);
             const newEnd = timeToMinutes(newEntry.endTime);
 
-            // Check for actual overlap (end times can equal start times of next class)
+            // Check for actual overlap
             if (
-              (newStart >= existingStart && newStart < existingEnd) || // New class starts during existing class
-              (newEnd > existingStart && newEnd <= existingEnd) || // New class ends during existing class
-              (newStart < existingStart && newEnd > existingEnd) // New class completely contains existing class
+              (newStart >= existingStart && newStart < existingEnd) || 
+              (newEnd > existingStart && newEnd <= existingEnd) || 
+              (newStart < existingStart && newEnd > existingEnd)
             ) {
-              hasConflict = true;
-              const foundCourse = selectedPhaseCourses.find(c => c.course.id === override.courseId);
-              if (foundCourse) {
-                conflictingCourse = foundCourse;
+              // Add conflict for both courses
+              const key1 = `${override.courseId}-${existingEntry.day}-${existingEntry.startTime}`;
+              const key2 = `${course.course.id}-${newEntry.day}-${newEntry.startTime}`;
+              
+              if (!newConflicts.has(key1)) {
+                newConflicts.set(key1, new Set());
               }
+              if (!newConflicts.has(key2)) {
+                newConflicts.set(key2, new Set());
+              }
+              
+              newConflicts.get(key1)!.add(course.course.id);
+              newConflicts.get(key2)!.add(override.courseId);
             }
           }
         });
       });
     });
 
-    if (hasConflict && conflictingCourse) {
-      alert(`Schedule conflict detected!\n\nThe selected time for ${course.course.id} conflicts with ${conflictingCourse.course.id}.\n\nPlease select a different time slot.`);
-      return;
-    }
+    // Update conflicts state
+    setConflicts(newConflicts);
     
-    // If no conflicts, update professor overrides
+    // Update professor overrides
     setProfessorOverrides(prev => 
       prev.filter(o => o.courseId !== course.course.id).concat({
         courseId: course.course.id,
@@ -208,7 +213,12 @@ export default function Timetable({
   
   // Create a mapping of time slots to courses
   const courseSchedule = useMemo(() => {
-    const schedule: Record<string, Record<string, StudentCourse>> = {}
+    const schedule: Record<string, Record<string, {
+      courses: {
+        course: StudentCourse;
+        isConflicting: boolean;
+      }[];
+    }>> = {}
     
     // Initialize empty schedule grid
     TIMETABLE.TIME_SLOTS.forEach(slot => {
@@ -218,11 +228,13 @@ export default function Timetable({
     // Clear existing schedule first
     TIMETABLE.TIME_SLOTS.forEach(slot => {
       TIMETABLE.DAYS.forEach((_, dayIndex) => {
-        schedule[slot.id][dayIndex] = undefined as any;
+        schedule[slot.id][dayIndex] = {
+          courses: []
+        };
       });
     });
     
-    // Process professor overrides (only show courses with selected professors)
+    // Process professor overrides
     professorOverrides.forEach(override => {
       const course = selectedPhaseCourses.find(c => c.course.id === override.courseId);
       if (!course) return;
@@ -232,10 +244,8 @@ export default function Timetable({
         const { day, startTime, endTime } = entry;
         if (!endTime) return;
 
-        // Find the start and end slot indices
         const startSlotIndex = TIMETABLE.TIME_SLOTS.findIndex(slot => slot.id === startTime);
         const endSlotIndex = TIMETABLE.TIME_SLOTS.findIndex(slot => {
-          // Convert time strings to comparable values (e.g., "13:30" -> 1330)
           const slotTime = parseInt(slot.id.replace(':', ''));
           const endTime = parseInt(entry.endTime!.replace(':', ''));
           return slotTime >= endTime;
@@ -247,13 +257,20 @@ export default function Timetable({
         // Fill all slots between start and end time
         for (let i = startSlotIndex; i < lastSlotIndex; i++) {
           const slotId = TIMETABLE.TIME_SLOTS[i].id;
-          schedule[slotId][day] = course;
+          const conflictKey = `${override.courseId}-${day}-${startTime}`;
+          const hasConflict = conflicts.has(conflictKey);
+          
+          // Add this course to the slot's courses array
+          schedule[slotId][day].courses.push({
+            course,
+            isConflicting: hasConflict
+          });
         }
       });
     });
     
     return schedule;
-  }, [selectedPhaseCourses, professorOverrides]);
+  }, [selectedPhaseCourses, professorOverrides, conflicts]);
 
   // Create a map of course IDs to color indices
   const courseColorMap = useMemo(() => {
@@ -267,8 +284,12 @@ export default function Timetable({
     return courseColors;
   }, [selectedPhaseCourses, courseColors]);
 
-  // Get the color for a course based on its stored color
-  const getCourseColor = (courseId: string) => {
+  // Get the color for a course based on conflicts
+  const getCourseColor = (courseId: string, conflictingCourseId?: string) => {
+    // If there's a conflict, show the conflicting course's color
+    if (conflictingCourseId) {
+      return courseColors.get(conflictingCourseId) || STATUS_CLASSES.DEFAULT;
+    }
     return courseColors.get(courseId) || STATUS_CLASSES.DEFAULT;
   };
 
@@ -344,27 +365,50 @@ export default function Timetable({
                     </td>
                     {/* Course cells */}
                     {TIMETABLE.DAYS.map((_, dayIndex) => {
-                      const course = courseSchedule[slot.id]?.[dayIndex];
-                      if (!course) return <td key={dayIndex} className={CSS_CLASSES.TIMETABLE_CELL} />;
+                      const cellData = courseSchedule[slot.id]?.[dayIndex];
+                      if (!cellData?.courses.length) return <td key={dayIndex} className={CSS_CLASSES.TIMETABLE_CELL} />;
 
                       return (
                         <td
                           key={dayIndex}
-                          className={CSS_CLASSES.TIMETABLE_CELL}
-                          onClick={() => {
-                            setSelectedCourse(course);
-                            onCourseClick?.(course);
-                          }}
+                          className={cn(
+                            CSS_CLASSES.TIMETABLE_CELL,
+                            cellData.courses.length > 1 && "p-0" // Remove padding for conflict cells
+                          )}
                         >
-                          <div
-                            className={cn(
-                              CSS_CLASSES.TIMETABLE_COURSE,
-                              getCourseColor(course.course.id),
-                              selectedCourse?.course.id === course.course.id && CSS_CLASSES.COURSE_SELECTED
-                            )}
-                          >
-                            <div className={CSS_CLASSES.COURSE_ID}>{course.course.id}</div>
-                            <div className={CSS_CLASSES.COURSE_NAME}>{course.course.name}</div>
+                          <div className={cn(
+                            "flex gap-[1px]",
+                            cellData.courses.length > 1 && "h-full"
+                          )}>
+                            {cellData.courses.map((courseData, idx) => (
+                              <div
+                                key={`${courseData.course.course.id}-${idx}`}
+                                className={cn(
+                                  CSS_CLASSES.TIMETABLE_COURSE,
+                                  "flex-1 min-w-0", // Allow shrinking
+                                  courseData.isConflicting && "border-red-500 border",
+                                  getCourseColor(courseData.course.course.id),
+                                  selectedCourse?.course.id === courseData.course.course.id && CSS_CLASSES.COURSE_SELECTED
+                                )}
+                                onClick={() => {
+                                  setSelectedCourse(courseData.course);
+                                  onCourseClick?.(courseData.course);
+                                }}
+                              >
+                                <div className={cn(
+                                  CSS_CLASSES.COURSE_ID,
+                                  "truncate" // Prevent text overflow
+                                )}>
+                                  {courseData.course.course.id}
+                                </div>
+                                <div className={cn(
+                                  CSS_CLASSES.COURSE_NAME,
+                                  "truncate" // Prevent text overflow
+                                )}>
+                                  {courseData.course.course.name}
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </td>
                       );
