@@ -77,6 +77,8 @@ export default function Timetable({
   const [professorOverrides, setProfessorOverrides] = useState<ProfessorOverride[]>([]);
   // State for selected phase
   const [selectedPhase, setSelectedPhase] = useState<number>(1);
+  // State to maintain consistent colors for courses
+  const [courseColors] = useState(() => new Map<string, string>());
 
   // Use either the parsed MatrUFSC data or the default schedule data
   const timetableData = useMemo(() => {
@@ -129,23 +131,72 @@ export default function Timetable({
       timeSlots.forEach(timeSlot => {
         const parts = timeSlot.split(' ');
         if (parts.length >= 2) {
-          const dayName = parts[0];
+          // Handle multiple days (e.g., "Segunda/Quarta")
+          const days = parts[0].split('/');
           const timePart = parts[1];
           const [startTime, endTime] = timePart.split('-');
           
-          const dayIndex = TIMETABLE.DAYS_MAP[dayName as keyof typeof TIMETABLE.DAYS_MAP];
-          if (dayIndex === undefined || !startTime || !endTime) return;
-          
-          scheduleEntries.push({
-            day: dayIndex,
-            startTime: startTime,
-            endTime: endTime
+          days.forEach(dayName => {
+            const dayIndex = TIMETABLE.DAYS_MAP[dayName.trim() as keyof typeof TIMETABLE.DAYS_MAP];
+            if (dayIndex === undefined || !startTime || !endTime) return;
+            
+            scheduleEntries.push({
+              day: dayIndex,
+              startTime: startTime,
+              endTime: endTime
+            });
           });
         }
       });
     }
+
+    // Check for conflicts with existing courses
+    let hasConflict = false;
+    let conflictingCourse: StudentCourse | null = null;
+
+    // Helper function to convert time string to minutes since midnight
+    const timeToMinutes = (time: string): number => {
+      const [hours, minutes] = time.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+
+    // Go through all existing professor overrides
+    professorOverrides.forEach(override => {
+      if (override.courseId === course.course.id) return; // Skip the current course
+
+      override.schedule.forEach(existingEntry => {
+        if (!existingEntry.endTime) return;
+
+        scheduleEntries.forEach(newEntry => {
+          if (existingEntry.day === newEntry.day && newEntry.endTime) {
+            const existingStart = timeToMinutes(existingEntry.startTime);
+            const existingEnd = timeToMinutes(existingEntry.endTime);
+            const newStart = timeToMinutes(newEntry.startTime);
+            const newEnd = timeToMinutes(newEntry.endTime);
+
+            // Check for actual overlap (end times can equal start times of next class)
+            if (
+              (newStart >= existingStart && newStart < existingEnd) || // New class starts during existing class
+              (newEnd > existingStart && newEnd <= existingEnd) || // New class ends during existing class
+              (newStart < existingStart && newEnd > existingEnd) // New class completely contains existing class
+            ) {
+              hasConflict = true;
+              const foundCourse = selectedPhaseCourses.find(c => c.course.id === override.courseId);
+              if (foundCourse) {
+                conflictingCourse = foundCourse;
+              }
+            }
+          }
+        });
+      });
+    });
+
+    if (hasConflict && conflictingCourse) {
+      alert(`Schedule conflict detected!\n\nThe selected time for ${course.course.id} conflicts with ${conflictingCourse.course.id}.\n\nPlease select a different time slot.`);
+      return;
+    }
     
-    // Update professor overrides
+    // If no conflicts, update professor overrides
     setProfessorOverrides(prev => 
       prev.filter(o => o.courseId !== course.course.id).concat({
         courseId: course.course.id,
@@ -206,17 +257,19 @@ export default function Timetable({
 
   // Create a map of course IDs to color indices
   const courseColorMap = useMemo(() => {
-    const colorMap = new Map<string, string>();
-    scheduledCourses.forEach((course, index) => {
-      const colorIndex = index % TIMETABLE_COLORS.length;
-      colorMap.set(course.course.id, TIMETABLE_COLORS[colorIndex]);
+    // For any new courses that don't have a color yet, assign them one
+    selectedPhaseCourses.forEach((course) => {
+      if (!courseColors.has(course.course.id)) {
+        const colorIndex = courseColors.size % TIMETABLE_COLORS.length;
+        courseColors.set(course.course.id, TIMETABLE_COLORS[colorIndex]);
+      }
     });
-    return colorMap;
-  }, [scheduledCourses]);
+    return courseColors;
+  }, [selectedPhaseCourses, courseColors]);
 
-  // Get the color for a course based on its index
+  // Get the color for a course based on its stored color
   const getCourseColor = (courseId: string) => {
-    return courseColorMap.get(courseId) || STATUS_CLASSES.DEFAULT;
+    return courseColors.get(courseId) || STATUS_CLASSES.DEFAULT;
   };
 
   const [selectedCourse, setSelectedCourse] = useState<StudentCourse | null>(null)
