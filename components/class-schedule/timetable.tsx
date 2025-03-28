@@ -2,15 +2,17 @@
 
 import { useMemo, useState } from "react"
 import { cn } from "@/lib/utils"
-import CourseStats from "@/components/class-schedule/course-stats"
+import CourseStats from "./course-stats"
 import type { Course } from "@/types/curriculum"
 import type { StudentInfo, StudentCourse } from "@/types/student-plan"
 import { CourseStatus } from "@/types/student-plan"
-import type { CoursePosition } from "@/types/visualization"
-
 import { TIMETABLE } from "@/styles/visualization"
 import { CSS_CLASSES, TIMETABLE_COLOR_CLASSES, STATUS_CLASSES } from "@/styles/course-theme"
 import { parseMatrufscData } from "@/lib/parsers/matrufsc-parser"
+
+// Import the new components
+import TimetableHeader from "./timetable-header"
+import TimetableGrid from "./timetable-grid"
 
 // Define course color classes to use for timetable
 const TIMETABLE_COLORS = TIMETABLE_COLOR_CLASSES;
@@ -37,7 +39,7 @@ type ScheduleEntry = {
   day: number;
   startTime: string;
   endTime?: string;
-  location?: string; // Add location field to match what's coming from the parser
+  location?: string;
 };
 
 // Type for professor overrides
@@ -46,7 +48,7 @@ type ProfessorOverride = {
   professorId: string;
   schedule: ScheduleEntry[];
   classNumber: string;
-  location: string; // Add location field for classroom building/room
+  location: string;
 };
 
 // Type for professors data
@@ -90,6 +92,8 @@ export default function Timetable({
   const [courseColors] = useState(() => new Map<string, string>());
   // State to track conflicting slots
   const [conflicts, setConflicts] = useState<Map<string, Set<string>>>(new Map());
+  // State for the selected course in the timetable
+  const [selectedTimetableCourse, setSelectedTimetableCourse] = useState<StudentCourse | null>(null);
 
   // Use either the parsed MatrUFSC data or the default empty data
   const timetableData = useMemo(() => {
@@ -101,22 +105,28 @@ export default function Timetable({
 
   // Get all courses from the selected phase for the Course Stats
   const selectedPhaseCourses = useMemo(() => {
-    if (!studentInfo?.currentPlan) return []
+    if (!studentInfo?.currentPlan) return [];
     
     // Get the semester that matches the selected phase
-    const semester = studentInfo.currentPlan.semesters.find(s => s.number === selectedPhase)
-    if (!semester) return []
+    const semester = studentInfo.currentPlan.semesters.find(s => s.number === selectedPhase);
+    if (!semester) return [];
     
-    return semester.courses
-  }, [studentInfo, selectedPhase])
+    return semester.courses;
+  }, [studentInfo, selectedPhase]);
 
   // Get only courses that have a professor selected for the timetable
   const scheduledCourses = useMemo(() => {
     return selectedPhaseCourses.filter(course => {
-      const hasOverride = professorOverrides.some(o => o.courseId === course.course.id)
-      return hasOverride
-    })
-  }, [selectedPhaseCourses, professorOverrides])
+      const hasOverride = professorOverrides.some(o => o.courseId === course.course.id);
+      return hasOverride;
+    });
+  }, [selectedPhaseCourses, professorOverrides]);
+
+  // Helper function to convert time string to minutes since midnight
+  const timeToMinutes = (time: string): number => {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
+  };
 
   // Handle professor selection
   const handleProfessorSelect = (course: StudentCourse, professorId: string) => {
@@ -133,12 +143,6 @@ export default function Timetable({
     
     // Create new schedule entries in the exact same format as the default schedule
     const scheduleEntries: ScheduleEntry[] = [];
-    
-    // Helper function to convert time string to minutes since midnight
-    const timeToMinutes = (time: string): number => {
-      const [hours, minutes] = time.split(':').map(Number);
-      return hours * 60 + minutes;
-    };
 
     // Parse schedule text that can contain multiple time slots
     if (scheduleText) {
@@ -181,7 +185,7 @@ export default function Timetable({
         professorId,
         schedule: scheduleEntries,
         classNumber: professorData.classNumber,
-        location: scheduleEntries[scheduleEntries.length - 1].location || ""
+        location: scheduleEntries[scheduleEntries.length - 1]?.location || ""
       }
     ];
 
@@ -241,11 +245,11 @@ export default function Timetable({
         isConflicting: boolean;
         location?: string; // Add location to course data
       }[];
-    }>> = {}
+    }>> = {};
     
     // Initialize empty schedule grid
     TIMETABLE.TIME_SLOTS.forEach(slot => {
-      schedule[slot.id] = {}
+      schedule[slot.id] = {};
       TIMETABLE.DAYS.forEach((_, dayIndex) => {
         schedule[slot.id][dayIndex] = {
           courses: []
@@ -318,12 +322,24 @@ export default function Timetable({
     return courseColors.get(courseId) || STATUS_CLASSES.DEFAULT;
   };
 
-  const [selectedCourse, setSelectedCourse] = useState<StudentCourse | null>(null)
-
   // Handle removing a course from the timetable
   const handleRemoveCourse = (courseId: string) => {
     setProfessorOverrides(prev => prev.filter(o => o.courseId !== courseId));
     setConflicts(new Map()); // Reset conflicts when removing a course
+  };
+
+  // Get the list of available phases from the student info
+  const availablePhases = useMemo(() => {
+    if (!studentInfo?.currentPlan?.semesters) return [1];
+    return studentInfo.currentPlan.semesters.map(s => s.number);
+  }, [studentInfo]);
+
+  // Handle when a course is clicked in the timetable grid
+  const handleTimetableCourseClick = (course: StudentCourse) => {
+    setSelectedTimetableCourse(course);
+    if (onCourseClick) {
+      onCourseClick(course);
+    }
   };
 
   return (
@@ -331,147 +347,24 @@ export default function Timetable({
       {/* Timetable - 2/3 width */}
       <div className="w-full md:w-2/3">
         {/* Header with title, campus selector, and phase selector */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <h2 className="text-xl font-semibold text-foreground">Weekly Schedule</h2>
-            <div className="flex items-center gap-2">
-              <select 
-                value={selectedCampus}
-                onChange={(e) => onCampusChange(e.target.value)}
-                className="bg-background border border-border rounded px-3 py-1 text-sm text-foreground"
-              >
-                <option value="FLO">Florianópolis</option>
-                <option value="BLN">Blumenau</option>
-                <option value="JOI">Joinville</option>
-                <option value="CBS">Curitibanos</option>
-                <option value="ARA">Araranguá</option>
-              </select>
-              <select 
-                value={selectedSemester}
-                onChange={(e) => onSemesterChange(e.target.value)}
-                className="bg-background border border-border rounded px-3 py-1 text-sm text-foreground"
-              >
-                <option value="20251">2025.1</option>
-                <option value="20243">2024.3</option>
-                <option value="20242">2024.2</option>
-                <option value="20241">2024.1</option>
-              </select>
-              {isLoadingMatrufscData && <span className="text-sm text-muted-foreground">(Loading...)</span>}
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <label htmlFor="phase-select" className="text-sm font-medium text-muted-foreground">
-              Select Phase:
-            </label>
-            <select
-              id="phase-select"
-              value={selectedPhase}
-              onChange={(e) => setSelectedPhase(Number(e.target.value))}
-              className="block w-36 rounded-md border border-border bg-background text-foreground shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-            >
-              {studentInfo?.currentPlan?.semesters.map((semester) => (
-                <option key={semester.number} value={semester.number}>
-                  Phase {semester.number}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+        <TimetableHeader
+          selectedCampus={selectedCampus}
+          selectedSemester={selectedSemester}
+          selectedPhase={selectedPhase}
+          isLoadingData={isLoadingMatrufscData}
+          onCampusChange={onCampusChange}
+          onSemesterChange={onSemesterChange}
+          onPhaseChange={setSelectedPhase}
+          availablePhases={availablePhases}
+        />
 
-        <div className={CSS_CLASSES.TIMETABLE_CONTAINER}>
-          <div className="w-full overflow-auto">
-            <table className={CSS_CLASSES.TIMETABLE_TABLE}>
-              <colgroup>
-                <col style={{ width: '80px' }} />
-                {TIMETABLE.DAYS.map((_, index) => (
-                  <col key={index} style={{ width: `${100 / TIMETABLE.DAYS.length}%` }} />
-                ))}
-              </colgroup>
-              <thead>
-                <tr>
-                  <th className={CSS_CLASSES.TIMETABLE_HEADER}></th>
-                  {TIMETABLE.DAYS.map((day, index) => (
-                    <th key={index} className={CSS_CLASSES.TIMETABLE_HEADER}>
-                      {day}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {TIMETABLE.TIME_SLOTS.map((slot) => (
-                  <tr key={slot.id} className="h-14">
-                    {/* Time label */}
-                    <td className={CSS_CLASSES.TIMETABLE_TIME_CELL}>
-                      {slot.label}
-                    </td>
-                    {/* Course cells */}
-                    {TIMETABLE.DAYS.map((_, dayIndex) => {
-                      const cellData = courseSchedule[slot.id]?.[dayIndex];
-                      if (!cellData?.courses.length) return <td key={dayIndex} className={CSS_CLASSES.TIMETABLE_CELL} />;
-
-                      return (
-                        <td
-                          key={dayIndex}
-                          className={cn(
-                            CSS_CLASSES.TIMETABLE_CELL,
-                            cellData.courses.length > 1 && "p-0" // Remove padding for conflict cells
-                          )}
-                        >
-                          <div className={cn(
-                            "flex gap-[1px]",
-                            cellData.courses.length > 1 && "h-full"
-                          )}>
-                            {cellData.courses.map((courseData, idx) => {
-                              // Get the location directly from course data
-                              const location = courseData.location;
-                              
-                              return (
-                                <div
-                                  key={`${courseData.course.course.id}-${idx}`}
-                                  className={cn(
-                                    CSS_CLASSES.TIMETABLE_COURSE,
-                                    "flex-1 min-w-0", // Allow shrinking
-                                    courseData.isConflicting && "border-[3px] border-red-600",
-                                    getCourseColor(courseData.course.course.id),
-                                    selectedCourse?.course.id === courseData.course.course.id && CSS_CLASSES.COURSE_SELECTED
-                                  )}
-                                  onClick={() => {
-                                    setSelectedCourse(courseData.course);
-                                    onCourseClick?.(courseData.course);
-                                  }}
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <div className={cn(
-                                      CSS_CLASSES.COURSE_ID,
-                                      "truncate flex-shrink" // Prevent text overflow
-                                    )}>
-                                      {courseData.course.course.id}
-                                    </div>
-                                    {location && (
-                                      <div className="text-[0.65rem] ml-0 opacity-90 whitespace-nowrap font-medium">
-                                       {location}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className={cn(
-                                    CSS_CLASSES.COURSE_NAME,
-                                    "truncate" // Prevent text overflow
-                                  )}>
-                                    {courseData.course.course.name}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        {/* Timetable Grid */}
+        <TimetableGrid
+          courseSchedule={courseSchedule}
+          onCourseClick={handleTimetableCourseClick}
+          selectedCourse={selectedTimetableCourse}
+          getCourseColor={getCourseColor}
+        />
       </div>
 
       {/* Course Stats - 1/3 width */}
@@ -480,8 +373,10 @@ export default function Timetable({
           courses={selectedPhaseCourses}
           timetableData={timetableData}
           onCourseClick={(course) => {
-            setSelectedCourse(course);
-            onCourseClick?.(course);
+            setSelectedTimetableCourse(course);
+            if (onCourseClick) {
+              onCourseClick(course);
+            }
           }}
           onAddCourse={onAddCourse}
           onProfessorSelect={handleProfessorSelect}
@@ -491,5 +386,5 @@ export default function Timetable({
         />
       </div>
     </div>
-  )
+  );
 }
