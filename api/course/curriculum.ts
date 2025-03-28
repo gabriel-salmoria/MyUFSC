@@ -1,5 +1,5 @@
 import type { Curriculum, Course } from '@/types/curriculum';
-import { courseMap } from '@/lib/curriculum-parser';
+import { courseMap } from '@/lib/parsers/curriculum-parser';
 
 /**
  * Fetches curriculum data for a specific program/degree

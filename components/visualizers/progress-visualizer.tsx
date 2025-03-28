@@ -8,8 +8,8 @@ import { useRef, useState, useEffect, useMemo } from "react"
 // tipos de dados
 import type { StudentPlan, StudentCourse } from "@/types/student-plan"
 import type { Course } from "@/types/curriculum"
-import { courseMap } from "@/lib/curriculum-parser"
-import { calculateStudentPositions } from "@/lib/student-parser"
+import { courseMap } from "@/lib/parsers/curriculum-parser"
+import { calculateStudentPositions } from "@/lib/parsers/student-parser"
 
 
 // componentes visuais da ui
@@ -95,7 +95,7 @@ export default function ProgressVisualizer({
           }}
         >
           {/* header de fase */}
-          <div className="flex w-full">
+          <div className="flex w-full sticky top-0 z-10 bg-background">
             {studentPlan.semesters.map((semester, index) => (
               <PhaseHeader 
                 key={`phase-${index}`} 

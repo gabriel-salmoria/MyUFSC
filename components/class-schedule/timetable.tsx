@@ -8,7 +8,7 @@ import type { StudentInfo, StudentCourse } from "@/types/student-plan"
 import { CourseStatus } from "@/types/student-plan"
 import { TIMETABLE } from "@/styles/visualization"
 import { CSS_CLASSES, TIMETABLE_COLOR_CLASSES, STATUS_CLASSES } from "@/styles/course-theme"
-import { parseMatrufscData } from "@/lib/parsers/matrufsc-parser"
+import { parseMatrufscData } from "@/lib/parsers/class-parser"
 
 // Import the new components
 import TimetableHeader from "./timetable-header"

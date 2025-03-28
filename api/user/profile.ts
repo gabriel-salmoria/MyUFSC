@@ -1,5 +1,5 @@
 import type { StudentInfo } from '@/types/student-plan';
-import { parseStudentData } from '@/lib/student-parser';
+import { parseStudentData } from '@/lib/parsers/student-parser';
 
 /**
  * Fetches a student's profile information from the data directory

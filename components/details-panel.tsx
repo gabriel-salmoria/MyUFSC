@@ -5,7 +5,7 @@ import type { Course } from "@/types/curriculum"
 import { type StudentCourse, CourseStatus } from "@/types/student-plan"
 import { Button } from "@/components/ui/button"
 import { X, Check, Clock, AlertTriangle, GitGraph, Save } from "lucide-react"
-import { getCourseInfo } from "@/lib/curriculum-parser"
+import { getCourseInfo } from "@/lib/parsers/curriculum-parser"
 
 interface StudentCourseDetailsPanelProps {
   course: Course

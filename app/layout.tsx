@@ -26,7 +26,7 @@ export default function RootLayout({
                 <ThemeToggle />
               </div>
             </header>
-            <main className="container mx-auto px-4 py-8">
+            <main className="w-[98vw] mx-auto px-4 py-8">
               {children}
             </main>
           </div>

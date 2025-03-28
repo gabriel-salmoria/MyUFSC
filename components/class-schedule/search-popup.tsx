@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo } from "react"
 import { cn } from "@/lib/utils"
 import type { Course } from "@/types/curriculum"
 import type { StudentCourse } from "@/types/student-plan"
-import { courseMap } from "@/lib/curriculum-parser"
+import { courseMap } from "@/lib/parsers/curriculum-parser"
 import { useStudentStore } from "@/lib/student-store"
 
 interface SearchPopupProps {

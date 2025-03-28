@@ -15,13 +15,13 @@ import CourseBox from "@/components/visualizers/course-box"
 import { COURSE_BOX, PHASE } from "@/styles/visualization"
 
 // helper to generate phases - import directly from the file where it's defined
-import { generatePhases } from "@/lib/curriculum-parser"
+import { generatePhases } from "@/lib/parsers/curriculum-parser"
 
 interface CurriculumVisualizerProps {
   curriculum: Curriculum
   visualization: CurriculumVisualization
   onCourseClick?: (course: Course) => void
-  height: number
+  height?: number
 }
 
 // componente principal, que renderiza o currculo do aluno
@@ -31,7 +31,7 @@ export default function CurriculumVisualizer({
   curriculum,
   visualization,
   onCourseClick,
-  height
+  height = 600
 }: CurriculumVisualizerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [pan, setPan] = useState({ x: 0, y: 0 })
@@ -90,8 +90,8 @@ export default function CurriculumVisualizer({
             height: `${height}px`,
           }}
         >
-          {/* headers das fases */}
-          <div className="flex w-full">
+          {/* headers das fases - sticky */}
+          <div className="flex w-full sticky top-0 z-10 bg-background">
             {phases.map((phase: Phase) => (
               <PhaseHeader key={phase.number} phase={phase} width={phaseWidth} />
             ))}

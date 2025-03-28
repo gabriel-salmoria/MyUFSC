@@ -25,7 +25,7 @@ import { fetchStudentProfile } from "@/api/user/profile"
 import { fetchClassSchedule } from "@/api/class/schedule"
 
 // Parser and visualization
-import { generateVisualization, courseMap, generatePhases } from "@/lib/curriculum-parser"
+import { generateVisualization, courseMap, generatePhases } from "@/lib/parsers/curriculum-parser"
 
 // Constants
 const DEFAULT_PROGRAM_ID = 'cs-degree'
@@ -149,7 +149,7 @@ export default function Home() {
   }
 
   // Calculate container height
-  const containerHeight = 400 // Using fixed height for simplicity
+  const containerHeight = 420 // Using fixed height for simplicity
 
   // View toggle
   const toggleView = () => {

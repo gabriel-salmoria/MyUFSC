@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { Course } from "@/types/curriculum"
-import { courseMap } from "@/lib/curriculum-parser"
+import { courseMap } from "@/lib/parsers/curriculum-parser"
 
 export interface Connection {
   from: string
