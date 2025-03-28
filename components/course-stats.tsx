@@ -185,7 +185,7 @@ export default function CourseStats({ courses, timetableData, onCourseClick, onP
                 >
                   <div className={CSS_CLASSES.COURSE_ID}>{course.course.id}</div>
                   <div className={CSS_CLASSES.COURSE_NAME}>{course.course.name}</div>
-                  <div className="mt-1 text-gray-500 text-center">Credits: {course.course.credits}</div>
+                  <div className="mt-1 text-black dark:text-white text-center text-opacity-70 dark:text-opacity-80">Credits: {course.course.credits}</div>
                 </div>
               ))}
             </div>
@@ -209,7 +209,7 @@ export default function CourseStats({ courses, timetableData, onCourseClick, onP
                 {coursesInTimetable.includes(selectedCourse.course.id) && (
                   <button
                     onClick={() => onRemoveCourse?.(selectedCourse.course.id)}
-                    className="text-sm text-red-600 hover:text-red-700 font-medium"
+                    className="text-sm text-destructive hover:text-destructive/90 font-medium"
                   >
                     Remove from timetable
                   </button>
@@ -227,12 +227,12 @@ export default function CourseStats({ courses, timetableData, onCourseClick, onP
                       onClick={(e) => handleProfessorSelect(professor.professorId, e)}
                     >
                       <div className="font-medium">{professor.name}</div>
-                      <div className="text-sm text-gray-600">{professor.classNumber}</div>
-                      <div className="text-xs text-gray-500 mt-1">{professor.schedule}</div>
+                      <div className="text-sm text-muted-foreground">{professor.classNumber}</div>
+                      <div className="text-xs text-muted-foreground mt-1">{professor.schedule}</div>
                       
                       {/* Enrollment Progress Bar */}
                       <div className="mt-2">
-                        <div className="text-xs text-gray-500 flex justify-between mb-1">
+                        <div className="text-xs text-muted-foreground flex justify-between mb-1">
                           <span>Enrollment: {professor.enrolledStudents}/{professor.maxStudents}</span>
                           <span>{Math.round((professor.enrolledStudents / professor.maxStudents) * 100)}%</span>
                         </div>

@@ -12,8 +12,23 @@ const config: Config = {
   theme: {
   	extend: {
   		colors: {
-  			background: 'hsl(var(--background))',
-  			foreground: 'hsl(var(--foreground))',
+  			// Vercel-like color scheme
+  			background: {
+  				DEFAULT: "hsl(var(--background))",
+  				secondary: "hsl(var(--background-secondary))"
+  			},
+  			foreground: {
+  				DEFAULT: "hsl(var(--foreground))",
+  				secondary: "hsl(var(--foreground-secondary))"
+  			},
+  			border: {
+  				DEFAULT: "hsl(var(--border))",
+  				secondary: "hsl(var(--border-secondary))"
+  			},
+  			accent: {
+  				DEFAULT: "hsl(var(--accent))",
+  				foreground: "hsl(var(--accent-foreground))"
+  			},
   			card: {
   				DEFAULT: 'hsl(var(--card))',
   				foreground: 'hsl(var(--card-foreground))'
@@ -34,15 +49,10 @@ const config: Config = {
   				DEFAULT: 'hsl(var(--muted))',
   				foreground: 'hsl(var(--muted-foreground))'
   			},
-  			accent: {
-  				DEFAULT: 'hsl(var(--accent))',
-  				foreground: 'hsl(var(--accent-foreground))'
-  			},
   			destructive: {
   				DEFAULT: 'hsl(var(--destructive))',
   				foreground: 'hsl(var(--destructive-foreground))'
   			},
-  			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',
   			chart: {
@@ -164,6 +174,92 @@ const config: Config = {
   },
   plugins: [
     require("tailwindcss-animate"),
+    plugin(function({ addBase }) {
+      addBase({
+        ":root": {
+          "--background": "0 0% 100%",
+          "--background-secondary": "0 0% 98%",
+          "--foreground": "240 10% 3.9%",
+          "--foreground-secondary": "240 5% 34%",
+          "--border": "240 5.9% 90%",
+          "--border-secondary": "240 4.9% 83%",
+          "--accent": "240 4.8% 95.9%",
+          "--accent-foreground": "240 5.9% 10%",
+          
+          // Course status colors - Light mode
+          "--status-completed-border": "142 76% 36%", // green-600
+          "--status-completed-bg": "142 76% 95%", // Very light green
+          "--status-in-progress-border": "217 91% 60%", // blue-500
+          "--status-in-progress-bg": "214 95% 95%", // Very light blue
+          "--status-failed-border": "0 84% 60%", // red-500
+          "--status-failed-bg": "0 86% 97%", // Very light red
+          "--status-planned-border": "270 76% 65%", // purple-500
+          "--status-planned-bg": "270 76% 97%", // Very light purple
+          "--status-exempted-border": "38 92% 50%", // yellow-500
+          "--status-exempted-bg": "48 96% 94%", // Very light yellow
+          "--status-default-border": "220 9% 40%", // Darker gray-500
+          "--status-default-bg": "220 14% 96%", // Very light gray
+          "--status-empty-border": "220 9% 65%", // gray-400
+          "--status-empty-bg": "220 13% 91%", // gray-300
+          "--status-empty-bg-alt": "0 0% 98%", // Very light gray for empty alternate
+          
+          // Phase divider - Light mode
+          "--phase-divider": "220 13% 91%", // gray-300
+          
+          // Highlight effects - Light mode
+          "--highlight-main-shadow": "0 0 25px rgba(66, 135, 245, 0.5), 0 0 10px rgba(255, 255, 255, 0.8)",
+          "--highlight-prereq-shadow": "0 0 15px rgba(66, 135, 245, 0.4)",
+          
+          // Lighter variations for ghost box
+          "--primary-lighter": "217 91% 85%",
+          "--status-completed-lighter": "142 76% 85%",
+          
+          // Color opacity for backgrounds
+          "--color-opacity": "0.2",
+        },
+        ".dark": {
+          "--background": "240 10% 3.9%",
+          "--background-secondary": "240 10% 5.9%",
+          "--foreground": "0 0% 98%",
+          "--foreground-secondary": "240 5% 64.9%",
+          "--border": "240 3.7% 15.9%",
+          "--border-secondary": "240 5.9% 23.9%",
+          "--accent": "240 3.7% 15.9%",
+          "--accent-foreground": "0 0% 98%",
+          
+          // Course status colors - Dark mode
+          "--status-completed-border": "142 76% 45%", // green-500
+          "--status-completed-bg": "142 75% 25%", // Solid dark green
+          "--status-in-progress-border": "217 91% 60%", // blue-500
+          "--status-in-progress-bg": "217 90% 25%", // Solid dark blue
+          "--status-failed-border": "0 84% 60%", // red-500
+          "--status-failed-bg": "0 80% 25%", // Solid dark red
+          "--status-planned-border": "270 76% 65%", // purple-500
+          "--status-planned-bg": "270 70% 25%", // Solid dark purple
+          "--status-exempted-border": "38 92% 50%", // yellow-500
+          "--status-exempted-bg": "38 90% 30%", // Solid dark yellow
+          "--status-default-border": "220 9% 28%", // Even darker gray border
+          "--status-default-bg": "220 10% 10%", // Even darker solid gray
+          "--status-empty-border": "240 5% 30%", // darker gray
+          "--status-empty-bg": "240 5% 15%", // Darker solid gray for empty
+          "--status-empty-bg-alt": "0 0% 10%", // Very dark gray for empty alternate
+          
+          // Phase divider - Dark mode
+          "--phase-divider": "240 3.7% 25%", // darker border
+          
+          // Highlight effects - Dark mode
+          "--highlight-main-shadow": "0 0 25px rgba(59, 130, 246, 0.5), 0 0 10px rgba(30, 41, 59, 0.8)",
+          "--highlight-prereq-shadow": "0 0 15px rgba(59, 130, 246, 0.4)",
+          
+          // Lighter variations for ghost box in dark mode
+          "--primary-lighter": "217 91% 35%",
+          "--status-completed-lighter": "142 76% 35%",
+          
+          // Color opacity for backgrounds in dark mode
+          "--color-opacity": "0.3",
+        }
+      })
+    }),
     plugin(function({ addComponents }) {
       const courseStatusComponents = {
         // Base course box styling
@@ -171,55 +267,58 @@ const config: Config = {
           borderWidth: '2px',
           borderRadius: '0.375rem', // rounded
           padding: '0.5rem', // p-2
-          transition: 'all 0.2s ease',
+          transition: 'all 0.15s ease',
           cursor: 'pointer',
-          boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', // shadow-sm
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)', // Slightly better shadow
           position: 'absolute',
           '&:hover': {
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)', // shadow-md
+            transform: 'translateY(-1px)',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08)', // Better shadow on hover
           },
           '&.draggable': {
             cursor: 'grab',
           },
           '&.draggable:active': {
             cursor: 'grabbing',
+            transform: 'translateY(0)',
+            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)', // Less shadow when active
           },
         },
         
         // Status-specific course box styles
         '.course-completed': {
-          borderColor: '#22c55e', // green-500
-          backgroundColor: '#dcfce7', // green-100
+          borderColor: 'hsl(var(--status-completed-border))',
+          backgroundColor: 'hsl(var(--status-completed-bg))',
         },
         '.course-in-progress': {
-          borderColor: '#3b82f6', // blue-500 
-          backgroundColor: '#dbeafe', // blue-100
+          borderColor: 'hsl(var(--status-in-progress-border))',
+          backgroundColor: 'hsl(var(--status-in-progress-bg))',
         },
         '.course-failed': {
-          borderColor: '#ef4444', // red-500
-          backgroundColor: '#fee2e2', // red-100
+          borderColor: 'hsl(var(--status-failed-border))',
+          backgroundColor: 'hsl(var(--status-failed-bg))',
         },
         '.course-planned': {
-          borderColor: '#a855f7', // purple-500
-          backgroundColor: '#f3e8ff', // purple-100
+          borderColor: 'hsl(var(--status-planned-border))',
+          backgroundColor: 'hsl(var(--status-planned-bg))',
         },
         '.course-exempted': {
-          borderColor: '#eab308', // yellow-500
-          backgroundColor: '#fef9c3', // yellow-100
+          borderColor: 'hsl(var(--status-exempted-border))',
+          backgroundColor: 'hsl(var(--status-exempted-bg))',
         },
         '.course-default': {
-          borderColor: '#6b7280', // gray-500
-          backgroundColor: '#f3f4f6', // gray-100
+          borderColor: 'hsl(var(--status-default-border))',
+          backgroundColor: 'hsl(var(--status-default-bg))',
         },
         '.course-empty': {
-          borderColor: '#9ca3af', // gray-400
+          borderColor: 'hsl(var(--status-empty-border))',
           borderStyle: 'dashed',
-          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          backgroundColor: 'hsl(var(--status-empty-bg-alt))',
           cursor: 'default',
         },
         '.course-empty-alt': {
-          borderColor: '#d1d5db', // gray-300
-          backgroundColor: 'rgba(209, 213, 219, 0.3)',
+          borderColor: 'hsl(var(--status-empty-border))',
+          backgroundColor: 'hsl(var(--status-empty-bg))',
           cursor: 'default',
         },
         
@@ -227,21 +326,21 @@ const config: Config = {
         '.ghost-box': {
           borderWidth: '2px',
           borderStyle: 'dashed',
-          borderColor: '#9ca3af', // gray-400
+          borderColor: 'hsl(var(--border))',
           borderRadius: '0.375rem', // rounded
-          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          backgroundColor: 'hsl(var(--background))', // 100% opacity
           transition: 'all 0.2s ease',
           position: 'absolute',
           '&:hover': {
-            backgroundColor: 'rgba(243, 244, 246, 0.5)', // gray-50/50
+            backgroundColor: 'hsl(var(--background-secondary))', // 100% opacity
           },
           '&.drag-over': {
-            borderColor: '#3b82f6', // blue-400
-            backgroundColor: 'rgba(219, 234, 254, 0.5)', // blue-50/50
+            borderColor: 'hsl(var(--primary))',
+            backgroundColor: 'hsl(var(--primary-lighter, 217 91% 85%))', // Special light primary color
           },
           '&.drop-success': {
-            borderColor: '#22c55e', // green-500
-            backgroundColor: 'rgba(220, 252, 231, 0.5)', // green-50/50
+            borderColor: 'hsl(var(--status-completed-border))',
+            backgroundColor: 'hsl(var(--status-completed-lighter, 142 76% 80%))', // Special light completed color
           }
         },
         
@@ -251,7 +350,7 @@ const config: Config = {
           top: '2.5rem', // top-10
           bottom: '0',
           width: '1px',
-          backgroundColor: '#d1d5db', // bg-gray-300
+          backgroundColor: 'hsl(var(--phase-divider) / 0.4)',
         },
         
         // Timetable-specific styling
@@ -260,36 +359,38 @@ const config: Config = {
           padding: '0.25rem', // p-1
           position: 'relative',
           '&:hover': {
-            backgroundColor: 'rgba(243, 244, 246, 0.5)', // bg-gray-50/50
+            backgroundColor: 'hsl(var(--accent))',
           },
         },
         
         // Timetable header and structure elements
         '.timetable-header': {
-          backgroundColor: '#f3f4f6', // bg-gray-100
-          fontWeight: '600', // font-semibold
-          padding: '0.75rem', // p-3
+          backgroundColor: 'hsl(var(--background-secondary))',
+          fontWeight: '600',
+          padding: '0.75rem',
           textAlign: 'center',
           borderWidth: '1px',
-          borderColor: '#e5e7eb', // border-gray-200
+          borderColor: 'hsl(var(--border))',
+          color: 'hsl(var(--foreground))',
         },
         
         '.timetable-time-cell': {
-          backgroundColor: '#f9fafb', // bg-gray-50
-          fontWeight: '600', // font-semibold
-          padding: '0.5rem', // p-2
+          backgroundColor: 'hsl(var(--background-secondary))',
+          fontWeight: '600',
+          padding: '0.5rem',
           textAlign: 'center',
-          fontSize: '0.75rem', // text-xs
+          fontSize: '0.75rem',
           borderWidth: '1px',
-          borderColor: '#e5e7eb', // border-gray-200
+          borderColor: 'hsl(var(--border))',
+          color: 'hsl(var(--foreground))',
         },
         
         '.timetable-container': {
           borderWidth: '1px',
-          borderColor: '#e5e7eb', // border-gray-200
-          borderRadius: '0.5rem', // rounded-lg
-          boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', // shadow-sm
-          backgroundColor: 'white',
+          borderColor: 'hsl(var(--border))',
+          borderRadius: '0.5rem',
+          boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+          backgroundColor: 'hsl(var(--background))',
           overflow: 'hidden',
         },
         
@@ -297,7 +398,7 @@ const config: Config = {
           width: '100%',
           tableLayout: 'fixed',
           borderCollapse: 'collapse',
-          backgroundColor: 'white',
+          backgroundColor: 'hsl(var(--background))',
         },
         
         // Timetable course styling
@@ -313,60 +414,99 @@ const config: Config = {
         
         // Timetable color classes
         '.timetable-blue': {
-          borderColor: '#3b82f6',
-          backgroundColor: '#dbeafe',
+          borderColor: 'hsl(217 91% 60%)', // Fixed blue border
+          backgroundColor: 'hsl(214 95% 93%)', // Light mode bg - 100% opacity
+          '@media (prefers-color-scheme: dark)': {
+            backgroundColor: 'hsl(217 91% 25%)', // Dark mode bg - 100% opacity
+          },
         },
         '.timetable-purple': {
-          borderColor: '#8b5cf6',
-          backgroundColor: '#ede9fe',
+          borderColor: 'hsl(270 76% 65%)', // Fixed purple border
+          backgroundColor: 'hsl(270 76% 95%)', // Light mode bg - 100% opacity
+          '@media (prefers-color-scheme: dark)': {
+            backgroundColor: 'hsl(270 70% 30%)', // Dark mode bg - 100% opacity
+          },
         },
         '.timetable-green': {
-          borderColor: '#22c55e',
-          backgroundColor: '#dcfce7',
+          borderColor: 'hsl(142 76% 45%)', // Fixed green border
+          backgroundColor: 'hsl(142 76% 90%)', // Light mode bg - 100% opacity
+          '@media (prefers-color-scheme: dark)': {
+            backgroundColor: 'hsl(142 70% 25%)', // Dark mode bg - 100% opacity
+          },
         },
         '.timetable-yellow': {
-          borderColor: '#eab308',
-          backgroundColor: '#fef9c3',
+          borderColor: 'hsl(48 96% 50%)', // Fixed yellow border
+          backgroundColor: 'hsl(48 96% 89%)', // Light mode bg - 100% opacity
+          '@media (prefers-color-scheme: dark)': {
+            backgroundColor: 'hsl(48 70% 35%)', // Dark mode bg - 100% opacity
+          },
         },
         '.timetable-orange': {
-          borderColor: '#f97316',
-          backgroundColor: '#ffedd5',
+          borderColor: 'hsl(27 96% 60%)', // Fixed orange border
+          backgroundColor: 'hsl(27 96% 89%)', // Light mode bg - 100% opacity
+          '@media (prefers-color-scheme: dark)': {
+            backgroundColor: 'hsl(27 70% 35%)', // Dark mode bg - 100% opacity
+          },
         },
         '.timetable-teal': {
-          borderColor: '#14b8a6',
-          backgroundColor: '#ccfbf1',
+          borderColor: 'hsl(173 80% 40%)', // Fixed teal border
+          backgroundColor: 'hsl(173 80% 89%)', // Light mode bg - 100% opacity
+          '@media (prefers-color-scheme: dark)': {
+            backgroundColor: 'hsl(173 70% 30%)', // Dark mode bg - 100% opacity
+          },
         },
         '.timetable-indigo': {
-          borderColor: '#6366f1',
-          backgroundColor: '#e0e7ff',
+          borderColor: 'hsl(239 84% 67%)', // Fixed indigo border
+          backgroundColor: 'hsl(239 84% 94%)', // Light mode bg - 100% opacity
+          '@media (prefers-color-scheme: dark)': {
+            backgroundColor: 'hsl(239 70% 35%)', // Dark mode bg - 100% opacity
+          },
         },
         '.timetable-pink': {
-          borderColor: '#ec4899',
-          backgroundColor: '#fce7f3',
+          borderColor: 'hsl(331 86% 60%)', // Fixed pink border
+          backgroundColor: 'hsl(331 86% 95%)', // Light mode bg - 100% opacity
+          '@media (prefers-color-scheme: dark)': {
+            backgroundColor: 'hsl(331 70% 30%)', // Dark mode bg - 100% opacity
+          },
         },
         '.timetable-sky': {
-          borderColor: '#0ea5e9',
-          backgroundColor: '#e0f2fe',
+          borderColor: 'hsl(199 89% 48%)', // Fixed sky border
+          backgroundColor: 'hsl(199 89% 94%)', // Light mode bg - 100% opacity
+          '@media (prefers-color-scheme: dark)': {
+            backgroundColor: 'hsl(199 70% 35%)', // Dark mode bg - 100% opacity
+          },
         },
         '.timetable-lime': {
-          borderColor: '#84cc16',
-          backgroundColor: '#ecfccb',
+          borderColor: 'hsl(84 81% 44%)', // Fixed lime border
+          backgroundColor: 'hsl(84 81% 89%)', // Light mode bg - 100% opacity
+          '@media (prefers-color-scheme: dark)': {
+            backgroundColor: 'hsl(84 70% 30%)', // Dark mode bg - 100% opacity
+          },
         },
         
         // Course content styling
         '.course-id': {
           fontWeight: 'bold',
           fontSize: '0.75rem', // text-xs
+          color: 'black', // Black text for light mode
+          '.dark &': {
+            color: 'white', // White text for dark mode
+          }
         },
         '.course-name': {
           fontSize: '0.75rem', // text-xs
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
+          color: '#333333', // Dark gray for light mode
+          '.dark &': {
+            color: '#e5e5e5', // Light gray for dark mode
+          }
         },
         '.course-selected': {
           ringWidth: '2px',
-          ringColor: '#3b82f6', // ring-blue-500
+          ringColor: 'hsl(var(--ring))',
+          ringOffsetWidth: '1px',
         },
         
         // Course Stats component styling
@@ -374,9 +514,10 @@ const config: Config = {
           width: '100%',
           borderRadius: '0.5rem',
           borderWidth: '1px',
-          borderColor: '#e5e7eb', // border-gray-200
+          borderColor: 'hsl(var(--border))',
           boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', // shadow-sm
           overflow: 'hidden',
+          backgroundColor: 'hsl(var(--card))'
         },
         
         '.stats-header': {
@@ -384,8 +525,9 @@ const config: Config = {
           fontWeight: '600', // font-semibold
           fontSize: '1.125rem', // text-lg
           borderBottomWidth: '1px',
-          borderColor: '#e5e7eb', // border-gray-200
-          backgroundColor: '#f3f4f6', // bg-gray-100
+          borderColor: 'hsl(var(--border))',
+          backgroundColor: 'hsl(var(--background-secondary))',
+          color: 'hsl(var(--foreground))'
         },
         
         '.stats-section': {
@@ -405,12 +547,19 @@ const config: Config = {
           paddingLeft: '2.5rem', // pl-10
           paddingRight: '1rem', // pr-4
           borderWidth: '1px',
+          borderColor: 'hsl(var(--border))',
           borderRadius: '0.375rem', // rounded-md
           fontSize: '0.875rem', // text-sm
+          backgroundColor: 'hsl(var(--background))',
+          color: 'hsl(var(--foreground))',
           '&:focus': {
             outline: 'none',
             ringWidth: '2px',
-            ringColor: '#3b82f6', // ring-blue-500
+            ringColor: 'hsl(var(--ring))', // ring-primary
+            borderColor: 'hsl(var(--border-secondary))',
+          },
+          '&::placeholder': {
+            color: 'hsl(var(--muted-foreground))',
           },
           transition: 'all 0.2s ease',
         },
@@ -419,7 +568,7 @@ const config: Config = {
           position: 'absolute',
           left: '0.75rem', // left-3
           top: '0.625rem', // top-2.5
-          color: '#9ca3af', // text-gray-400
+          color: 'hsl(var(--muted-foreground))', // text-muted-foreground
         },
         
         '.stats-course-card': {
@@ -442,8 +591,10 @@ const config: Config = {
         '.stats-summary-card': {
           padding: '0.75rem', // p-3
           borderWidth: '1px',
+          borderColor: 'hsl(var(--border))',
           borderRadius: '0.5rem', // rounded-lg
-          backgroundColor: '#f9fafb', // bg-gray-50
+          backgroundColor: 'hsl(var(--background-secondary))',
+          color: 'hsl(var(--foreground))'
         },
         
         '.stats-professor-card': {
@@ -451,20 +602,23 @@ const config: Config = {
           borderWidth: '1px',
           borderRadius: '0.5rem', // rounded-lg
           cursor: 'pointer',
-          borderColor: '#e5e7eb', // border-gray-200
+          borderColor: 'hsl(var(--border))',
+          backgroundColor: 'hsl(var(--background))',
+          color: 'hsl(var(--foreground))',
           '&:hover': {
-            borderColor: '#d1d5db', // border-gray-300
+            borderColor: 'hsl(var(--border-secondary))',
+            backgroundColor: 'hsl(var(--background-secondary) / 0.3)',
           },
         },
         
         '.stats-professor-active': {
-          borderColor: '#6b7280', // border-gray-500
-          backgroundColor: '#f3f4f6', // bg-gray-100
+          borderColor: 'hsl(var(--primary))',
+          backgroundColor: 'hsl(var(--background-secondary))'
         },
         
         '.stats-enrollment-bar': {
           width: '100%',
-          backgroundColor: '#e5e7eb', // bg-gray-200
+          backgroundColor: 'hsl(var(--border))', // bg-border
           borderRadius: '9999px', // rounded-full
           height: '0.375rem', // h-1.5
         },
@@ -472,7 +626,7 @@ const config: Config = {
         '.stats-enrollment-progress': {
           height: '100%',
           borderRadius: '9999px', // rounded-full
-          backgroundColor: '#3b82f6', // bg-blue-500
+          backgroundColor: 'hsl(var(--primary))', // bg-primary
         },
       }
       

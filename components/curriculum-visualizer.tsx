@@ -74,7 +74,7 @@ export default function CurriculumVisualizer({
   return (
     <div className="flex flex-col w-full h-full">
       <div
-        className="relative flex-1 overflow-auto bg-gray-50"
+        className="relative flex-1 overflow-auto bg-background"
         ref={containerRef}
       >
 
@@ -96,11 +96,11 @@ export default function CurriculumVisualizer({
           </div>
 
 
-          {/* linhas divisorias, da pra juntar com os headers depois sla*/}
+          {/* linhas divisorias */}
           {Array.from({ length: curriculum.totalPhases - 1 }, (_, i) => (
             <div
               key={`divider-${i}`}
-              className="absolute top-10 bottom-0 w-px bg-gray-300"
+              className="phase-divider"
               style={{
                 left: `${(i + 1) * phaseWidth}px`,
               }}

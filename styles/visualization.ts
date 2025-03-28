@@ -23,10 +23,10 @@ export const HIGHLIGHT = {
   MAIN_BRIGHTNESS: 1.1,
   PREREQ_BRIGHTNESS: 1.05,
   MAIN_CONTRAST: 1.05,
-  MAIN_SHADOW: "0 0 25px rgba(66, 135, 245, 0.5), 0 0 10px rgba(255, 255, 255, 0.8)",
-  PREREQ_SHADOW: "0 0 15px rgba(66, 135, 245, 0.4)",
+  MAIN_SHADOW: "var(--highlight-main-shadow, 0 0 25px rgba(66, 135, 245, 0.5), 0 0 10px rgba(255, 255, 255, 0.8))",
+  PREREQ_SHADOW: "var(--highlight-prereq-shadow, 0 0 15px rgba(66, 135, 245, 0.4))",
   DIM_OPACITY: 0.80,
-  DIM_BACKGROUND: "#f9fafb",
+  DIM_BACKGROUND: "hsl(var(--background-secondary))",
   DIM_BRIGHTNESS: 0.98,
 } as const
 

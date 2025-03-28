@@ -184,19 +184,19 @@ export default function SearchPopup({
   }, [onClose])
   
   return (
-    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-start justify-center pt-[10vh]">
+    <div className="fixed inset-0 bg-black/20 dark:bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center pt-[10vh]">
       <div 
         ref={popupRef}
-        className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden transition-all"
+        className="bg-background border border-border rounded-lg shadow-xl w-full max-w-md overflow-hidden transition-all"
         style={{ maxHeight: "60vh" }}
       >
-        <div className="p-3 bg-gray-50 border-b">
+        <div className="p-3 bg-background-secondary border-b border-border">
           <div className="flex items-center gap-2 mb-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
               <circle cx="11" cy="11" r="8"></circle>
               <path d="m21 21-4.3-4.3"></path>
             </svg>
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-muted-foreground">
               Showing {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}
             </div>
           </div>
@@ -204,7 +204,7 @@ export default function SearchPopup({
             ref={searchInputRef}
             type="text"
             placeholder="Search courses by name or code..."
-            className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             value={searchTerm}
             readOnly
           />
@@ -217,8 +217,8 @@ export default function SearchPopup({
                 <div
                   key={`${result.id}-${result.isCurrentCourse}`}
                   className={cn(
-                    "p-2 rounded-md cursor-pointer hover:bg-gray-100",
-                    index === activeIndex && "bg-blue-50 hover:bg-blue-50"
+                    "p-2 rounded-md cursor-pointer hover:bg-accent",
+                    index === activeIndex && "bg-primary/10 hover:bg-primary/10"
                   )}
                   onClick={() => {
                     onSelect(result.originalCourse, result.isCurrentCourse)
@@ -226,12 +226,12 @@ export default function SearchPopup({
                   }}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="font-medium">{result.id}</div>
-                    <div className="text-sm text-gray-500">{result.credits} cr</div>
+                    <div className="font-medium text-foreground">{result.id}</div>
+                    <div className="text-sm text-muted-foreground">{result.credits} cr</div>
                   </div>
-                  <div className="text-sm text-gray-700">{result.name}</div>
+                  <div className="text-sm text-foreground-secondary">{result.name}</div>
                   {result.isCurrentCourse && (
-                    <div className="mt-1 text-xs text-blue-600 font-medium">
+                    <div className="mt-1 text-xs text-primary font-medium">
                       Currently in your plan
                     </div>
                   )}
@@ -239,7 +239,7 @@ export default function SearchPopup({
               ))}
             </div>
           ) : (
-            <div className="p-8 text-center text-gray-500">
+            <div className="p-8 text-center text-muted-foreground">
               No courses found matching "{searchTerm}"
             </div>
           )}

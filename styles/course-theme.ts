@@ -5,41 +5,42 @@
  * and timetable components to improve maintainability and consistency.
  */
 
-// Status color configuration
+// Status color configuration (backwards compatibility)
+// These values should be updated if CSS variables change
 export const STATUS_COLORS = {
   COMPLETED: {
-    border: '#22c55e', // green-500
-    background: '#dcfce7', // green-100
+    border: 'var(--status-completed-border, #22c55e)',
+    background: 'var(--status-completed-bg, #dcfce7)',
     text: '#166534', // green-800
     icon: '#16a34a', // green-600
   },
   IN_PROGRESS: {
-    border: '#3b82f6', // blue-500
-    background: '#dbeafe', // blue-100
+    border: 'var(--status-in-progress-border, #3b82f6)',
+    background: 'var(--status-in-progress-bg, #dbeafe)',
     text: '#1e40af', // blue-800
     icon: '#2563eb', // blue-600
   },
   FAILED: {
-    border: '#ef4444', // red-500
-    background: '#fee2e2', // red-100
+    border: 'var(--status-failed-border, #ef4444)',
+    background: 'var(--status-failed-bg, #fee2e2)',
     text: '#991b1b', // red-800
     icon: '#dc2626', // red-600
   },
   PLANNED: {
-    border: '#a855f7', // purple-500
-    background: '#f3e8ff', // purple-100
+    border: 'var(--status-planned-border, #a855f7)',
+    background: 'var(--status-planned-bg, #f3e8ff)',
     text: '#6b21a8', // purple-800
     icon: '#9333ea', // purple-600
   },
   EXEMPTED: {
-    border: '#eab308', // yellow-500
-    background: '#fef9c3', // yellow-100
+    border: 'var(--status-exempted-border, #eab308)',
+    background: 'var(--status-exempted-bg, #fef9c3)',
     text: '#854d0e', // yellow-800
     icon: '#ca8a04', // yellow-600
   },
   DEFAULT: {
-    border: '#6b7280', // gray-500
-    background: '#f3f4f6', // gray-100
+    border: 'var(--status-default-border, #6b7280)',
+    background: 'var(--status-default-bg, #f3f4f6)',
     text: '#1f2937', // gray-800
     icon: '#4b5563', // gray-600
   },

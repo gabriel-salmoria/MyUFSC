@@ -7,11 +7,11 @@ interface PhaseHeaderProps {
   width: number
 }
 
-// header da fase, que aparece no topo de cada fase, esse aqui é batota
+// header da fase, que aparece no topo de cada fase
 export default function PhaseHeader({ phase, width }: PhaseHeaderProps) {
   return (
     <div
-      className="flex items-center justify-center h-10 bg-gray-200 border border-gray-300 text-gray-800 font-medium border-r-gray-400"
+      className="flex items-center justify-center h-10 bg-card border-x border-t border-border text-foreground font-medium"
       style={{ width: `${width}px` }}
     >
       Phase {phase.number}

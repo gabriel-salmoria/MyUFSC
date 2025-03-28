@@ -180,26 +180,26 @@ export default function Home() {
 
   return (
     <main className="flex min-h-screen flex-col">
-      <div className="flex items-center justify-center p-4 border-b bg-white shadow-sm">
-        <h1 className="text-2xl font-bold">Welcome back, {studentInfo.name}!</h1>
+      <div className="flex items-center justify-center p-4 border-b border-border bg-background shadow-sm">
+        <h1 className="text-2xl font-bold text-foreground">Welcome back, {studentInfo.name}!</h1>
       </div>
 
       <div className="flex-1 p-6 space-y-6">
         <div>
           <div className="flex justify-between items-center mb-2">
-            <h2 className="text-xl font-semibold">
+            <h2 className="text-xl font-semibold text-foreground">
               {viewMode === ViewMode.CURRICULUM ? "Curriculum Overview" : "Elective Courses"}
             </h2>
             <button
               onClick={toggleView}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+              className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition"
             >
               Show {viewMode === ViewMode.CURRICULUM ? "Electives" : "Curriculum"}
             </button>
           </div>
           
           <div
-            className="border rounded-lg overflow-hidden shadow-md"
+            className="border border-border rounded-lg overflow-hidden shadow-md bg-card"
             style={{ height: `${containerHeight}px` }}
           >
             {viewMode === ViewMode.CURRICULUM ? (
@@ -223,9 +223,9 @@ export default function Home() {
         </div>
 
         <div>
-          <h2 className="text-xl font-semibold mb-2">My Progress</h2>
+          <h2 className="text-xl font-semibold mb-2 text-foreground">My Progress</h2>
           <div
-            className="border rounded-lg overflow-hidden shadow-md"
+            className="border border-border rounded-lg overflow-hidden shadow-md bg-card"
             style={{ height: `${containerHeight}px` }}
           >
             <ProgressVisualizer

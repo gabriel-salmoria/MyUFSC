@@ -89,10 +89,10 @@ export default function StudentCourseDetailsPanel({
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
-      <div className="fixed right-0 top-0 h-full bg-white shadow-lg border-l p-4 z-50 overflow-y-auto transform translate-x-0 transition-transform duration-200" style={{ width: "480px" }}>
+      <div className="fixed inset-0 bg-black/20 dark:bg-black/50 z-40" onClick={onClose} />
+      <div className="fixed right-0 top-0 h-full bg-background shadow-lg border-l border-border p-4 z-50 overflow-y-auto transform translate-x-0 transition-transform duration-200" style={{ width: "480px" }}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold">{course.id}</h3>
+          <h3 className="text-lg font-bold text-foreground">{course.id}</h3>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
@@ -101,29 +101,29 @@ export default function StudentCourseDetailsPanel({
         <div className="space-y-4">
           <div>
             <h4 className="text-sm font-medium text-muted-foreground">Course Name</h4>
-            <p>{course.name}</p>
+            <p className="text-foreground">{course.name}</p>
           </div>
 
           <div>
             <h4 className="text-sm font-medium text-muted-foreground">Credits</h4>
-            <p>{course.credits}</p>
+            <p className="text-foreground">{course.credits}</p>
           </div>
 
           <div>
             <h4 className="text-sm font-medium text-muted-foreground">Workload</h4>
-            <p>{course.workload} hours</p>
+            <p className="text-foreground">{course.workload} hours</p>
           </div>
 
           <div>
             <h4 className="text-sm font-medium text-muted-foreground">Recommended Phase</h4>
-            <p>{course.phase}</p>
+            <p className="text-foreground">{course.phase}</p>
           </div>
 
           {studentCourse?.grade !== undefined && !isEditingGrade && (
             <div>
               <h4 className="text-sm font-medium text-muted-foreground">Grade</h4>
               <div className="flex items-center gap-2">
-                <p className={studentCourse.grade >= 6.0 ? "text-green-600" : "text-red-600"}>
+                <p className={studentCourse.grade >= 6.0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
                   {studentCourse.grade.toFixed(1)}
                 </p>
                 {studentCourse.status === CourseStatus.COMPLETED && (
@@ -156,7 +156,7 @@ export default function StudentCourseDetailsPanel({
                       setGradeInput(e.target.value);
                       setGradeError('');
                     }}
-                    className={`border rounded px-2 py-1 w-20 text-sm ${gradeError ? 'border-red-500' : ''}`}
+                    className={`border border-input rounded px-2 py-1 w-20 text-sm bg-background text-foreground ${gradeError ? 'border-red-500 dark:border-red-400' : ''}`}
                     placeholder="0-10"
                   />
                   <Button 
@@ -169,7 +169,7 @@ export default function StudentCourseDetailsPanel({
                   </Button>
                 </div>
                 {gradeError && (
-                  <p className="text-red-500 text-xs mt-1">{gradeError}</p>
+                  <p className="text-red-500 dark:text-red-400 text-xs mt-1">{gradeError}</p>
                 )}
                 <p className="text-xs text-muted-foreground mt-1">
                   Enter a grade between 0-10 (rounded to nearest 0.5). 
@@ -178,8 +178,8 @@ export default function StudentCourseDetailsPanel({
                   )}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Grades ≥ 6.0 will mark the course as <span className="text-green-600 font-medium">Completed</span>, 
-                  grades &lt; 6.0 will mark the course as <span className="text-red-600 font-medium">Failed</span>.
+                  Grades ≥ 6.0 will mark the course as <span className="text-green-600 dark:text-green-400 font-medium">Completed</span>, 
+                  grades &lt; 6.0 will mark the course as <span className="text-red-600 dark:text-red-400 font-medium">Failed</span>.
                 </p>
               </div>
             </div>
@@ -188,32 +188,32 @@ export default function StudentCourseDetailsPanel({
           <div>
             <h4 className="text-sm font-medium text-muted-foreground"> Equivalents</h4>
             {(course.equivalents?.length ?? 0) > 0 ? (
-              <ul className="list-disc pl-5">
+              <ul className="list-disc pl-5 text-foreground">
                 {course.equivalents?.map((eq) => (
                   <li key={eq}>{eq} {getCourseInfo(eq)?.name.toString()}</li>
                 ))}
               </ul>
             ) : (
-              <p>No equivalents</p>
+              <p className="text-foreground">No equivalents</p>
             )}
           </div>
 
           <div>
             <h4 className="text-sm font-medium text-muted-foreground">Prerequisites</h4>
             {(course.prerequisites?.length ?? 0) > 0 ? (
-              <ul className="list-disc pl-5">
+              <ul className="list-disc pl-5 text-foreground">
                 {course.prerequisites?.map((prereq) => (
                   <li key={prereq}>{prereq} - {getCourseInfo(prereq)?.name}</li>
                 ))}
               </ul>
             ) : (
-              <p>No prerequisites</p>
+              <p className="text-foreground">No prerequisites</p>
             )}
           </div>
 
           <div>
             <h4 className="text-sm font-medium text-muted-foreground">Description</h4>
-              <ul className="list-disc pl-5">
+              <ul className="list-disc pl-5 text-foreground">
                 {course.description ?? "No description"}
               </ul>
           </div>

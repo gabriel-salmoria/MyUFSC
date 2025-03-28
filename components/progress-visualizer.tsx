@@ -83,7 +83,7 @@ export default function ProgressVisualizer({
   return (
     <div className="flex flex-col w-full h-full">
       <div
-        className="relative flex-1 overflow-auto bg-gray-50"
+        className="relative flex-1 overflow-auto bg-background"
         ref={containerRef}
       >
         <div

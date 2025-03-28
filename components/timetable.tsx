@@ -309,12 +309,12 @@ export default function Timetable({
         {/* Header with title, campus selector, and phase selector */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <h2 className="text-xl font-semibold text-gray-900">Weekly Schedule</h2>
+            <h2 className="text-xl font-semibold text-foreground">Weekly Schedule</h2>
             <div className="flex items-center gap-2">
               <select 
                 value={selectedCampus}
                 onChange={(e) => onCampusChange(e.target.value)}
-                className="bg-white border rounded px-3 py-1 text-sm"
+                className="bg-background border border-border rounded px-3 py-1 text-sm text-foreground"
               >
                 <option value="FLO">Florianópolis</option>
                 <option value="BLN">Blumenau</option>
@@ -322,18 +322,18 @@ export default function Timetable({
                 <option value="CBS">Curitibanos</option>
                 <option value="ARA">Araranguá</option>
               </select>
-              {isLoadingMatrufscData && <span className="text-sm text-gray-500">(Loading...)</span>}
+              {isLoadingMatrufscData && <span className="text-sm text-muted-foreground">(Loading...)</span>}
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <label htmlFor="phase-select" className="text-sm font-medium text-gray-600">
+            <label htmlFor="phase-select" className="text-sm font-medium text-muted-foreground">
               Select Phase:
             </label>
             <select
               id="phase-select"
               value={selectedPhase}
               onChange={(e) => setSelectedPhase(Number(e.target.value))}
-              className="block w-36 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm bg-gray-50"
+              className="block w-36 rounded-md border border-border bg-background text-foreground shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
             >
               {studentInfo?.currentPlan?.semesters.map((semester) => (
                 <option key={semester.number} value={semester.number}>
