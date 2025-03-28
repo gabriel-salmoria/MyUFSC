@@ -24,8 +24,8 @@ import { fetchCurriculum } from "@/api/course/curriculum"
 import { fetchStudentProfile } from "@/api/user/profile"
 import { fetchClassSchedule } from "@/api/class/schedule"
 
-// Parser and course map
-import { parseCurriculumData, courseMap } from "@/lib/curriculum-parser"
+// Parser and visualization
+import { generateVisualization, courseMap, generatePhases } from "@/lib/curriculum-parser"
 
 // Constants
 const DEFAULT_PROGRAM_ID = 'cs-degree'
@@ -40,10 +40,8 @@ export default function Home() {
   }
 
   // State
-  const [curriculumData, setCurriculumData] = useState<{
-    curriculum: Curriculum 
-    visualization: CurriculumVisualization 
-  } | null>(null)
+  const [curriculum, setCurriculum] = useState<Curriculum | null>(null)
+  const [visualization, setVisualization] = useState<CurriculumVisualization | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.CURRICULUM)
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
   const [selectedStudentCourse, setSelectedStudentCourse] = useState<StudentCourse | null>(null)
@@ -65,38 +63,22 @@ export default function Home() {
     const fetchData = async () => {
       try {
         // Get data from APIs
-        const rawCurriculum = await fetchCurriculum(DEFAULT_PROGRAM_ID)
+        const curriculumData = await fetchCurriculum(DEFAULT_PROGRAM_ID)
         const studentData = await fetchStudentProfile(DEFAULT_STUDENT_ID)
         
-        if (!rawCurriculum || !studentData) {
+        if (!curriculumData || !studentData) {
           console.error("Failed to fetch data")
           return
         }
         
-        // We need to parse the curriculum to generate visualization and course map
-        // The API returns Curriculum but we need to adapt it to RawCurriculumData format
-        const currData = parseCurriculumData({
-          id: DEFAULT_PROGRAM_ID,
-          name: rawCurriculum.name,
-          department: rawCurriculum.department,
-          totalPhases: rawCurriculum.totalPhases,
-          courses: rawCurriculum.phases.flatMap(phase => 
-            phase.courses.map(course => ({
-              id: course.id,
-              name: course.name,
-              type: course.type || 'Ob', // Default to mandatory if not specified
-              credits: course.credits,
-              workload: course.workload || 0,
-              prerequisites: course.prerequisites || null,
-              equivalents: course.equivalents || null,
-              description: course.description || '',
-              phase: course.phase
-            }))
-          )
-        })
+        console.log("Loaded curriculum with", curriculumData.courses.length, "courses")
+        
+        // Generate visualization from curriculum
+        const visualizationData = generateVisualization(curriculumData)
         
         // Store the processed data and student info
-        setCurriculumData(currData)
+        setCurriculum(curriculumData)
+        setVisualization(visualizationData)
         setStudentInfo(studentData)
       } catch (error) {
         console.error("Error loading data:", error)
@@ -183,7 +165,7 @@ export default function Home() {
     )
   }
 
-  if (!curriculumData || !studentInfo || !studentInfo.currentPlan) {
+  if (!curriculum || !visualization || !studentInfo || !studentInfo.currentPlan) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-lg text-red-600">Error loading data. Please try again.</div>
@@ -191,12 +173,12 @@ export default function Home() {
     )
   }
 
-  // Get elective courses from the courseMap populated by parseCurriculumData
+  // Get elective courses from the courseMap populated by fetchCurriculum
   const electiveCourses = Array.from(courseMap.values())
     .filter(course => course.type === "optional")
-    .filter(course => !curriculumData.curriculum.phases.some(phase => 
-      phase.courses.some(c => c.id === course.id)
-    ))
+
+  // Create phase structure for showing in visualization
+  const phases = generatePhases(curriculum)
 
   return (
     <main className="flex min-h-screen flex-col">
@@ -224,8 +206,8 @@ export default function Home() {
           >
             {viewMode === ViewMode.CURRICULUM ? (
               <CurriculumVisualizer
-                curriculum={curriculumData.curriculum}
-                visualization={curriculumData.visualization}
+                curriculum={curriculum}
+                visualization={visualization}
                 onCourseClick={setSelectedCourse}
                 height={containerHeight}
               />

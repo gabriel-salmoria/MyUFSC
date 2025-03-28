@@ -1,4 +1,4 @@
-import type { Curriculum, Course, Phase } from '@/types/curriculum';
+import type { Curriculum, Course } from '@/types/curriculum';
 import { courseMap } from '@/lib/curriculum-parser';
 
 /**
@@ -13,50 +13,48 @@ export async function fetchCurriculum(programId: string): Promise<Curriculum | n
       const curriculumData = await import(`@/data/courses/${programId}.json`);
       const rawData = curriculumData.default;
       
-      // Transform raw data into the expected Curriculum format with phases
-      if (rawData) {
-        // Group courses by phase
-        const coursesByPhase = new Map<number, Course[]>();
-        
-        // Initialize phase groups
-        for (let i = 1; i <= (rawData.totalPhases || 8); i++) {
-          coursesByPhase.set(i, []);
-        }
-        
-        // Distribute courses by phase
-        if (Array.isArray(rawData.courses)) {
-          rawData.courses.forEach((course: Course) => {
-            const phase = course.phase || 1;
-            const phaseGroup = coursesByPhase.get(phase) || [];
-            phaseGroup.push(course);
-            coursesByPhase.set(phase, phaseGroup);
-            
-            // Add to courseMap for direct lookup
-            courseMap.set(course.id, course);
-          });
-        }
-        
-        // Create phases array
-        const phases: Phase[] = [];
-        coursesByPhase.forEach((courses, phaseNumber) => {
-          phases.push({
-            number: phaseNumber,
-            name: `Phase ${phaseNumber}`,
-            courses: courses
-          });
-        });
-        
-        // Return the transformed curriculum
-        return {
-          name: rawData.name || 'Curriculum',
-          department: rawData.department || '',
-          totalPhases: rawData.totalPhases || phases.length,
-          phases: phases
-        };
+      if (!rawData) {
+        console.error(`Curriculum for program '${programId}' not found`);
+        return null;
       }
-      return null;
+      
+      // Transform raw data to match our Curriculum interface
+      const curriculum: Curriculum = {
+        id: programId,
+        name: rawData.name || '',
+        department: rawData.department || '',
+        totalPhases: rawData.totalPhases || 8,
+        courses: []
+      };
+      
+      // Process courses
+      if (Array.isArray(rawData.courses)) {
+        curriculum.courses = rawData.courses.map((rawCourse: any): Course => {
+          // Map the type from "Ob" to "mandatory" or "optional"
+          const type = rawCourse.type === "Ob" ? "mandatory" : "optional";
+          
+          const course: Course = {
+            id: rawCourse.id,
+            name: rawCourse.name,
+            credits: rawCourse.credits,
+            workload: rawCourse.workload || 0,
+            description: rawCourse.description || '',
+            prerequisites: rawCourse.prerequisites || [],
+            equivalents: rawCourse.equivalents || [],
+            type: type,
+            phase: rawCourse.phase
+          };
+          
+          // Add to courseMap for direct lookup
+          courseMap.set(course.id, course);
+          
+          return course;
+        });
+      }
+      
+      return curriculum;
     } catch (importError) {
-      console.error(`Curriculum for program '${programId}' not found`);
+      console.error(`Error importing curriculum for program '${programId}':`, importError);
       return null;
     }
   } catch (error) {

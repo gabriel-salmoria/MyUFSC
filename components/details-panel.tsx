@@ -186,12 +186,17 @@ export default function StudentCourseDetailsPanel({
           )}
 
           <div>
-            <h4 className="text-sm font-medium text-muted-foreground"> Equivalents</h4>
-            {(course.equivalents?.length ?? 0) > 0 ? (
+            <h4 className="text-sm font-medium text-muted-foreground">Equivalents</h4>
+            {course.equivalents && course.equivalents.length > 0 ? (
               <ul className="list-disc pl-5 text-foreground">
-                {course.equivalents?.map((eq) => (
-                  <li key={eq}>{eq} {getCourseInfo(eq)?.name.toString()}</li>
-                ))}
+                {course.equivalents.map((eq) => {
+                  const equivalentCourse = getCourseInfo(eq);
+                  return (
+                    <li key={eq}>
+                      {eq} {equivalentCourse?.name ? `- ${equivalentCourse.name}` : ''}
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <p className="text-foreground">No equivalents</p>
@@ -200,11 +205,16 @@ export default function StudentCourseDetailsPanel({
 
           <div>
             <h4 className="text-sm font-medium text-muted-foreground">Prerequisites</h4>
-            {(course.prerequisites?.length ?? 0) > 0 ? (
+            {course.prerequisites && course.prerequisites.length > 0 ? (
               <ul className="list-disc pl-5 text-foreground">
-                {course.prerequisites?.map((prereq) => (
-                  <li key={prereq}>{prereq} - {getCourseInfo(prereq)?.name}</li>
-                ))}
+                {course.prerequisites.map((prereq) => {
+                  const prerequisiteCourse = getCourseInfo(prereq);
+                  return (
+                    <li key={prereq}>
+                      {prereq} {prerequisiteCourse?.name ? `- ${prerequisiteCourse.name}` : ''}
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <p className="text-foreground">No prerequisites</p>
