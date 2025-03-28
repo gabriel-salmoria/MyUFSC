@@ -5,13 +5,17 @@ import { cn } from "@/lib/utils"
 import type { Course } from "@/types/curriculum" 
 import type { StudentCourse } from "@/types/student-plan"
 import { CourseStatus } from "@/types/student-plan"
-import scheduleData from "@/data/schedule.json"
 import SearchPopup from "./search-popup"
 import { CSS_CLASSES, TIMETABLE_COLOR_CLASSES, STATUS_CLASSES } from "@/styles/course-theme"
 import { useStudentStore } from "@/lib/student-store"
 
 // Define course color classes to use for timetable
 const TIMETABLE_COLORS = TIMETABLE_COLOR_CLASSES;
+
+// Default empty schedule data (used when no data is loaded yet)
+const emptyScheduleData = {
+  professors: {}
+};
 
 interface CourseStatsProps {
   courses: StudentCourse[]
@@ -45,7 +49,7 @@ export default function CourseStats({ courses, timetableData, onCourseClick, onP
   const studentStore = useStudentStore()
 
   // Use provided timetable data or fall back to default schedule data
-  const scheduleDataToUse = timetableData || scheduleData
+  const scheduleDataToUse = timetableData || emptyScheduleData
 
   // Handle key press for search input
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {

@@ -8,7 +8,7 @@ import type { CoursePosition } from "@/types/visualization"
 import type { StudentCourse } from "@/types/student-plan"
 
 // components
-import CourseBox from "./course-box"
+import CourseBox from "@/components/visualizers/course-box"
 
 // config
 import { COURSE_BOX, GRID } from "@/styles/visualization"

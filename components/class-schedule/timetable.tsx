@@ -2,12 +2,12 @@
 
 import { useMemo, useState } from "react"
 import { cn } from "@/lib/utils"
-import CourseStats from "@/components/course-stats"
+import CourseStats from "@/components/class-schedule/course-stats"
 import type { Course } from "@/types/curriculum"
 import type { StudentInfo, StudentCourse } from "@/types/student-plan"
 import { CourseStatus } from "@/types/student-plan"
 import type { CoursePosition } from "@/types/visualization"
-import scheduleData from "@/data/schedule.json"
+
 import { TIMETABLE } from "@/styles/visualization"
 import { CSS_CLASSES, TIMETABLE_COLOR_CLASSES, STATUS_CLASSES } from "@/styles/course-theme"
 import { parseMatrufscData } from "@/lib/parsers/matrufsc-parser"
@@ -15,14 +15,21 @@ import { parseMatrufscData } from "@/lib/parsers/matrufsc-parser"
 // Define course color classes to use for timetable
 const TIMETABLE_COLORS = TIMETABLE_COLOR_CLASSES;
 
+// Default empty schedule data (used when no data is loaded yet)
+const emptyScheduleData = {
+  professors: {}
+};
+
 interface TimetableProps {
   studentInfo: StudentInfo
   matrufscData?: any // Optional MatrUFSC data that can be parsed
   onCourseClick?: (course: StudentCourse) => void
   onAddCourse?: (course: Course) => void
   selectedCampus: string
+  selectedSemester: string
   isLoadingMatrufscData: boolean
   onCampusChange: (campus: string) => void
+  onSemesterChange: (semester: string) => void
 }
 
 // Type for professor schedule data
@@ -30,6 +37,7 @@ type ScheduleEntry = {
   day: number;
   startTime: string;
   endTime?: string;
+  location?: string; // Add location field to match what's coming from the parser
 };
 
 // Type for professor overrides
@@ -37,6 +45,8 @@ type ProfessorOverride = {
   courseId: string;
   professorId: string;
   schedule: ScheduleEntry[];
+  classNumber: string;
+  location: string; // Add location field for classroom building/room
 };
 
 // Type for professors data
@@ -67,8 +77,10 @@ export default function Timetable({
   onCourseClick, 
   onAddCourse,
   selectedCampus,
+  selectedSemester,
   isLoadingMatrufscData,
-  onCampusChange
+  onCampusChange,
+  onSemesterChange
 }: TimetableProps) {
   // State for professor overrides
   const [professorOverrides, setProfessorOverrides] = useState<ProfessorOverride[]>([]);
@@ -79,12 +91,12 @@ export default function Timetable({
   // State to track conflicting slots
   const [conflicts, setConflicts] = useState<Map<string, Set<string>>>(new Map());
 
-  // Use either the parsed MatrUFSC data or the default schedule data
+  // Use either the parsed MatrUFSC data or the default empty data
   const timetableData = useMemo(() => {
     if (matrufscData) {
       return parseMatrufscData(matrufscData);
     }
-    return scheduleData as unknown as ScheduleData;
+    return emptyScheduleData as ScheduleData;
   }, [matrufscData]);
 
   // Get all courses from the selected phase for the Course Stats
@@ -133,11 +145,18 @@ export default function Timetable({
       const timeSlots = scheduleText.split(',').map(s => s.trim());
       
       timeSlots.forEach(timeSlot => {
-        const parts = timeSlot.split(' ');
-        if (parts.length >= 2) {
-          const days = parts[0].split('/');
-          const timePart = parts[1];
-          const [startTime, endTime] = timePart.split('-');
+        // Split by spaces but preserve location information
+        // Format could be like "Segunda/Quarta 13:30-15:10 CTC-CTC102"
+        // We need to extract days, time range, and location
+        const daysAndTimeMatch = timeSlot.match(/^(.+?) (\d+:\d+-\d+:\d+)(.*)$/);
+        
+        if (daysAndTimeMatch) {
+          const [_, daysStr, timeRange, locationPart] = daysAndTimeMatch;
+          const days = daysStr.split('/');
+          const [startTime, endTime] = timeRange.split('-');
+          
+          // Extract location (trim any leading spaces)
+          const slotLocation = locationPart ? locationPart.trim() : "";
           
           days.forEach(dayName => {
             const dayIndex = TIMETABLE.DAYS_MAP[dayName.trim() as keyof typeof TIMETABLE.DAYS_MAP];
@@ -146,7 +165,8 @@ export default function Timetable({
             scheduleEntries.push({
               day: dayIndex,
               startTime: startTime,
-              endTime: endTime
+              endTime: endTime,
+              location: slotLocation
             });
           });
         }
@@ -159,7 +179,9 @@ export default function Timetable({
       {
         courseId: course.course.id,
         professorId,
-        schedule: scheduleEntries
+        schedule: scheduleEntries,
+        classNumber: professorData.classNumber,
+        location: scheduleEntries[scheduleEntries.length - 1].location || ""
       }
     ];
 
@@ -217,6 +239,7 @@ export default function Timetable({
       courses: {
         course: StudentCourse;
         isConflicting: boolean;
+        location?: string; // Add location to course data
       }[];
     }>> = {}
     
@@ -236,7 +259,7 @@ export default function Timetable({
       if (!course) return;
       
       override.schedule.forEach(entry => {
-        const { day, startTime, endTime } = entry;
+        const { day, startTime, endTime, location } = entry;
         if (!endTime) return;
 
         const startSlotIndex = TIMETABLE.TIME_SLOTS.findIndex(slot => slot.id === startTime);
@@ -254,7 +277,8 @@ export default function Timetable({
           const slotId = TIMETABLE.TIME_SLOTS[i].id;
           schedule[slotId][day].courses.push({
             course,
-            isConflicting: false // Initially set to false, will update in second pass
+            isConflicting: false, // Initially set to false, will update in second pass
+            location: location // Pass location to the schedule
           });
         }
       });
@@ -322,6 +346,16 @@ export default function Timetable({
                 <option value="CBS">Curitibanos</option>
                 <option value="ARA">Araranguá</option>
               </select>
+              <select 
+                value={selectedSemester}
+                onChange={(e) => onSemesterChange(e.target.value)}
+                className="bg-background border border-border rounded px-3 py-1 text-sm text-foreground"
+              >
+                <option value="20251">2025.1</option>
+                <option value="20243">2024.3</option>
+                <option value="20242">2024.2</option>
+                <option value="20241">2024.1</option>
+              </select>
               {isLoadingMatrufscData && <span className="text-sm text-muted-foreground">(Loading...)</span>}
             </div>
           </div>
@@ -387,35 +421,47 @@ export default function Timetable({
                             "flex gap-[1px]",
                             cellData.courses.length > 1 && "h-full"
                           )}>
-                            {cellData.courses.map((courseData, idx) => (
-                              <div
-                                key={`${courseData.course.course.id}-${idx}`}
-                                className={cn(
-                                  CSS_CLASSES.TIMETABLE_COURSE,
-                                  "flex-1 min-w-0", // Allow shrinking
-                                  courseData.isConflicting && "border-[3px] border-red-600",
-                                  getCourseColor(courseData.course.course.id),
-                                  selectedCourse?.course.id === courseData.course.course.id && CSS_CLASSES.COURSE_SELECTED
-                                )}
-                                onClick={() => {
-                                  setSelectedCourse(courseData.course);
-                                  onCourseClick?.(courseData.course);
-                                }}
-                              >
-                                <div className={cn(
-                                  CSS_CLASSES.COURSE_ID,
-                                  "truncate" // Prevent text overflow
-                                )}>
-                                  {courseData.course.course.id}
+                            {cellData.courses.map((courseData, idx) => {
+                              // Get the location directly from course data
+                              const location = courseData.location;
+                              
+                              return (
+                                <div
+                                  key={`${courseData.course.course.id}-${idx}`}
+                                  className={cn(
+                                    CSS_CLASSES.TIMETABLE_COURSE,
+                                    "flex-1 min-w-0", // Allow shrinking
+                                    courseData.isConflicting && "border-[3px] border-red-600",
+                                    getCourseColor(courseData.course.course.id),
+                                    selectedCourse?.course.id === courseData.course.course.id && CSS_CLASSES.COURSE_SELECTED
+                                  )}
+                                  onClick={() => {
+                                    setSelectedCourse(courseData.course);
+                                    onCourseClick?.(courseData.course);
+                                  }}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className={cn(
+                                      CSS_CLASSES.COURSE_ID,
+                                      "truncate flex-shrink" // Prevent text overflow
+                                    )}>
+                                      {courseData.course.course.id}
+                                    </div>
+                                    {location && (
+                                      <div className="text-[0.65rem] ml-0 opacity-90 whitespace-nowrap font-medium">
+                                       {location}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className={cn(
+                                    CSS_CLASSES.COURSE_NAME,
+                                    "truncate" // Prevent text overflow
+                                  )}>
+                                    {courseData.course.course.name}
+                                  </div>
                                 </div>
-                                <div className={cn(
-                                  CSS_CLASSES.COURSE_NAME,
-                                  "truncate" // Prevent text overflow
-                                )}>
-                                  {courseData.course.course.name}
-                                </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </td>
                       );

@@ -18,6 +18,7 @@ interface ClassSchedule {
   day: number;            // 0-6 for Monday-Sunday
   startTime: string;      // HH:MM format
   endTime: string;        // HH:MM format
+  location?: string;      // Added location field for classroom building/room
 }
 
 interface Professor {
@@ -41,13 +42,13 @@ interface ScheduleData {
 
 /**
  * Parses a time string from MatrUFSC format
- * Example: "3.1330-2 / CCE101" => { day: 2, startTime: "13:30", endTime: "15:10", place: "CCE101" }
+ * Example: "3.1330-2 / CCE101" => { day: 2, startTime: "13:30", endTime: "15:10", location: "CCE101" }
  */
 function parseTimeString(timeString: MatrufscTime): {
   day: number;
   startTime: string;
   endTime: string;
-  place: string;
+  location: string;
 } {
   // Split into time part and place part
   const [timePart, placePart] = timeString.split(' / ');
@@ -58,7 +59,7 @@ function parseTimeString(timeString: MatrufscTime): {
   
   // Parse day (convert from 1-7 to 0-6 for JavaScript)
   const day = parseInt(dayStr) - 2; // MatrUFSC uses 2=Mon, 3=Tue, etc. We need 0=Mon, 1=Tue
-  if (day < 0) return { day: day + 7, startTime: timeStr.substr(0, 2) + ":" + timeStr.substr(2), endTime: "", place: placePart || "" };
+  if (day < 0) return { day: day + 7, startTime: timeStr.substr(0, 2) + ":" + timeStr.substr(2), endTime: "", location: placePart || "" };
   
   // Parse time
   const startTime = timeStr.substr(0, 2) + ":" + timeStr.substr(2);
@@ -80,7 +81,7 @@ function parseTimeString(timeString: MatrufscTime): {
     day,
     startTime,
     endTime,
-    place: placePart || ""
+    location: placePart ? placePart.trim() : ""
   };
 }
 
@@ -101,22 +102,26 @@ function generateReadableSchedule(times: ClassSchedule[]): string {
     6: "Domingo"
   };
 
-  // Group by unique time slot
-  const timeGroups: Record<string, number[]> = {};
+  // Group by unique time slot with location
+  const timeGroups: Record<string, {days: number[], location: string}> = {};
   
   times.forEach(time => {
     const timeKey = `${time.startTime}-${time.endTime}`;
     if (!timeGroups[timeKey]) {
-      timeGroups[timeKey] = [];
+      timeGroups[timeKey] = {
+        days: [],
+        location: time.location || ""
+      };
     }
-    timeGroups[timeKey].push(time.day);
+    timeGroups[timeKey].days.push(time.day);
   });
   
   // Format each time group
-  const result = Object.entries(timeGroups).map(([timeKey, days]) => {
+  const result = Object.entries(timeGroups).map(([timeKey, data]) => {
     const [startTime, endTime] = timeKey.split('-');
-    const dayNames = days.map(day => daysMap[day]).join('/');
-    return `${dayNames} ${startTime}-${endTime}`;
+    const dayNames = data.days.map(day => daysMap[day]).join('/');
+    const locationStr = data.location ? ` ${data.location}` : '';
+    return `${dayNames} ${startTime}-${endTime}${locationStr}`;
   });
   
   return result.join(', ');
@@ -182,14 +187,15 @@ export function parseMatrufscData(data: any): ScheduleData {
         // Check if times is an array before processing
         if (Array.isArray(times)) {
           times.forEach(timeDef => {
-            const { day, startTime, endTime } = parseTimeString(timeDef);
+            const { day, startTime, endTime, location } = parseTimeString(timeDef);
             
             // Skip invalid times
             if (startTime) {
               classSchedules.push({
                 day,
                 startTime,
-                endTime
+                endTime,
+                location: location
               });
             }
           });
@@ -269,7 +275,8 @@ export function createStudentCoursesFromMatrufsc(
 
 /**
  * Extracts data for a specific campus from MatrUFSC data
- * This helps reduce memory usage by only working with one campus at a time
+ * This function is now simpler since we have one file per campus,
+ * but we keep it for backward compatibility
  */
 export function extractCampusData(data: any, campusCode: string): any {
   if (!data || typeof data !== 'object') {
@@ -277,15 +284,10 @@ export function extractCampusData(data: any, campusCode: string): any {
     return null;
   }
 
-  // Create a new object with just the timestamp and the requested campus
-  const result: Record<string, any> = {
-    DATA: data.DATA || new Date().toLocaleString()
-  };
-
-  // Add the campus data if it exists
+  // With the new structure, the data is already for a specific campus
+  // We just need to verify the campus code matches
   if (data[campusCode] && Array.isArray(data[campusCode])) {
-    result[campusCode] = data[campusCode];
-    return result;
+    return data;
   }
 
   console.error(`Campus ${campusCode} not found in MatrUFSC data`);

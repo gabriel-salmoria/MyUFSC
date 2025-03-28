@@ -3,13 +3,13 @@
 import { useState, useEffect, useMemo } from "react"
 
 // main visual components
-import CurriculumVisualizer from "@/components/curriculum-visualizer"
-import ProgressVisualizer from "@/components/progress-visualizer"
+import CurriculumVisualizer from "@/components/visualizers/curriculum-visualizer"
+import ProgressVisualizer from "@/components/visualizers/progress-visualizer"
 import StudentCourseDetailsPanel from "@/components/details-panel"
-import GridVisualizer from "@/components/grid-visualizer"
-import DependencyTree from "@/components/dependency-tree"
-import Timetable from "@/components/timetable"
-import TrashDropZone from "@/components/trash-drop-zone"
+import GridVisualizer from "@/components/visualizers/grid-visualizer"
+import DependencyTree from "@/components/dependency-tree/dependency-tree"
+import Timetable from "@/components/class-schedule/timetable"
+import TrashDropZone from "@/components/visualizers/trash-drop-zone"
 
 
 // types
@@ -26,8 +26,8 @@ import { parseMatrufscData } from "@/lib/parsers/matrufsc-parser"
 
 
 // json data
-import csData from "@/data/cs-degree.json"
-import studentData from "@/data/student.json"
+import csData from "@/data/courses/cs-degree.json"
+import studentData from "@/data/users/student.json"
 
 import { useStudentStore } from "@/lib/student-store"
 
@@ -51,6 +51,7 @@ export default function Home() {
   const [matrufscData, setMatrufscData] = useState<any>(null)
   const [isLoadingMatrufscData, setIsLoadingMatrufscData] = useState(false)
   const [selectedCampus, setSelectedCampus] = useState<string>('FLO')
+  const [selectedSemester, setSelectedSemester] = useState<string>('20251')
   const studentStore = useStudentStore()
   const studentInfo = studentStore.studentInfo
   const setStudentInfo = studentStore.setStudentInfo
@@ -79,18 +80,21 @@ export default function Home() {
     const fetchCampusData = async () => {
       try {
         setIsLoadingMatrufscData(true)
-        console.log(`Fetching MatrUFSC data for ${selectedCampus} campus...`)
+        console.log(`Fetching MatrUFSC data for ${selectedCampus} campus (${selectedSemester})...`)
         
-        // Fetch only the FLO campus data
-        const response = await fetch(`/api/matrufsc?campus=${selectedCampus}`);
+        // Fetch campus-specific data with semester parameter
+        const response = await fetch(`/api/matrufsc?campus=${selectedCampus}&semester=${selectedSemester}`);
         
         if (!response.ok) {
-          throw new Error(`Error fetching campus data: ${response.statusText}`);
+          // If response is not ok, clear the current data to show empty state
+          setMatrufscData(null);
+          console.error(`Error fetching campus data: ${response.status} ${response.statusText}`);
+          return;
         }
         
         const data = await response.json();
         setMatrufscData(data);
-        console.log(`${selectedCampus} campus data loaded successfully`);
+        console.log(`${selectedCampus} campus data for semester ${selectedSemester} loaded successfully`);
         
         // Log the number of courses (for debugging)
         if (data && data[selectedCampus] && Array.isArray(data[selectedCampus])) {
@@ -98,13 +102,14 @@ export default function Home() {
         }
       } catch (error) {
         console.error(`Error fetching MatrUFSC data:`, error);
+        setMatrufscData(null); // Clear data on error
       } finally {
         setIsLoadingMatrufscData(false);
       }
     };
     
     fetchCampusData();
-  }, [selectedCampus]);
+  }, [selectedCampus, selectedSemester]);
 
   // Handler for showing dependency tree
   const handleViewDependencies = (course: Course) => {
@@ -244,8 +249,10 @@ export default function Home() {
             onCourseClick={setSelectedStudentCourse}
             onAddCourse={handleAddCourse}
             selectedCampus={selectedCampus}
+            selectedSemester={selectedSemester}
             isLoadingMatrufscData={isLoadingMatrufscData}
             onCampusChange={setSelectedCampus}
+            onSemesterChange={setSelectedSemester}
           />
         </div>
       </div>

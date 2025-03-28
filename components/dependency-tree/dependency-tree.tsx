@@ -5,9 +5,9 @@ import { createPortal } from "react-dom"
 import type { Course } from "@/types/curriculum"
 import { useDependencyGraph } from "@/hooks/useDependencyGraph"
 import { useDashboardRef } from "@/hooks/useDashboardRef"
-import ConnectionLines from "./dependency-tree/ConnectionLines"
-import CourseHighlighter from "./dependency-tree/CourseHighlighter"
-import InfoBanner from "./dependency-tree/InfoBanner"
+import ConnectionLines from "@/components/dependency-tree/ConnectionLines"
+import CourseHighlighter from "@/components/dependency-tree/CourseHighlighter"
+import InfoBanner from "@/components/dependency-tree/InfoBanner"
 
 interface DependencyTreeProps {
   course: Course

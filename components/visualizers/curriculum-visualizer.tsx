@@ -8,8 +8,8 @@ import type { Curriculum, Course } from "@/types/curriculum"
 import type { CurriculumVisualization } from "@/types/visualization"
 
 // componentes visuais da ui
-import PhaseHeader from "./phase-header"
-import CourseBox from "./course-box"
+import PhaseHeader from "@/components/visualizers/phase-header"
+import CourseBox from "@/components/visualizers/course-box"
 
 // config
 import { COURSE_BOX, PHASE } from "@/styles/visualization"

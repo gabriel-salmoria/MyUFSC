@@ -1,6 +1,6 @@
 use crate::{parse, scrape::Campus};
 
-use std::{collections::HashMap, fs::File};
+use std::{collections::HashMap, fs::File, path::Path};
 
 use anyhow::Result;
 use chrono::{FixedOffset, Utc, Weekday};
@@ -8,7 +8,7 @@ use serde::Serialize;
 use serde_tuple::Serialize_tuple;
 
 #[derive(Serialize)]
-struct MatrufscJson {
+struct SingleCampusMatrufscJson {
     #[serde(rename = "DATA")]
     timestamp: String,
     #[serde(flatten)]
@@ -105,18 +105,39 @@ fn group_classes_for_matrufsc(mut classes: Vec<parse::Class>) -> Vec<Course> {
 
 pub fn to_matrufsc_json(
     campus_classes_pairs: Vec<(Campus, Vec<parse::Class>)>,
-    output_file: &File,
+    semester: &str,
 ) -> Result<()> {
-    let data = campus_classes_pairs
-        .into_iter()
-        .map(|(campus, classes)| (campus, group_classes_for_matrufsc(classes)))
-        .collect();
-
-    Ok(serde_json::to_writer(
-        output_file,
-        &MatrufscJson {
-            timestamp: formatted_timestamp(),
+    // Create data directory if it doesn't exist
+    let data_dir = Path::new("matrufsc-scraper/data");
+    if !data_dir.exists() {
+        std::fs::create_dir_all(data_dir)?;
+    }
+    
+    let timestamp = formatted_timestamp();
+    
+    // For each campus, create a separate file
+    for (campus, classes) in campus_classes_pairs {
+        // Convert classes to matrufsc format
+        let courses = group_classes_for_matrufsc(classes);
+        
+        // Create a HashMap with just this campus
+        let mut data = HashMap::new();
+        data.insert(campus, courses);
+        
+        // Create the JSON structure
+        let json = SingleCampusMatrufscJson {
+            timestamp: timestamp.clone(),
             data,
-        },
-    )?)
+        };
+        
+        // Create the output file
+        let filename = format!("matrufsc-scraper/data/{}-{}.json", semester, campus);
+        log::info!("Writing {}", filename);
+        let output_file = File::create(filename)?;
+        
+        // Write the JSON to the file
+        serde_json::to_writer(output_file, &json)?;
+    }
+    
+    Ok(())
 }

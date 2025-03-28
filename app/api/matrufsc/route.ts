@@ -1,41 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { extractCampusData } from '@/lib/parsers/matrufsc-parser';
-
-// Load the entire data once at the server level
-// This way we only do a single import, not on every request
-let fullMatrufscData: any = null;
 
 /**
  * API Route to fetch MatrUFSC data for a specific campus
- * This prevents the client from having to download the entire dataset
+ * This loads directly from the campus-specific JSON file
  */
 export async function GET(request: NextRequest) {
   try {
-    // Get the campus parameter from the query string (default to FLO)
+    // Get query parameters (default to FLO campus and latest semester)
     const { searchParams } = new URL(request.url);
     const campus = searchParams.get('campus') || 'FLO';
+    const semester = searchParams.get('semester') || '20251';
     
-    // Load the data if not already loaded
-    if (!fullMatrufscData) {
-      try {
-        const { default: data } = await import('@/matrufsc-scraper/src/20251.json');
-        fullMatrufscData = data;
-        console.log('MatrUFSC data loaded on server');
-      } catch (error) {
-        console.error('Error loading MatrUFSC data:', error);
-        return NextResponse.json({ error: 'Failed to load data' }, { status: 500 });
+    try {
+      // Load the campus-specific file directly
+      // Files are now stored as {semester}-{campus}.json in the data/classes directory
+      const { default: campusData } = await import(`@/data/classes/${semester}-${campus}.json`);
+      
+      if (!campusData) {
+        return NextResponse.json({ error: `Campus '${campus}' data for semester ${semester} not found` }, { status: 404 });
       }
+      
+      console.log(`${campus} campus data for semester ${semester} loaded successfully`);
+      
+      // Return the campus data
+      return NextResponse.json(campusData);
+    } catch (error) {
+      console.error(`Error loading MatrUFSC data for campus ${campus} (${semester}):`, error);
+      return NextResponse.json({ 
+        error: `Failed to load data for campus ${campus} (${semester})` 
+      }, { status: 500 });
     }
-    
-    // Extract only the requested campus data
-    const campusData = extractCampusData(fullMatrufscData, campus);
-    
-    if (!campusData) {
-      return NextResponse.json({ error: `Campus '${campus}' not found` }, { status: 404 });
-    }
-    
-    // Return just the requested campus data
-    return NextResponse.json(campusData);
   } catch (error) {
     console.error('Error in MatrUFSC API route:', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
