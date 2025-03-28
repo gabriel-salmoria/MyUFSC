@@ -16,23 +16,9 @@ interface RawStudentData {
   id: string
   studentId: string
   name: string
-  currentPlan: string
-  currentSemester: string
-  CoursedSemesters: Array<{
-    [key: string]: {
-      courses: Array<{
-        [key: string]: string
-      }>
-    }
-  }>
-  plans: Array<{
-    id: string
-    semesters: {
-      [key: string]: {
-        courses: string[]
-      }
-    }
-  }>
+  currentSemester: number
+  coursed: Array<Array<[string, string, string]>> // [semesterIndex][courseIndex][courseCode, classCode, grade]
+  plan: Array<Array<[string, string, string]>> // [semesterIndex][courseIndex][courseCode, classCode, grade]
 }
 
 /**
@@ -92,95 +78,96 @@ export function parseStudentData(jsonData: RawStudentData): StudentInfo {
   const completedSemesters = new Map<number, StudentSemester>()
 
   // processa os semestres cursados primeiro
-  if (jsonData.CoursedSemesters) {
-    jsonData.CoursedSemesters.forEach(semesterData => {
-      Object.entries(semesterData).forEach(([semesterNumber, semester]) => {
-        const num = parseInt(semesterNumber)
-        const processedCourses: StudentCourse[] = []
+  if (jsonData.coursed) {
+    jsonData.coursed.forEach((semesterCourses, semesterIndex) => {
+      const semesterNumber = semesterIndex + 1; // Convert from 0-indexed to 1-indexed
+      const processedCourses: StudentCourse[] = []
 
-        // processa cada disciplina do semestre
-        semester.courses.forEach(courseData => {
-          Object.entries(courseData).forEach(([courseCode, grade]) => {
-            const courseInfo = getCourseInfo(courseCode)
-            if (!courseInfo) {
-              console.warn(`Course not found in curriculum: ${courseCode}`)
-              return
-            }
+      // processa cada disciplina do semestre
+      semesterCourses.forEach(courseData => {
+        const [courseCode, classCode, grade] = courseData;
+          
+        const courseInfo = getCourseInfo(courseCode)
+        if (!courseInfo) {
+          console.warn(`Course not found in curriculum: ${courseCode}`)
+          return
+        }
 
-            const studentCourse: StudentCourse = {
-              ...courseInfo,
-              course: courseInfo,
-              status: parseFloat(grade) >= 6 ? CourseStatus.COMPLETED : CourseStatus.FAILED,
-              grade: parseFloat(grade),
-            }
+        const gradeValue = grade ? parseFloat(grade) : 0;
+        const studentCourse: StudentCourse = {
+          ...courseInfo,
+          course: courseInfo,
+          status: gradeValue >= 6 ? CourseStatus.COMPLETED : CourseStatus.FAILED,
+          grade: gradeValue,
+          class: classCode || undefined,
+        }
 
-            processedCourses.push(studentCourse)
-            gradeMap.set(courseCode, parseFloat(grade))
-          })
-        })
+        processedCourses.push(studentCourse)
+        if (grade) {
+          gradeMap.set(courseCode, gradeValue)
+        }
+      })
 
-        // cria o semestre
-        completedSemesters.set(num, {
-          number: num,
-          courses: processedCourses,
-          totalCredits: processedCourses.reduce((sum, course) => sum + course.credits, 0),
-        })
+      // cria o semestre
+      completedSemesters.set(semesterNumber, {
+        number: semesterNumber,
+        courses: processedCourses,
+        totalCredits: processedCourses.reduce((sum, course) => sum + course.credits, 0),
       })
     })
   }
 
-  // processa todos os planos
-  const plans: StudentPlan[] = jsonData.plans.map(rawPlan => {
-    // Initialize all semesters upfront (from 1 to TOTAL_SEMESTERS)
-    const allSemesters: StudentSemester[] = []
+  // Create the student plan
+  const plan: StudentPlan = {
+    id: "1", // Default plan id
+    semesters: []
+  }
     
-    // Create all semester objects with empty arrays
-    for (let i = 1; i <= PHASE.TOTAL_SEMESTERS; i++) {
-      allSemesters.push({
-        number: i,
-        courses: [],
-        totalCredits: 0
-      })
-    }
+  // Initialize all semesters upfront (from 1 to TOTAL_SEMESTERS)
+  const allSemesters: StudentSemester[] = []
     
-    // Map for quick semester lookup
-    const semestersMap = new Map<number, StudentSemester>(
-      allSemesters.map(semester => [semester.number, semester])
-    )
-    
-    // First, add completed courses from past semesters
-    Array.from(completedSemesters.entries()).forEach(([semesterNumber, completedSemester]) => {
-      const existingSemester = semestersMap.get(semesterNumber)
-      if (existingSemester) {
-        // Replace the courses in the existing semester
-        existingSemester.courses = [...completedSemester.courses]
-        existingSemester.totalCredits = completedSemester.totalCredits
-      }
+  // Create all semester objects with empty arrays
+  for (let i = 1; i <= PHASE.TOTAL_SEMESTERS; i++) {
+    allSemesters.push({
+      number: i,
+      courses: [],
+      totalCredits: 0
     })
-
-    // Process current and future semesters (from the plan)
-    const currentSemesterNum = parseInt(jsonData.currentSemester)
+  }
     
-    // Get courses for current and future semesters from the plan
-    const semesterEntries = Object.entries(rawPlan.semesters)
-      .map(([key, value]) => ({
-        number: parseInt(key),
-        courses: value.courses,
-      }))
-      .filter(entry => entry.number >= currentSemesterNum)
+  // Map for quick semester lookup
+  const semestersMap = new Map<number, StudentSemester>(
+    allSemesters.map(semester => [semester.number, semester])
+  )
+    
+  // First, add completed courses from past semesters
+  Array.from(completedSemesters.entries()).forEach(([semesterNumber, completedSemester]) => {
+    const existingSemester = semestersMap.get(semesterNumber)
+    if (existingSemester) {
+      // Replace the courses in the existing semester
+      existingSemester.courses = [...completedSemester.courses]
+      existingSemester.totalCredits = completedSemester.totalCredits
+    }
+  })
 
-    // Process each semester from the plan
-    semesterEntries.forEach(entry => {
-      const { number, courses } = entry
-      const targetSemester = semestersMap.get(number)
+  // Process current and future semesters (from the plan)
+  const currentSemesterNum = jsonData.currentSemester
+    
+  // Process each semester from the plan
+  if (jsonData.plan) {
+    jsonData.plan.forEach((semesterCourses, planIndex) => {
+      const semesterNumber = currentSemesterNum + planIndex; // Current semester + offset
+      const targetSemester = semestersMap.get(semesterNumber)
       
       if (!targetSemester) {
-        console.warn(`Semester ${number} not found in the initialized semesters`)
+        console.warn(`Semester ${semesterNumber} not found in the initialized semesters`)
         return
       }
       
       // Process each course
-      courses.forEach(courseCode => {
+      semesterCourses.forEach(courseData => {
+        const [courseCode, classCode, grade] = courseData;
+        
         const courseInfo = getCourseInfo(courseCode)
         if (!courseInfo) {
           console.warn(`Course not found in curriculum: ${courseCode}`)
@@ -188,9 +175,9 @@ export function parseStudentData(jsonData: RawStudentData): StudentInfo {
         }
 
         let status: CourseStatus
-        const grade = gradeMap.get(courseCode)
+        const storedGrade = gradeMap.get(courseCode)
 
-        if (number === currentSemesterNum) {
+        if (semesterNumber === currentSemesterNum) {
           status = CourseStatus.IN_PROGRESS
         } else {
           status = CourseStatus.PLANNED
@@ -200,8 +187,8 @@ export function parseStudentData(jsonData: RawStudentData): StudentInfo {
           ...courseInfo,
           course: courseInfo,
           status,
-          grade: grade,
-          class: courseCode.includes("-") ? courseCode.split("-")[1] : undefined,
+          grade: storedGrade,
+          class: classCode || undefined,
         }
 
         // Add to the target semester
@@ -213,41 +200,18 @@ export function parseStudentData(jsonData: RawStudentData): StudentInfo {
         (sum, course) => sum + course.credits, 0
       )
     })
+  }
 
-    // Collect all courses by status for quick access
-    const inProgressCourses: StudentCourse[] = []
-    const plannedCourses: StudentCourse[] = []
-    
-    allSemesters.forEach(semester => {
-      semester.courses.forEach(course => {
-        if (course.status === CourseStatus.IN_PROGRESS) {
-          inProgressCourses.push(course)
-        } else if (course.status === CourseStatus.PLANNED) {
-          plannedCourses.push(course)
-        }
-      })
-    })
-
-    // Create the student plan
-    return {
-      id: rawPlan.id,
-      semesters: allSemesters,
-      inProgressCourses,
-      plannedCourses,
-    }
-  })
-
-  // encontra o plano atual baseado no id do plano atual
-  const currentPlan = plans.find(plan => plan.id === jsonData.currentPlan) || plans[0]
+  plan.semesters = allSemesters;
 
   // cria a info do aluno com todos os planos
   const studentInfo: StudentInfo = {
-    id: jsonData.id,
-    studentId: jsonData.studentId,
+    id: jsonData.id || "1",
+    studentId: jsonData.studentId || "1",
     name: jsonData.name,
-    currentPlan,
-    plans,
-    currentSemester: jsonData.currentSemester,
+    currentPlan: plan,
+    plans: [plan],
+    currentSemester: String(jsonData.currentSemester),
   }
 
   return studentInfo
@@ -256,10 +220,22 @@ export function parseStudentData(jsonData: RawStudentData): StudentInfo {
 // fetch pra pegar o json da info do aluno que eventualmente vai estar no servidor
 export function loadStudentFromJson(jsonPath: string): Promise<StudentInfo> {
   return fetch(jsonPath)
-    .then((response) => response.json())
-    .then((data) => parseStudentData(data))
-    .catch((error) => {
-      console.error("Error loading student data:", error)
-      throw error
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`Failed to load student data: ${response.status} ${response.statusText}`);
+      }
+      return response.json();
     })
+    .then((data) => {
+      try {
+        return parseStudentData(data);
+      } catch (parseError) {
+        console.error("Error parsing student data:", parseError);
+        throw parseError;
+      }
+    })
+    .catch((error) => {
+      console.error("Error loading student data:", error);
+      throw error;
+    });
 }

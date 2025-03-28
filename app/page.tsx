@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect } from "react"
 
 // main visual components
 import CurriculumVisualizer from "@/components/visualizers/curriculum-visualizer"
@@ -11,26 +11,27 @@ import DependencyTree from "@/components/dependency-tree/dependency-tree"
 import Timetable from "@/components/class-schedule/timetable"
 import TrashDropZone from "@/components/visualizers/trash-drop-zone"
 
-
 // types
 import type { Curriculum, Course } from "@/types/curriculum"
 import type { CurriculumVisualization } from "@/types/visualization"
-import type { StudentInfo, StudentCourse } from "@/types/student-plan"
-import { CourseStatus } from "@/types/student-plan"
+import type { StudentCourse, StudentInfo } from "@/types/student-plan"
 
-
-// parsers
-import { parseCurriculumData, getCourseInfo, courseMap } from "@/lib/curriculum-parser"
-import { parseStudentData } from "@/lib/student-parser"
-import { parseMatrufscData } from "@/lib/parsers/matrufsc-parser"
-
-
-// json data
-import csData from "@/data/courses/cs-degree.json"
-import studentData from "@/data/users/student.json"
-
+// store
 import { useStudentStore } from "@/lib/student-store"
 
+// API functions
+import { fetchCurriculum } from "@/api/course/curriculum"
+import { fetchStudentProfile } from "@/api/user/profile"
+import { fetchClassSchedule } from "@/api/class/schedule"
+
+// Parser and course map
+import { parseCurriculumData, courseMap } from "@/lib/curriculum-parser"
+
+// Constants
+const DEFAULT_PROGRAM_ID = 'cs-degree'
+const DEFAULT_STUDENT_ID = 'student'
+const DEFAULT_CAMPUS = 'FLO'
+const DEFAULT_SEMESTER = '20251'
 
 export default function Home() {
   enum ViewMode {
@@ -38,11 +39,11 @@ export default function Home() {
     ELECTIVES = "electives"
   }
 
+  // State
   const [curriculumData, setCurriculumData] = useState<{
     curriculum: Curriculum 
     visualization: CurriculumVisualization 
   } | null>(null)
-
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.CURRICULUM)
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
   const [selectedStudentCourse, setSelectedStudentCourse] = useState<StudentCourse | null>(null)
@@ -50,111 +51,130 @@ export default function Home() {
   const [dependencyCourse, setDependencyCourse] = useState<Course | null>(null)
   const [matrufscData, setMatrufscData] = useState<any>(null)
   const [isLoadingMatrufscData, setIsLoadingMatrufscData] = useState(false)
-  const [selectedCampus, setSelectedCampus] = useState<string>('FLO')
-  const [selectedSemester, setSelectedSemester] = useState<string>('20251')
+  const [selectedCampus, setSelectedCampus] = useState<string>(DEFAULT_CAMPUS)
+  const [selectedSemester, setSelectedSemester] = useState<string>(DEFAULT_SEMESTER)
+  const [isLoading, setIsLoading] = useState(true)
+  
+  // Student store
   const studentStore = useStudentStore()
   const studentInfo = studentStore.studentInfo
   const setStudentInfo = studentStore.setStudentInfo
-  const [isLoading, setIsLoading] = useState(true)
 
-
-  // parse data
+  // Fetch curriculum and student data
   useEffect(() => {
-    try {
-      // First load and parse curriculum data
-      const currData = parseCurriculumData(csData as any) // TODO: fck this linter
-      setCurriculumData(currData)
-
-      // Then parse student data
-      const student = parseStudentData(studentData as any) // TODO: fck this linter
-      setStudentInfo(student)
-    } catch (error) {
-      console.error("Error loading data:", error)
-    } finally {
-      setIsLoading(false)
+    const fetchData = async () => {
+      try {
+        // Get data from APIs
+        const rawCurriculum = await fetchCurriculum(DEFAULT_PROGRAM_ID)
+        const studentData = await fetchStudentProfile(DEFAULT_STUDENT_ID)
+        
+        if (!rawCurriculum || !studentData) {
+          console.error("Failed to fetch data")
+          return
+        }
+        
+        // We need to parse the curriculum to generate visualization and course map
+        // The API returns Curriculum but we need to adapt it to RawCurriculumData format
+        const currData = parseCurriculumData({
+          id: DEFAULT_PROGRAM_ID,
+          name: rawCurriculum.name,
+          department: rawCurriculum.department,
+          totalPhases: rawCurriculum.totalPhases,
+          courses: rawCurriculum.phases.flatMap(phase => 
+            phase.courses.map(course => ({
+              id: course.id,
+              name: course.name,
+              type: course.type || 'Ob', // Default to mandatory if not specified
+              credits: course.credits,
+              workload: course.workload || 0,
+              prerequisites: course.prerequisites || null,
+              equivalents: course.equivalents || null,
+              description: course.description || '',
+              phase: course.phase
+            }))
+          )
+        })
+        
+        // Store the processed data and student info
+        setCurriculumData(currData)
+        setStudentInfo(studentData)
+      } catch (error) {
+        console.error("Error loading data:", error)
+      } finally {
+        setIsLoading(false)
+      }
     }
-  }, [])
+    
+    fetchData()
+  }, [setStudentInfo])
 
-  // Fetch and load MatrUFSC data
+  // Fetch class schedule data
   useEffect(() => {
-    const fetchCampusData = async () => {
+    const fetchScheduleData = async () => {
       try {
         setIsLoadingMatrufscData(true)
-        console.log(`Fetching MatrUFSC data for ${selectedCampus} campus (${selectedSemester})...`)
+        console.log(`Fetching schedule data for ${selectedCampus} campus (${selectedSemester})...`)
         
-        // Fetch campus-specific data with semester parameter
-        const response = await fetch(`/api/matrufsc?campus=${selectedCampus}&semester=${selectedSemester}`);
+        // Get data from API
+        const scheduleData = await fetchClassSchedule(selectedSemester, selectedCampus)
         
-        if (!response.ok) {
-          // If response is not ok, clear the current data to show empty state
-          setMatrufscData(null);
-          console.error(`Error fetching campus data: ${response.status} ${response.statusText}`);
-          return;
+        if (!scheduleData) {
+          setMatrufscData(null)
+          console.error(`No schedule data found for ${selectedCampus} (${selectedSemester})`)
+          return
         }
         
-        const data = await response.json();
-        setMatrufscData(data);
-        console.log(`${selectedCampus} campus data for semester ${selectedSemester} loaded successfully`);
+        setMatrufscData(scheduleData)
+        console.log(`Schedule data loaded for ${selectedCampus} (${selectedSemester})`)
         
-        // Log the number of courses (for debugging)
-        if (data && data[selectedCampus] && Array.isArray(data[selectedCampus])) {
-          console.log(`${selectedCampus} campus has ${data[selectedCampus].length} courses`);
+        // Log number of courses for debugging
+        if (scheduleData[selectedCampus] && Array.isArray(scheduleData[selectedCampus])) {
+          console.log(`Found ${scheduleData[selectedCampus].length} courses`)
         }
       } catch (error) {
-        console.error(`Error fetching MatrUFSC data:`, error);
-        setMatrufscData(null); // Clear data on error
+        console.error("Error fetching schedule data:", error)
+        setMatrufscData(null)
       } finally {
-        setIsLoadingMatrufscData(false);
+        setIsLoadingMatrufscData(false)
       }
-    };
+    }
     
-    fetchCampusData();
-  }, [selectedCampus, selectedSemester]);
+    fetchScheduleData()
+  }, [selectedCampus, selectedSemester])
 
-  // Handler for showing dependency tree
+  // Dependency tree handlers
   const handleViewDependencies = (course: Course) => {
     setDependencyCourse(course)
     setShowDependencyTree(true)
-    // Close the details panel when viewing dependencies
     setSelectedCourse(null)
     setSelectedStudentCourse(null)
   }
-
-  // Handler for hiding dependency tree
+  
   const handleCloseDependencyTree = () => {
     setShowDependencyTree(false)
     setDependencyCourse(null)
   }
 
-  // Add course from MatrUFSC to student plan
+  // Course handling
   const handleAddCourse = (course: Course) => {
     if (!studentInfo?.currentPlan) return
     
-    console.log("Adding course to plan:", course)
-    
-    // Default to adding to the current semester (assuming first semester is current)
     const currentSemester = studentInfo.currentPlan.semesters[0]
     if (currentSemester) {
       studentStore.addCourseToSemester(course, currentSemester.number, -1)
-      
-      // Show feedback or notification
       console.log(`Added ${course.id} to semester ${currentSemester.number}`)
     }
   }
 
-  // calcula a altura da container
-  const containerHeight = useMemo(() => {
-    if (!curriculumData) return 400
+  // Calculate container height
+  const containerHeight = 400 // Using fixed height for simplicity
 
-    const maxCoursesPerPhase = Math.max(
-      ...curriculumData.curriculum.phases.map(phase => phase.courses.length)
-    )
-    
-    const calculatedHeight = 60 + (maxCoursesPerPhase * 60) + 20
-    
-    return calculatedHeight
-  }, [curriculumData])
+  // View toggle
+  const toggleView = () => {
+    setViewMode(viewMode === ViewMode.CURRICULUM ? ViewMode.ELECTIVES : ViewMode.CURRICULUM)
+  }
 
+  // Loading and error states
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -171,17 +191,12 @@ export default function Home() {
     )
   }
 
-  // Get all elective courses from the courseMap
+  // Get elective courses from the courseMap populated by parseCurriculumData
   const electiveCourses = Array.from(courseMap.values())
     .filter(course => course.type === "optional")
     .filter(course => !curriculumData.curriculum.phases.some(phase => 
       phase.courses.some(c => c.id === course.id)
-    ));
-
-  const toggleView = () => {
-    setViewMode(viewMode === ViewMode.CURRICULUM ? ViewMode.ELECTIVES : ViewMode.CURRICULUM);
-  };
-
+    ))
 
   return (
     <main className="flex min-h-screen flex-col">
@@ -278,7 +293,6 @@ export default function Home() {
         />
       )}
 
-      {/* Dependency Tree Visualization */}
       {dependencyCourse && (
         <DependencyTree
           course={dependencyCourse}
@@ -287,7 +301,6 @@ export default function Home() {
         />
       )}
       
-      {/* Trash Drop Zone - Only appears when dragging a course */}
       <TrashDropZone onRemoveCourse={studentStore.removeCourse} />
     </main>
   )
