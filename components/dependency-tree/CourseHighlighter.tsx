@@ -62,7 +62,6 @@ export default function CourseHighlighter({
           transform: scale(${HIGHLIGHT.MAIN_SCALE}) !important;
           filter: brightness(${HIGHLIGHT.MAIN_BRIGHTNESS}) contrast(${HIGHLIGHT.MAIN_CONTRAST}) !important;
           box-shadow: ${HIGHLIGHT.MAIN_SHADOW} !important;
-          background-color: white !important;
         }
         
         .course-highlight-prereq {
@@ -70,7 +69,6 @@ export default function CourseHighlighter({
           transform: scale(${HIGHLIGHT.PREREQ_SCALE}) !important;
           filter: brightness(${HIGHLIGHT.PREREQ_BRIGHTNESS}) !important;
           box-shadow: ${HIGHLIGHT.PREREQ_SHADOW} !important;
-          background-color: white !important;
         }
         
         .course-highlight-dimmed {

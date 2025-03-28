@@ -142,6 +142,48 @@ const config: Config = {
                     bg: '#ecfccb', // lime-100
                 },
             },
+            timetableColors: {
+              blue: {
+                DEFAULT: "210 100% 50%", // Deeper blue
+                dark: "210 100% 35%"
+              },
+              purple: {
+                DEFAULT: "270 70% 60%", // Rich purple
+                dark: "270 70% 45%"
+              },
+              green: {
+                DEFAULT: "160 70% 45%", // Refined green
+                dark: "160 70% 30%"
+              },
+              yellow: {
+                DEFAULT: "45 95% 50%", // Deeper yellow
+                dark: "45 95% 35%"
+              },
+              orange: {
+                DEFAULT: "30 95% 55%", // Rich orange
+                dark: "30 95% 40%"
+              },
+              teal: {
+                DEFAULT: "175 80% 40%", // Deep teal
+                dark: "175 80% 25%"
+              },
+              indigo: {
+                DEFAULT: "240 70% 55%", // Refined indigo
+                dark: "240 70% 40%"
+              },
+              pink: {
+                DEFAULT: "330 80% 60%", // Sophisticated pink
+                dark: "330 80% 45%"
+              },
+              sky: {
+                DEFAULT: "200 85% 50%", // Deep sky blue
+                dark: "200 85% 35%"
+              },
+              lime: {
+                DEFAULT: "90 70% 50%", // Refined lime
+                dark: "90 70% 35%"
+              }
+            },
   		},
   		borderRadius: {
   			lg: 'var(--radius)',
@@ -182,9 +224,32 @@ const config: Config = {
           "--foreground": "240 10% 3.9%",
           "--foreground-secondary": "240 5% 34%",
           "--border": "240 5.9% 90%",
-          "--border-secondary": "240 4.9% 83%",
+          "--border-secondary": "240, 5.9%, 70%",
+          "--input": "240 5.9% 90%",
+          "--ring": "142 76% 36%",
+          "--primary": "142 76% 36%",
+          "--primary-lighter": "142 76% 50%",
+          "--primary-foreground": "355.7 100% 97.3%",
+          "--secondary": "240 4.8% 95.9%",
+          "--secondary-foreground": "240 5.9% 10%",
+          "--muted": "240 4.8% 95.9%",
+          "--muted-foreground": "240 3.8% 46.1%",
           "--accent": "240 4.8% 95.9%",
           "--accent-foreground": "240 5.9% 10%",
+          "--destructive": "0 84.2% 60.2%",
+          "--destructive-foreground": "0 0% 98%",
+          "--card": "0 0% 100%",
+          "--card-foreground": "240 10% 3.9%",
+          "--popover": "0 0% 100%",
+          "--popover-foreground": "240 10% 3.9%",
+          
+          // Color opacity for backgrounds
+          "--color-opacity": "0.2",
+          
+          // Overlay and shadow variables
+          "--overlay-background": "210 40% 2% / 0.1",
+          "--main-shadow": "0 0 25px rgba(66, 135, 245, 0.5), 0 0 10px rgba(255, 255, 255, 0.8)",
+          "--prereq-shadow": "0 0 15px rgba(66, 135, 245, 0.4)",
           
           // Course status colors - Light mode
           "--status-completed-border": "142 76% 36%", // green-600
@@ -203,33 +268,64 @@ const config: Config = {
           "--status-empty-bg": "220 13% 91%", // gray-300
           "--status-empty-bg-alt": "0 0% 98%", // Very light gray for empty alternate
           
-          // Phase divider - Light mode
-          "--phase-divider": "220 13% 91%", // gray-300
-          
-          // Highlight effects - Light mode
-          "--highlight-main-shadow": "0 0 25px rgba(66, 135, 245, 0.5), 0 0 10px rgba(255, 255, 255, 0.8)",
-          "--highlight-prereq-shadow": "0 0 15px rgba(66, 135, 245, 0.4)",
-          
-          // Lighter variations for ghost box
-          "--primary-lighter": "217 91% 85%",
-          "--status-completed-lighter": "142 76% 85%",
-          
-          // Color opacity for backgrounds
-          "--color-opacity": "0.2",
+          // Timetable colors - Light mode
+          "--timetable-blue": "217 91% 60%", // Original blue-500
+          "--timetable-blue-dark": "214 95% 93%", // Original light blue
+          "--timetable-purple": "270 76% 65%", // Original purple-500
+          "--timetable-purple-dark": "270 76% 95%", // Original light purple
+          "--timetable-green": "142 76% 45%", // Original green-500
+          "--timetable-green-dark": "142 76% 90%", // Original light green
+          "--timetable-yellow": "48 96% 50%", // Original yellow-500
+          "--timetable-yellow-dark": "48 96% 89%", // Original light yellow
+          "--timetable-orange": "27 96% 60%", // Original orange-500
+          "--timetable-orange-dark": "27 96% 89%", // Original light orange
+          "--timetable-teal": "173 80% 40%", // Original teal-500
+          "--timetable-teal-dark": "173 80% 89%", // Original light teal
+          "--timetable-indigo": "239 84% 67%", // Original indigo-500
+          "--timetable-indigo-dark": "239 84% 94%", // Original light indigo
+          "--timetable-pink": "331 86% 60%", // Original pink-500
+          "--timetable-pink-dark": "331 86% 95%", // Original light pink
+          "--timetable-sky": "199 89% 48%", // Original sky-500
+          "--timetable-sky-dark": "199 89% 94%", // Original light sky
+          "--timetable-lime": "84 81% 44%", // Original lime-500
+          "--timetable-lime-dark": "84 81% 89%", // Original light lime
         },
         ".dark": {
           "--background": "240 10% 3.9%",
-          "--background-secondary": "240 10% 5.9%",
+          "--background-secondary": "240 10% 5%",
           "--foreground": "0 0% 98%",
-          "--foreground-secondary": "240 5% 64.9%",
+          "--foreground-secondary": "0 0% 83%",
           "--border": "240 3.7% 15.9%",
-          "--border-secondary": "240 5.9% 23.9%",
+          "--border-secondary": "240 3.7% 25%",
+          "--input": "240 3.7% 15.9%",
+          "--ring": "142 70% 45%",
+          "--primary": "142 70% 45%",
+          "--primary-lighter": "142 70% 60%",
+          "--primary-foreground": "144.9 80.4% 10%",
+          "--secondary": "240 3.7% 15.9%",
+          "--secondary-foreground": "0 0% 98%",
+          "--muted": "240 3.7% 15.9%",
+          "--muted-foreground": "240 5% 64.9%",
           "--accent": "240 3.7% 15.9%",
           "--accent-foreground": "0 0% 98%",
+          "--destructive": "0 62.8% 30.6%",
+          "--destructive-foreground": "0 0% 98%",
+          "--card": "240 10% 3.9%",
+          "--card-foreground": "0 0% 98%",
+          "--popover": "240 10% 3.9%",
+          "--popover-foreground": "0 0% 98%",
+          
+          // Color opacity for backgrounds in dark mode
+          "--color-opacity": "0.3",
+          
+          // Overlay and shadow variables
+          "--overlay-background": "0 0% 0% / 0.4",
+          "--main-shadow": "0 0 25px rgba(66, 135, 245, 0.7), 0 0 10px rgba(0, 0, 0, 0.6)",
+          "--prereq-shadow": "0 0 15px rgba(66, 135, 245, 0.6)",
           
           // Course status colors - Dark mode
-          "--status-completed-border": "142 76% 45%", // green-500
-          "--status-completed-bg": "142 75% 25%", // Solid dark green
+          "--status-completed-border": "142 70% 45%", // dark green-600 
+          "--status-completed-bg": "142 70% 20%", // Solid dark green
           "--status-in-progress-border": "217 91% 60%", // blue-500
           "--status-in-progress-bg": "217 90% 25%", // Solid dark blue
           "--status-failed-border": "0 84% 60%", // red-500
@@ -244,19 +340,27 @@ const config: Config = {
           "--status-empty-bg": "240 5% 15%", // Darker solid gray for empty
           "--status-empty-bg-alt": "0 0% 10%", // Very dark gray for empty alternate
           
-          // Phase divider - Dark mode
-          "--phase-divider": "240 3.7% 25%", // darker border
-          
-          // Highlight effects - Dark mode
-          "--highlight-main-shadow": "0 0 25px rgba(59, 130, 246, 0.5), 0 0 10px rgba(30, 41, 59, 0.8)",
-          "--highlight-prereq-shadow": "0 0 15px rgba(59, 130, 246, 0.4)",
-          
-          // Lighter variations for ghost box in dark mode
-          "--primary-lighter": "217 91% 35%",
-          "--status-completed-lighter": "142 76% 35%",
-          
-          // Color opacity for backgrounds in dark mode
-          "--color-opacity": "0.3",
+          // Timetable colors - Dark mode
+          "--timetable-blue": "210 100% 60%",
+          "--timetable-blue-dark": "210 100% 30%",
+          "--timetable-purple": "270 80% 70%",
+          "--timetable-purple-dark": "270 80% 35%",
+          "--timetable-green": "160 75% 55%",
+          "--timetable-green-dark": "160 75% 25%",
+          "--timetable-yellow": "45 95% 60%",
+          "--timetable-yellow-dark": "45 95% 30%",
+          "--timetable-orange": "30 95% 65%",
+          "--timetable-orange-dark": "30 95% 30%",
+          "--timetable-teal": "175 85% 50%",
+          "--timetable-teal-dark": "175 85% 20%",
+          "--timetable-indigo": "240 75% 65%",
+          "--timetable-indigo-dark": "240 75% 30%",
+          "--timetable-pink": "330 85% 70%",
+          "--timetable-pink-dark": "330 85% 35%",
+          "--timetable-sky": "200 90% 60%",
+          "--timetable-sky-dark": "200 90% 30%",
+          "--timetable-lime": "90 75% 60%",
+          "--timetable-lime-dark": "90 75% 30%",
         }
       })
     }),
@@ -414,73 +518,83 @@ const config: Config = {
         
         // Timetable color classes
         '.timetable-blue': {
-          borderColor: 'hsl(217 91% 60%)', // Fixed blue border
-          backgroundColor: 'hsl(214 95% 93%)', // Light mode bg - 100% opacity
-          '@media (prefers-color-scheme: dark)': {
-            backgroundColor: 'hsl(217 91% 25%)', // Dark mode bg - 100% opacity
+          borderColor: 'hsl(var(--timetable-blue) / 0.8)',
+          backgroundColor: 'hsl(var(--timetable-blue-dark))',
+          '&:hover': {
+            backgroundColor: 'hsl(var(--timetable-blue-dark))',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.12)'
           },
         },
         '.timetable-purple': {
-          borderColor: 'hsl(270 76% 65%)', // Fixed purple border
-          backgroundColor: 'hsl(270 76% 95%)', // Light mode bg - 100% opacity
-          '@media (prefers-color-scheme: dark)': {
-            backgroundColor: 'hsl(270 70% 30%)', // Dark mode bg - 100% opacity
+          borderColor: 'hsl(var(--timetable-purple) / 0.8)',
+          backgroundColor: 'hsl(var(--timetable-purple-dark))',
+          '&:hover': {
+            backgroundColor: 'hsl(var(--timetable-purple-dark))',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.12)'
           },
         },
         '.timetable-green': {
-          borderColor: 'hsl(142 76% 45%)', // Fixed green border
-          backgroundColor: 'hsl(142 76% 90%)', // Light mode bg - 100% opacity
-          '@media (prefers-color-scheme: dark)': {
-            backgroundColor: 'hsl(142 70% 25%)', // Dark mode bg - 100% opacity
+          borderColor: 'hsl(var(--timetable-green) / 0.8)',
+          backgroundColor: 'hsl(var(--timetable-green-dark))',
+          '&:hover': {
+            backgroundColor: 'hsl(var(--timetable-green-dark))',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.12)'
           },
         },
         '.timetable-yellow': {
-          borderColor: 'hsl(48 96% 50%)', // Fixed yellow border
-          backgroundColor: 'hsl(48 96% 89%)', // Light mode bg - 100% opacity
-          '@media (prefers-color-scheme: dark)': {
-            backgroundColor: 'hsl(48 70% 35%)', // Dark mode bg - 100% opacity
+          borderColor: 'hsl(var(--timetable-yellow) / 0.8)',
+          backgroundColor: 'hsl(var(--timetable-yellow-dark))',
+          '&:hover': {
+            backgroundColor: 'hsl(var(--timetable-yellow-dark))',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.12)'
           },
         },
         '.timetable-orange': {
-          borderColor: 'hsl(27 96% 60%)', // Fixed orange border
-          backgroundColor: 'hsl(27 96% 89%)', // Light mode bg - 100% opacity
-          '@media (prefers-color-scheme: dark)': {
-            backgroundColor: 'hsl(27 70% 35%)', // Dark mode bg - 100% opacity
+          borderColor: 'hsl(var(--timetable-orange) / 0.8)',
+          backgroundColor: 'hsl(var(--timetable-orange-dark))',
+          '&:hover': {
+            backgroundColor: 'hsl(var(--timetable-orange-dark))',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.12)'
           },
         },
         '.timetable-teal': {
-          borderColor: 'hsl(173 80% 40%)', // Fixed teal border
-          backgroundColor: 'hsl(173 80% 89%)', // Light mode bg - 100% opacity
-          '@media (prefers-color-scheme: dark)': {
-            backgroundColor: 'hsl(173 70% 30%)', // Dark mode bg - 100% opacity
+          borderColor: 'hsl(var(--timetable-teal) / 0.8)',
+          backgroundColor: 'hsl(var(--timetable-teal-dark))',
+          '&:hover': {
+            backgroundColor: 'hsl(var(--timetable-teal-dark))',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.12)'
           },
         },
         '.timetable-indigo': {
-          borderColor: 'hsl(239 84% 67%)', // Fixed indigo border
-          backgroundColor: 'hsl(239 84% 94%)', // Light mode bg - 100% opacity
-          '@media (prefers-color-scheme: dark)': {
-            backgroundColor: 'hsl(239 70% 35%)', // Dark mode bg - 100% opacity
+          borderColor: 'hsl(var(--timetable-indigo) / 0.8)',
+          backgroundColor: 'hsl(var(--timetable-indigo-dark))',
+          '&:hover': {
+            backgroundColor: 'hsl(var(--timetable-indigo-dark))',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.12)'
           },
         },
         '.timetable-pink': {
-          borderColor: 'hsl(331 86% 60%)', // Fixed pink border
-          backgroundColor: 'hsl(331 86% 95%)', // Light mode bg - 100% opacity
-          '@media (prefers-color-scheme: dark)': {
-            backgroundColor: 'hsl(331 70% 30%)', // Dark mode bg - 100% opacity
+          borderColor: 'hsl(var(--timetable-pink) / 0.8)',
+          backgroundColor: 'hsl(var(--timetable-pink-dark))',
+          '&:hover': {
+            backgroundColor: 'hsl(var(--timetable-pink-dark))',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.12)'
           },
         },
         '.timetable-sky': {
-          borderColor: 'hsl(199 89% 48%)', // Fixed sky border
-          backgroundColor: 'hsl(199 89% 94%)', // Light mode bg - 100% opacity
-          '@media (prefers-color-scheme: dark)': {
-            backgroundColor: 'hsl(199 70% 35%)', // Dark mode bg - 100% opacity
+          borderColor: 'hsl(var(--timetable-sky) / 0.8)',
+          backgroundColor: 'hsl(var(--timetable-sky-dark))',
+          '&:hover': {
+            backgroundColor: 'hsl(var(--timetable-sky-dark))',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.12)'
           },
         },
         '.timetable-lime': {
-          borderColor: 'hsl(84 81% 44%)', // Fixed lime border
-          backgroundColor: 'hsl(84 81% 89%)', // Light mode bg - 100% opacity
-          '@media (prefers-color-scheme: dark)': {
-            backgroundColor: 'hsl(84 70% 30%)', // Dark mode bg - 100% opacity
+          borderColor: 'hsl(var(--timetable-lime) / 0.8)',
+          backgroundColor: 'hsl(var(--timetable-lime-dark))',
+          '&:hover': {
+            backgroundColor: 'hsl(var(--timetable-lime-dark))',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.12)'
           },
         },
         
