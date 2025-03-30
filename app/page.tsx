@@ -149,7 +149,7 @@ export default function Home() {
   }
 
   // Calculate container height
-  const containerHeight = 420 // Using fixed height for simplicity
+  const containerHeight = 500 // Using fixed height for simplicity
 
   // View toggle
   const toggleView = () => {

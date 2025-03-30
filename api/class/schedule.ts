@@ -8,7 +8,7 @@ export async function fetchClassSchedule(semester: string, campus: string): Prom
   try {
     // Use dynamic import to load the JSON file
     try {
-      const scheduleData = await import(`@/data/classes/${semester}-${campus}.json`);
+      const scheduleData = await import(`@/data/courses/cs-classes-2025.json`);
       return scheduleData.default;
     } catch (importError) {
       console.error(`Class schedule for semester '${semester}' and campus '${campus}' not found`);

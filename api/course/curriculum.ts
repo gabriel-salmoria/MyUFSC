@@ -10,7 +10,7 @@ export async function fetchCurriculum(programId: string): Promise<Curriculum | n
   try {
     // Use dynamic import to load the JSON file
     try {
-      const curriculumData = await import(`@/data/courses/${programId}.json`);
+      const curriculumData = await import(`@/data/courses/cs-degree.json`);
       const rawData = curriculumData.default;
       
       if (!rawData) {
@@ -31,7 +31,7 @@ export async function fetchCurriculum(programId: string): Promise<Curriculum | n
       if (Array.isArray(rawData.courses)) {
         curriculum.courses = rawData.courses.map((rawCourse: any): Course => {
           // Map the type from "Ob" to "mandatory" or "optional"
-          const type = rawCourse.type === "Ob" ? "mandatory" : "optional";
+          const type = rawCourse.type === "mandatory" ? "mandatory" : "optional";
           
           const course: Course = {
             id: rawCourse.id,
