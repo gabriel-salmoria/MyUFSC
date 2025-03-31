@@ -60,8 +60,17 @@ export default function Home() {
   const [currentCurriculum, setCurrentCurriculum] = useState<Curriculum | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
   
-  // Student store
-  const studentStore = useStudentStore()
+  // Student store - keep both the destructured values and the full store
+  const studentStore = useStudentStore();
+  const { studentInfo: storeStudentInfo, lastUpdate } = studentStore;
+  
+  // Sync the student info from the store to local state
+  useEffect(() => {
+    if (storeStudentInfo) {
+      console.log(`[Home Page] Syncing student info from store, last update: ${new Date(lastUpdate).toISOString()}`);
+      setStudentInfo(storeStudentInfo);
+    }
+  }, [storeStudentInfo, lastUpdate]);
 
   // Update allDataLoaded when all loading states are false
   useEffect(() => {
@@ -141,6 +150,12 @@ export default function Home() {
               const visualizationData = generateVisualization(processedCurriculum)
               console.log(`[Home Page] Visualization generated with ${visualizationData.positions.length} course positions`)
               setVisualization(visualizationData)
+              
+              // For debugging, check if the courseMap is populated
+              console.log(`[Home Page] Course map has ${courseMap.size} entries after visualization`);
+              if (courseMap.size > 0) {
+                console.log(`[Home Page] Sample course from map:`, Array.from(courseMap.entries())[0]);
+              }
             } else {
               console.warn(`[Home Page] Curriculum has no courses, unable to generate visualization`)
             }
@@ -234,13 +249,23 @@ export default function Home() {
 
   // Course handling
   const handleAddCourse = (course: Course) => {
-    if (!studentInfo?.currentPlan) return
-    
-    const currentSemester = studentInfo.currentPlan.semesters[0]
-    if (currentSemester) {
-      studentStore.addCourseToSemester(course, currentSemester.number, -1)
-      console.log(`Added ${course.id} to semester ${currentSemester.number}`)
+    if (!studentInfo?.currentPlan) {
+      console.error("Cannot add course: student plan not found");
+      return;
     }
+    
+    console.log(`Adding course ${course.id} to plan`, course);
+    
+    // Default to semester 1 if no semesters exist (should never happen with our initialization)
+    const targetSemester = studentInfo.currentPlan.semesters.length > 0 
+      ? studentInfo.currentPlan.semesters[0]
+      : { number: 1 };
+      
+    console.log(`Target semester for course ${course.id}: ${targetSemester.number}`);
+    
+    // Add the course to the semester
+    studentStore.addCourseToSemester(course, targetSemester.number, -1);
+    console.log(`Added ${course.id} to semester ${targetSemester.number}`);
   }
 
   // Calculate container height
@@ -397,7 +422,15 @@ export default function Home() {
               <ProgressVisualizer
                 studentPlan={studentInfo.currentPlan!}
                 onCourseClick={setSelectedStudentCourse}
-                onCourseDropped={studentStore.addCourseToSemester}
+                onCourseDropped={(course, semesterNumber, positionIndex) => {
+                  console.log(`[Home Page] Dropping course ${course.id} to semester ${semesterNumber} at position ${positionIndex}`);
+                  studentStore.addCourseToSemester(course, semesterNumber, positionIndex);
+                  // Force a UI update after adding the course
+                  setTimeout(() => {
+                    studentStore.forceUpdate();
+                    console.log(`[Home Page] Forced update after adding course ${course.id}`);
+                  }, 100);
+                }}
                 height={containerHeight}
               />
             </div>

@@ -8,9 +8,11 @@ import type { Course } from '@/types/curriculum'
 interface StudentStore {
   // Data
   studentInfo: StudentInfo | null
+  lastUpdate: number
   
   // Actions
   setStudentInfo: (info: StudentInfo) => void
+  forceUpdate: () => void
   
   // Course operations
   addCourseToSemester: (course: Course, semesterNumber: number, positionIndex: number) => void
@@ -22,6 +24,10 @@ interface StudentStore {
 
 export const useStudentStore = create<StudentStore>((set: any) => ({
   studentInfo: null,
+  lastUpdate: Date.now(),
+  
+  // Force update function to trigger re-renders
+  forceUpdate: () => set({ lastUpdate: Date.now() }),
   
   // Set the entire student info (used for initialization)
   setStudentInfo: (info: StudentInfo) => {
@@ -85,51 +91,58 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
   // Add a course to a semester
   addCourseToSemester: (course: Course, semesterNumber: number, positionIndex: number) => set(
     produce((state: StudentStore) => {
-      if (!state.studentInfo || !state.studentInfo.currentPlan) return
+      if (!state.studentInfo || !state.studentInfo.currentPlan) {
+        console.error("[Student Store] Cannot add course: No student plan found");
+        return;
+      }
       
-      const plan = state.studentInfo.currentPlan
+      console.log(`[Student Store] Adding course ${course.id} to semester ${semesterNumber} at position ${positionIndex}`);
+      
+      const plan = state.studentInfo.currentPlan;
       
       // Check if course already exists in any semester
-      let existingInSemester = false
-      let sourcePosition = { semesterIndex: -1, courseIndex: -1 }
+      let existingInSemester = false;
+      let sourcePosition = { semesterIndex: -1, courseIndex: -1 };
       
       // Find the course in any semester
       for (let i = 0; i < plan.semesters.length; i++) {
-        const semester = plan.semesters[i]
-        const courseIndex = semester.courses.findIndex(c => c.course.id === course.id)
+        const semester = plan.semesters[i];
+        const courseIndex = semester.courses.findIndex(c => c.course.id === course.id);
         
         if (courseIndex >= 0) {
-          existingInSemester = true
-          sourcePosition = { semesterIndex: i, courseIndex: courseIndex }
-          break
+          existingInSemester = true;
+          sourcePosition = { semesterIndex: i, courseIndex: courseIndex };
+          console.log(`[Student Store] Course ${course.id} already exists in semester ${semester.number} at position ${courseIndex}`);
+          break;
         }
       }
       
       // Find the target semester
-      const targetSemester = plan.semesters.find(s => s.number === semesterNumber)
+      const targetSemester = plan.semesters.find(s => s.number === semesterNumber);
       if (!targetSemester) {
-        console.error(`Target semester ${semesterNumber} not found`)
-        return
+        console.error(`[Student Store] Target semester ${semesterNumber} not found`);
+        return;
       }
       
       if (existingInSemester) {
         // If course exists, simply move it
-        const sourceSemester = plan.semesters[sourcePosition.semesterIndex]
-        const courseToMove = sourceSemester.courses[sourcePosition.courseIndex]
+        const sourceSemester = plan.semesters[sourcePosition.semesterIndex];
+        const courseToMove = sourceSemester.courses[sourcePosition.courseIndex];
         
         // Remove from source semester
-        sourceSemester.courses.splice(sourcePosition.courseIndex, 1)
-        sourceSemester.totalCredits -= courseToMove.credits || 0
+        sourceSemester.courses.splice(sourcePosition.courseIndex, 1);
+        sourceSemester.totalCredits -= courseToMove.credits || 0;
         
         // Add to target semester
         if (positionIndex >= 0 && positionIndex <= targetSemester.courses.length) {
-          targetSemester.courses.splice(positionIndex, 0, courseToMove)
+          targetSemester.courses.splice(positionIndex, 0, courseToMove);
         } else {
-          targetSemester.courses.push(courseToMove)
+          targetSemester.courses.push(courseToMove);
         }
         
         // Update target semester credits
-        targetSemester.totalCredits += courseToMove.credits || 0
+        targetSemester.totalCredits += courseToMove.credits || 0;
+        console.log(`[Student Store] Moved course ${course.id} from semester ${sourceSemester.number} to ${targetSemester.number}`);
       } else {
         // If course doesn't exist, create a new instance
         const newStudentCourse: StudentCourse = {
@@ -143,18 +156,24 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
           prerequisites: course.prerequisites,
           equivalents: course.equivalents,
           type: course.type,
-        }
+        };
         
         // Add to target semester
         if (positionIndex >= 0 && positionIndex <= targetSemester.courses.length) {
-          targetSemester.courses.splice(positionIndex, 0, newStudentCourse)
+          targetSemester.courses.splice(positionIndex, 0, newStudentCourse);
         } else {
-          targetSemester.courses.push(newStudentCourse)
+          targetSemester.courses.push(newStudentCourse);
         }
         
         // Update semester credits
-        targetSemester.totalCredits += course.credits || 0
+        targetSemester.totalCredits += course.credits || 0;
+        console.log(`[Student Store] Added new course ${course.id} to semester ${targetSemester.number}`);
       }
+      
+      // Force a timestamp update to trigger rerenders
+      state.lastUpdate = Date.now();
+      
+      console.log(`[Student Store] Semester ${targetSemester.number} now has ${targetSemester.courses.length} courses`);
     })
   ),
   

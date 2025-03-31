@@ -38,11 +38,23 @@ export function calculateStudentPositions(
   const positions: CoursePosition[] = []
   const studentCourseMap = new Map<string, StudentCourse>()
   
+  console.log(`[Student Parser] Calculating positions for ${studentPlan.semesters.length} semesters`);
+  
   // First, add all actual courses
   studentPlan.semesters.forEach((semester, semesterIndex) => {
     const xOffset = (phaseWidth - boxWidth) / 2
     
+    console.log(`[Student Parser] Semester ${semester.number} has ${semester.courses.length} courses`);
+    
     semester.courses.forEach((course, courseIndex) => {
+      if (!course || !course.course) {
+        console.error(`[Student Parser] Invalid course at semester ${semester.number}, index ${courseIndex}`);
+        return;
+      }
+      
+      // For debugging
+      console.log(`[Student Parser] Adding course ${course.id} (${course.name}) at semester ${semester.number}, position ${courseIndex}`);
+      
       // Add the actual course
       positions.push({
         courseId: course.course.id,
@@ -68,6 +80,8 @@ export function calculateStudentPositions(
       })
     }
   })
+  
+  console.log(`[Student Parser] Generated ${positions.length} positions (${studentCourseMap.size} courses and ${positions.length - studentCourseMap.size} ghost boxes)`);
   
   return { positions, courseMap: studentCourseMap }
 }
