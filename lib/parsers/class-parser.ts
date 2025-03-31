@@ -102,7 +102,6 @@ function generateReadableSchedule(times: ClassSchedule[]): string {
 export function parseMatrufscData(data: any): ScheduleData {
   // Basic validation of input data
   if (!data || typeof data !== 'object') {
-    console.warn('[Class Parser] Invalid data format: data is not an object');
     return { professors: {} };
   }
 
@@ -110,8 +109,6 @@ export function parseMatrufscData(data: any): ScheduleData {
     professors: {}
   };
   
-  // Log the data structure for debugging
-  console.log('[Class Parser] Data keys:', Object.keys(data));
   
   // Handle nested structure where degree code is the top level key
   // The structure is: {degreeCode: {DATA: string, FLO: array}}
@@ -120,21 +117,17 @@ export function parseMatrufscData(data: any): ScheduleData {
     
     // Skip if not an object
     if (!degreeData || typeof degreeData !== 'object') {
-      console.warn(`[Class Parser] Invalid degree data for "${degreeCode}"`);
       continue;
     }
     
-    console.log(`[Class Parser] Processing degree: ${degreeCode} with keys: ${Object.keys(degreeData)}`);
     
     // Process the FLO data which is the array of courses
     const campusData = degreeData.FLO;
     
     if (!Array.isArray(campusData)) {
-      console.warn(`[Class Parser] Campus data for degree "${degreeCode}" is not an array`);
       continue;
     }
     
-    console.log(`[Class Parser] Processing campus data with ${campusData.length} courses`);
     
     // Each course entry should be an array
     campusData.forEach(course => {
@@ -193,9 +186,6 @@ export function parseMatrufscData(data: any): ScheduleData {
       }
     });
   }
-  
-  // Log the result structure for debugging
-  console.log(`[Class Parser] Generated data for ${Object.keys(result).length - 1} courses`);
   
   return result;
 }

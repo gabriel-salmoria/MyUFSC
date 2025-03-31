@@ -10,7 +10,6 @@ export async function GET() {
 
     return NextResponse.json(data)
   } catch (error) {
-    console.error("Error loading degree programs:", error)
     return NextResponse.json(
       { error: "Failed to load degree programs" },
       { status: 500 }

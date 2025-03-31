@@ -67,7 +67,6 @@ export default function Home() {
   // Sync the student info from the store to local state
   useEffect(() => {
     if (storeStudentInfo) {
-      console.log(`[Home Page] Syncing student info from store, last update: ${new Date(lastUpdate).toISOString()}`);
       setStudentInfo(storeStudentInfo);
     }
   }, [storeStudentInfo, lastUpdate]);
@@ -75,7 +74,6 @@ export default function Home() {
   // Update allDataLoaded when all loading states are false
   useEffect(() => {
     if (!profileLoading && !curriculumLoading && !scheduleLoading) {
-      console.log("[Home Page] All data loaded, updating UI")
       setAllDataLoaded(true)
       setLoading(false)
     }
@@ -87,7 +85,6 @@ export default function Home() {
     
     const checkAuth = async () => {
       try {
-        console.log("[Home Page] Checking authentication status...")
         const response = await fetch("/api/user/auth/check")
         const data = await response.json()
         
@@ -95,40 +92,30 @@ export default function Home() {
         setAuthChecked(true)
         
         if (!data.authenticated || !data.userId) {
-          console.log("[Home Page] Not authenticated, redirecting to login")
           router.push("/login")
           return
         }
         
-        console.log(`[Home Page] User authenticated with userId: ${data.userId}`)
-
         // Load student profile with the actual user ID
-        console.log(`[Home Page] Fetching student profile for userId: ${data.userId}`)
         const profile = await fetchStudentProfile(data.userId)
         if (!profile) {
-          console.error("[Home Page] Failed to load student profile")
           throw new Error("Failed to load student profile")
         }
-        console.log(`[Home Page] Student profile loaded:`, profile)
+        
         setStudentInfo(profile)
         studentStore.setStudentInfo(profile)
         setProfileLoading(false)
 
         // Load degree programs
-        console.log("[Home Page] Fetching degree programs")
         const programsResponse = await fetch("/api/degree-programs")
         const programsData = await programsResponse.json()
-        console.log(`[Home Page] Degree programs loaded:`, programsData.programs)
         setDegreePrograms(programsData.programs)
 
         // Load curriculum for current degree
         if (profile.currentDegree) {
-          console.log(`[Home Page] Fetching curriculum for degree: ${profile.currentDegree}`)
           const curriculumData = await fetchCurriculum(profile.currentDegree)
           
           if (curriculumData) {
-            console.log(`[Home Page] Curriculum loaded successfully`)
-            
             // Ensure the curriculum data is properly structured
             const processedCurriculum: Curriculum = {
               ...curriculumData,
@@ -138,39 +125,24 @@ export default function Home() {
                 : [] 
             };
             
-            console.log(`[Home Page] Processed curriculum has ${processedCurriculum.courses.length} courses`);
-            
             // Set the curriculum state
             setCurrentCurriculum(processedCurriculum)
             setCurriculum(processedCurriculum)
             
             if (processedCurriculum.courses.length > 0) {
               // Generate visualization
-              console.log(`[Home Page] Generating visualization from curriculum`)
               const visualizationData = generateVisualization(processedCurriculum)
-              console.log(`[Home Page] Visualization generated with ${visualizationData.positions.length} course positions`)
               setVisualization(visualizationData)
-              
-              // For debugging, check if the courseMap is populated
-              console.log(`[Home Page] Course map has ${courseMap.size} entries after visualization`);
-              if (courseMap.size > 0) {
-                console.log(`[Home Page] Sample course from map:`, Array.from(courseMap.entries())[0]);
-              }
-            } else {
-              console.warn(`[Home Page] Curriculum has no courses, unable to generate visualization`)
             }
             
             setCurriculumLoading(false)
           } else {
-            console.error(`[Home Page] Failed to load curriculum for degree: ${profile.currentDegree}`)
             setCurriculumLoading(false)
           }
         } else {
-          console.error("[Home Page] Profile has no currentDegree property")
           setCurriculumLoading(false)
         }
       } catch (err) {
-        console.error("[Home Page] Auth check failed:", err)
         router.push("/login")
       }
     }
@@ -197,7 +169,6 @@ export default function Home() {
         }
         
         setIsLoadingMatrufscData(true)
-        console.log('Fetching schedule data for student degrees...')
         
         // Get data from API
         const scheduleData = await fetchClassSchedule()
@@ -210,19 +181,10 @@ export default function Home() {
         }
         
         setMatrufscData(scheduleData)
-        console.log('Schedule data loaded for student degrees')
-        
-        // Log number of courses for debugging
-        Object.entries(scheduleData).forEach(([degree, courses]) => {
-          if (Array.isArray(courses)) {
-            console.log(`Found ${courses.length} courses for degree ${degree}`)
-          }
-        })
         
         // Only set scheduleLoading to false after data is loaded
         setScheduleLoading(false)
       } catch (error) {
-        console.error("Error fetching schedule data:", error)
         setMatrufscData(null)
         setError('An error occurred while loading class schedules.')
         setScheduleLoading(false)
@@ -250,22 +212,16 @@ export default function Home() {
   // Course handling
   const handleAddCourse = (course: Course) => {
     if (!studentInfo?.currentPlan) {
-      console.error("Cannot add course: student plan not found");
       return;
     }
-    
-    console.log(`Adding course ${course.id} to plan`, course);
     
     // Default to semester 1 if no semesters exist (should never happen with our initialization)
     const targetSemester = studentInfo.currentPlan.semesters.length > 0 
       ? studentInfo.currentPlan.semesters[0]
       : { number: 1 };
       
-    console.log(`Target semester for course ${course.id}: ${targetSemester.number}`);
-    
     // Add the course to the semester
     studentStore.addCourseToSemester(course, targetSemester.number, -1);
-    console.log(`Added ${course.id} to semester ${targetSemester.number}`);
   }
 
   // Calculate container height
@@ -281,7 +237,7 @@ export default function Home() {
       await fetch("/api/user/auth/logout", { method: "POST" })
       router.push("/login")
     } catch (err) {
-      console.error("Logout failed:", err)
+      router.push("/login")
     }
   }
 
@@ -423,12 +379,10 @@ export default function Home() {
                 studentPlan={studentInfo.currentPlan!}
                 onCourseClick={setSelectedStudentCourse}
                 onCourseDropped={(course, semesterNumber, positionIndex) => {
-                  console.log(`[Home Page] Dropping course ${course.id} to semester ${semesterNumber} at position ${positionIndex}`);
                   studentStore.addCourseToSemester(course, semesterNumber, positionIndex);
                   // Force a UI update after adding the course
                   setTimeout(() => {
                     studentStore.forceUpdate();
-                    console.log(`[Home Page] Forced update after adding course ${course.id}`);
                   }, 100);
                 }}
                 height={containerHeight}

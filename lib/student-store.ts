@@ -31,11 +31,8 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
   
   // Set the entire student info (used for initialization)
   setStudentInfo: (info: StudentInfo) => {
-    console.log("[Student Store] Initializing student info:", info)
-    
     // Make sure we have a valid plan with semesters
     if (!info.currentPlan || !info.currentPlan.semesters) {
-      console.error("[Student Store] Invalid student plan data:", info)
       return set({ studentInfo: info })
     }
 
@@ -84,7 +81,6 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
       }
     }
     
-    console.log("[Student Store] Initialized student data:", updatedInfo)
     set({ studentInfo: updatedInfo })
   },
   
@@ -92,11 +88,8 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
   addCourseToSemester: (course: Course, semesterNumber: number, positionIndex: number) => set(
     produce((state: StudentStore) => {
       if (!state.studentInfo || !state.studentInfo.currentPlan) {
-        console.error("[Student Store] Cannot add course: No student plan found");
         return;
       }
-      
-      console.log(`[Student Store] Adding course ${course.id} to semester ${semesterNumber} at position ${positionIndex}`);
       
       const plan = state.studentInfo.currentPlan;
       
@@ -112,7 +105,6 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
         if (courseIndex >= 0) {
           existingInSemester = true;
           sourcePosition = { semesterIndex: i, courseIndex: courseIndex };
-          console.log(`[Student Store] Course ${course.id} already exists in semester ${semester.number} at position ${courseIndex}`);
           break;
         }
       }
@@ -120,7 +112,6 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
       // Find the target semester
       const targetSemester = plan.semesters.find(s => s.number === semesterNumber);
       if (!targetSemester) {
-        console.error(`[Student Store] Target semester ${semesterNumber} not found`);
         return;
       }
       
@@ -142,7 +133,6 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
         
         // Update target semester credits
         targetSemester.totalCredits += courseToMove.credits || 0;
-        console.log(`[Student Store] Moved course ${course.id} from semester ${sourceSemester.number} to ${targetSemester.number}`);
       } else {
         // If course doesn't exist, create a new instance
         const newStudentCourse: StudentCourse = {
@@ -167,13 +157,10 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
         
         // Update semester credits
         targetSemester.totalCredits += course.credits || 0;
-        console.log(`[Student Store] Added new course ${course.id} to semester ${targetSemester.number}`);
       }
       
       // Force a timestamp update to trigger rerenders
       state.lastUpdate = Date.now();
-      
-      console.log(`[Student Store] Semester ${targetSemester.number} now has ${targetSemester.courses.length} courses`);
     })
   ),
   

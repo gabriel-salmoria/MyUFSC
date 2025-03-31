@@ -38,22 +38,14 @@ export function calculateStudentPositions(
   const positions: CoursePosition[] = []
   const studentCourseMap = new Map<string, StudentCourse>()
   
-  console.log(`[Student Parser] Calculating positions for ${studentPlan.semesters.length} semesters`);
-  
   // First, add all actual courses
   studentPlan.semesters.forEach((semester, semesterIndex) => {
     const xOffset = (phaseWidth - boxWidth) / 2
     
-    console.log(`[Student Parser] Semester ${semester.number} has ${semester.courses.length} courses`);
-    
     semester.courses.forEach((course, courseIndex) => {
       if (!course || !course.course) {
-        console.error(`[Student Parser] Invalid course at semester ${semester.number}, index ${courseIndex}`);
         return;
       }
-      
-      // For debugging
-      console.log(`[Student Parser] Adding course ${course.id} (${course.name}) at semester ${semester.number}, position ${courseIndex}`);
       
       // Add the actual course
       positions.push({
@@ -81,8 +73,6 @@ export function calculateStudentPositions(
     }
   })
   
-  console.log(`[Student Parser] Generated ${positions.length} positions (${studentCourseMap.size} courses and ${positions.length - studentCourseMap.size} ghost boxes)`);
-  
   return { positions, courseMap: studentCourseMap }
 }
 
@@ -99,7 +89,6 @@ export function parseStudentData(jsonData: RawStudentData): StudentInfo {
       semesterCourses.forEach(([courseCode, classCode, grade]) => {
         const courseInfo = getCourseInfo(courseCode)
         if (!courseInfo) {
-          console.warn(`Course not found in curriculum: ${courseCode}`)
           return
         }
         
@@ -152,7 +141,6 @@ export function parseStudentData(jsonData: RawStudentData): StudentInfo {
       semesterCourses.forEach(([courseCode, classCode]) => {
         const courseInfo = getCourseInfo(courseCode)
         if (!courseInfo) {
-          console.warn(`Course not found in curriculum: ${courseCode}`)
           return
         }
         
@@ -209,12 +197,10 @@ export function loadStudentFromJson(jsonPath: string): Promise<StudentInfo> {
       try {
         return parseStudentData(data);
       } catch (parseError) {
-        console.error("Error parsing student data:", parseError);
         throw parseError;
       }
     })
     .catch((error) => {
-      console.error("Error loading student data:", error);
       throw error;
     });
 }

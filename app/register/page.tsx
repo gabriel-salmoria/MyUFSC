@@ -26,7 +26,7 @@ export default function RegisterPage() {
         const data = await response.json()
         setDegreePrograms(data.programs)
       } catch (err) {
-        console.error("Failed to load degree programs:", err)
+        setDegreePrograms([])
       }
     }
 

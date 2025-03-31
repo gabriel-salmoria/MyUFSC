@@ -85,16 +85,6 @@ export default function ProgressVisualizer({
 
   // Use the calculateStudentPositions function
   const { positions, courseMap: studentCourseMap } = useMemo(() => {
-    console.log(`[Progress Visualizer] Calculating positions for student plan with ${studentPlan.semesters.length} semesters`);
-    
-    // Log each semester for debugging
-    studentPlan.semesters.forEach((semester, index) => {
-      console.log(`[Progress Visualizer] Semester ${semester.number} has ${semester.courses.length} courses`);
-      if (semester.courses.length > 0) {
-        console.log(`[Progress Visualizer] First course in semester ${semester.number}: ${semester.courses[0].id}`);
-      }
-    });
-    
     return calculateStudentPositions(studentPlan, phaseWidth);
   }, [studentPlan, phaseWidth])
 
@@ -177,13 +167,10 @@ export default function ProgressVisualizer({
                     
                     try {
                       const data = JSON.parse(e.dataTransfer.getData('application/json'))
-                      console.log(`[Progress Visualizer] Drop data:`, data);
                       
                       if (data.courseId && onCourseDropped) {
                         const course = courseMap.get(data.courseId)
                         if (course) {
-                          console.log(`[Progress Visualizer] Found course in courseMap: ${course.id}`);
-                          
                           // Show success animation
                           const dropTarget = e.currentTarget
                           dropTarget.classList.add(CSS_CLASSES.GHOST_BOX_DROP_SUCCESS)
@@ -192,16 +179,11 @@ export default function ProgressVisualizer({
                           }, 500)
                           
                           // Call onCourseDropped with the target position
-                          console.log(`[Progress Visualizer] Adding course ${course.id} to semester ${semesterIndex} at position ${positionIndex}`);
                           onCourseDropped(course, semesterIndex, positionIndex)
-                        } else {
-                          console.error(`[Progress Visualizer] Course ${data.courseId} not found in courseMap`);
-                          console.log(`[Progress Visualizer] Available courses in courseMap:`, 
-                            Array.from(courseMap.keys()).slice(0, 5)); // Show first 5 keys for debugging
                         }
                       }
                     } catch (error) {
-                      console.error('[Progress Visualizer] Error parsing drop data:', error)
+                      // Silent error handling
                     }
                   }}
                   data-semester={semesterIndex}

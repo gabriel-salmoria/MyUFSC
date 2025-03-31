@@ -16,17 +16,13 @@ export async function GET(request: Request) {
       )
     }
 
-    console.log(`[Schedule API] Attempting to load user profile for userId: ${userId}`);
     const userPath = path.join(process.cwd(), "data", "users", `${userId}.json`);
-    console.log(`[Schedule API] Full user file path: ${userPath}`);
 
     // Get student profile to get their degrees
     let studentProfile;
     try {
       studentProfile = await import(`@/data/users/${userId}.json`)
-      console.log(`[Schedule API] Successfully loaded profile for userId: ${userId}`);
     } catch (error: any) {
-      console.error(`[Schedule API] Error loading user profile: ${error?.message || error}`);
       return NextResponse.json(
         { error: "User profile not found" },
         { status: 404 }
@@ -43,12 +39,10 @@ export async function GET(request: Request) {
     }
 
     // We only need to load data for the current degree
-    console.log(`[Schedule API] Loading schedule for current degree: ${currentDegree}`);
 
     // Just load the schedule for the current degree
     try {
       const schedulePath = path.join(process.cwd(), "data", "courses", `${currentDegree}-20251.json`);
-      console.log(`[Schedule API] Attempting to load schedule file: ${schedulePath}`);
       
       if (!fs.existsSync(schedulePath)) {
         throw new Error(`Schedule file does not exist at ${schedulePath}`);
@@ -58,9 +52,6 @@ export async function GET(request: Request) {
       const scheduleData = fs.readFileSync(schedulePath, 'utf8');
       const schedule = JSON.parse(scheduleData);
       
-      console.log(`[Schedule API] Successfully loaded schedule for degree: ${currentDegree}`);
-      console.log(`[Schedule API] Schedule keys: ${Object.keys(schedule).join(', ')}`);
-      
       // Structure the response properly with the degree code as the key
       const response = {
         [currentDegree]: schedule
@@ -68,14 +59,12 @@ export async function GET(request: Request) {
       
       return NextResponse.json(response);
     } catch (error: any) {
-      console.error(`[Schedule API] Error loading schedule: ${error?.message || error}`);
       return NextResponse.json(
         { error: `No schedule found for degree ${currentDegree}` },
         { status: 404 }
       )
     }
   } catch (error) {
-    console.error('[Schedule API] Error fetching class schedule:', error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -86,16 +75,12 @@ export async function GET(request: Request) {
 // Client-side function to fetch class schedule
 export async function fetchClassSchedule(): Promise<any | null> {
   try {
-    console.log('[Schedule Client] Fetching class schedule data');
     const response = await fetch('/api/class/schedule')
     if (!response.ok) {
-      console.error('[Schedule Client] Failed to fetch class schedule')
       return null
     }
-    console.log('[Schedule Client] Successfully fetched class schedule data');
     return response.json()
   } catch (error) {
-    console.error('[Schedule Client] Error fetching class schedule:', error)
     return null
   }
 } 
