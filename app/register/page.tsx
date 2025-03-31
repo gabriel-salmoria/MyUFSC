@@ -1,11 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { DegreeProgram } from "@/types/degree-program"
 
 export default function RegisterPage() {
   const router = useRouter()
+  const [degreePrograms, setDegreePrograms] = useState<DegreeProgram[]>([])
   const [formData, setFormData] = useState({
     username: "",
     password: "",
@@ -16,6 +18,20 @@ export default function RegisterPage() {
     interestedDegrees: [""],
   })
   const [error, setError] = useState("")
+
+  useEffect(() => {
+    const loadDegreePrograms = async () => {
+      try {
+        const response = await fetch("/api/degree-programs")
+        const data = await response.json()
+        setDegreePrograms(data.programs)
+      } catch (err) {
+        console.error("Failed to load degree programs:", err)
+      }
+    }
+
+    loadDegreePrograms()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -120,14 +136,20 @@ export default function RegisterPage() {
             <label htmlFor="currentDegree" className="block text-sm font-medium text-foreground">
               Current Degree Program
             </label>
-            <input
-              type="text"
+            <select
               id="currentDegree"
               value={formData.currentDegree}
               onChange={(e) => setFormData({ ...formData, currentDegree: e.target.value })}
               className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2"
               required
-            />
+            >
+              <option value="">Select a degree program</option>
+              {degreePrograms.map((program) => (
+                <option key={program.id} value={program.id}>
+                  {program.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -137,13 +159,18 @@ export default function RegisterPage() {
             <div className="mt-1 space-y-2">
               {formData.interestedDegrees.map((degree, index) => (
                 <div key={index} className="flex gap-2">
-                  <input
-                    type="text"
+                  <select
                     value={degree}
                     onChange={(e) => updateInterestedDegree(index, e.target.value)}
                     className="flex-1 rounded-md border border-border bg-background px-3 py-2"
-                    placeholder="Enter degree program"
-                  />
+                  >
+                    <option value="">Select a degree program</option>
+                    {degreePrograms.map((program) => (
+                      <option key={program.id} value={program.id}>
+                        {program.name}
+                      </option>
+                    ))}
+                  </select>
                   {formData.interestedDegrees.length > 1 && (
                     <button
                       type="button"

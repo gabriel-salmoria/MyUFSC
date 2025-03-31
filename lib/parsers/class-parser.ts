@@ -100,17 +100,44 @@ function generateReadableSchedule(times: ClassSchedule[]): string {
  * Converts MatrUFSC data into our timetable format
  */
 export function parseMatrufscData(data: any): ScheduleData {
+  // Basic validation of input data
+  if (!data || typeof data !== 'object') {
+    console.warn('[Class Parser] Invalid data format: data is not an object');
+    return { professors: {} };
+  }
+
   const result: ScheduleData = {
     professors: {}
   };
   
-  // Skip metadata entries like 'DATA'
-  Object.entries(data).forEach(([campusKey, campusValue]) => {
-    if (campusKey === 'DATA') return;
+  // Log the data structure for debugging
+  console.log('[Class Parser] Data keys:', Object.keys(data));
+  
+  // Handle nested structure where degree code is the top level key
+  // The structure is: {degreeCode: {DATA: string, FLO: array}}
+  for (const degreeCode in data) {
+    const degreeData = data[degreeCode];
     
-    const courses = campusValue as any[];
+    // Skip if not an object
+    if (!degreeData || typeof degreeData !== 'object') {
+      console.warn(`[Class Parser] Invalid degree data for "${degreeCode}"`);
+      continue;
+    }
     
-    courses.forEach(course => {
+    console.log(`[Class Parser] Processing degree: ${degreeCode} with keys: ${Object.keys(degreeData)}`);
+    
+    // Process the FLO data which is the array of courses
+    const campusData = degreeData.FLO;
+    
+    if (!Array.isArray(campusData)) {
+      console.warn(`[Class Parser] Campus data for degree "${degreeCode}" is not an array`);
+      continue;
+    }
+    
+    console.log(`[Class Parser] Processing campus data with ${campusData.length} courses`);
+    
+    // Each course entry should be an array
+    campusData.forEach(course => {
       if (!Array.isArray(course) || course.length < 4) return;
       
       const courseId = course[0];
@@ -165,7 +192,10 @@ export function parseMatrufscData(data: any): ScheduleData {
         }
       }
     });
-  });
+  }
+  
+  // Log the result structure for debugging
+  console.log(`[Class Parser] Generated data for ${Object.keys(result).length - 1} courses`);
   
   return result;
 }
@@ -187,7 +217,7 @@ export function createStudentCoursesFromMatrufsc(
       // Get credits from first class
       let credits = 0;
       if (Array.isArray(courseClasses) && courseClasses.length > 0 && Array.isArray(courseClasses[0])) {
-        credits = (courseClasses[0][1] as number) / 18; // 18 hours = 1 credit
+        credits = (courseClasses[0][1] as number) / 18;
       }
       
       // Create base course
@@ -213,9 +243,22 @@ export function createStudentCoursesFromMatrufsc(
 /**
  * Extracts data for a specific campus from MatrUFSC data
  */
-export function extractCampusData(data: any, campusCode: string): any {
+export function extractCampusData(data: any, campusCode: string = 'FLO'): any {
   if (!data || typeof data !== 'object') return null;
 
+  // Check if we have a nested structure with degree codes
+  const keys = Object.keys(data);
+  if (keys.length > 0) {
+    const degreeCode = keys[0];
+    
+    // If the value is an object that has the campus code as a key
+    if (data[degreeCode] && typeof data[degreeCode] === 'object' && data[degreeCode][campusCode]) {
+      // Return just the campus data
+      return { [campusCode]: data[degreeCode][campusCode] };
+    }
+  }
+  
+  // If we already have the campus code directly
   if (data[campusCode] && Array.isArray(data[campusCode])) {
     return data;
   }

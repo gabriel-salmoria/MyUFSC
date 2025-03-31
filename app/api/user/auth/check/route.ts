@@ -7,7 +7,11 @@ export async function GET() {
     const session = cookieStore.get("session")
     
     if (session?.value === "authenticated") {
-      return NextResponse.json({ authenticated: true })
+      const userId = cookieStore.get("userId")?.value
+      return NextResponse.json({ 
+        authenticated: true,
+        userId: userId || null
+      })
     }
 
     return NextResponse.json(

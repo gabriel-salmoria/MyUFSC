@@ -42,6 +42,8 @@ export interface StudentPlan {
 export interface StudentInfo {
   id: string
   studentId: string
+  currentDegree: string
+  interestedDegrees: string[]
   name: string
   currentPlan: StudentPlan | null
   currentSemester: string

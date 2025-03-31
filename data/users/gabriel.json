@@ -1,0 +1,15 @@
+{
+  "id": "gabriel",
+  "name": "gabriel salmoria",
+  "studentId": "23100466",
+  "currentDegree": "208",
+  "interestedDegrees": [],
+  "currentPlan": {
+    "semesters": [
+      {
+        "number": 1,
+        "courses": []
+      }
+    ]
+  }
+}

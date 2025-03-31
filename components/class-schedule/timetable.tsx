@@ -95,6 +95,18 @@ export default function Timetable({
   // State for the selected course in the timetable
   const [selectedTimetableCourse, setSelectedTimetableCourse] = useState<StudentCourse | null>(null);
 
+  // Safeguard against rendering with invalid data
+  if (!studentInfo || !studentInfo.currentPlan || !studentInfo.currentPlan.semesters) {
+    return (
+      <div className="bg-card rounded-lg shadow-lg p-4 mb-6">
+        <h2 className="text-xl font-semibold mb-4 text-foreground">Class Schedule</h2>
+        <div className="flex items-center justify-center h-[200px]">
+          <p className="text-muted-foreground">Loading class schedule data...</p>
+        </div>
+      </div>
+    )
+  }
+
   // Use either the parsed MatrUFSC data or the default empty data
   const timetableData = useMemo(() => {
     if (matrufscData) {

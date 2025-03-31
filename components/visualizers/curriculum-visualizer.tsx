@@ -40,6 +40,15 @@ export default function CurriculumVisualizer({
   // Generate phases from curriculum
   const phases = useMemo(() => generatePhases(curriculum), [curriculum])
 
+  // Safeguard against rendering with invalid data
+  if (!curriculum || !visualization || !visualization.positions || visualization.positions.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-muted-foreground">Loading curriculum data...</p>
+      </div>
+    )
+  }
+
   // Calculate dynamic phase width based on container size
   useEffect(() => {
     const updatePhaseWidth = () => {

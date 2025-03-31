@@ -24,7 +24,63 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
   studentInfo: null,
   
   // Set the entire student info (used for initialization)
-  setStudentInfo: (info: StudentInfo) => set({ studentInfo: info }),
+  setStudentInfo: (info: StudentInfo) => {
+    console.log("[Student Store] Initializing student info:", info)
+    
+    // Make sure we have a valid plan with semesters
+    if (!info.currentPlan || !info.currentPlan.semesters) {
+      console.error("[Student Store] Invalid student plan data:", info)
+      return set({ studentInfo: info })
+    }
+
+    // Ensure all expected semesters exist (1-8)
+    const updatedInfo = { ...info }
+    if (updatedInfo.currentPlan && (!updatedInfo.currentPlan.semesters || updatedInfo.currentPlan.semesters.length < 8)) {
+      // Initialize missing semesters
+      const existingSemesters = updatedInfo.currentPlan?.semesters || []
+      const allSemesters: StudentSemester[] = []
+      
+      // Create or update all 8 semesters
+      for (let i = 1; i <= 8; i++) {
+        const existingSemester = existingSemesters.find(s => s.number === i)
+        if (existingSemester) {
+          // Use existing semester data, but ensure totalCredits is calculated
+          let totalCredits = 0
+          existingSemester.courses.forEach(course => {
+            totalCredits += course.credits || 0
+          })
+          
+          allSemesters.push({
+            ...existingSemester,
+            totalCredits
+          })
+        } else {
+          // Create a new empty semester
+          allSemesters.push({
+            number: i,
+            courses: [],
+            totalCredits: 0
+          })
+        }
+      }
+      
+      // Update the plan with all semesters
+      if (updatedInfo.currentPlan) {
+        updatedInfo.currentPlan.semesters = allSemesters
+      }
+      
+      // Also initialize plans array if needed
+      if (!updatedInfo.plans || updatedInfo.plans.length === 0) {
+        updatedInfo.plans = [{ 
+          id: "1", 
+          semesters: [...allSemesters]
+        }]
+      }
+    }
+    
+    console.log("[Student Store] Initialized student data:", updatedInfo)
+    set({ studentInfo: updatedInfo })
+  },
   
   // Add a course to a semester
   addCourseToSemester: (course: Course, semesterNumber: number, positionIndex: number) => set(

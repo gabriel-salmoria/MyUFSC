@@ -15,6 +15,8 @@ interface RawStudentData {
   studentId: string
   name: string
   currentSemester: number
+  currentDegree?: string
+  interestedDegrees?: string[]
   coursed: Array<Array<[string, string, string]>> // [semesterIndex][courseIndex][courseCode, classCode, grade]
   plan: Array<Array<[string, string, string]>> // [semesterIndex][courseIndex][courseCode, classCode, grade]
 }
@@ -173,6 +175,8 @@ export function parseStudentData(jsonData: RawStudentData): StudentInfo {
     currentPlan: plan,
     plans: [plan],
     currentSemester: String(jsonData.currentSemester),
+    currentDegree: jsonData.currentDegree || "208", // Default to Computer Science if not provided
+    interestedDegrees: jsonData.interestedDegrees || [],
   }
   
   return studentInfo

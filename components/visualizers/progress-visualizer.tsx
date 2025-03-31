@@ -39,6 +39,15 @@ export default function ProgressVisualizer({
   const containerRef = useRef<HTMLDivElement>(null)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [phaseWidth, setPhaseWidth] = useState<number>(PHASE.MIN_WIDTH)
+  
+  // Safeguard against rendering with invalid data
+  if (!studentPlan || !studentPlan.semesters || studentPlan.semesters.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-muted-foreground">Loading student plan data...</p>
+      </div>
+    )
+  }
 
   // Calculate dynamic phase width based on container size
   useEffect(() => {
