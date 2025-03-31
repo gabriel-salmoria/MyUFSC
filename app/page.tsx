@@ -1,6 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { StudentInfo } from "@/types/student-plan"
+import { fetchStudentProfile } from "@/app/api/user/profile/[studentId]/route"
+import { fetchCurriculum } from "@/app/api/course/curriculum/[programId]/route"
+import { fetchClassSchedule } from "@/app/api/class/schedule/route"
+import { LogOut } from "lucide-react"
 
 // main visual components
 import CurriculumVisualizer from "@/components/visualizers/curriculum-visualizer"
@@ -10,19 +16,15 @@ import GridVisualizer from "@/components/visualizers/grid-visualizer"
 import DependencyTree from "@/components/dependency-tree/dependency-tree"
 import Timetable from "@/components/class-schedule/timetable"
 import TrashDropZone from "@/components/visualizers/trash-drop-zone"
+import LoginForm from "@/components/login/login-form"
 
 // types
 import type { Curriculum, Course } from "@/types/curriculum"
 import type { CurriculumVisualization } from "@/types/visualization"
-import type { StudentCourse, StudentInfo } from "@/types/student-plan"
+import type { StudentCourse } from "@/types/student-plan"
 
 // store
 import { useStudentStore } from "@/lib/student-store"
-
-// API functions
-import { fetchCurriculum } from "@/api/course/curriculum"
-import { fetchStudentProfile } from "@/api/user/profile"
-import { fetchClassSchedule } from "@/api/class/schedule"
 
 // Parser and visualization
 import { generateVisualization, courseMap, generatePhases } from "@/lib/parsers/curriculum-parser"
@@ -34,6 +36,7 @@ const DEFAULT_CAMPUS = 'FLO'
 const DEFAULT_SEMESTER = '20251'
 
 export default function Home() {
+  const router = useRouter()
   enum ViewMode {
     CURRICULUM = "curriculum",
     ELECTIVES = "electives"
@@ -51,22 +54,48 @@ export default function Home() {
   const [isLoadingMatrufscData, setIsLoadingMatrufscData] = useState(false)
   const [selectedCampus, setSelectedCampus] = useState<string>(DEFAULT_CAMPUS)
   const [selectedSemester, setSelectedSemester] = useState<string>(DEFAULT_SEMESTER)
-  const [isLoading, setIsLoading] = useState(true)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [studentInfo, setStudentInfo] = useState<StudentInfo | null>(null)
   
   // Student store
   const studentStore = useStudentStore()
-  const studentInfo = studentStore.studentInfo
-  const setStudentInfo = studentStore.setStudentInfo
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch("/api/user/auth/check")
+        const data = await response.json()
+        
+        if (!data.authenticated) {
+          router.push("/login")
+          return
+        }
+
+        // Load student profile
+        const profile = await fetchStudentProfile("current-user")
+        setStudentInfo(profile)
+      } catch (err) {
+        console.error("Auth check failed:", err)
+        router.push("/login")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    checkAuth()
+  }, [router])
 
   // Fetch curriculum and student data
   useEffect(() => {
+    if (!studentInfo) return
+
     const fetchData = async () => {
       try {
         // Get data from APIs
         const curriculumData = await fetchCurriculum(DEFAULT_PROGRAM_ID)
-        const studentData = await fetchStudentProfile(DEFAULT_STUDENT_ID)
         
-        if (!curriculumData || !studentData) {
+        if (!curriculumData) {
           console.error("Failed to fetch data")
           return
         }
@@ -79,16 +108,15 @@ export default function Home() {
         // Store the processed data and student info
         setCurriculum(curriculumData)
         setVisualization(visualizationData)
-        setStudentInfo(studentData)
       } catch (error) {
         console.error("Error loading data:", error)
       } finally {
-        setIsLoading(false)
+        setLoading(false)
       }
     }
     
     fetchData()
-  }, [setStudentInfo])
+  }, [studentInfo])
 
   // Fetch class schedule data
   useEffect(() => {
@@ -156,21 +184,33 @@ export default function Home() {
     setViewMode(viewMode === ViewMode.CURRICULUM ? ViewMode.ELECTIVES : ViewMode.CURRICULUM)
   }
 
-  // Loading and error states
-  if (isLoading) {
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/user/auth/logout", { method: "POST" })
+      router.push("/login")
+    } catch (err) {
+      console.error("Logout failed:", err)
+    }
+  }
+
+  if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-lg">Loading data...</div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">Loading...</div>
       </div>
     )
   }
 
-  if (!curriculum || !visualization || !studentInfo || !studentInfo.currentPlan) {
+  if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-lg text-red-600">Error loading data. Please try again.</div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center text-red-500">{error}</div>
       </div>
     )
+  }
+
+  if (!studentInfo) {
+    return null
   }
 
   // Get elective courses from the courseMap populated by fetchCurriculum
@@ -181,109 +221,136 @@ export default function Home() {
   const phases = generatePhases(curriculum)
 
   return (
-    <main className="flex min-h-screen flex-col">
-      <div className="flex items-center justify-center p-4 border-b border-border bg-background shadow-sm">
-        <h1 className="text-2xl font-bold text-foreground">Welcome back, {studentInfo.name}!</h1>
-      </div>
-
-      <div className="flex-1 p-6 space-y-6">
-        <div>
-          <div className="flex justify-between items-center mb-2">
-            <h2 className="text-xl font-semibold text-foreground">
-              {viewMode === ViewMode.CURRICULUM ? "Curriculum Overview" : "Elective Courses"}
-            </h2>
-            <button
-              onClick={toggleView}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition"
-            >
-              Show {viewMode === ViewMode.CURRICULUM ? "Electives" : "Curriculum"}
-            </button>
-          </div>
-          
-          <div
-            className="border border-border rounded-lg overflow-hidden shadow-md bg-card"
-            style={{ height: `${containerHeight}px` }}
+    <main className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-foreground">
+            Welcome, {studentInfo.name}
+          </h1>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-4 py-2 text-red-500 hover:text-red-700 transition-colors"
           >
-            {viewMode === ViewMode.CURRICULUM ? (
-              <CurriculumVisualizer
-                curriculum={curriculum}
-                visualization={visualization}
-                onCourseClick={setSelectedCourse}
-                height={containerHeight}
-              />
-            ) : (
-              <GridVisualizer
-                courses={electiveCourses}
-                studentCourses={new Map(studentInfo.currentPlan.semesters.flatMap(semester => 
-                  semester.courses.map(course => [course.course.id, course])
-                ))}
-                onCourseClick={setSelectedCourse}
-                height={containerHeight}
-              />
-            )}
+            <LogOut className="w-4 h-4" />
+            Logout
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="bg-card p-6 rounded-lg shadow-lg">
+            <h2 className="text-xl font-semibold mb-4 text-foreground">Current Degree</h2>
+            <p className="text-muted-foreground">{studentInfo.currentDegree}</p>
+          </div>
+
+          <div className="bg-card p-6 rounded-lg shadow-lg">
+            <h2 className="text-xl font-semibold mb-4 text-foreground">Degrees of Interest</h2>
+            <ul className="space-y-2">
+              {studentInfo.interestedDegrees.map((degree, index) => (
+                <li key={index} className="text-muted-foreground">{degree}</li>
+              ))}
+            </ul>
           </div>
         </div>
 
-        <div>
-          <h2 className="text-xl font-semibold mb-2 text-foreground">My Progress</h2>
-          <div
-            className="border border-border rounded-lg overflow-hidden shadow-md bg-card"
-            style={{ height: `${containerHeight}px` }}
-          >
-            <ProgressVisualizer
-              studentPlan={studentInfo.currentPlan}
+        <div className="flex-1 p-6 space-y-6">
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-xl font-semibold text-foreground">
+                {viewMode === ViewMode.CURRICULUM ? "Curriculum Overview" : "Elective Courses"}
+              </h2>
+              <button
+                onClick={toggleView}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition"
+              >
+                Show {viewMode === ViewMode.CURRICULUM ? "Electives" : "Curriculum"}
+              </button>
+            </div>
+            
+            <div
+              className="border border-border rounded-lg overflow-hidden shadow-md bg-card"
+              style={{ height: `${containerHeight}px` }}
+            >
+              {viewMode === ViewMode.CURRICULUM ? (
+                <CurriculumVisualizer
+                  curriculum={curriculum}
+                  visualization={visualization}
+                  onCourseClick={setSelectedCourse}
+                  height={containerHeight}
+                />
+              ) : (
+                <GridVisualizer
+                  courses={electiveCourses}
+                  studentCourses={new Map(studentInfo.currentPlan.semesters.flatMap(semester => 
+                    semester.courses.map(course => [course.course.id, course])
+                  ))}
+                  onCourseClick={setSelectedCourse}
+                  height={containerHeight}
+                />
+              )}
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-semibold mb-2 text-foreground">My Progress</h2>
+            <div
+              className="border border-border rounded-lg overflow-hidden shadow-md bg-card"
+              style={{ height: `${containerHeight}px` }}
+            >
+              <ProgressVisualizer
+                studentPlan={studentInfo.currentPlan}
+                onCourseClick={setSelectedStudentCourse}
+                onCourseDropped={studentStore.addCourseToSemester}
+                height={containerHeight}
+              />
+            </div>
+          </div>
+          
+          <div>
+            <Timetable
+              studentInfo={studentInfo}
+              matrufscData={matrufscData}
               onCourseClick={setSelectedStudentCourse}
-              onCourseDropped={studentStore.addCourseToSemester}
-              height={containerHeight}
+              onAddCourse={handleAddCourse}
+              selectedCampus={selectedCampus}
+              selectedSemester={selectedSemester}
+              isLoadingMatrufscData={isLoadingMatrufscData}
+              onCampusChange={setSelectedCampus}
+              onSemesterChange={setSelectedSemester}
             />
           </div>
         </div>
-        
-        <div>
-          <Timetable
-            studentInfo={studentInfo}
-            matrufscData={matrufscData}
-            onCourseClick={setSelectedStudentCourse}
-            onAddCourse={handleAddCourse}
-            selectedCampus={selectedCampus}
-            selectedSemester={selectedSemester}
-            isLoadingMatrufscData={isLoadingMatrufscData}
-            onCampusChange={setSelectedCampus}
-            onSemesterChange={setSelectedSemester}
+
+        {selectedCourse && (
+          <StudentCourseDetailsPanel
+            course={selectedCourse}
+            onClose={() => setSelectedCourse(null)}
+            onViewDependencies={() => handleViewDependencies(selectedCourse)}
+            onStatusChange={studentStore.changeCourseStatus}
+            onGradeChange={studentStore.setCourseGrade}
           />
-        </div>
+        )}
+
+        {selectedStudentCourse && (
+          <StudentCourseDetailsPanel
+            course={selectedStudentCourse.course}
+            studentCourse={selectedStudentCourse}
+            onClose={() => setSelectedStudentCourse(null)}
+            onViewDependencies={() => handleViewDependencies(selectedStudentCourse.course)}
+            onStatusChange={studentStore.changeCourseStatus}
+            onGradeChange={studentStore.setCourseGrade}
+          />
+        )}
+
+        {dependencyCourse && (
+          <DependencyTree
+            course={dependencyCourse}
+            isVisible={showDependencyTree}
+            onClose={handleCloseDependencyTree}
+          />
+        )}
+        
+        <TrashDropZone onRemoveCourse={studentStore.removeCourse} />
       </div>
-
-      {selectedCourse && (
-        <StudentCourseDetailsPanel
-          course={selectedCourse}
-          onClose={() => setSelectedCourse(null)}
-          onViewDependencies={() => handleViewDependencies(selectedCourse)}
-          onStatusChange={studentStore.changeCourseStatus}
-          onGradeChange={studentStore.setCourseGrade}
-        />
-      )}
-
-      {selectedStudentCourse && (
-        <StudentCourseDetailsPanel
-          course={selectedStudentCourse.course}
-          studentCourse={selectedStudentCourse}
-          onClose={() => setSelectedStudentCourse(null)}
-          onViewDependencies={() => handleViewDependencies(selectedStudentCourse.course)}
-          onStatusChange={studentStore.changeCourseStatus}
-          onGradeChange={studentStore.setCourseGrade}
-        />
-      )}
-
-      {dependencyCourse && (
-        <DependencyTree
-          course={dependencyCourse}
-          isVisible={showDependencyTree}
-          onClose={handleCloseDependencyTree}
-        />
-      )}
-      
-      <TrashDropZone onRemoveCourse={studentStore.removeCourse} />
     </main>
   )
 }
