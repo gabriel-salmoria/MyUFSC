@@ -13,12 +13,17 @@ export const Schema = {
     department: {
       type: SchemaType.STRING,
       description: "Department Name (e.g., History Department)",
-      nullable: true,
+      nullable: false,
+    },
+    id: {
+      type: SchemaType.INTEGER,
+      description: "Curriculum ID (e.g., 203)",
+      nullable: false,
     },
     totalPhases: {
       type: SchemaType.INTEGER,
       description: "Total number of phases, semesters, or years in the curriculum",
-      nullable: true,
+      nullable: false,
     },
     courses: {
       type: SchemaType.ARRAY,
@@ -40,17 +45,17 @@ export const Schema = {
           type: {
             type: SchemaType.STRING,
             description: "Course Type (e.g., mandatory, elective, core)",
-            nullable: true,
+            nullable: false,
           },
           credits: {
             type: SchemaType.NUMBER,
             description: "Number of credits for the course",
-            nullable: true,
+            nullable: false,
           },
           workload: {
             type: SchemaType.INTEGER,
             description: "Workload in hours",
-            nullable: true,
+            nullable: false,
           },
           prerequisites: {
             type: SchemaType.ARRAY,
@@ -84,10 +89,16 @@ export const Schema = {
         required: [
           "id",
           "name",
-          "description"
+          "description",
+          "type",
+          "phase",
+          "credits",
+          "workload",
+          "prerequisites",
+          "equivalents"
         ], // ID, Name, and Description are always required.
       },
     },
   },
-  required: ["name"],
+  required: ["name", "id", "department", "totalPhases", "courses"],
 };
