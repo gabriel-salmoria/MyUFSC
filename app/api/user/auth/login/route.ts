@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import fs from "fs"
 import path from "path"
+import bcrypt from "bcryptjs"
 
 export async function POST(request: Request) {
   try {
@@ -19,6 +20,17 @@ export async function POST(request: Request) {
     // Check if user exists
     const userFile = path.join(process.cwd(), "data", "users", `${username}.json`)
     if (!fs.existsSync(userFile)) {
+      return NextResponse.json(
+        { error: "Invalid credentials" },
+        { status: 401 }
+      )
+    }
+
+    // Read user data
+    const userData = JSON.parse(fs.readFileSync(userFile, 'utf8'))
+    
+    // Verify password
+    if (!userData.hashedPassword || !await bcrypt.compare(password, userData.hashedPassword)) {
       return NextResponse.json(
         { error: "Invalid credentials" },
         { status: 401 }

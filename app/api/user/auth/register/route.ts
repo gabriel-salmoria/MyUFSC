@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import fs from "fs"
 import path from "path"
+import bcrypt from "bcryptjs"
 
 export async function POST(request: Request) {
   try {
@@ -31,9 +32,14 @@ export async function POST(request: Request) {
       )
     }
 
+    // Hash the password
+    const salt = await bcrypt.genSalt(10)
+    const hashedPassword = await bcrypt.hash(password, salt)
+
     // Create new user profile
     const userProfile = {
       id: username,
+      hashedPassword,
       name,
       studentId,
       currentDegree,

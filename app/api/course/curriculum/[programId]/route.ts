@@ -17,9 +17,6 @@ export async function GET(
       )
     }
 
-    // Log file path we're trying to access
-    const curriculumPath = path.join(process.cwd(), "data", "courses", `${programId}.json`);
-
     // Use dynamic import to load the curriculum
     try {
       const curriculum = await import(`@/data/courses/${programId}.json`)

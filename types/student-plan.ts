@@ -41,6 +41,7 @@ export interface StudentPlan {
 
 export interface StudentInfo {
   id: string
+  hashedPassword?: string
   studentId: string
   currentDegree: string
   interestedDegrees: string[]
