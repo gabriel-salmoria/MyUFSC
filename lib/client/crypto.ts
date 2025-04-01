@@ -49,6 +49,15 @@ export function encryptStudentData(
   iv: string;
   encryptedData: string;
 } {
+  // Validate inputs
+  if (!password || typeof password !== 'string' || password.length === 0) {
+    throw new Error('Invalid password provided for encryption');
+  }
+  
+  if (!salt || typeof salt !== 'string' || salt.length === 0) {
+    throw new Error('Invalid salt provided for encryption');
+  }
+  
   // Derive key from password and salt
   const key = deriveEncryptionKey(password, salt);
   
