@@ -68,6 +68,7 @@ export default function Home() {
   useEffect(() => {
     if (storeStudentInfo) {
       setStudentInfo(storeStudentInfo);
+      setProfileLoading(false);
     }
   }, [storeStudentInfo, lastUpdate]);
 
@@ -96,15 +97,14 @@ export default function Home() {
           return
         }
         
-        // Load student profile with the actual user ID
-        const profile = await fetchStudentProfile(data.userId)
-        if (!profile) {
-          throw new Error("Failed to load student profile")
+        // If we have student info in the store, use that
+        if (storeStudentInfo) {
+          setProfileLoading(false)
+        } else {
+          // No data in store - redirect to login
+          router.push("/login")
+          return
         }
-        
-        setStudentInfo(profile)
-        studentStore.setStudentInfo(profile)
-        setProfileLoading(false)
 
         // Load degree programs
         const programsResponse = await fetch("/api/degree-programs")
@@ -112,8 +112,8 @@ export default function Home() {
         setDegreePrograms(programsData.programs)
 
         // Load curriculum for current degree
-        if (profile.currentDegree) {
-          const curriculumData = await fetchCurriculum(profile.currentDegree)
+        if (storeStudentInfo?.currentDegree) {
+          const curriculumData = await fetchCurriculum(storeStudentInfo.currentDegree)
           
           if (curriculumData) {
             // Ensure the curriculum data is properly structured
@@ -148,7 +148,7 @@ export default function Home() {
     }
 
     checkAuth()
-  }, [router, studentStore, authChecked]) // Added authChecked to dependencies
+  }, [router, studentStore, authChecked, storeStudentInfo]) // Added storeStudentInfo to dependencies
 
   // Fetch class schedule data
   useEffect(() => {
@@ -171,7 +171,7 @@ export default function Home() {
         setIsLoadingMatrufscData(true)
         
         // Get data from API
-        const scheduleData = await fetchClassSchedule()
+        const scheduleData = await fetchClassSchedule(studentInfo.currentDegree)
         
         if (!scheduleData) {
           setMatrufscData(null)

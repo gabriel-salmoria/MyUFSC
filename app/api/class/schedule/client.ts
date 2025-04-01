@@ -1,7 +1,7 @@
 // Client-side function to fetch class schedule
-export async function fetchClassSchedule(): Promise<Record<string, any> | null> {
+export async function fetchClassSchedule(currentDegree: string): Promise<Record<string, any> | null> {
   try {
-    const response = await fetch('/api/class/schedule')
+    const response = await fetch(`/api/class/schedule?currentDegree=${encodeURIComponent(currentDegree)}`)
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))

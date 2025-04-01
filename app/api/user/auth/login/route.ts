@@ -3,6 +3,8 @@ import { cookies } from "next/headers"
 import fs from "fs"
 import path from "path"
 import bcrypt from "bcryptjs"
+import { deriveEncryptionKey } from "@/lib/crypto"
+import type { EncryptedUser } from "@/types/user"
 
 export async function POST(request: Request) {
   try {
@@ -27,7 +29,7 @@ export async function POST(request: Request) {
     }
 
     // Read user data
-    const userData = JSON.parse(fs.readFileSync(userFile, 'utf8'))
+    const userData: EncryptedUser = JSON.parse(fs.readFileSync(userFile, 'utf8'))
     
     // Verify password
     if (!userData.hashedPassword || !await bcrypt.compare(password, userData.hashedPassword)) {
@@ -54,8 +56,15 @@ export async function POST(request: Request) {
       path: "/",
     })
 
-    return NextResponse.json({ success: true })
+    // Return encrypted data to client
+    // The client will decrypt it with the key derived from the password
+    return NextResponse.json({ 
+      success: true,
+      salt: userData.salt,
+      encryptedData: userData.encryptedData
+    })
   } catch (error) {
+    console.error(error)
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -3,9 +3,18 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import useEncryptedData from "@/hooks/useEncryptedData"
+import { useStudentStore } from "@/lib/student-store"
 
 export default function LoginPage() {
   const router = useRouter()
+  const studentStore = useStudentStore()
+  const { login, isLoading } = useEncryptedData({
+    onLoadError: (error) => {
+      setError(error instanceof Error ? error.message : "Failed to decrypt data")
+    }
+  })
+  
   const [formData, setFormData] = useState({
     username: "",
     password: "",
@@ -17,19 +26,21 @@ export default function LoginPage() {
     setError("")
 
     try {
-      const response = await fetch("/api/user/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || "Login failed")
+      const result = await login(formData.username, formData.password)
+      
+      if (!result.success) {
+        throw new Error("Login failed")
       }
-
+      
+      // If login succeeded but no data was returned
+      if (!result.data) {
+        throw new Error("Failed to load user data")
+      }
+      
+      // Set the decrypted data in the global store
+      studentStore.setStudentInfo(result.data)
+      
+      // Navigate to home page
       router.push("/")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invalid username or password")
@@ -78,9 +89,10 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition"
+            disabled={isLoading}
+            className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition disabled:opacity-50"
           >
-            Login
+            {isLoading ? "Logging in..." : "Login"}
           </button>
         </form>
 

@@ -3,6 +3,8 @@ import { cookies } from "next/headers"
 import fs from "fs"
 import path from "path"
 import bcrypt from "bcryptjs"
+import { generateSalt, deriveEncryptionKey, encryptData } from "@/lib/crypto"
+import type { StudentInfo } from "@/types/student-plan"
 
 export async function POST(request: Request) {
   try {
@@ -32,26 +34,47 @@ export async function POST(request: Request) {
       )
     }
 
-    // Hash the password
-    const salt = await bcrypt.genSalt(10)
-    const hashedPassword = await bcrypt.hash(password, salt)
+    // Hash the password for authentication
+    const passwordSalt = await bcrypt.genSalt(10)
+    const hashedPassword = await bcrypt.hash(password, passwordSalt)
 
-    // Create new user profile
-    const userProfile = {
+    // Generate encryption salt and key
+    const encryptionSalt = generateSalt()
+    const encryptionKey = deriveEncryptionKey(password, encryptionSalt)
+
+    // Create student info object (the sensitive data to encrypt)
+    const studentInfo: StudentInfo = {
       id: username,
-      hashedPassword,
       name,
       studentId,
       currentDegree,
       interestedDegrees: interestedDegrees || [],
+      currentSemester: "1",
+      plans: [],
       currentPlan: {
+        id: "default-plan",
         semesters: [
           {
             number: 1,
             courses: [],
+            totalCredits: 0
           },
         ],
       },
+    }
+
+    // Encrypt the student data
+    const encrypted = encryptData(studentInfo, encryptionKey)
+
+    // Create user profile with encrypted data
+    const userProfile = {
+      username,
+      hashedPassword,
+      salt: encryptionSalt,
+      encryptedData: {
+        iv: encrypted.iv,
+        encryptedData: encrypted.encryptedData
+      }
     }
 
     // Save user profile
@@ -66,8 +89,17 @@ export async function POST(request: Request) {
       path: "/",
     })
 
+    // Set user ID cookie
+    cookieStore.set("userId", username, {
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+    })
+
     return NextResponse.json({ success: true })
   } catch (error) {
+    console.error(error)
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

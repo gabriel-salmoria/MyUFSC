@@ -3,6 +3,8 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { generateSalt, deriveEncryptionKey, encryptData } from "@/lib/crypto"
+import type { StudentInfo } from "@/types/student-plan"
 
 interface RegisterFormData {
   username: string
@@ -24,27 +26,68 @@ export default function RegisterForm() {
     interestedDegrees: [],
   })
   const [error, setError] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    setIsLoading(true)
 
     try {
+      // Generate encryption salt
+      const salt = generateSalt()
+      
+      // Derive key from password and salt
+      const encryptionKey = deriveEncryptionKey(formData.password, salt)
+      
+      // Create student info object that will be encrypted
+      const studentInfo: StudentInfo = {
+        id: formData.username,
+        name: formData.name,
+        studentId: formData.studentId,
+        currentDegree: formData.currentDegree,
+        interestedDegrees: formData.interestedDegrees,
+        currentSemester: "1",
+        plans: [],
+        currentPlan: {
+          id: "default-plan",
+          semesters: [
+            {
+              number: 1,
+              courses: [],
+              totalCredits: 0
+            },
+          ],
+        },
+      }
+      
+      // Encrypt the student data
+      const encrypted = encryptData(studentInfo, encryptionKey)
+      
+      // Send register request with encrypted data
       const response = await fetch("/api/user/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          username: formData.username,
+          password: formData.password,
+          salt,
+          encryptedData: encrypted
+        }),
       })
 
       if (!response.ok) {
-        throw new Error("Registration failed")
+        const data = await response.json()
+        throw new Error(data.error || "Registration failed")
       }
 
       router.push("/login")
-    } catch (err) {
-      setError("Registration failed. Please try again.")
+    } catch (err: any) {
+      setError(err.message || "Registration failed. Please try again.")
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -187,9 +230,10 @@ export default function RegisterForm() {
 
         <button
           type="submit"
-          className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition"
+          disabled={isLoading}
+          className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition disabled:opacity-50"
         >
-          Register
+          {isLoading ? "Processing..." : "Register"}
         </button>
       </form>
 

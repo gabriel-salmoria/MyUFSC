@@ -1,16 +1,9 @@
 {
-  "id": "gabriel",
-  "hashedPassword": "$2b$10$QO92B6SPyG.SN.JdWj2dOuF8GtZazgvV6aAOTje0W.2ZfK5bkIena",
-  "name": "Gabriel Salmoria",
-  "studentId": "23100466",
-  "currentDegree": "208",
-  "interestedDegrees": [],
-  "currentPlan": {
-    "semesters": [
-      {
-        "number": 1,
-        "courses": []
-      }
-    ]
+  "username": "gabriel",
+  "hashedPassword": "$2b$10$zTqnuhP40knsRL5w0MBluOxlF9wE/LA1mIEqK32duKYE2T7iWC99i",
+  "salt": "08f8c8c1fc5162b72bfed3ec0e536374",
+  "encryptedData": {
+    "iv": "5cdea0d9d573835e9fcb0ffdaf0f856d",
+    "encryptedData": "U2FsdGVkX18lzcY8l4BP67VnKXaM1t0+vfKvWt5tqwBOvQpv6xp137DSi0YAQymBo2Cy6t/HOcN3tRJuPSsR3w6CoyP60kaYQSzpjXNzJM1/4T+VzTmLIuC4Fdk+K22D7Ge9IZ5I7aQwqVNvfTsgY46IyZO3SQxLE6OoRS7zkJ6EOfymX7COXuj+xVdoXxdIbW+XRw9TtIULKBXP3es68cmqPQp9Heli4LS7KPIzh0pqWfwUWXVpXQzUSTYQiNzozXrI6HjFxMPr6XkZnt+zIcLfERnMBA20XmlKfJSA4aliSikPzHa2mRhU8ZwKkIqBL8Zxyj7yLLHum4RAywvtGw=="
   }
 }

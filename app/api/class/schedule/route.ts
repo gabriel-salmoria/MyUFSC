@@ -8,6 +8,9 @@ export async function GET(request: Request) {
   try {
     const cookieStore = await cookies()
     const userId = cookieStore.get("userId")?.value
+    // Accept currentDegree as a query parameter
+    const url = new URL(request.url)
+    const currentDegree = url.searchParams.get('currentDegree')
 
     if (!userId) {
       return NextResponse.json(
@@ -16,31 +19,14 @@ export async function GET(request: Request) {
       )
     }
 
-    const userPath = path.join(process.cwd(), "data", "users", `${userId}.json`);
-
-    // Get student profile to get their degrees
-    let studentProfile;
-    try {
-      studentProfile = await import(`@/data/users/${userId}.json`)
-    } catch (error: any) {
-      return NextResponse.json(
-        { error: "User profile not found" },
-        { status: 404 }
-      )
-    }
-
-    const { currentDegree, interestedDegrees } = studentProfile.default
-
     if (!currentDegree) {
       return NextResponse.json(
-        { error: "No current degree found" },
+        { error: "No degree specified" },
         { status: 400 }
       )
     }
 
-    // We only need to load data for the current degree
-
-    // Just load the schedule for the current degree
+    // Just load the schedule for the specified degree
     try {
       const schedulePath = path.join(process.cwd(), "data", "courses", `${currentDegree}-20251.json`);
       
