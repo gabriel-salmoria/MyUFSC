@@ -3,8 +3,13 @@ import { cookies } from "next/headers"
 import fs from "fs"
 import path from "path"
 import bcrypt from "bcryptjs"
-import { deriveEncryptionKey } from "@/lib/crypto"
+import { deriveEncryptionKey, hashUsernameWithBcrypt } from "@/lib/crypto"
 import type { EncryptedUser } from "@/types/user"
+
+// Helper function to hash username - deprecated, use the bcrypt version instead
+// function hashUsername(username: string): string {
+//   return createHash('sha256').update(username).digest('hex')
+// }
 
 export async function POST(request: Request) {
   try {
@@ -19,8 +24,11 @@ export async function POST(request: Request) {
       )
     }
 
-    // Check if user exists
-    const userFile = path.join(process.cwd(), "data", "users", `${username}.json`)
+    // Hash the username - this is used as our file identifier
+    const hashedUsername = hashUsernameWithBcrypt(username)
+
+    // Check if user exists using the hashed username file
+    const userFile = path.join(process.cwd(), "data", "users", `${hashedUsername}.json`)
     if (!fs.existsSync(userFile)) {
       return NextResponse.json(
         { error: "Invalid credentials" },
@@ -48,8 +56,8 @@ export async function POST(request: Request) {
       path: "/",
     })
 
-    // Set user ID cookie
-    cookieStore.set("userId", username, {
+    // Set user ID cookie - using hashed username not plaintext
+    cookieStore.set("userId", hashedUsername, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -62,6 +70,7 @@ export async function POST(request: Request) {
       success: true,
       salt: userData.salt,
       hashedPassword: userData.hashedPassword,
+      hashedUsername: userData.hashedUsername,
       encryptedData: userData.encryptedData
     })
   } catch (error) {

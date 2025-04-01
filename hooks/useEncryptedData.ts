@@ -9,7 +9,7 @@ interface UseEncryptedDataProps {
 
 // Add auth info interface
 interface AuthInfo {
-  username: string;
+  hashedUsername: string;
   salt: string;
   hashedPassword: string;
 }
@@ -80,7 +80,7 @@ export default function useEncryptedData({ onSaveError, onLoadError }: UseEncryp
       if (data.success && data.salt && data.encryptedData) {
         // Store authentication info for later use when saving
         setAuthInfo({
-          username,
+          hashedUsername: data.hashedUsername,
           salt: data.salt,
           hashedPassword: data.hashedPassword
         });
@@ -189,9 +189,9 @@ export default function useEncryptedData({ onSaveError, onLoadError }: UseEncryp
       
       const data = await response.json();
       
-      if (data.username && data.salt && data.hashedPassword) {
+      if (data.hashedUsername && data.salt && data.hashedPassword) {
         setAuthInfo({
-          username: data.username,
+          hashedUsername: data.hashedUsername,
           salt: data.salt,
           hashedPassword: data.hashedPassword
         });

@@ -4,6 +4,11 @@ import fs from "fs"
 import path from "path"
 import type { EncryptedUser } from "@/types/user"
 
+// Helper function to hash username - deprecated, use the bcrypt version instead
+// function hashUsername(username: string): string {
+//   return createHash('sha256').update(username).digest('hex')
+// }
+
 export async function GET(request: Request) {
   try {
     const cookieStore = await cookies()
@@ -18,7 +23,7 @@ export async function GET(request: Request) {
       )
     }
     
-    // Get user file path
+    // Get user file path - userId is already the hashed username
     const userFile = path.join(process.cwd(), "data", "users", `${userId}.json`)
     if (!fs.existsSync(userFile)) {
       return NextResponse.json(
@@ -32,7 +37,7 @@ export async function GET(request: Request) {
     
     // Return only the auth info needed for encryption
     return NextResponse.json({
-      username: userData.username,
+      hashedUsername: userData.hashedUsername,
       salt: userData.salt,
       hashedPassword: userData.hashedPassword
     })
