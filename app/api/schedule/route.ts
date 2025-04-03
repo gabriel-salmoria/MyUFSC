@@ -61,7 +61,7 @@ export async function GET(request: Request) {
 // Client-side function to fetch class schedule
 export async function fetchClassSchedule(): Promise<any | null> {
   try {
-    const response = await fetch('/api/class/schedule')
+    const response = await fetch('/api/schedule')
     if (!response.ok) {
       return null
     }

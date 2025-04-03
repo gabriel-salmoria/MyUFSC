@@ -99,7 +99,7 @@ function generateReadableSchedule(times: ClassSchedule[]): string {
 /**
  * Converts MatrUFSC data into our timetable format
  */
-export function parseMatrufscData(data: any): ScheduleData {
+export function parsescheduleData(data: any): ScheduleData {
   // Basic validation of input data
   if (!data || typeof data !== 'object') {
     return { professors: {} };

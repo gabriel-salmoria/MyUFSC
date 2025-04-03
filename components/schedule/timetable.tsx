@@ -8,7 +8,7 @@ import type { StudentInfo, StudentCourse } from "@/types/student-plan"
 import { CourseStatus } from "@/types/student-plan"
 import { TIMETABLE } from "@/styles/visualization"
 import { CSS_CLASSES, TIMETABLE_COLOR_CLASSES, STATUS_CLASSES } from "@/styles/course-theme"
-import { parseMatrufscData } from "@/lib/parsers/class-parser"
+import { parsescheduleData } from "@/lib/parsers/class-parser"
 
 // Import the new components
 import TimetableHeader from "./timetable-header"
@@ -24,12 +24,12 @@ const emptyScheduleData = {
 
 interface TimetableProps {
   studentInfo: StudentInfo
-  matrufscData?: any // Optional MatrUFSC data that can be parsed
+  scheduleData?: any // Optional MatrUFSC data that can be parsed
   onCourseClick?: (course: StudentCourse) => void
   onAddCourse?: (course: Course) => void
   selectedCampus: string
   selectedSemester: string
-  isLoadingMatrufscData: boolean
+  isLoadingscheduleData: boolean
   onCampusChange: (campus: string) => void
   onSemesterChange: (semester: string) => void
 }
@@ -75,12 +75,12 @@ type ConflictMap = Map<ConflictKey, Set<string>>;
 
 export default function Timetable({ 
   studentInfo, 
-  matrufscData, 
+  scheduleData, 
   onCourseClick, 
   onAddCourse,
   selectedCampus,
   selectedSemester,
-  isLoadingMatrufscData,
+  isLoadingscheduleData,
   onCampusChange,
   onSemesterChange
 }: TimetableProps) {
@@ -109,11 +109,11 @@ export default function Timetable({
 
   // Use either the parsed MatrUFSC data or the default empty data
   const timetableData = useMemo(() => {
-    if (matrufscData) {
-      return parseMatrufscData(matrufscData);
+    if (scheduleData) {
+      return parsescheduleData(scheduleData);
     }
     return emptyScheduleData as ScheduleData;
-  }, [matrufscData]);
+  }, [scheduleData]);
 
   // Get all courses from the selected phase for the Course Stats
   const selectedPhaseCourses = useMemo(() => {
@@ -363,7 +363,7 @@ export default function Timetable({
           selectedCampus={selectedCampus}
           selectedSemester={selectedSemester}
           selectedPhase={selectedPhase}
-          isLoadingData={isLoadingMatrufscData}
+          isLoadingData={isLoadingscheduleData}
           onCampusChange={onCampusChange}
           onSemesterChange={onSemesterChange}
           onPhaseChange={setSelectedPhase}
