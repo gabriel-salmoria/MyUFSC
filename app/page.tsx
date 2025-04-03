@@ -14,10 +14,10 @@ import Timetable from "@/components/schedule/timetable"
 import TrashDropZone from "@/components/visualizers/trash-drop-zone"
 
 // Import the custom useAppSetup hook
-import { useAppSetup, ViewMode } from "@/hooks/useAppSetup"
+import { useAppSetup } from "@/hooks/useAppSetup"
 
 // Parser and visualization
-import { courseMap, generatePhases } from "@/lib/parsers/curriculum-parser"
+import { courseMap } from "@/lib/parsers/curriculum-parser"
 
 
 export default function Home() {

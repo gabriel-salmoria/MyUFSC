@@ -92,7 +92,7 @@ export default function TimetableGrid({
                                 )}>
                                   {courseData.course.course.id}
                                 </div>
-                                {location && (
+                                {false && location && (
                                   <div className="text-[0.65rem] ml-0 opacity-90 whitespace-nowrap font-medium">
                                     {location}
                                   </div>

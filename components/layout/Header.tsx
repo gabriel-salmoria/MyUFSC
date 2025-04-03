@@ -209,14 +209,16 @@ export default function Header({ studentInfo, currentCurriculum, degreePrograms,
           )}
         </div>
 
-        <div className="bg-card p-6 rounded-lg shadow-lg">
-          <h2 className="text-xl font-semibold mb-4 text-foreground">Degrees of Interest</h2>
-          <ul className="space-y-2">
-            {(studentInfo.interestedDegrees || []).map((degree, index) => (
-              <li key={index} className="text-muted-foreground">{getDegreeName(degree)}</li>
-            ))}
-          </ul>
-        </div>
+        {studentInfo.interestedDegrees && studentInfo.interestedDegrees.length > 0 && (
+          <div className="bg-card p-6 rounded-lg shadow-lg">
+            <h2 className="text-xl font-semibold mb-4 text-foreground">Degrees of Interest</h2>
+            <ul className="space-y-2">
+              {studentInfo.interestedDegrees.map((degree, index) => (
+                <li key={index} className="text-muted-foreground">{getDegreeName(degree)}</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       {/* Password Modal */}
