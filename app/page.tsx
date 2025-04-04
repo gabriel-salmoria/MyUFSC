@@ -90,26 +90,21 @@ export default function Home() {
           studentInfo={studentInfo}
           curriculum={curriculumState.curriculum}
           visualization={curriculumState.visualization}
-          electiveCourses={electiveCourses}
-          onCourseClick={(course) => 
-            setSelectionState({ 
-              selectedCourse: course, 
-              selectedStudentCourse: null 
-            })
+          electiveCourses={
+            curriculumState.curriculum?.courses.filter(
+              (course) => course.type !== "mandatory"
+            ) || []
           }
-          onStudentCourseClick={(course) => 
-            setSelectionState({ 
-              selectedCourse: null, 
-              selectedStudentCourse: course 
-            })
-          }
+          onCourseClick={(course) => setSelectionState({ selectedCourse: course, selectedStudentCourse: null })}
+          onStudentCourseClick={(course) => setSelectionState({ selectedCourse: null, selectedStudentCourse: course })}
           onCourseDropped={(course, semesterNumber, positionIndex) => {
             if (studentStore) {
+              // First add the course to the specified semester and position
               (studentStore as any).addCourseToSemester(course, semesterNumber, positionIndex);
-              // Force a UI update after adding the course
-              setTimeout(() => {
-                (studentStore as any).forceUpdate();
-              }, 100);
+              
+              // After adding the course, check if we need to create more ghost boxes
+              // This will be handled by our modified calculateStudentPositions function
+              // that ensures at least one ghost box is always available
             }
           }}
           viewMode={viewMode}

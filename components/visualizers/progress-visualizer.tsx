@@ -39,6 +39,17 @@ export default function ProgressVisualizer({
   const containerRef = useRef<HTMLDivElement>(null)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [phaseWidth, setPhaseWidth] = useState<number>(PHASE.MIN_WIDTH)
+  const [lastUpdate, setLastUpdate] = useState<string | null>(null)
+  
+  // Get the actual number of semesters from the student plan
+  const actualSemesterCount = useMemo(() => 
+    studentPlan?.semesters?.length || PHASE.TOTAL_SEMESTERS,
+  [studentPlan]);
+  
+  // Update lastUpdate when studentPlan changes
+  useEffect(() => {
+    setLastUpdate(Date.now().toString());
+  }, [studentPlan, studentPlan?.semesters?.length]);
   
   // Safeguard against rendering with invalid data
   if (!studentPlan || !studentPlan.semesters || studentPlan.semesters.length === 0) {
@@ -54,8 +65,8 @@ export default function ProgressVisualizer({
     const updatePhaseWidth = () => {
       if (containerRef.current) {
         const containerWidth = containerRef.current.clientWidth
-        // Calculate phase width: max of MIN_PHASE_WIDTH or container width divided by semesters
-        const calculatedWidth = Math.max(PHASE.MIN_WIDTH, containerWidth / PHASE.TOTAL_SEMESTERS)
+        // Calculate phase width: max of MIN_PHASE_WIDTH or container width divided by actual semesters
+        const calculatedWidth = Math.max(PHASE.MIN_WIDTH, containerWidth / actualSemesterCount)
         setPhaseWidth(calculatedWidth)
       }
     }
@@ -73,7 +84,7 @@ export default function ProgressVisualizer({
     return () => {
       resizeObserver.disconnect()
     }
-  }, [])
+  }, [actualSemesterCount])
 
   // Calculate box width proportional to phase width
   const boxWidth = useMemo(() => {
@@ -81,7 +92,8 @@ export default function ProgressVisualizer({
     return Math.max(COURSE_BOX.MIN_WIDTH, phaseWidth * COURSE_BOX.WIDTH_FACTOR)
   }, [phaseWidth])
 
-  const totalWidth = PHASE.TOTAL_SEMESTERS * phaseWidth
+  // Use the actual number of semesters for the total width
+  const totalWidth = actualSemesterCount * phaseWidth
 
   // Use the calculateStudentPositions function
   const { positions, courseMap: studentCourseMap } = useMemo(() => {
@@ -102,6 +114,7 @@ export default function ProgressVisualizer({
             width: totalWidth,
             height: `${Math.max(height, (PHASE.BOXES_PER_COLUMN + 1) * COURSE_BOX.SPACING_Y)}px`,
           }}
+          key={`student-plan-${studentPlan.semesters.length}-${lastUpdate || 'initial'}`}
         >
           {/* header de fase */}
           <div className="flex w-full sticky top-0 z-10 bg-background">
@@ -119,7 +132,7 @@ export default function ProgressVisualizer({
           </div>
 
           {/* linhas divisorias */}
-          {Array.from({ length: PHASE.TOTAL_SEMESTERS - 1 }, (_, i) => (
+          {Array.from({ length: actualSemesterCount - 1 }, (_, i) => (
             <div
               key={`divider-${i}`}
               className={CSS_CLASSES.PHASE_DIVIDER}

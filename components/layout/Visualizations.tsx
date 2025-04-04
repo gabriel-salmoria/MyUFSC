@@ -107,6 +107,7 @@ export default function Visualizations({
             onCourseClick={onStudentCourseClick}
             onCourseDropped={onCourseDropped}
             height={containerHeight}
+            key={`progress-${studentInfo.currentPlan?.semesters.length || 0}-${studentInfo.currentPlan?.id || 'default'}`}
           />
         </div>
       </div>

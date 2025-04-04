@@ -38,7 +38,7 @@ export function calculateStudentPositions(
   const positions: CoursePosition[] = []
   const studentCourseMap = new Map<string, StudentCourse>()
   
-  // First, add all actual courses
+  // Process all semesters in the plan, not just the predefined number
   studentPlan.semesters.forEach((semester, semesterIndex) => {
     const xOffset = (phaseWidth - boxWidth) / 2
     
@@ -60,12 +60,18 @@ export function calculateStudentPositions(
       studentCourseMap.set(course.course.id, course)
     })
     
+    // Determine how many ghost boxes to add
+    // Always ensure at least one ghost box is available
+    const numFilledBoxes = semester.courses.length;
+    const minGhostBoxes = numFilledBoxes >= PHASE.BOXES_PER_COLUMN ? 1 : PHASE.BOXES_PER_COLUMN - numFilledBoxes;
+    
     // Add ghost boxes for empty slots
-    for (let i = semester.courses.length; i < PHASE.BOXES_PER_COLUMN; i++) {
+    for (let i = 0; i < minGhostBoxes; i++) {
+      const ghostIndex = numFilledBoxes + i;
       positions.push({
-        courseId: `ghost-${semester.number}-${i}`,
+        courseId: `ghost-${semester.number}-${ghostIndex}`,
         x: semesterIndex * phaseWidth + xOffset,
-        y: i * COURSE_BOX.SPACING_Y + COURSE_BOX.SPACING_Y,
+        y: ghostIndex * COURSE_BOX.SPACING_Y + COURSE_BOX.SPACING_Y,
         width: boxWidth,
         height: COURSE_BOX.HEIGHT,
         isGhost: true,
@@ -132,8 +138,13 @@ export function parseStudentData(jsonData: RawStudentData): StudentInfo {
     jsonData.plan.forEach((semesterCourses, planIndex) => {
       const semesterNumber = currentSemesterNum + planIndex
       
-      if (semesterNumber > PHASE.TOTAL_SEMESTERS) {
-        return // Skip if beyond the maximum number of semesters
+      // Get or create the target semester
+      if (!semesters[semesterNumber - 1]) {
+        semesters[semesterNumber - 1] = {
+          number: semesterNumber,
+          courses: [],
+          totalCredits: 0,
+        };
       }
       
       const targetSemester = semesters[semesterNumber - 1]
@@ -171,8 +182,6 @@ export function parseStudentData(jsonData: RawStudentData): StudentInfo {
   
   // Create student info
   const studentInfo: StudentInfo = {
-    id: jsonData.id || "1",
-    studentId: jsonData.studentId || "1",
     name: jsonData.name,
     currentPlan: plan,
     plans: [plan],

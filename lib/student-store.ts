@@ -3,6 +3,59 @@ import { produce } from 'immer'
 import type { StudentInfo, StudentPlan, StudentCourse, StudentSemester } from '@/types/student-plan'
 import { CourseStatus } from '@/types/student-plan'
 import type { Course } from '@/types/curriculum'
+import { PHASE_DIMENSIONS } from '@/styles/course-theme'
+
+// Helper function to ensure we have exactly one empty semester at the end
+const ensureOneEmptySemesterAtEnd = (semesters: StudentSemester[]) => {
+  if (!semesters || semesters.length === 0) return;
+  
+  // Sort semesters by number
+  semesters.sort((a, b) => a.number - b.number);
+  
+  // Count empty semesters at the end
+  let emptyAtEnd = 0;
+  for (let i = semesters.length - 1; i >= 0; i--) {
+    if (semesters[i].courses.length === 0) {
+      emptyAtEnd++;
+    } else {
+      break; // Stop counting once we find a non-empty semester
+    }
+  }
+  
+  // Get highest semester number
+  const highestNumber = semesters[semesters.length - 1].number;
+  
+  if (emptyAtEnd === 0) {
+    // No empty semesters at the end, add one
+    semesters.push({
+      number: highestNumber + 1,
+      courses: [],
+      totalCredits: 0
+    });
+  } else if (emptyAtEnd > 1 && semesters.length > PHASE_DIMENSIONS.TOTAL_SEMESTERS) {
+    // Only remove extra empty semesters if we already have more than the minimum number (8)
+    // Keep removing until we have exactly one empty semester or until we reach the minimum number
+    let removed = 0;
+    while (removed < emptyAtEnd - 1 && semesters.length > PHASE_DIMENSIONS.TOTAL_SEMESTERS) {
+      semesters.pop();
+      removed++;
+    }
+  }
+  
+  // Ensure we always have at least PHASE_DIMENSIONS.TOTAL_SEMESTERS (8) semesters
+  if (semesters.length < PHASE_DIMENSIONS.TOTAL_SEMESTERS) {
+    const currentHighestNumber = semesters[semesters.length - 1].number;
+    
+    // Add more empty semesters until we reach the minimum
+    for (let i = semesters.length + 1; i <= PHASE_DIMENSIONS.TOTAL_SEMESTERS; i++) {
+      semesters.push({
+        number: currentHighestNumber + (i - semesters.length),
+        courses: [],
+        totalCredits: 0
+      });
+    }
+  }
+};
 
 // Normalized student data store
 interface StudentStore {
@@ -27,7 +80,16 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
   lastUpdate: Date.now(),
   
   // Force update function to trigger re-renders
-  forceUpdate: () => set({ lastUpdate: Date.now() }),
+  forceUpdate: () => set(
+    produce((state: StudentStore) => {
+      // Make sure the semester structure is correct when forcing update
+      if (state.studentInfo?.currentPlan?.semesters) {
+        ensureOneEmptySemesterAtEnd(state.studentInfo.currentPlan.semesters);
+      }
+      
+      state.lastUpdate = Date.now();
+    })
+  ),
   
   // Set the entire student info (used for initialization)
   setStudentInfo: (info: StudentInfo) => {
@@ -36,15 +98,16 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
       return set({ studentInfo: info })
     }
 
-    // Ensure all expected semesters exist (1-8)
+    // Ensure all expected semesters exist (at least the minimum required)
     const updatedInfo = { ...info }
-    if (updatedInfo.currentPlan && (!updatedInfo.currentPlan.semesters || updatedInfo.currentPlan.semesters.length < 8)) {
+    if (updatedInfo.currentPlan) {
       // Initialize missing semesters
       const existingSemesters = updatedInfo.currentPlan?.semesters || []
       const allSemesters: StudentSemester[] = []
       
-      // Create or update all 8 semesters
-      for (let i = 1; i <= 8; i++) {
+      // Create or update all required semesters
+      // Always initialize exactly PHASE_DIMENSIONS.TOTAL_SEMESTERS (8) semesters
+      for (let i = 1; i <= PHASE_DIMENSIONS.TOTAL_SEMESTERS; i++) {
         const existingSemester = existingSemesters.find(s => s.number === i)
         if (existingSemester) {
           // Use existing semester data, but ensure totalCredits is calculated
@@ -67,10 +130,12 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
         }
       }
       
+      // Ensure we have exactly one empty semester at the end
+      // This will also ensure we have at least 8 semesters
+      ensureOneEmptySemesterAtEnd(allSemesters);
+      
       // Update the plan with all semesters
-      if (updatedInfo.currentPlan) {
-        updatedInfo.currentPlan.semesters = allSemesters
-      }
+      updatedInfo.currentPlan.semesters = allSemesters
       
       // Also initialize plans array if needed
       if (!updatedInfo.plans || updatedInfo.plans.length === 0) {
@@ -159,6 +224,9 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
         targetSemester.totalCredits += course.credits || 0;
       }
       
+      // Ensure we have exactly one empty semester at the end
+      ensureOneEmptySemesterAtEnd(plan.semesters);
+      
       // Force a timestamp update to trigger rerenders
       state.lastUpdate = Date.now();
     })
@@ -211,6 +279,11 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
       // Update target semester credits
       targetSemester.totalCredits += courseToMove.credits || 0
       
+      // Ensure we have exactly one empty semester at the end
+      ensureOneEmptySemesterAtEnd(plan.semesters);
+      
+      // Force a timestamp update to trigger rerenders
+      state.lastUpdate = Date.now();
     })
   ),
   
@@ -238,6 +311,12 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
           break
         }
       }
+      
+      // Ensure we have exactly one empty semester at the end
+      ensureOneEmptySemesterAtEnd(plan.semesters);
+      
+      // Force a timestamp update to trigger rerenders
+      state.lastUpdate = Date.now();
     })
   ),
   
@@ -303,6 +382,12 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
         targetSemester.courses.push(newStudentCourse)
         targetSemester.totalCredits += course.credits || 0
       }
+      
+      // Ensure we have exactly one empty semester at the end
+      ensureOneEmptySemesterAtEnd(plan.semesters);
+      
+      // Force a timestamp update to trigger rerenders
+      state.lastUpdate = Date.now();
     })
   ),
   
@@ -326,6 +411,12 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
           break
         }
       }
+      
+      // Ensure we have exactly one empty semester at the end
+      ensureOneEmptySemesterAtEnd(plan.semesters);
+      
+      // Force a timestamp update to trigger rerenders
+      state.lastUpdate = Date.now();
     })
   ),
 })) 
