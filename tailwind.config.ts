@@ -243,6 +243,9 @@ const config: Config = {
           "--popover": "0 0% 100%",
           "--popover-foreground": "240 10% 3.9%",
           
+          // Phase divider color - Light mode
+          "--phase-divider": "220 13% 85%",
+          
           // Color opacity for backgrounds
           "--color-opacity": "0.2",
           
@@ -314,6 +317,9 @@ const config: Config = {
           "--card-foreground": "0 0% 98%",
           "--popover": "240 10% 3.9%",
           "--popover-foreground": "0 0% 98%",
+          
+          // Phase divider color - Dark mode
+          "--phase-divider": "240 5% 26%",
           
           // Color opacity for backgrounds in dark mode
           "--color-opacity": "0.3",
@@ -412,18 +418,27 @@ const config: Config = {
         },
         '.course-default': {
           borderColor: 'hsl(var(--status-default-border))',
-          backgroundColor: 'hsl(var(--status-default-bg))',
+          backgroundColor: 'hsl(var(--background))',
+          '.dark &': {
+            borderColor: 'hsl(240 5% 15%)', // More grayish border in dark mode
+          },
         },
         '.course-empty': {
           borderColor: 'hsl(var(--status-empty-border))',
           borderStyle: 'dashed',
-          backgroundColor: 'hsl(var(--status-empty-bg-alt))',
+          backgroundColor: 'hsl(var(--background))',
           cursor: 'default',
+          '.dark &': {
+            borderColor: 'hsl(240 5% 26%)', // More grayish border in dark mode
+          },
         },
         '.course-empty-alt': {
           borderColor: 'hsl(var(--status-empty-border))',
-          backgroundColor: 'hsl(var(--status-empty-bg))',
+          backgroundColor: 'hsl(var(--background))',
           cursor: 'default',
+          '.dark &': {
+            borderColor: 'hsl(240 5% 26%)', // More grayish border in dark mode
+          },
         },
         
         // Progress visualizer ghost box styles
@@ -454,7 +469,8 @@ const config: Config = {
           top: '2.5rem', // top-10
           bottom: '0',
           width: '1px',
-          backgroundColor: 'hsl(var(--phase-divider) / 0.4)',
+          backgroundColor: 'hsl(var(--phase-divider))',
+          opacity: '0.8', // Higher opacity for better visibility
         },
         
         // Timetable-specific styling
