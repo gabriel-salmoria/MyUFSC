@@ -47,7 +47,7 @@ export default function ProfessorSelector({
           </button>
         )}
       </div>
-      <div className="max-h-[300px] overflow-y-auto pr-2">
+      <div className="max-h-[450px] overflow-y-auto pr-2">
         <div className={CSS_CLASSES.STATS_GRID}>
           {professors.map(professor => (
             <div

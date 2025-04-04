@@ -25,6 +25,68 @@ export default function TimetableGrid({
   selectedCourse,
   getCourseColor
 }: TimetableGridProps) {
+
+  // Render a single course cell
+  const renderCourseItem = (courseData: any, idx: number) => {
+    const location = courseData.location;
+    
+    return (
+      <div
+        key={`${courseData.course.course.id}-${idx}`}
+        className={cn(
+          CSS_CLASSES.TIMETABLE_COURSE,
+          "flex-1 min-w-0",
+          courseData.isConflicting && "border-[3px] border-red-600",
+          getCourseColor(courseData.course.course.id),
+          selectedCourse?.course.id === courseData.course.course.id && CSS_CLASSES.COURSE_SELECTED
+        )}
+        onClick={() => onCourseClick(courseData.course)}
+      >
+        <div className="flex items-center justify-between">
+          {false && (
+            <div className={cn(CSS_CLASSES.COURSE_ID, "truncate flex-shrink")}>
+              {courseData.course.course.id}
+            </div>
+          )}
+          {location && (
+            <div className="text-[0.75rem] ml-0 opacity-90 whitespace-nowrap font-bold">
+              {location}
+            </div>
+          )}
+        </div>
+        <div className={cn(CSS_CLASSES.COURSE_NAME, "truncate")}>
+          {courseData.course.course.name}
+        </div>
+      </div>
+    );
+  };
+
+  // Render a table cell for a specific time slot and day
+  const renderTimeSlotCell = (slot: any, dayIndex: number) => {
+    const cellData = courseSchedule[slot.id]?.[dayIndex];
+    
+    if (!cellData?.courses.length) {
+      return <td key={dayIndex} className={CSS_CLASSES.TIMETABLE_CELL} />;
+    }
+    
+    return (
+      <td
+        key={dayIndex}
+        className={cn(
+          CSS_CLASSES.TIMETABLE_CELL,
+          cellData.courses.length > 1 && "p-0"
+        )}
+      >
+        <div className={cn(
+          "flex gap-[1px]",
+          cellData.courses.length > 1 && "h-full"
+        )}>
+          {cellData.courses.map((courseData, idx) => renderCourseItem(courseData, idx))}
+        </div>
+      </td>
+    );
+  };
+
   return (
     <div className={CSS_CLASSES.TIMETABLE_CONTAINER}>
       <div className="w-full overflow-auto">
@@ -35,6 +97,7 @@ export default function TimetableGrid({
               <col key={index} style={{ width: `${100 / TIMETABLE.DAYS.length}%` }} />
             ))}
           </colgroup>
+          
           <thead>
             <tr>
               <th className={CSS_CLASSES.TIMETABLE_HEADER}></th>
@@ -45,72 +108,14 @@ export default function TimetableGrid({
               ))}
             </tr>
           </thead>
+          
           <tbody>
             {TIMETABLE.TIME_SLOTS.map((slot) => (
               <tr key={slot.id} className="h-14">
-                {/* Time label */}
                 <td className={CSS_CLASSES.TIMETABLE_TIME_CELL}>
                   {slot.label}
                 </td>
-                {/* Course cells */}
-                {TIMETABLE.DAYS.map((_, dayIndex) => {
-                  const cellData = courseSchedule[slot.id]?.[dayIndex];
-                  if (!cellData?.courses.length) return <td key={dayIndex} className={CSS_CLASSES.TIMETABLE_CELL} />;
-
-                  return (
-                    <td
-                      key={dayIndex}
-                      className={cn(
-                        CSS_CLASSES.TIMETABLE_CELL,
-                        cellData.courses.length > 1 && "p-0" // Remove padding for conflict cells
-                      )}
-                    >
-                      <div className={cn(
-                        "flex gap-[1px]",
-                        cellData.courses.length > 1 && "h-full"
-                      )}>
-                        {cellData.courses.map((courseData, idx) => {
-                          // Get the location directly from course data
-                          const location = courseData.location;
-                          
-                          return (
-                            <div
-                              key={`${courseData.course.course.id}-${idx}`}
-                              className={cn(
-                                CSS_CLASSES.TIMETABLE_COURSE,
-                                "flex-1 min-w-0", // Allow shrinking
-                                courseData.isConflicting && "border-[3px] border-red-600",
-                                getCourseColor(courseData.course.course.id),
-                                selectedCourse?.course.id === courseData.course.course.id && CSS_CLASSES.COURSE_SELECTED
-                              )}
-                              onClick={() => onCourseClick(courseData.course)}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className={cn(
-                                  CSS_CLASSES.COURSE_ID,
-                                  "truncate flex-shrink" // Prevent text overflow
-                                )}>
-                                  {courseData.course.course.id}
-                                </div>
-                                {false && location && (
-                                  <div className="text-[0.65rem] ml-0 opacity-90 whitespace-nowrap font-medium">
-                                    {location}
-                                  </div>
-                                )}
-                              </div>
-                              <div className={cn(
-                                CSS_CLASSES.COURSE_NAME,
-                                "truncate" // Prevent text overflow
-                              )}>
-                                {courseData.course.course.name}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </td>
-                  );
-                })}
+                {TIMETABLE.DAYS.map((_, dayIndex) => renderTimeSlotCell(slot, dayIndex))}
               </tr>
             ))}
           </tbody>

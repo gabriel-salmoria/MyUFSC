@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { DegreeProgram } from "@/types/degree-program"
+import { ChevronDownIcon, CheckIcon, SearchIcon, XIcon } from "lucide-react"
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -13,11 +14,21 @@ export default function RegisterPage() {
     password: "",
     confirmPassword: "",
     name: "",
-    studentId: "",
     currentDegree: "",
-    interestedDegrees: [""],
+    interestedDegrees: [] as string[],
   })
   const [error, setError] = useState("")
+
+  // Search state
+  const [searchTerm, setSearchTerm] = useState("")
+  const [isCurrentDegreeOpen, setIsCurrentDegreeOpen] = useState(false)
+  const [isInterestedDegreesOpen, setIsInterestedDegreesOpen] = useState(false)
+  const [filteredPrograms, setFilteredPrograms] = useState<DegreeProgram[]>([])
+  const [activeIndex, setActiveIndex] = useState(0)
+  
+  const currentDegreeRef = useRef<HTMLDivElement>(null)
+  const interestedDegreesRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const loadDegreePrograms = async () => {
@@ -25,13 +36,87 @@ export default function RegisterPage() {
         const response = await fetch("/api/degree-programs")
         const data = await response.json()
         setDegreePrograms(data.programs)
+        setFilteredPrograms(data.programs)
       } catch (err) {
         setDegreePrograms([])
+        setFilteredPrograms([])
       }
     }
 
     loadDegreePrograms()
   }, [])
+
+  // Filter programs when search term changes
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setFilteredPrograms(degreePrograms)
+      return
+    }
+    
+    const term = searchTerm.toLowerCase()
+    const filtered = degreePrograms.filter(program => 
+      program.name.toLowerCase().includes(term) || 
+      program.id.toLowerCase().includes(term)
+    )
+    
+    setFilteredPrograms(filtered)
+    setActiveIndex(0)
+  }, [searchTerm, degreePrograms])
+
+  // Handle click outside to close dropdowns
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (isCurrentDegreeOpen && 
+          currentDegreeRef.current && 
+          !currentDegreeRef.current.contains(e.target as Node)) {
+        setIsCurrentDegreeOpen(false)
+        setSearchTerm("")
+      }
+      
+      if (isInterestedDegreesOpen && 
+          interestedDegreesRef.current && 
+          !interestedDegreesRef.current.contains(e.target as Node)) {
+        setIsInterestedDegreesOpen(false)
+        setSearchTerm("")
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [isCurrentDegreeOpen, isInterestedDegreesOpen])
+
+  // Handle keyboard navigation
+  const handleKeyDown = (e: React.KeyboardEvent, isCurrentDegree: boolean) => {
+    if (e.key === "Escape") {
+      if (isCurrentDegree) {
+        setIsCurrentDegreeOpen(false)
+      } else {
+        setIsInterestedDegreesOpen(false)
+      }
+      setSearchTerm("")
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault()
+      setActiveIndex(prev => Math.min(prev + 1, filteredPrograms.length - 1))
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault()
+      setActiveIndex(prev => Math.max(prev - 1, 0))
+    } else if (e.key === "Enter" && filteredPrograms.length > 0) {
+      e.preventDefault()
+      const selectedProgram = filteredPrograms[activeIndex]
+      
+      if (isCurrentDegree) {
+        setFormData(prev => ({ ...prev, currentDegree: selectedProgram.id }))
+        setIsCurrentDegreeOpen(false)
+      } else {
+        toggleInterestDegree(selectedProgram.id)
+      }
+      
+      setSearchTerm("")
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -51,10 +136,9 @@ export default function RegisterPage() {
         body: JSON.stringify({
           username: formData.username,
           password: formData.password,
-          name: formData.name,
-          studentId: formData.studentId,
+          name: formData.name || "Student",
           currentDegree: formData.currentDegree,
-          interestedDegrees: formData.interestedDegrees.filter(degree => degree !== ""),
+          interestedDegrees: formData.interestedDegrees || [],
         }),
       })
 
@@ -69,27 +153,26 @@ export default function RegisterPage() {
     }
   }
 
-  const addInterestedDegree = () => {
-    setFormData(prev => ({
-      ...prev,
-      interestedDegrees: [...prev.interestedDegrees, ""]
-    }))
+  const toggleInterestDegree = (degreeId: string) => {
+    setFormData(prev => {
+      if (prev.interestedDegrees.includes(degreeId)) {
+        return {
+          ...prev,
+          interestedDegrees: prev.interestedDegrees.filter(id => id !== degreeId)
+        }
+      } else {
+        return {
+          ...prev,
+          interestedDegrees: [...prev.interestedDegrees, degreeId]
+        }
+      }
+    })
   }
 
-  const removeInterestedDegree = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      interestedDegrees: prev.interestedDegrees.filter((_, i) => i !== index)
-    }))
-  }
-
-  const updateInterestedDegree = (index: number, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      interestedDegrees: prev.interestedDegrees.map((degree, i) => 
-        i === index ? value : degree
-      )
-    }))
+  // Get program name by id
+  const getProgramName = (id: string) => {
+    const program = degreePrograms.find(p => p.id === id)
+    return program ? program.name : ""
   }
 
   return (
@@ -103,135 +186,232 @@ export default function RegisterPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-foreground">
-              Full Name
-            </label>
-            <input
-              type="text"
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2"
-              required
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Student Information Section */}
+          <div className="space-y-5">
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-foreground">
+                Full Name <span className="text-sm font-medium text-blue-500">(optional)</span>
+              </label>
+              <input
+                type="text"
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2"
+                placeholder="Student"
+                style={{ color: formData.name ? 'inherit' : '#888888' }}
+              />
+            </div>
 
-          <div>
-            <label htmlFor="studentId" className="block text-sm font-medium text-foreground">
-              Student ID
-            </label>
-            <input
-              type="text"
-              id="studentId"
-              value={formData.studentId}
-              onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
-              className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2"
-              required
-            />
-          </div>
-
-          <div>
-            <label htmlFor="currentDegree" className="block text-sm font-medium text-foreground">
-              Current Degree Program
-            </label>
-            <select
-              id="currentDegree"
-              value={formData.currentDegree}
-              onChange={(e) => setFormData({ ...formData, currentDegree: e.target.value })}
-              className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2"
-              required
-            >
-              <option value="">Select a degree program</option>
-              {degreePrograms.map((program) => (
-                <option key={program.id} value={program.id}>
-                  {program.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground">
-              Degrees of Interest
-            </label>
-            <div className="mt-1 space-y-2">
-              {formData.interestedDegrees.map((degree, index) => (
-                <div key={index} className="flex gap-2">
-                  <select
-                    value={degree}
-                    onChange={(e) => updateInterestedDegree(index, e.target.value)}
-                    className="flex-1 rounded-md border border-border bg-background px-3 py-2"
-                  >
-                    <option value="">Select a degree program</option>
-                    {degreePrograms.map((program) => (
-                      <option key={program.id} value={program.id}>
-                        {program.name}
-                      </option>
-                    ))}
-                  </select>
-                  {formData.interestedDegrees.length > 1 && (
-                    <button
+            <div ref={currentDegreeRef} className="relative">
+              <label htmlFor="currentDegree" className="block text-sm font-medium text-foreground">
+                Current Degree Program
+              </label>
+              
+              {/* Selected degree display */}
+              {formData.currentDegree && (
+                <div className="flex items-center mt-1 mb-2">
+                  <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs">
+                    <span>{getProgramName(formData.currentDegree)}</span>
+                    <button 
                       type="button"
-                      onClick={() => removeInterestedDegree(index)}
-                      className="px-3 py-2 text-red-500 hover:text-red-700"
+                      onClick={() => setFormData(prev => ({ ...prev, currentDegree: "" }))}
+                      className="hover:text-primary/70"
                     >
-                      Remove
+                      <XIcon className="h-3 w-3" />
                     </button>
-                  )}
+                  </div>
                 </div>
-              ))}
-              <button
-                type="button"
-                onClick={addInterestedDegree}
-                className="text-sm text-primary hover:text-primary/80"
+              )}
+              
+              <div 
+                className="mt-1 flex w-full items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-sm cursor-pointer"
+                onClick={() => {
+                  setIsCurrentDegreeOpen(true)
+                  setIsInterestedDegreesOpen(false)
+                  setSearchTerm("")
+                  setTimeout(() => searchInputRef.current?.focus(), 10)
+                }}
               >
-                + Add Another Degree
-              </button>
+                <span style={{ color: '#888888' }}>
+                  {formData.currentDegree ? "Change degree program" : "Search degree programs..."}
+                </span>
+                <SearchIcon className="h-4 w-4 opacity-50" />
+              </div>
+              
+              {isCurrentDegreeOpen && (
+                <div className="absolute z-10 mt-1 w-full bg-card rounded-md shadow-lg border border-border overflow-auto max-h-60">
+                  <div className="sticky top-0 bg-background-secondary border-b border-border p-2">
+                    <div className="relative">
+                      <SearchIcon className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <input
+                        ref={searchInputRef}
+                        type="text"
+                        placeholder="Search programs..."
+                        className="w-full py-2 pl-8 pr-4 text-sm border border-border rounded-md bg-background"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, true)}
+                      />
+                    </div>
+                  </div>
+                  <ul className="py-1">
+                    {filteredPrograms.length === 0 ? (
+                      <li className="px-4 py-2 text-sm text-muted-foreground">No programs found</li>
+                    ) : (
+                      filteredPrograms.map((program, index) => (
+                        <li 
+                          key={program.id}
+                          className={`px-4 py-2 text-sm cursor-pointer flex items-center justify-between ${
+                            index === activeIndex ? 'bg-accent text-accent-foreground' : ''
+                          } ${formData.currentDegree === program.id ? 'bg-primary/10' : ''}`}
+                          onClick={() => {
+                            setFormData(prev => ({ ...prev, currentDegree: program.id }))
+                            setIsCurrentDegreeOpen(false)
+                            setSearchTerm("")
+                          }}
+                        >
+                          <span>{program.name}</span>
+                          {formData.currentDegree === program.id && (
+                            <CheckIcon className="h-4 w-4" />
+                          )}
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            <div ref={interestedDegreesRef} className="relative">
+              <label className="block text-sm font-medium text-foreground">
+                Degrees of Interest <span className="text-sm font-medium text-blue-500">(optional)</span>
+              </label>
+              
+              {/* Selected interests display */}
+              {formData.interestedDegrees.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1 mb-2">
+                  {formData.interestedDegrees.map(id => (
+                    <div 
+                      key={id}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs"
+                    >
+                      <span>{getProgramName(id)}</span>
+                      <button 
+                        type="button"
+                        onClick={() => toggleInterestDegree(id)}
+                        className="hover:text-primary/70"
+                      >
+                        <XIcon className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              <div 
+                className="mt-1 flex w-full items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-sm cursor-pointer"
+                onClick={() => {
+                  setIsInterestedDegreesOpen(true)
+                  setIsCurrentDegreeOpen(false)
+                  setSearchTerm("")
+                  setTimeout(() => searchInputRef.current?.focus(), 10)
+                }}
+              >
+                <span style={{ color: '#888888' }}>
+                  Search degree programs...
+                </span>
+                <SearchIcon className="h-4 w-4 opacity-50" />
+              </div>
+              
+              {isInterestedDegreesOpen && (
+                <div className="absolute z-10 mt-1 w-full bg-card rounded-md shadow-lg border border-border overflow-auto max-h-60">
+                  <div className="sticky top-0 bg-background-secondary border-b border-border p-2">
+                    <div className="relative">
+                      <SearchIcon className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <input
+                        ref={searchInputRef}
+                        type="text"
+                        placeholder="Search programs..."
+                        className="w-full py-2 pl-8 pr-4 text-sm border border-border rounded-md bg-background"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, false)}
+                      />
+                    </div>
+                  </div>
+                  <ul className="py-1">
+                    {filteredPrograms.length === 0 ? (
+                      <li className="px-4 py-2 text-sm text-muted-foreground">No programs found</li>
+                    ) : (
+                      filteredPrograms.map((program, index) => (
+                        <li 
+                          key={program.id}
+                          className={`px-4 py-2 text-sm cursor-pointer flex items-center justify-between ${
+                            index === activeIndex ? 'bg-accent text-accent-foreground' : ''
+                          }`}
+                          onClick={() => toggleInterestDegree(program.id)}
+                        >
+                          <span>{program.name}</span>
+                          {formData.interestedDegrees.includes(program.id) && (
+                            <CheckIcon className="h-4 w-4" />
+                          )}
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
 
-          <div>
-            <label htmlFor="username" className="block text-sm font-medium text-foreground">
-              Username
-            </label>
-            <input
-              type="text"
-              id="username"
-              value={formData.username}
-              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-              className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2"
-              required
-            />
-          </div>
+          {/* Divider */}
+          <div className="border-t border-border/60 pt-1"></div>
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-foreground">
-              Password
-            </label>
-            <input
-              type="password"
-              id="password"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2"
-              required
-            />
-          </div>
+          {/* Account Information Section */}
+          <div className="space-y-5">
+            <div>
+              <label htmlFor="username" className="block text-sm font-medium text-foreground">
+                Username
+              </label>
+              <input
+                type="text"
+                id="username"
+                value={formData.username}
+                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2"
+                required
+              />
+            </div>
 
-          <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground">
-              Confirm Password
-            </label>
-            <input
-              type="password"
-              id="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-              className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2"
-              required
-            />
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-foreground">
+                Password
+              </label>
+              <input
+                type="password"
+                id="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2"
+                required
+              />
+            </div>
+
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground">
+                Confirm Password
+              </label>
+              <input
+                type="password"
+                id="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2"
+                required
+              />
+            </div>
           </div>
 
           <button

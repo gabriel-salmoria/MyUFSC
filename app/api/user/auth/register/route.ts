@@ -15,10 +15,10 @@ import crypto from "crypto"
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { username, password, name, studentId, currentDegree, interestedDegrees } = body
+    const { username, password, name, currentDegree, interestedDegrees } = body
 
     // Validate input
-    if (!username || !password || !name || !studentId || !currentDegree) {
+    if (!username || !password || !currentDegree) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -53,10 +53,7 @@ export async function POST(request: Request) {
 
     // Create student info object (the sensitive data to encrypt)
     const studentInfo: StudentInfo = {
-      // Generate a unique ID instead of using the plaintext username
-      id: crypto.randomUUID(), // Use a UUID instead of the username
-      name,
-      studentId,
+      name: name || "Student", // Default to "Student" if name is not provided
       currentDegree,
       interestedDegrees: interestedDegrees || [],
       currentSemester: "1",
