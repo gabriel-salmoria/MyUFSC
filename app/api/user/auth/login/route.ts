@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server"
-import { cookies } from "next/headers"
-import fs from "fs"
-import path from "path"
-import bcrypt from "bcryptjs"
-import { deriveEncryptionKey, hashUsernameWithBcrypt } from "@/lib/crypto"
-import type { EncryptedUser } from "@/types/user"
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import fs from "fs";
+import path from "path";
+import bcrypt from "bcryptjs";
+import { deriveEncryptionKey, hashUsername } from "@/lib/crypto";
+import type { EncryptedUser } from "@/types/user";
 
 // Helper function to hash username - deprecated, use the bcrypt version instead
 // function hashUsername(username: string): string {
@@ -13,71 +13,84 @@ import type { EncryptedUser } from "@/types/user"
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const { username, password } = body
+    const body = await request.json();
+    const { hUsername, hPassword } = body;
+
+    console.log(hUsername);
+    console.log(hPassword);
+
+    const hashedUsername = hashUsername(hUsername);
+    console.log(hashedUsername);
 
     // Validate input
-    if (!username || !password) {
+    if (!hashedUsername || !hPassword) {
       return NextResponse.json(
         { error: "Missing required fields" },
-        { status: 400 }
-      )
+        { status: 400 },
+      );
     }
 
-    // Hash the username - this is used as our file identifier
-    const hashedUsername = hashUsernameWithBcrypt(username)
-
     // Check if user exists using the hashed username file
-    const userFile = path.join(process.cwd(), "data", "users", `${hashedUsername}.json`)
+    const userFile = path.join(
+      process.cwd(),
+      "data",
+      "users",
+      `${hashedUsername}.json`,
+    );
+
     if (!fs.existsSync(userFile)) {
       return NextResponse.json(
         { error: "Invalid credentials" },
-        { status: 401 }
-      )
+        { status: 401 },
+      );
     }
 
     // Read user data
-    const userData: EncryptedUser = JSON.parse(fs.readFileSync(userFile, 'utf8'))
-    
-    // Verify password
-    if (!userData.hashedPassword || !await bcrypt.compare(password, userData.hashedPassword)) {
+    const userData: EncryptedUser = JSON.parse(
+      fs.readFileSync(userFile, "utf8"),
+    );
+
+    if (
+      !userData.hashedPassword ||
+      !(await bcrypt.compare(hPassword, userData.hashedPassword))
+    ) {
       return NextResponse.json(
         { error: "Invalid credentials" },
-        { status: 401 }
-      )
+        { status: 401 },
+      );
     }
 
     // Set session cookie
-    const cookieStore = await cookies()
+    const cookieStore = await cookies();
     cookieStore.set("session", "authenticated", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-    })
+    });
 
     // Set user ID cookie - using hashed username not plaintext
-    cookieStore.set("userId", hashedUsername, {
+    cookieStore.set("userId", hUsername, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-    })
+    });
 
     // Return encrypted data to client
     // The client will decrypt it with the key derived from the password
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
+      hashedUsername: userData.hashedUsername,
       salt: userData.salt,
       hashedPassword: userData.hashedPassword,
-      hashedUsername: userData.hashedUsername,
-      encryptedData: userData.encryptedData
-    })
+      encryptedData: userData.encryptedData,
+    });
   } catch (error) {
-    console.error(error)
+    console.error(error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
-    )
+      { status: 500 },
+    );
   }
-} 
+}

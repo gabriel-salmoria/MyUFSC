@@ -1,6 +1,11 @@
-import { useState, useCallback, useEffect } from 'react';
-import { decryptStudentData, encryptStudentData } from '@/lib/client/crypto';
-import type { StudentInfo } from '@/types/student-plan';
+import { useState, useCallback, useEffect } from "react";
+import {
+  decryptStudentData,
+  encryptStudentData,
+  hashString,
+} from "@/lib/client/crypto";
+import type { StudentInfo } from "@/types/student-plan";
+import { User } from "lucide-react";
 
 interface UseEncryptedDataProps {
   onSaveError?: (error: any) => void;
@@ -14,7 +19,10 @@ interface AuthInfo {
   hashedPassword: string;
 }
 
-export default function useEncryptedData({ onSaveError, onLoadError }: UseEncryptedDataProps = {}) {
+export default function useEncryptedData({
+  onSaveError,
+  onLoadError,
+}: UseEncryptedDataProps = {}) {
   const [studentData, setStudentData] = useState<StudentInfo | null>(null);
   const [salt, setSalt] = useState<string | null>(null);
   const [password, setPassword] = useState<string | null>(null);
@@ -23,8 +31,8 @@ export default function useEncryptedData({ onSaveError, onLoadError }: UseEncryp
 
   // Load password from sessionStorage on initial mount
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedPassword = sessionStorage.getItem('enc_pwd');
+    if (typeof window !== "undefined") {
+      const storedPassword = sessionStorage.getItem("enc_pwd");
       if (storedPassword) {
         setPassword(storedPassword);
       }
@@ -32,177 +40,195 @@ export default function useEncryptedData({ onSaveError, onLoadError }: UseEncryp
   }, []);
 
   // Decrypt data from server response
-  const decryptData = useCallback((encryptedData: any, salt: string, password: string) => {
-    try {
-      const decrypted = decryptStudentData(
-        password,
-        salt,
-        encryptedData
-      );
-      
-      setStudentData(decrypted);
-      setSalt(salt);
-      setPassword(password);
-      
-      // Store password in sessionStorage to persist between page reloads
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('enc_pwd', password);
+  const decryptData = useCallback(
+    (encryptedData: any, salt: string, password: string) => {
+      try {
+        const decrypted = decryptStudentData(password, salt, encryptedData);
+
+        setStudentData(decrypted);
+        setSalt(salt);
+        setPassword(password);
+
+        // Store password in sessionStorage to persist between page reloads
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("enc_pwd", password);
+        }
+
+        return decrypted;
+      } catch (error) {
+        if (onLoadError) {
+          onLoadError(error);
+        } else {
+          console.error("Failed to decrypt data:", error);
+        }
+        return null;
       }
-      
-      return decrypted;
-    } catch (error) {
-      if (onLoadError) {
-        onLoadError(error);
-      } else {
-        console.error('Failed to decrypt data:', error);
-      }
-      return null;
-    }
-  }, [onLoadError]);
+    },
+    [onLoadError],
+  );
 
   // Login and load encrypted data
-  const login = useCallback(async (username: string, password: string) => {
-    setIsLoading(true);
-    
-    try {
-      const response = await fetch('/api/user/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
-      }
-      
-      if (data.success && data.salt && data.encryptedData) {
-        // Store authentication info for later use when saving
-        setAuthInfo({
-          hashedUsername: data.hashedUsername,
-          salt: data.salt,
-          hashedPassword: data.hashedPassword
+  const login = useCallback(
+    async (username: string, password: string) => {
+      setIsLoading(true);
+
+      let hUsername = hashString(username);
+      console.log(hUsername);
+      let hPassword = hashString(password);
+      console.log(hPassword);
+
+      try {
+        const response = await fetch("/api/user/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ hUsername, hPassword }),
         });
-        
-        const decrypted = decryptData(data.encryptedData, data.salt, password);
-        
-        // Store password in sessionStorage to persist between page reloads
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem('enc_pwd', password);
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Login failed");
         }
-        
-        return { success: true, data: decrypted };
+
+        if (data.success && data.salt && data.encryptedData) {
+          // Store authentication info for later use when saving
+          setAuthInfo({
+            hashedUsername: data.hashedUsername,
+            salt: data.salt,
+            hashedPassword: data.hashedPassword,
+          });
+
+          const decrypted = decryptData(
+            data.encryptedData,
+            data.salt,
+            password,
+          );
+
+          // Store password in sessionStorage to persist between page reloads
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem("enc_pwd", password);
+          }
+
+          return { success: true, data: decrypted };
+        }
+
+        return { success: true, data: null };
+      } catch (error) {
+        if (onLoadError) {
+          onLoadError(error);
+        } else {
+          console.error("Login failed:", error);
+        }
+        return { success: false, error };
+      } finally {
+        setIsLoading(false);
       }
-      
-      return { success: true, data: null };
-    } catch (error) {
-      if (onLoadError) {
-        onLoadError(error);
-      } else {
-        console.error('Login failed:', error);
-      }
-      return { success: false, error };
-    } finally {
-      setIsLoading(false);
-    }
-  }, [decryptData, onLoadError]);
+    },
+    [decryptData, onLoadError],
+  );
 
   // Save encrypted data to server
-  const saveData = useCallback(async (
-    dataToSave?: StudentInfo,
-    options?: {
-      saltOverride?: string;
-      passwordOverride?: string;
-    }
-  ) => {
-    const effectiveSalt = options?.saltOverride || salt;
-    const effectivePassword = options?.passwordOverride || password;
-    
-    if (!effectiveSalt || !effectivePassword || (!dataToSave && !studentData)) {
-      console.error('Cannot save: missing salt, password, or data');
-      return false;
-    }
-    
-    setIsLoading(true);
-    
-    try {
-      const dataToEncrypt = dataToSave || studentData;
-      
-      const encrypted = encryptStudentData(
-        dataToEncrypt as StudentInfo,
-        effectivePassword,
-        effectiveSalt
-      );
-      
-      const response = await fetch('/api/user/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ encryptedData: encrypted })
-      });
-      
-      const result = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to save encrypted data');
+  const saveData = useCallback(
+    async (
+      dataToSave?: StudentInfo,
+      options?: {
+        saltOverride?: string;
+        passwordOverride?: string;
+      },
+    ) => {
+      const effectiveSalt = options?.saltOverride || salt;
+      const effectivePassword = options?.passwordOverride || password;
+
+      if (
+        !effectiveSalt ||
+        !effectivePassword ||
+        (!dataToSave && !studentData)
+      ) {
+        console.error("Cannot save: missing salt, password, or data");
+        return false;
       }
-      
-      if (dataToSave) {
-        setStudentData(dataToSave);
+
+      setIsLoading(true);
+
+      try {
+        const dataToEncrypt = dataToSave || studentData;
+
+        const encrypted = encryptStudentData(
+          dataToEncrypt as StudentInfo,
+          effectivePassword,
+          effectiveSalt,
+        );
+
+        const response = await fetch("/api/user/update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ encryptedData: encrypted }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || "Failed to save encrypted data");
+        }
+
+        if (dataToSave) {
+          setStudentData(dataToSave);
+        }
+
+        // Store the successful credentials
+        if (options?.saltOverride) {
+          setSalt(options.saltOverride);
+        }
+
+        if (options?.passwordOverride) {
+          setPassword(options.passwordOverride);
+        }
+
+        return true;
+      } catch (error) {
+        if (onSaveError) {
+          onSaveError(error);
+        } else {
+          console.error("Failed to save encrypted data:", error);
+        }
+        return false;
+      } finally {
+        setIsLoading(false);
       }
-      
-      // Store the successful credentials
-      if (options?.saltOverride) {
-        setSalt(options.saltOverride);
-      }
-      
-      if (options?.passwordOverride) {
-        setPassword(options.passwordOverride);
-      }
-      
-      return true;
-    } catch (error) {
-      if (onSaveError) {
-        onSaveError(error);
-      } else {
-        console.error('Failed to save encrypted data:', error);
-      }
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [salt, password, studentData, onSaveError]);
+    },
+    [salt, password, studentData, onSaveError],
+  );
 
   // Initialize auth info from the API
   const initializeAuthInfo = useCallback(async () => {
     setIsLoading(true);
-    
+
     try {
-      const response = await fetch('/api/user/auth-info', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
+      const response = await fetch("/api/user/auth-info", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
       });
-      
+
       if (!response.ok) {
-        throw new Error('Failed to fetch auth info');
+        throw new Error("Failed to fetch auth info");
       }
-      
+
       const data = await response.json();
-      
+
       if (data.hashedUsername && data.salt && data.hashedPassword) {
         setAuthInfo({
           hashedUsername: data.hashedUsername,
           salt: data.salt,
-          hashedPassword: data.hashedPassword
+          hashedPassword: data.hashedPassword,
         });
-        
+
         setSalt(data.salt);
         return true;
       }
-      
+
       return false;
     } catch (error) {
-      console.error('Failed to initialize auth info:', error);
+      console.error("Failed to initialize auth info:", error);
       return false;
     } finally {
       setIsLoading(false);
@@ -210,27 +236,32 @@ export default function useEncryptedData({ onSaveError, onLoadError }: UseEncryp
   }, []);
 
   // Set encryption credentials without logging in
-  const setEncryptionCredentials = useCallback((newSalt: string, newPassword: string) => {
-    if (!newSalt || !newPassword) {
-      console.error('Cannot set encryption credentials: missing salt or password');
-      return false;
-    }
-    
-    try {
-      setSalt(newSalt);
-      setPassword(newPassword);
-      
-      // Store password in sessionStorage
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('enc_pwd', newPassword);
+  const setEncryptionCredentials = useCallback(
+    (newSalt: string, newPassword: string) => {
+      if (!newSalt || !newPassword) {
+        console.error(
+          "Cannot set encryption credentials: missing salt or password",
+        );
+        return false;
       }
-      
-      return true;
-    } catch (error) {
-      console.error('Failed to set encryption credentials:', error);
-      return false;
-    }
-  }, []);
+
+      try {
+        setSalt(newSalt);
+        setPassword(newPassword);
+
+        // Store password in sessionStorage
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("enc_pwd", newPassword);
+        }
+
+        return true;
+      } catch (error) {
+        console.error("Failed to set encryption credentials:", error);
+        return false;
+      }
+    },
+    [],
+  );
 
   return {
     studentData,
@@ -246,6 +277,6 @@ export default function useEncryptedData({ onSaveError, onLoadError }: UseEncryp
     updateStudentData: (newData: StudentInfo) => {
       setStudentData(newData);
       return saveData(newData);
-    }
+    },
   };
-} 
+}

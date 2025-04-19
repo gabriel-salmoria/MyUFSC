@@ -1,4 +1,4 @@
-import type { Course } from "./curriculum"
+import type { Course } from "./curriculum";
 
 /**
  * Represents the status of a course in a student's plan
@@ -16,34 +16,36 @@ export enum CourseStatus {
  * Represents a course in the student's personal plan
  */
 export interface StudentCourse extends Omit<Course, "phase"> {
-  course: Course 
-  status: CourseStatus
-  grade?: number
-  class?: string
+  course: Course;
+  status: CourseStatus;
+  grade?: number;
+  class?: string;
 }
 
 /**
  * Represents a semester in the student's plan
  */
 export interface StudentSemester {
-  number: number
-  courses: StudentCourse[]
-  totalCredits: number
+  number: number;
+  courses: StudentCourse[];
+  totalCredits: number;
 }
 
 /**
  * Represents the student's complete academic plan
  */
 export interface StudentPlan {
-  id: string
-  semesters: StudentSemester[]
+  semesters: StudentSemester[];
 }
 
+/**
+ * Represents the student's personal information
+ */
 export interface StudentInfo {
-  currentDegree: string
-  interestedDegrees: string[]
-  name: string
-  currentPlan: StudentPlan | null
-  currentSemester: string
-  plans: StudentPlan[]
+  currentDegree: string;
+  interestedDegrees: string[];
+  name: string;
+  currentPlan: number;
+  currentSemester: string;
+  plans: StudentPlan[];
 }

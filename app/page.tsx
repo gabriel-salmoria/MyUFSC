@@ -70,10 +70,6 @@ export default function Home() {
     return null
   }
 
-  // Get elective courses from the courseMap populated by fetchCurriculum
-  const electiveCourses = Array.from(courseMap.values())
-    .filter(course => course.type === "optional")
-
   return (
     <main className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
@@ -99,12 +95,7 @@ export default function Home() {
           onStudentCourseClick={(course) => setSelectionState({ selectedCourse: null, selectedStudentCourse: course })}
           onCourseDropped={(course, semesterNumber, positionIndex) => {
             if (studentStore) {
-              // First add the course to the specified semester and position
               (studentStore as any).addCourseToSemester(course, semesterNumber, positionIndex);
-              
-              // After adding the course, check if we need to create more ghost boxes
-              // This will be handled by our modified calculateStudentPositions function
-              // that ensures at least one ghost box is always available
             }
           }}
           viewMode={viewMode}
