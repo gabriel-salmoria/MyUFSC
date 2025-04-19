@@ -1,24 +1,23 @@
-"use client"
+"use client";
 
-import { CourseStatus } from "@/types/student-plan"
-import type { Course } from "@/types/curriculum"
+import { CourseStatus } from "@/types/student-plan";
+import type { Course } from "@/types/curriculum";
 
 // Main layout components
-import Header from "@/components/layout/Header"
-import Visualizations from "@/components/layout/Visualizations"
+import Header from "@/components/layout/Header";
+import Visualizations from "@/components/layout/Visualizations";
 
 // Detail and specialty components
-import StudentCourseDetailsPanel from "@/components/details-panel"
-import DependencyTree from "@/components/dependency-tree/dependency-tree"
-import Timetable from "@/components/schedule/timetable"
-import TrashDropZone from "@/components/visualizers/trash-drop-zone"
+import StudentCourseDetailsPanel from "@/components/details-panel";
+import DependencyTree from "@/components/dependency-tree/dependency-tree";
+import Timetable from "@/components/schedule/timetable";
+import TrashDropZone from "@/components/visualizers/trash-drop-zone";
 
 // Import the custom useAppSetup hook
-import { useAppSetup } from "@/hooks/useAppSetup"
+import { useAppSetup } from "@/hooks/useAppSetup";
 
 // Parser and visualization
-import { courseMap } from "@/lib/parsers/curriculum-parser"
-
+import { courseMap } from "@/lib/parsers/curriculum-parser";
 
 export default function Home() {
   // Use our app setup hook to handle all the state and data fetching
@@ -38,7 +37,7 @@ export default function Home() {
     handleCloseDependencyTree,
     handleAddCourse,
     getDegreeName,
-    studentStore
+    studentStore,
   } = useAppSetup();
 
   if (loadingState.loading || !loadingState.allDataLoaded) {
@@ -47,15 +46,21 @@ export default function Home() {
         <div className="text-center">
           <div className="mb-4">Loading your semester planner...</div>
           <div className="text-sm text-muted-foreground">
-            {loadingState.profileLoading ? "Loading profile..." : "Profile loaded ✓"}
+            {loadingState.profileLoading
+              ? "Loading profile..."
+              : "Profile loaded ✓"}
             <br />
-            {loadingState.curriculumLoading ? "Loading curriculum..." : "Curriculum loaded ✓"}
+            {loadingState.curriculumLoading
+              ? "Loading curriculum..."
+              : "Curriculum loaded ✓"}
             <br />
-            {loadingState.scheduleLoading ? "Loading class schedule..." : "Schedule loaded ✓"}
+            {loadingState.scheduleLoading
+              ? "Loading class schedule..."
+              : "Schedule loaded ✓"}
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   if (authState.error) {
@@ -63,18 +68,18 @@ export default function Home() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center text-red-500">{authState.error}</div>
       </div>
-    )
+    );
   }
 
   if (!studentInfo) {
-    return null
+    return null;
   }
 
   return (
     <main className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
         {/* Header Section */}
-        <Header 
+        <Header
           studentInfo={studentInfo}
           currentCurriculum={curriculumState.currentCurriculum}
           degreePrograms={curriculumState.degreePrograms}
@@ -88,14 +93,28 @@ export default function Home() {
           visualization={curriculumState.visualization}
           electiveCourses={
             curriculumState.curriculum?.courses.filter(
-              (course) => course.type !== "mandatory"
+              (course) => course.type !== "mandatory",
             ) || []
           }
-          onCourseClick={(course) => setSelectionState({ selectedCourse: course, selectedStudentCourse: null })}
-          onStudentCourseClick={(course) => setSelectionState({ selectedCourse: null, selectedStudentCourse: course })}
+          onCourseClick={(course) =>
+            setSelectionState({
+              selectedCourse: course,
+              selectedStudentCourse: null,
+            })
+          }
+          onStudentCourseClick={(course) =>
+            setSelectionState({
+              selectedCourse: null,
+              selectedStudentCourse: course,
+            })
+          }
           onCourseDropped={(course, semesterNumber, positionIndex) => {
             if (studentStore) {
-              (studentStore as any).addCourseToSemester(course, semesterNumber, positionIndex);
+              (studentStore as any).addCourseToSemester(
+                course,
+                semesterNumber,
+                positionIndex,
+              );
             }
           }}
           viewMode={viewMode}
@@ -107,13 +126,25 @@ export default function Home() {
           <Timetable
             studentInfo={studentInfo}
             scheduleData={scheduleState.scheduleData}
-            onCourseClick={(course) => setSelectionState({ selectedCourse: null, selectedStudentCourse: course })}
+            onCourseClick={(course) =>
+              setSelectionState({
+                selectedCourse: null,
+                selectedStudentCourse: course,
+              })
+            }
             onAddCourse={handleAddCourse}
             selectedCampus={scheduleState.selectedCampus}
             selectedSemester={scheduleState.selectedSemester}
             isLoadingscheduleData={scheduleState.isLoading}
-            onCampusChange={(campus) => setScheduleState(prev => ({ ...prev, selectedCampus: campus }))}
-            onSemesterChange={(semester) => setScheduleState(prev => ({ ...prev, selectedSemester: semester }))}
+            onCampusChange={(campus) =>
+              setScheduleState((prev) => ({ ...prev, selectedCampus: campus }))
+            }
+            onSemesterChange={(semester) =>
+              setScheduleState((prev) => ({
+                ...prev,
+                selectedSemester: semester,
+              }))
+            }
           />
         </div>
 
@@ -121,15 +152,28 @@ export default function Home() {
         {selectionState.selectedCourse && (
           <StudentCourseDetailsPanel
             course={selectionState.selectedCourse}
-            onClose={() => setSelectionState({ selectedCourse: null, selectedStudentCourse: null })}
+            onClose={() =>
+              setSelectionState({
+                selectedCourse: null,
+                selectedStudentCourse: null,
+              })
+            }
             onViewDependencies={() => {
               if (selectionState.selectedCourse) {
-                handleViewDependencies(selectionState.selectedCourse)
+                handleViewDependencies(selectionState.selectedCourse);
               }
             }}
-            onStatusChange={(courseId: string, status: CourseStatus, course?: Course) => {
+            onStatusChange={(
+              courseId: string,
+              status: CourseStatus,
+              course?: Course,
+            ) => {
               if (studentStore) {
-                (studentStore as any).changeCourseStatus(courseId, status, course);
+                (studentStore as any).changeCourseStatus(
+                  courseId,
+                  status,
+                  course,
+                );
               }
             }}
             onGradeChange={(courseId: string, grade: number) => {
@@ -144,15 +188,30 @@ export default function Home() {
           <StudentCourseDetailsPanel
             course={selectionState.selectedStudentCourse.course}
             studentCourse={selectionState.selectedStudentCourse}
-            onClose={() => setSelectionState({ selectedCourse: null, selectedStudentCourse: null })}
+            onClose={() =>
+              setSelectionState({
+                selectedCourse: null,
+                selectedStudentCourse: null,
+              })
+            }
             onViewDependencies={() => {
               if (selectionState.selectedStudentCourse) {
-                handleViewDependencies(selectionState.selectedStudentCourse.course)
+                handleViewDependencies(
+                  selectionState.selectedStudentCourse.course,
+                );
               }
             }}
-            onStatusChange={(courseId: string, status: CourseStatus, course?: Course) => {
+            onStatusChange={(
+              courseId: string,
+              status: CourseStatus,
+              course?: Course,
+            ) => {
               if (studentStore) {
-                (studentStore as any).changeCourseStatus(courseId, status, course);
+                (studentStore as any).changeCourseStatus(
+                  courseId,
+                  status,
+                  course,
+                );
               }
             }}
             onGradeChange={(courseId: string, grade: number) => {
@@ -170,13 +229,15 @@ export default function Home() {
             onClose={handleCloseDependencyTree}
           />
         )}
-        
-        <TrashDropZone onRemoveCourse={(courseId) => {
-          if (studentStore) {
-            (studentStore as any).removeCourse(courseId);
-          }
-        }} />
+
+        <TrashDropZone
+          onRemoveCourse={(courseId) => {
+            if (studentStore) {
+              (studentStore as any).removeCourse(courseId);
+            }
+          }}
+        />
       </div>
     </main>
-  )
+  );
 }

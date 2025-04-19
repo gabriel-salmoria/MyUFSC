@@ -11,6 +11,7 @@ import {
   deriveEncryptionKey,
   encryptStudentData,
 } from "@/lib/client/crypto";
+import { StudentPlan } from "@/types/student-plan";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -148,13 +149,17 @@ export default function RegisterPage() {
     console.log(hPassword);
     let key = deriveEncryptionKey(hPassword);
 
+    let plan: StudentPlan = {
+      semesters: [],
+    };
+
     let studentData = {
       currentDegree: formData.currentDegree,
       interestedDegrees: formData.interestedDegrees ?? [],
       name: formData.name ?? "Student",
       currentPlan: 0,
       currentSemester: "1",
-      plans: [],
+      plans: [plan],
     };
 
     let result = encryptStudentData(studentData, hPassword);
