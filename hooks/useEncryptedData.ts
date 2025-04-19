@@ -135,7 +135,7 @@ export default function useEncryptedData({
       const effectivePassword = options?.passwordOverride || password;
 
       if (!effectivePassword || (!dataToSave && !studentData)) {
-        console.error("Cannot save: missing salt, password, or data");
+        console.error("Cannot save: missing password or data");
         return false;
       }
 
@@ -219,32 +219,28 @@ export default function useEncryptedData({
   }, []);
 
   // Set encryption credentials without logging in
-  const setEncryptionCredentials = useCallback(
-    (newSalt: string, newPassword: string) => {
-      if (!newSalt || !newPassword) {
-        console.error(
-          "Cannot set encryption credentials: missing salt or password",
-        );
-        return false;
+  const setEncryptionCredentials = useCallback((newPassword: string) => {
+    if (!newPassword) {
+      console.error(
+        "Cannot set encryption credentials: missing salt or password",
+      );
+      return false;
+    }
+
+    try {
+      setPassword(newPassword);
+
+      // Store password in sessionStorage
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("enc_pwd", newPassword);
       }
 
-      try {
-        setSalt(newSalt);
-        setPassword(newPassword);
-
-        // Store password in sessionStorage
-        if (typeof window !== "undefined") {
-          sessionStorage.setItem("enc_pwd", newPassword);
-        }
-
-        return true;
-      } catch (error) {
-        console.error("Failed to set encryption credentials:", error);
-        return false;
-      }
-    },
-    [],
-  );
+      return true;
+    } catch (error) {
+      console.error("Failed to set encryption credentials:", error);
+      return false;
+    }
+  }, []);
 
   return {
     studentData,

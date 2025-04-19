@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import useEncryptedData from "@/hooks/useEncryptedData";
 import { useStudentStore } from "@/lib/student-store";
+import { StudentInfo } from "@/types/student-plan";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -40,7 +41,8 @@ export default function LoginPage() {
       }
 
       // Set the decrypted data in the global store
-      studentStore.setStudentInfo(result.data);
+      studentStore.setStudentInfo(result.data as StudentInfo);
+      console.log(result.data);
 
       // Navigate to home page
       router.push("/");

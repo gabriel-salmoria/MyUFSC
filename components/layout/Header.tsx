@@ -1,169 +1,174 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { LogOut, Save } from "lucide-react"
-import { StudentInfo } from "@/types/student-plan"
-import { DegreeProgram } from "@/types/degree-program"
-import useEncryptedData from "@/hooks/useEncryptedData"
-import { Curriculum } from "@/types/curriculum"
+import { useState } from "react";
+import { LogOut, Save } from "lucide-react";
+import { StudentInfo } from "@/types/student-plan";
+import { DegreeProgram } from "@/types/degree-program";
+import useEncryptedData from "@/hooks/useEncryptedData";
+import { Curriculum } from "@/types/curriculum";
 
 interface HeaderProps {
-  studentInfo: StudentInfo
-  currentCurriculum: Curriculum | null
-  degreePrograms: DegreeProgram[]
-  getDegreeName: (degreeId: string) => string
+  studentInfo: StudentInfo;
+  currentCurriculum: Curriculum | null;
+  degreePrograms: DegreeProgram[];
+  getDegreeName: (degreeId: string) => string;
 }
 
-export default function Header({ studentInfo, currentCurriculum, degreePrograms, getDegreeName }: HeaderProps) {
+export default function Header({
+  studentInfo,
+  currentCurriculum,
+  degreePrograms,
+  getDegreeName,
+}: HeaderProps) {
   // Add state for save status
-  const [isSaving, setIsSaving] = useState(false)
-  const [saveError, setSaveError] = useState("")
-  const [saveSuccess, setSaveSuccess] = useState(false)
-  
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
   // State for password modal
-  const [showPasswordModal, setShowPasswordModal] = useState(false)
-  const [passwordInput, setPasswordInput] = useState("")
-  const [passwordError, setPasswordError] = useState("")
-  
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+
   // Use the encrypted data hook for saving
-  const { 
-    saveData, 
-    authInfo, 
-    initializeAuthInfo, 
-    setEncryptionCredentials
-  } = useEncryptedData({
-    onSaveError: (error) => {
-      setSaveError(error instanceof Error ? error.message : "Failed to save data")
-      setSaveSuccess(false)
-    }
-  })
-  
+  const { saveData, authInfo, initializeAuthInfo, setEncryptionCredentials } =
+    useEncryptedData({
+      onSaveError: (error) => {
+        setSaveError(
+          error instanceof Error ? error.message : "Failed to save data",
+        );
+        setSaveSuccess(false);
+      },
+    });
+
   // Handle saving data
   const handleSaveData = async () => {
-    if (!studentInfo) return
-    
+    if (!studentInfo) return;
+
     // If we don't have auth info, retrieve it first
     if (!authInfo) {
       try {
-        const initialized = await initializeAuthInfo()
+        const initialized = await initializeAuthInfo();
         if (!initialized) {
-          setSaveError("Could not retrieve authentication information")
-          return
+          setSaveError("Could not retrieve authentication information");
+          return;
         }
       } catch (error) {
-        setSaveError("Failed to retrieve authentication information")
-        return
+        setSaveError("Failed to retrieve authentication information");
+        return;
       }
     }
-    
-    setIsSaving(true)
-    setSaveError("")
-    setSaveSuccess(false)
-    
+
+    setIsSaving(true);
+    setSaveError("");
+    setSaveSuccess(false);
+
     try {
       // Check if we already have a password in state or session storage
-      let currentPassword = passwordInput
-      
+      let currentPassword = passwordInput;
+
       // If no password in state, try to get it from sessionStorage
-      if (!currentPassword && typeof window !== 'undefined') {
-        const storedPassword = sessionStorage.getItem('enc_pwd')
+      if (!currentPassword && typeof window !== "undefined") {
+        const storedPassword = sessionStorage.getItem("enc_pwd");
         if (storedPassword) {
-          currentPassword = storedPassword
+          currentPassword = storedPassword;
         }
       }
-      
+
       // Attempt to save with the password we have
       if (currentPassword && authInfo?.salt) {
         const success = await saveData(studentInfo, {
           saltOverride: authInfo.salt,
-          passwordOverride: currentPassword
-        })
-        
+          passwordOverride: currentPassword,
+        });
+
         if (success) {
-          setSaveSuccess(true)
-          setTimeout(() => setSaveSuccess(false), 3000)
-          setIsSaving(false)
-          return
+          setSaveSuccess(true);
+          setTimeout(() => setSaveSuccess(false), 3000);
+          setIsSaving(false);
+          return;
         }
       }
-      
+
       // If we get here, we need to prompt for password
-      setIsSaving(false)
-      setShowPasswordModal(true)
+      setIsSaving(false);
+      setShowPasswordModal(true);
     } catch (error) {
-      console.error("Error saving data:", error)
-      setSaveError(error instanceof Error ? error.message : "An unknown error occurred")
-      setIsSaving(false)
+      console.error("Error saving data:", error);
+      setSaveError(
+        error instanceof Error ? error.message : "An unknown error occurred",
+      );
+      setIsSaving(false);
     }
-  }
-  
+  };
+
   // Handle password submission
   const handlePasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
+    e.preventDefault();
+
     if (!passwordInput.trim()) {
-      setPasswordError("Password is required")
-      return
+      setPasswordError("Password is required");
+      return;
     }
-    
-    if (!authInfo || !authInfo.salt) {
-      setPasswordError("Missing authentication data")
-      return
+
+    if (!authInfo) {
+      setPasswordError("Missing authentication data");
+      return;
     }
-    
-    setPasswordError("")
-    setIsSaving(true)
-    
+
+    setPasswordError("");
+    setIsSaving(true);
+
     try {
       // Close the modal right away
-      setShowPasswordModal(false)
-      
+      setShowPasswordModal(false);
+
       if (!studentInfo) {
-        setSaveError("Missing student data")
-        setIsSaving(false)
-        return
+        setSaveError("Missing student data");
+        setIsSaving(false);
+        return;
       }
-      
+
       // Store password in sessionStorage for future use
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('enc_pwd', passwordInput)
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("enc_pwd", passwordInput);
       }
-      
+
       // First, set credentials in the hook so they're available for future saves
-      setEncryptionCredentials(authInfo.salt, passwordInput)
-      
+      setEncryptionCredentials(passwordInput);
+
       // Try to save with direct values, not relying on state updates yet
-      const success = await saveData(
-        studentInfo,
-        {
-          saltOverride: authInfo.salt,
-          passwordOverride: passwordInput
-        }
-      )
-      
+      const success = await saveData(studentInfo, {
+        passwordOverride: passwordInput,
+      });
+
       if (success) {
-        setSaveSuccess(true)
+        setSaveSuccess(true);
         // Hide success message after 3 seconds
-        setTimeout(() => setSaveSuccess(false), 3000)
+        setTimeout(() => setSaveSuccess(false), 3000);
       } else {
-        setSaveError("Failed to save data even with password provided")
+        setSaveError("Failed to save data even with password provided");
       }
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "An error occurred while saving")
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : "An error occurred while saving",
+      );
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
-  }
+  };
 
   // Handle logout
   const handleLogout = async () => {
     try {
-      await fetch("/api/user/auth/logout", { method: "POST" })
-      window.location.href = "/login"
+      await fetch("/api/user/auth/logout", { method: "POST" });
+      window.location.href = "/login";
     } catch (err) {
-      window.location.href = "/login"
+      window.location.href = "/login";
     }
-  }
+  };
 
   return (
     <>
@@ -173,7 +178,9 @@ export default function Header({ studentInfo, currentCurriculum, degreePrograms,
         </h1>
         <div className="flex items-center gap-4">
           {saveSuccess && (
-            <span className="text-green-500 text-sm">Changes saved successfully!</span>
+            <span className="text-green-500 text-sm">
+              Changes saved successfully!
+            </span>
           )}
           {saveError && (
             <span className="text-red-500 text-sm">{saveError}</span>
@@ -198,27 +205,38 @@ export default function Header({ studentInfo, currentCurriculum, degreePrograms,
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
         <div className="bg-card p-6 rounded-lg shadow-lg">
-          <h2 className="text-xl font-semibold mb-4 text-foreground">Current Degree</h2>
-          <p className="text-muted-foreground">{getDegreeName(studentInfo.currentDegree)}</p>
+          <h2 className="text-xl font-semibold mb-4 text-foreground">
+            Current Degree
+          </h2>
+          <p className="text-muted-foreground">
+            {getDegreeName(studentInfo.currentDegree)}
+          </p>
           {currentCurriculum && (
             <div className="mt-4">
               <h3 className="text-lg font-medium mb-2">Curriculum</h3>
               <p className="text-muted-foreground">{currentCurriculum.name}</p>
-              <p className="text-sm text-muted-foreground">Total Phases: {currentCurriculum.totalPhases}</p>
+              <p className="text-sm text-muted-foreground">
+                Total Phases: {currentCurriculum.totalPhases}
+              </p>
             </div>
           )}
         </div>
 
-        {studentInfo.interestedDegrees && studentInfo.interestedDegrees.length > 0 && (
-          <div className="bg-card p-6 rounded-lg shadow-lg">
-            <h2 className="text-xl font-semibold mb-4 text-foreground">Degrees of Interest</h2>
-            <ul className="space-y-2">
-              {studentInfo.interestedDegrees.map((degree, index) => (
-                <li key={index} className="text-muted-foreground">{getDegreeName(degree)}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {studentInfo.interestedDegrees &&
+          studentInfo.interestedDegrees.length > 0 && (
+            <div className="bg-card p-6 rounded-lg shadow-lg">
+              <h2 className="text-xl font-semibold mb-4 text-foreground">
+                Degrees of Interest
+              </h2>
+              <ul className="space-y-2">
+                {studentInfo.interestedDegrees.map((degree, index) => (
+                  <li key={index} className="text-muted-foreground">
+                    {getDegreeName(degree)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
       </div>
 
       {/* Password Modal */}
@@ -229,16 +247,19 @@ export default function Header({ studentInfo, currentCurriculum, degreePrograms,
             <p className="text-muted-foreground mb-4">
               Your password is needed to encrypt the data before saving.
             </p>
-            
+
             <form onSubmit={handlePasswordSubmit}>
               {passwordError && (
                 <div className="p-3 text-sm text-red-500 bg-red-100 rounded mb-4">
                   {passwordError}
                 </div>
               )}
-              
+
               <div className="mb-4">
-                <label htmlFor="password" className="block text-sm font-medium mb-1">
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium mb-1"
+                >
                   Password
                 </label>
                 <input
@@ -250,7 +271,7 @@ export default function Header({ studentInfo, currentCurriculum, degreePrograms,
                   autoFocus
                 />
               </div>
-              
+
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
@@ -271,5 +292,5 @@ export default function Header({ studentInfo, currentCurriculum, degreePrograms,
         </div>
       )}
     </>
-  )
-} 
+  );
+}

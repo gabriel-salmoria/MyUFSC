@@ -104,6 +104,7 @@ interface StudentStore {
 
 const CheckStudentInfo = (info: StudentInfo | null) => {
   if (!info) return null;
+  if (info.currentPlan == null) return null;
   if (!info.plans[info.currentPlan]) return null;
   if (!info.plans[info.currentPlan].semesters) return null;
   return info.plans[info.currentPlan];
@@ -142,11 +143,12 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
     }
 
     // Ensure all expected semesters exist (at least the minimum required)
-    const updatedInfo = { ...info };
-    if (updatedInfo.currentPlan) {
+    let updatedInfo = { ...info };
+    if (updatedInfo.currentPlan !== null) {
       // Initialize missing semesters
-      const existingSemesters =
-        updatedInfo.plans[info.currentPlan]?.semesters || [];
+      const existingSemesters = info.plans[info.currentPlan]?.semesters || [];
+      console.log(existingSemesters);
+
       const allSemesters: StudentSemester[] = [];
 
       // Create or update all required semesters
@@ -174,11 +176,8 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
         }
       }
 
-      // Ensure we have exactly one empty semester at the end
-      // This will also ensure we have at least 8 semesters
       ensureOneEmptySemesterAtEnd(allSemesters);
 
-      // Update the plan with all semesters
       updatedInfo.plans[updatedInfo.currentPlan].semesters = allSemesters;
 
       // Also initialize plans array if needed
@@ -192,6 +191,7 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
     }
 
     set({ studentInfo: updatedInfo });
+    console.log("hey", updatedInfo);
   },
 
   // Add a course to a semester
@@ -202,7 +202,9 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
   ) =>
     set(
       produce((state: StudentStore) => {
-        if (!state.studentInfo || !state.studentInfo.currentPlan) {
+        if (!state.studentInfo || state.studentInfo.currentPlan == null) {
+          console.log("no info idk bro");
+          console.log(state.studentInfo);
           return;
         }
 
