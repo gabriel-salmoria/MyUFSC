@@ -22,9 +22,9 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { encryptedData } = body;
+    const { iv, encryptedData } = body;
 
-    if (!encryptedData || !encryptedData.iv || !encryptedData.encryptedData) {
+    if (!iv || !encryptedData) {
       return NextResponse.json(
         { error: "Invalid data format" },
         { status: 400 },
@@ -47,9 +47,10 @@ export async function POST(request: Request) {
     const userData: EncryptedUser = JSON.parse(
       fs.readFileSync(userFile, "utf8"),
     );
+    let newData = { ...userData };
 
-    userData.iv = encryptedData.iv;
-    userData.encryptedData = encryptedData.encryptedData;
+    newData.iv = encryptedData.iv;
+    newData.encryptedData = encryptedData.encryptedData;
 
     // Save updated user data
     fs.writeFileSync(userFile, JSON.stringify(userData, null, 2));

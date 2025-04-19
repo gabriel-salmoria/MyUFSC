@@ -37,7 +37,7 @@ export default function LoginPage() {
 
       // If login succeeded but no data was returned
       if (!result.data) {
-        throw new Error("Failed to load user data");
+        throw new Error("Failed to load user data hehe");
       }
 
       // Set the decrypted data in the global store

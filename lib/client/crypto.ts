@@ -51,7 +51,6 @@ export function decryptStudentData(
 
   // Convert to string and parse as JSON
   const decryptedString = decrypted.toString(CryptoJS.enc.Utf8);
-  console.log(decryptedString);
   return JSON.parse(decryptedString);
 }
 

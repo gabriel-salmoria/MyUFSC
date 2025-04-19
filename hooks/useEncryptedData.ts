@@ -101,6 +101,8 @@ export default function useEncryptedData({
             hashedPassword,
           );
 
+          console.log("nao seja null", decrypted);
+
           // Store password in sessionStorage to persist between page reloads
           if (typeof window !== "undefined") {
             sessionStorage.setItem("enc_pwd", password);
@@ -126,47 +128,31 @@ export default function useEncryptedData({
 
   // Save encrypted data to server
   const saveData = useCallback(
-    async (
-      dataToSave?: StudentInfo,
-      options?: {
-        passwordOverride?: string;
-      },
-    ) => {
-      const effectivePassword = options?.passwordOverride || password;
-
-      if (!effectivePassword || (!dataToSave && !studentData)) {
+    async (dataToSave: StudentInfo) => {
+      if (!password || !dataToSave) {
         console.error("Cannot save: missing password or data");
         return false;
       }
 
       setIsLoading(true);
+      setStudentData(dataToSave);
 
       try {
-        const dataToEncrypt = dataToSave || studentData;
-
-        const encrypted = encryptStudentData(
-          dataToEncrypt as StudentInfo,
-          effectivePassword,
-        );
+        const encrypted = encryptStudentData(dataToSave, hashString(password));
 
         const response = await fetch("/api/user/update", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ encryptedData: encrypted }),
+          body: JSON.stringify({
+            iv: encrypted.iv,
+            encryptedData: encrypted.encryptedData,
+          }),
         });
 
         const result = await response.json();
 
         if (!response.ok) {
           throw new Error(result.error || "Failed to save encrypted data");
-        }
-
-        if (dataToSave) {
-          setStudentData(dataToSave);
-        }
-
-        if (options?.passwordOverride) {
-          setPassword(options.passwordOverride);
         }
 
         return true;
@@ -181,7 +167,7 @@ export default function useEncryptedData({
         setIsLoading(false);
       }
     },
-    [salt, password, studentData, onSaveError],
+    [password, studentData, onSaveError],
   );
 
   // Initialize auth info from the API
@@ -218,30 +204,6 @@ export default function useEncryptedData({
     }
   }, []);
 
-  // Set encryption credentials without logging in
-  const setEncryptionCredentials = useCallback((newPassword: string) => {
-    if (!newPassword) {
-      console.error(
-        "Cannot set encryption credentials: missing salt or password",
-      );
-      return false;
-    }
-
-    try {
-      setPassword(newPassword);
-
-      // Store password in sessionStorage
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem("enc_pwd", newPassword);
-      }
-
-      return true;
-    } catch (error) {
-      console.error("Failed to set encryption credentials:", error);
-      return false;
-    }
-  }, []);
-
   return {
     studentData,
     salt,
@@ -252,7 +214,6 @@ export default function useEncryptedData({
     saveData,
     setAuthInfo,
     initializeAuthInfo,
-    setEncryptionCredentials,
     updateStudentData: (newData: StudentInfo) => {
       setStudentData(newData);
       return saveData(newData);

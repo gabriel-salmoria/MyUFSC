@@ -31,15 +31,14 @@ export default function Header({
   const [passwordError, setPasswordError] = useState("");
 
   // Use the encrypted data hook for saving
-  const { saveData, authInfo, initializeAuthInfo, setEncryptionCredentials } =
-    useEncryptedData({
-      onSaveError: (error) => {
-        setSaveError(
-          error instanceof Error ? error.message : "Failed to save data",
-        );
-        setSaveSuccess(false);
-      },
-    });
+  const { saveData, authInfo, initializeAuthInfo } = useEncryptedData({
+    onSaveError: (error) => {
+      setSaveError(
+        error instanceof Error ? error.message : "Failed to save data",
+      );
+      setSaveSuccess(false);
+    },
+  });
 
   // Handle saving data
   const handleSaveData = async () => {
@@ -76,11 +75,8 @@ export default function Header({
       }
 
       // Attempt to save with the password we have
-      if (currentPassword && authInfo?.salt) {
-        const success = await saveData(studentInfo, {
-          saltOverride: authInfo.salt,
-          passwordOverride: currentPassword,
-        });
+      if (currentPassword) {
+        const success = await saveData(studentInfo);
 
         if (success) {
           setSaveSuccess(true);
@@ -134,13 +130,8 @@ export default function Header({
         sessionStorage.setItem("enc_pwd", passwordInput);
       }
 
-      // First, set credentials in the hook so they're available for future saves
-      setEncryptionCredentials(passwordInput);
-
       // Try to save with direct values, not relying on state updates yet
-      const success = await saveData(studentInfo, {
-        passwordOverride: passwordInput,
-      });
+      const success = await saveData(studentInfo);
 
       if (success) {
         setSaveSuccess(true);
@@ -238,59 +229,6 @@ export default function Header({
             </div>
           )}
       </div>
-
-      {/* Password Modal */}
-      {showPasswordModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-card p-6 rounded-lg shadow-lg w-full max-w-md">
-            <h2 className="text-xl font-semibold mb-4">Enter your password</h2>
-            <p className="text-muted-foreground mb-4">
-              Your password is needed to encrypt the data before saving.
-            </p>
-
-            <form onSubmit={handlePasswordSubmit}>
-              {passwordError && (
-                <div className="p-3 text-sm text-red-500 bg-red-100 rounded mb-4">
-                  {passwordError}
-                </div>
-              )}
-
-              <div className="mb-4">
-                <label
-                  htmlFor="password"
-                  className="block text-sm font-medium mb-1"
-                >
-                  Password
-                </label>
-                <input
-                  type="password"
-                  id="password"
-                  value={passwordInput}
-                  onChange={(e) => setPasswordInput(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md"
-                  autoFocus
-                />
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowPasswordModal(false)}
-                  className="px-4 py-2 border rounded-md"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md"
-                >
-                  Save
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </>
   );
 }
