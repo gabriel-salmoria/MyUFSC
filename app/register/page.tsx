@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { DegreeProgram } from "@/types/degree-program";
 import { ChevronDownIcon, CheckIcon, SearchIcon, XIcon } from "lucide-react";
-
+import {
+  FormSection,
+  FormField,
+  DegreeProgramSelector,
+  DegreesOfInterestSelector,
+} from "@/components/login/register-helpers";
 import {
   hashString,
   deriveEncryptionKey,
@@ -37,6 +42,17 @@ export default function RegisterPage() {
   const interestedDegreesRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  {
+    /* Degree information functions */
+  }
+
+  // Helper function to get the
+  const getProgramName = (id: string) => {
+    const program = degreePrograms.find((p) => p.id === id);
+    return program ? program.name : "";
+  };
+
+  // function to load the possible degrees info
   useEffect(() => {
     const loadDegreePrograms = async () => {
       try {
@@ -52,6 +68,60 @@ export default function RegisterPage() {
 
     loadDegreePrograms();
   }, []);
+
+  // function to handle the submit of the login information to the server
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    let hUsername = hashString(formData.username);
+    let hPassword = hashString(formData.password);
+
+    let plan: StudentPlan = {
+      semesters: [],
+    };
+
+    let studentData = {
+      currentDegree: formData.currentDegree,
+      interestedDegrees: formData.interestedDegrees ?? [],
+      name: formData.name ?? "Student",
+      currentPlan: 0,
+      currentSemester: "1",
+      plans: [plan],
+    };
+
+    let result = encryptStudentData(studentData, hPassword);
+
+    try {
+      const response = await fetch("/api/user/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          username: hUsername,
+          password: hPassword,
+          iv: result.iv,
+          encryptedData: result.encryptedData,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Registration failed");
+      }
+
+      router.push("/");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Registration failed. Please try again.",
+      );
+    }
+  };
 
   // Filter programs when search term changes
   useEffect(() => {
@@ -130,66 +200,7 @@ export default function RegisterPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
-      return;
-    }
-
-    console.log(formData.username);
-    let hUsername = hashString(formData.username);
-    console.log(hUsername);
-
-    let hPassword = hashString(formData.password);
-
-    console.log(formData.password);
-    console.log(hPassword);
-    let key = deriveEncryptionKey(hPassword);
-
-    let plan: StudentPlan = {
-      semesters: [],
-    };
-
-    let studentData = {
-      currentDegree: formData.currentDegree,
-      interestedDegrees: formData.interestedDegrees ?? [],
-      name: formData.name ?? "Student",
-      currentPlan: 0,
-      currentSemester: "1",
-      plans: [plan],
-    };
-
-    let result = encryptStudentData(studentData, hPassword);
-
-    try {
-      const response = await fetch("/api/user/auth/register", {
-        method: "POST",
-        body: JSON.stringify({
-          username: hUsername,
-          password: hPassword,
-          iv: result.iv,
-          encryptedData: result.encryptedData,
-        }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Registration failed");
-      }
-
-      router.push("/");
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Registration failed. Please try again.",
-      );
-    }
-  };
-
+  // change the interested degrees
   const toggleInterestDegree = (degreeId: string) => {
     setFormData((prev) => {
       if (prev.interestedDegrees.includes(degreeId)) {
@@ -207,13 +218,6 @@ export default function RegisterPage() {
       }
     });
   };
-
-  // Get program name by id
-  const getProgramName = (id: string) => {
-    const program = degreePrograms.find((p) => p.id === id);
-    return program ? program.name : "";
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="w-full max-w-md p-8 space-y-6 bg-card rounded-lg shadow-lg">
@@ -229,275 +233,107 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Student Information Section */}
-          <div className="space-y-5">
-            <div>
-              <label
-                htmlFor="name"
-                className="block text-sm font-medium text-foreground"
-              >
-                Full Name{" "}
-                <span className="text-sm font-medium text-blue-500">
-                  (optional)
-                </span>
-              </label>
-              <input
-                type="text"
-                id="name"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2"
-                placeholder="Student"
-                style={{ color: formData.name ? "inherit" : "#888888" }}
-              />
-            </div>
+          <FormSection title="Student Information">
+            <FormField
+              label="Full Name"
+              optional={true}
+              id="name"
+              value={formData.name}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+              placeholder="Student"
+              style={{ color: formData.name ? "inherit" : "#888888" }}
+            />
 
-            <div ref={currentDegreeRef} className="relative">
-              <label
-                htmlFor="currentDegree"
-                className="block text-sm font-medium text-foreground"
-              >
-                Current Degree Program
-              </label>
+            <DegreeProgramSelector
+              ref={currentDegreeRef}
+              label="Current Degree Program"
+              selectedDegree={formData.currentDegree}
+              isOpen={isCurrentDegreeOpen}
+              searchTerm={searchTerm}
+              searchInputRef={searchInputRef}
+              activeIndex={activeIndex}
+              filteredPrograms={filteredPrograms}
+              onOpenDropdown={() => {
+                setIsCurrentDegreeOpen(true);
+                setIsInterestedDegreesOpen(false);
+                setSearchTerm("");
+                setTimeout(() => searchInputRef.current?.focus(), 10);
+              }}
+              onSearchChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, true)}
+              onSelectProgram={(programId) => {
+                setFormData((prev) => ({ ...prev, currentDegree: programId }));
+                setIsCurrentDegreeOpen(false);
+                setSearchTerm("");
+              }}
+              onClearSelection={() =>
+                setFormData((prev) => ({ ...prev, currentDegree: "" }))
+              }
+              getProgramName={getProgramName}
+            />
 
-              {/* Selected degree display */}
-              {formData.currentDegree && (
-                <div className="flex items-center mt-1 mb-2">
-                  <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs">
-                    <span>{getProgramName(formData.currentDegree)}</span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFormData((prev) => ({ ...prev, currentDegree: "" }))
-                      }
-                      className="hover:text-primary/70"
-                    >
-                      <XIcon className="h-3 w-3" />
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div
-                className="mt-1 flex w-full items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-sm cursor-pointer"
-                onClick={() => {
-                  setIsCurrentDegreeOpen(true);
-                  setIsInterestedDegreesOpen(false);
-                  setSearchTerm("");
-                  setTimeout(() => searchInputRef.current?.focus(), 10);
-                }}
-              >
-                <span style={{ color: "#888888" }}>
-                  {formData.currentDegree
-                    ? "Change degree program"
-                    : "Search degree programs..."}
-                </span>
-                <SearchIcon className="h-4 w-4 opacity-50" />
-              </div>
-
-              {isCurrentDegreeOpen && (
-                <div className="absolute z-10 mt-1 w-full bg-card rounded-md shadow-lg border border-border overflow-auto max-h-60">
-                  <div className="sticky top-0 bg-background-secondary border-b border-border p-2">
-                    <div className="relative">
-                      <SearchIcon className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <input
-                        ref={searchInputRef}
-                        type="text"
-                        placeholder="Search programs..."
-                        className="w-full py-2 pl-8 pr-4 text-sm border border-border rounded-md bg-background"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        onKeyDown={(e) => handleKeyDown(e, true)}
-                      />
-                    </div>
-                  </div>
-                  <ul className="py-1">
-                    {filteredPrograms.length === 0 ? (
-                      <li className="px-4 py-2 text-sm text-muted-foreground">
-                        No programs found
-                      </li>
-                    ) : (
-                      filteredPrograms.map((program, index) => (
-                        <li
-                          key={program.id}
-                          className={`px-4 py-2 text-sm cursor-pointer flex items-center justify-between ${
-                            index === activeIndex
-                              ? "bg-accent text-accent-foreground"
-                              : ""
-                          } ${formData.currentDegree === program.id ? "bg-primary/10" : ""}`}
-                          onClick={() => {
-                            setFormData((prev) => ({
-                              ...prev,
-                              currentDegree: program.id,
-                            }));
-                            setIsCurrentDegreeOpen(false);
-                            setSearchTerm("");
-                          }}
-                        >
-                          <span>{program.name}</span>
-                          {formData.currentDegree === program.id && (
-                            <CheckIcon className="h-4 w-4" />
-                          )}
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                </div>
-              )}
-            </div>
-
-            <div ref={interestedDegreesRef} className="relative">
-              <label className="block text-sm font-medium text-foreground">
-                Degrees of Interest{" "}
-                <span className="text-sm font-medium text-blue-500">
-                  (optional)
-                </span>
-              </label>
-
-              {/* Selected interests display */}
-              {formData.interestedDegrees.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1 mb-2">
-                  {formData.interestedDegrees.map((id) => (
-                    <div
-                      key={id}
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs"
-                    >
-                      <span>{getProgramName(id)}</span>
-                      <button
-                        type="button"
-                        onClick={() => toggleInterestDegree(id)}
-                        className="hover:text-primary/70"
-                      >
-                        <XIcon className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div
-                className="mt-1 flex w-full items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-sm cursor-pointer"
-                onClick={() => {
-                  setIsInterestedDegreesOpen(true);
-                  setIsCurrentDegreeOpen(false);
-                  setSearchTerm("");
-                  setTimeout(() => searchInputRef.current?.focus(), 10);
-                }}
-              >
-                <span style={{ color: "#888888" }}>
-                  Search degree programs...
-                </span>
-                <SearchIcon className="h-4 w-4 opacity-50" />
-              </div>
-
-              {isInterestedDegreesOpen && (
-                <div className="absolute z-10 mt-1 w-full bg-card rounded-md shadow-lg border border-border overflow-auto max-h-60">
-                  <div className="sticky top-0 bg-background-secondary border-b border-border p-2">
-                    <div className="relative">
-                      <SearchIcon className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <input
-                        ref={searchInputRef}
-                        type="text"
-                        placeholder="Search programs..."
-                        className="w-full py-2 pl-8 pr-4 text-sm border border-border rounded-md bg-background"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        onKeyDown={(e) => handleKeyDown(e, false)}
-                      />
-                    </div>
-                  </div>
-                  <ul className="py-1">
-                    {filteredPrograms.length === 0 ? (
-                      <li className="px-4 py-2 text-sm text-muted-foreground">
-                        No programs found
-                      </li>
-                    ) : (
-                      filteredPrograms.map((program, index) => (
-                        <li
-                          key={program.id}
-                          className={`px-4 py-2 text-sm cursor-pointer flex items-center justify-between ${
-                            index === activeIndex
-                              ? "bg-accent text-accent-foreground"
-                              : ""
-                          }`}
-                          onClick={() => toggleInterestDegree(program.id)}
-                        >
-                          <span>{program.name}</span>
-                          {formData.interestedDegrees.includes(program.id) && (
-                            <CheckIcon className="h-4 w-4" />
-                          )}
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </div>
+            <DegreesOfInterestSelector
+              ref={interestedDegreesRef}
+              label="Degrees of Interest"
+              optional={true}
+              selectedDegrees={formData.interestedDegrees}
+              isOpen={isInterestedDegreesOpen}
+              searchTerm={searchTerm}
+              searchInputRef={searchInputRef}
+              activeIndex={activeIndex}
+              filteredPrograms={filteredPrograms}
+              onOpenDropdown={() => {
+                setIsInterestedDegreesOpen(true);
+                setIsCurrentDegreeOpen(false);
+                setSearchTerm("");
+                setTimeout(() => searchInputRef.current?.focus(), 10);
+              }}
+              onSearchChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, false)}
+              onToggleProgram={toggleInterestDegree}
+              getProgramName={getProgramName}
+            />
+          </FormSection>
 
           {/* Divider */}
           <div className="border-t border-border/60 pt-1"></div>
 
           {/* Account Information Section */}
-          <div className="space-y-5">
-            <div>
-              <label
-                htmlFor="username"
-                className="block text-sm font-medium text-foreground"
-              >
-                Username
-              </label>
-              <input
-                type="text"
-                id="username"
-                value={formData.username}
-                onChange={(e) =>
-                  setFormData({ ...formData, username: e.target.value })
-                }
-                className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2"
-                required
-              />
-            </div>
+          <FormSection title="Account Information">
+            <FormField
+              label="Username"
+              id="username"
+              value={formData.username}
+              onChange={(e) =>
+                setFormData({ ...formData, username: e.target.value })
+              }
+              required
+            />
 
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-foreground"
-              >
-                Password
-              </label>
-              <input
-                type="password"
-                id="password"
-                value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
-                className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2"
-                required
-              />
-            </div>
+            <FormField
+              label="Password"
+              id="password"
+              type="password"
+              value={formData.password}
+              onChange={(e) =>
+                setFormData({ ...formData, password: e.target.value })
+              }
+              required
+            />
 
-            <div>
-              <label
-                htmlFor="confirmPassword"
-                className="block text-sm font-medium text-foreground"
-              >
-                Confirm Password
-              </label>
-              <input
-                type="password"
-                id="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={(e) =>
-                  setFormData({ ...formData, confirmPassword: e.target.value })
-                }
-                className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2"
-                required
-              />
-            </div>
-          </div>
+            <FormField
+              label="Confirm Password"
+              id="confirmPassword"
+              type="password"
+              value={formData.confirmPassword}
+              onChange={(e) =>
+                setFormData({ ...formData, confirmPassword: e.target.value })
+              }
+              required
+            />
+          </FormSection>
 
           <button
             type="submit"
