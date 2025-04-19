@@ -94,7 +94,6 @@ export function parseStudentData(jsonData: StudentInfo): StudentInfo {
       }
     }
   });
-
   return info;
 }
 
