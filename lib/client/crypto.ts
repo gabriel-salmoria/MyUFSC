@@ -36,24 +36,22 @@ export function deriveEncryptionKey(hash_password: string): string {
  */
 export function decryptStudentData(
   password: string,
-  salt: string,
-  encryptedData: {
-    iv: string;
-    encryptedData: string;
-  },
+  iv: string,
+  encryptedData: string,
 ): StudentInfo {
   // Derive the same key that was used for encryption
-  const key = deriveEncryptionKey(password, salt);
+  const key = deriveEncryptionKey(password);
 
   // Decrypt the data
-  const decrypted = CryptoJS.AES.decrypt(encryptedData.encryptedData, key, {
-    iv: CryptoJS.enc.Hex.parse(encryptedData.iv),
+  const decrypted = CryptoJS.AES.decrypt(encryptedData, key, {
+    iv: CryptoJS.enc.Hex.parse(iv),
     mode: CryptoJS.mode.CBC,
     padding: CryptoJS.pad.Pkcs7,
   });
 
   // Convert to string and parse as JSON
   const decryptedString = decrypted.toString(CryptoJS.enc.Utf8);
+  console.log(decryptedString);
   return JSON.parse(decryptedString);
 }
 
@@ -89,7 +87,7 @@ export function encryptStudentData(
   });
 
   return {
-    encryptedData: encrypted.toString(),
     iv: iv.toString(),
+    encryptedData: encrypted.toString(),
   };
 }

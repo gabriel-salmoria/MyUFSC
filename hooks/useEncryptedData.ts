@@ -15,7 +15,6 @@ interface UseEncryptedDataProps {
 // Add auth info interface
 interface AuthInfo {
   hashedUsername: string;
-  salt: string;
   hashedPassword: string;
 }
 
@@ -41,12 +40,12 @@ export default function useEncryptedData({
 
   // Decrypt data from server response
   const decryptData = useCallback(
-    (encryptedData: any, salt: string, password: string) => {
+    (encryptedData: any, iv: any, password: string) => {
       try {
-        const decrypted = decryptStudentData(password, salt, encryptedData);
+        console.log(password, iv, encryptedData);
+        const decrypted = decryptStudentData(password, iv, encryptedData);
 
         setStudentData(decrypted);
-        setSalt(salt);
         setPassword(password);
 
         // Store password in sessionStorage to persist between page reloads
@@ -57,6 +56,7 @@ export default function useEncryptedData({
         return decrypted;
       } catch (error) {
         if (onLoadError) {
+          console.log("hey");
           onLoadError(error);
         } else {
           console.error("Failed to decrypt data:", error);
@@ -73,9 +73,7 @@ export default function useEncryptedData({
       setIsLoading(true);
 
       let hUsername = hashString(username);
-      console.log(hUsername);
       let hPassword = hashString(password);
-      console.log(hPassword);
 
       try {
         const response = await fetch("/api/user/auth/login", {
@@ -90,18 +88,17 @@ export default function useEncryptedData({
           throw new Error(data.error || "Login failed");
         }
 
-        if (data.success && data.salt && data.encryptedData) {
-          // Store authentication info for later use when saving
+        if (data.success && data.encryptedData) {
           setAuthInfo({
             hashedUsername: data.hashedUsername,
-            salt: data.salt,
             hashedPassword: data.hashedPassword,
           });
 
+          const hashedPassword = hashString(password);
           const decrypted = decryptData(
             data.encryptedData,
-            data.salt,
-            password,
+            data.iv,
+            hashedPassword,
           );
 
           // Store password in sessionStorage to persist between page reloads
@@ -132,18 +129,12 @@ export default function useEncryptedData({
     async (
       dataToSave?: StudentInfo,
       options?: {
-        saltOverride?: string;
         passwordOverride?: string;
       },
     ) => {
-      const effectiveSalt = options?.saltOverride || salt;
       const effectivePassword = options?.passwordOverride || password;
 
-      if (
-        !effectiveSalt ||
-        !effectivePassword ||
-        (!dataToSave && !studentData)
-      ) {
+      if (!effectivePassword || (!dataToSave && !studentData)) {
         console.error("Cannot save: missing salt, password, or data");
         return false;
       }
@@ -156,7 +147,6 @@ export default function useEncryptedData({
         const encrypted = encryptStudentData(
           dataToEncrypt as StudentInfo,
           effectivePassword,
-          effectiveSalt,
         );
 
         const response = await fetch("/api/user/update", {
@@ -173,11 +163,6 @@ export default function useEncryptedData({
 
         if (dataToSave) {
           setStudentData(dataToSave);
-        }
-
-        // Store the successful credentials
-        if (options?.saltOverride) {
-          setSalt(options.saltOverride);
         }
 
         if (options?.passwordOverride) {
@@ -215,14 +200,12 @@ export default function useEncryptedData({
 
       const data = await response.json();
 
-      if (data.hashedUsername && data.salt && data.hashedPassword) {
+      if (data.hashedUsername && data.hashedPassword) {
         setAuthInfo({
           hashedUsername: data.hashedUsername,
-          salt: data.salt,
           hashedPassword: data.hashedPassword,
         });
 
-        setSalt(data.salt);
         return true;
       }
 

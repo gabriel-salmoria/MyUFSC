@@ -27,9 +27,6 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
 
-    console.log(formData.username);
-    console.log(formData.password);
-
     try {
       const result = await login(formData.username, formData.password);
 

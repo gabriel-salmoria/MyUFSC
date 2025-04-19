@@ -16,11 +16,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { hUsername, hPassword } = body;
 
-    console.log(hUsername);
-    console.log(hPassword);
-
     const hashedUsername = hashUsername(hUsername);
-    console.log(hashedUsername);
 
     // Validate input
     if (!hashedUsername || !hPassword) {
@@ -82,8 +78,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       hashedUsername: userData.hashedUsername,
-      salt: userData.salt,
       hashedPassword: userData.hashedPassword,
+      iv: userData.iv,
       encryptedData: userData.encryptedData,
     });
   } catch (error) {
