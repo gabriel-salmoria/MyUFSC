@@ -124,13 +124,13 @@ export default function Visualizations({
         </h2>
         <div
           className="border border-border rounded-lg overflow-hidden shadow-md bg-card"
-          style={{ height: `${containerHeight}px` }}
+          style={{ height: `${containerHeight - 50}px` }}
         >
           <ProgressVisualizer
             studentPlan={studentInfo.plans[studentInfo.currentPlan]!}
             onCourseClick={onStudentCourseClick}
             onCourseDropped={onCourseDropped}
-            height={containerHeight}
+            height={containerHeight - 50}
             key={`progress-${studentInfo.plans[studentInfo.currentPlan]?.semesters.length || 0}-${studentInfo.currentPlan || "default"}`}
           />
         </div>

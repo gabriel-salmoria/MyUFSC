@@ -68,14 +68,6 @@ export default function Phase({
         Phase {phase.number}
       </div>
 
-      {/* Header divider - separates the phase title from courses */}
-      <div className="w-full h-px bg-border" />
-
-      {/* Phase right divider - only if not the last phase */}
-      {!isLastPhase && (
-        <div className="absolute top-0 right-0 h-full w-px bg-border z-5" />
-      )}
-
       {/* Course boxes - positioned dynamically within the phase */}
       {displayCourses.map((course, index) => {
         // Calculate position directly here instead of using external state
@@ -125,13 +117,6 @@ export default function Phase({
             />
           );
         })}
-
-      {/* Message for empty phase (when not in progress visualizer) */}
-      {!isProgressVisualizer && displayCourses.length === 0 && (
-        <div className="flex items-center justify-center h-20 mt-6 text-sm text-muted-foreground">
-          No courses in this phase
-        </div>
-      )}
     </div>
   );
 }

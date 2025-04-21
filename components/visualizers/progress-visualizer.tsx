@@ -31,7 +31,7 @@ export default function ProgressVisualizer({
   studentPlan,
   onCourseClick,
   onCourseDropped,
-  height = 500,
+  height,
 }: ProgressVisualizerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -111,7 +111,7 @@ export default function ProgressVisualizer({
             transform: `translate(${pan.x}px, ${pan.y}px)`,
             transformOrigin: "0 0",
             width: totalWidth,
-            height: `${Math.max(height, (PHASE.BOXES_PER_COLUMN + 1) * PHASE.SPACING_Y)}px`,
+            height: height,
           }}
           key={`student-plan-${studentPlan.semesters.length}-${lastUpdate || "initial"}`}
         >

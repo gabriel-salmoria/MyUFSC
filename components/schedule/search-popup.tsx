@@ -23,12 +23,13 @@ interface SearchResult {
 }
 
 export default function SearchPopup({
-  searchTerm,
+  searchTerm: initialSearchTerm,
   onClose,
   onSelect,
 }: SearchPopupProps) {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [localSearchTerm, setLocalSearchTerm] = useState(initialSearchTerm);
   const popupRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const studentStore = useStudentStore();
@@ -86,7 +87,7 @@ export default function SearchPopup({
     // Prepare results array
     const results: SearchResult[] = [];
 
-    if (!searchTerm.trim()) {
+    if (!localSearchTerm.trim()) {
       // Show all available courses from the curriculum when no search term
       const allCourses = Array.from(courseMap.values())
         // Filter out "Optativa X" placeholder courses
@@ -125,7 +126,7 @@ export default function SearchPopup({
     }
 
     // Search term exists, filter based on it
-    const term = searchTerm.toLowerCase();
+    const term = localSearchTerm.toLowerCase();
 
     // First check current courses
     currentCourses.forEach((course: StudentCourse) => {
@@ -168,7 +169,12 @@ export default function SearchPopup({
 
     setSearchResults(results);
     setActiveIndex(0);
-  }, [searchTerm, currentCourses]);
+  }, [localSearchTerm, currentCourses]);
+
+  // Initialize local search term on initial prop change
+  useEffect(() => {
+    setLocalSearchTerm(initialSearchTerm);
+  }, [initialSearchTerm]);
 
   // Handle click outside to close
   useEffect(() => {
@@ -184,6 +190,10 @@ export default function SearchPopup({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [onClose]);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalSearchTerm(e.target.value);
+  };
 
   return (
     <div className="fixed inset-0 bg-black/20 dark:bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center pt-[10vh]">
@@ -219,8 +229,8 @@ export default function SearchPopup({
             type="text"
             placeholder="Search courses by name or code..."
             className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            value={searchTerm}
-            readOnly
+            value={localSearchTerm}
+            onChange={handleSearchChange}
           />
         </div>
 
@@ -264,7 +274,7 @@ export default function SearchPopup({
             </div>
           ) : (
             <div className="p-8 text-center text-muted-foreground">
-              No courses found matching "{searchTerm}"
+              No courses found matching "{localSearchTerm}"
             </div>
           )}
         </div>
