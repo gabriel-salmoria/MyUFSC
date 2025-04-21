@@ -6,9 +6,8 @@ import type { Phase as PhaseType } from "@/types/curriculum";
 import type { Course } from "@/types/curriculum";
 import type { StudentCourse } from "@/types/student-plan";
 import { COURSE_BOX, PHASE } from "@/styles/visualization";
-import { CSS_CLASSES } from "@/styles/course-theme";
 import CourseBox from "@/components/visualizers/course-box";
-import { getCourseInfo } from "@/lib/parsers/curriculum-parser";
+import GhostCourseBox from "@/components/visualizers/ghost-box";
 
 interface PhaseProps {
   phase: PhaseType;
@@ -101,6 +100,7 @@ export default function Phase({
           />
         );
       })}
+
       {/* Add ghost boxes for empty slots if in progress visualizer */}
       {isProgressVisualizer &&
         ghostBoxCount > 0 &&
@@ -116,94 +116,13 @@ export default function Phase({
           };
 
           return (
-            <div
+            <GhostCourseBox
               key={`ghost-${phase.number}-${index}`}
-              className="absolute"
-              style={{
-                left: `${position.x}px`,
-                top: `${position.y}px`,
-              }}
-            >
-              <div
-                className={CSS_CLASSES.GHOST_BOX}
-                style={{
-                  width: `${position.width}px`,
-                  height: `${position.height}px`,
-                  opacity: COURSE_BOX.GHOST_OPACITY,
-                }}
-                onDragOver={(e) => {
-                  // Prevent default to allow drop
-                  e.preventDefault();
-                  e.currentTarget.classList.add(
-                    CSS_CLASSES.GHOST_BOX_DRAG_OVER,
-                  );
-                }}
-                onDragLeave={(e) => {
-                  e.currentTarget.classList.remove(
-                    CSS_CLASSES.GHOST_BOX_DRAG_OVER,
-                  );
-                }}
-                onDragEnter={(e) => {
-                  e.preventDefault();
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  e.currentTarget.classList.remove(
-                    CSS_CLASSES.GHOST_BOX_DRAG_OVER,
-                  );
-
-                  try {
-                    // Parse the drop data
-                    const data = JSON.parse(
-                      e.dataTransfer.getData("application/json"),
-                    );
-
-                    if (data.courseId && onCourseDropped) {
-                      // Get the course info from the ID
-                      const course = getCourseInfo(data.courseId);
-
-                      if (course) {
-                        console.log(
-                          "Course dropped:",
-                          course.id,
-                          "to phase:",
-                          phase.number,
-                          "position:",
-                          positionIndex,
-                        );
-
-                        // Show success animation
-                        const dropTarget = e.currentTarget;
-                        dropTarget.classList.add(
-                          CSS_CLASSES.GHOST_BOX_DROP_SUCCESS,
-                        );
-                        setTimeout(() => {
-                          dropTarget.classList.remove(
-                            CSS_CLASSES.GHOST_BOX_DROP_SUCCESS,
-                          );
-                        }, 500);
-
-                        // Call onCourseDropped with the target position
-                        onCourseDropped(course, phase.number, positionIndex);
-                      } else {
-                        console.error(
-                          "Course not found for ID:",
-                          data.courseId,
-                        );
-                      }
-                    } else {
-                      console.warn(
-                        "Missing courseId in dropped data or onCourseDropped handler",
-                      );
-                    }
-                  } catch (error) {
-                    console.error("Error processing drop:", error);
-                  }
-                }}
-                data-semester={phase.number}
-                data-position={positionIndex}
-              ></div>
-            </div>
+              position={position}
+              semesterNumber={phase.number}
+              positionIndex={positionIndex}
+              onCourseDropped={onCourseDropped}
+            />
           );
         })}
 
