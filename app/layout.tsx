@@ -1,14 +1,14 @@
-import { Inter } from "next/font/google"
-import { ThemeProvider } from "next-themes"
-import { ThemeToggle } from "@/components/theme-toggle"
-import "./globals.css"
+import { Inter } from "next/font/google";
+import { ThemeProvider } from "next-themes";
+import { ThemeToggle } from "@/components/theme-toggle";
+import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] })
+const inter = Inter({ subsets: ["latin"] });
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
@@ -26,12 +26,10 @@ export default function RootLayout({
                 <ThemeToggle />
               </div>
             </header>
-            <main className="w-[98vw] mx-auto px-4 py-8">
-              {children}
-            </main>
+            <main className="w-full mx-auto px-4 py-8">{children}</main>
           </div>
         </ThemeProvider>
       </body>
     </html>
-  )
+  );
 }

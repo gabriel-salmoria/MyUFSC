@@ -203,7 +203,11 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
     set(
       produce((state: StudentStore) => {
         if (!state.studentInfo || state.studentInfo.currentPlan == null) {
-          console.log("no info idk bro");
+          console.log(
+            "no info idk bro",
+            state.studentInfo,
+            state.studentInfo?.currentPlan,
+          );
           console.log(state.studentInfo);
           return;
         }
@@ -433,42 +437,6 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
             courseFound = true;
             break;
           }
-        }
-
-        // If course not found, add it to the appropriate semester if course data is provided
-        if (!courseFound && course) {
-          // Determine the target semester to add the course to
-          const recommendedPhase = course.phase || 1;
-
-          // Find semester matching the recommended phase - should always exist now
-          const targetSemester = plan.semesters.find(
-            (s) => s.number === recommendedPhase,
-          );
-
-          if (!targetSemester) {
-            console.error(
-              `Target semester ${recommendedPhase} not found, should never happen`,
-            );
-            return;
-          }
-
-          // Add the course to the target semester
-          const newStudentCourse: StudentCourse = {
-            course: course,
-            status: status,
-            // Copy required properties from the original course
-            id: course.id,
-            name: course.name,
-            credits: course.credits,
-            description: course.description,
-            workload: course.workload,
-            prerequisites: course.prerequisites,
-            equivalents: course.equivalents,
-            type: course.type,
-          };
-
-          targetSemester.courses.push(newStudentCourse);
-          targetSemester.totalCredits += course.credits || 0;
         }
 
         // Ensure we have exactly one empty semester at the end

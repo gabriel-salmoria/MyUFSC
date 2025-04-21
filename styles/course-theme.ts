@@ -1,7 +1,7 @@
 /**
  * Course Theme Configuration
- * 
- * This file centralizes all styling related to courses, visualizers, 
+ *
+ * This file centralizes all styling related to courses, visualizers,
  * and timetable components to improve maintainability and consistency.
  */
 
@@ -9,40 +9,40 @@
 // These values should be updated if CSS variables change
 export const STATUS_COLORS = {
   COMPLETED: {
-    border: 'var(--status-completed-border, #22c55e)',
-    background: 'var(--status-completed-bg, #dcfce7)',
-    text: '#166534', // green-800
-    icon: '#16a34a', // green-600
+    border: "var(--status-completed-border, #22c55e)",
+    background: "var(--status-completed-bg, #dcfce7)",
+    text: "#166534", // green-800
+    icon: "#16a34a", // green-600
   },
   IN_PROGRESS: {
-    border: 'var(--status-in-progress-border, #3b82f6)',
-    background: 'var(--status-in-progress-bg, #dbeafe)',
-    text: '#1e40af', // blue-800
-    icon: '#2563eb', // blue-600
+    border: "var(--status-in-progress-border, #3b82f6)",
+    background: "var(--status-in-progress-bg, #dbeafe)",
+    text: "#1e40af", // blue-800
+    icon: "#2563eb", // blue-600
   },
   FAILED: {
-    border: 'var(--status-failed-border, #ef4444)',
-    background: 'var(--status-failed-bg, #fee2e2)',
-    text: '#991b1b', // red-800
-    icon: '#dc2626', // red-600
+    border: "var(--status-failed-border, #ef4444)",
+    background: "var(--status-failed-bg, #fee2e2)",
+    text: "#991b1b", // red-800
+    icon: "#dc2626", // red-600
   },
   PLANNED: {
-    border: 'var(--status-planned-border, #a855f7)',
-    background: 'var(--status-planned-bg, #f3e8ff)',
-    text: '#6b21a8', // purple-800
-    icon: '#9333ea', // purple-600
+    border: "var(--status-planned-border, #a855f7)",
+    background: "var(--status-planned-bg, #f3e8ff)",
+    text: "#6b21a8", // purple-800
+    icon: "#9333ea", // purple-600
   },
   EXEMPTED: {
-    border: 'var(--status-exempted-border, #eab308)',
-    background: 'var(--status-exempted-bg, #fef9c3)',
-    text: '#854d0e', // yellow-800
-    icon: '#ca8a04', // yellow-600
+    border: "var(--status-exempted-border, #eab308)",
+    background: "var(--status-exempted-bg, #fef9c3)",
+    text: "#854d0e", // yellow-800
+    icon: "#ca8a04", // yellow-600
   },
   DEFAULT: {
-    border: 'var(--status-default-border, #6b7280)',
-    background: 'var(--status-default-bg, #f3f4f6)',
-    text: '#1f2937', // gray-800
-    icon: '#4b5563', // gray-600
+    border: "var(--status-default-border, #6b7280)",
+    background: "var(--status-default-bg, #f3f4f6)",
+    text: "#1f2937", // gray-800
+    icon: "#4b5563", // gray-600
   },
 };
 
@@ -56,7 +56,7 @@ export const COURSE_BOX_DIMENSIONS = {
   GHOST_OPACITY: 0.8, // Opacity for ghost/placeholder boxes
 };
 
-// Phase/column dimensions 
+// Phase/column dimensions
 export const PHASE_DIMENSIONS = {
   MIN_WIDTH: 200,
   PADDING: 30,
@@ -84,12 +84,12 @@ export const TIMETABLE_CONFIG = {
     { id: "21:10", label: "21:10" },
   ],
   DAYS_MAP: {
-    "Segunda": 0,
-    "Terça": 1,
-    "Quarta": 2,
-    "Quinta": 3,
-    "Sexta": 4,
-    "Sábado": 5,
+    Segunda: 0,
+    Terça: 1,
+    Quarta: 2,
+    Quinta: 3,
+    Sexta: 4,
+    Sábado: 5,
   },
 };
 
@@ -128,19 +128,19 @@ export const CSS_CLASSES = {
   TIMETABLE_CELL: "timetable-cell",
   TIMETABLE_COURSE: "timetable-course",
   DRAGGABLE: "draggable",
-  
+
   // New classes for progress visualizer
   GHOST_BOX: "ghost-box",
   GHOST_BOX_DRAG_OVER: "drag-over",
   GHOST_BOX_DROP_SUCCESS: "drop-success",
   PHASE_DIVIDER: "phase-divider",
-  
+
   // New classes for timetable
   TIMETABLE_HEADER: "timetable-header",
   TIMETABLE_TIME_CELL: "timetable-time-cell",
   TIMETABLE_CONTAINER: "timetable-container",
   TIMETABLE_TABLE: "timetable-table",
-  
+
   // New classes for course stats
   STATS_CONTAINER: "stats-container",
   STATS_HEADER: "stats-header",
@@ -155,4 +155,4 @@ export const CSS_CLASSES = {
   STATS_PROFESSOR_ACTIVE: "stats-professor-active",
   STATS_ENROLLMENT_BAR: "stats-enrollment-bar",
   STATS_ENROLLMENT_PROGRESS: "stats-enrollment-progress",
-}; 
+};

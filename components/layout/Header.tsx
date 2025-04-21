@@ -63,19 +63,10 @@ export default function Header({
     setSaveSuccess(false);
 
     try {
-      // Check if we already have a password in state or session storage
-      let currentPassword = passwordInput;
-
-      // If no password in state, try to get it from sessionStorage
-      if (!currentPassword && typeof window !== "undefined") {
-        const storedPassword = sessionStorage.getItem("enc_pwd");
-        if (storedPassword) {
-          currentPassword = storedPassword;
-        }
-      }
+      const storedPassword = sessionStorage.getItem("enc_pwd");
 
       // Attempt to save with the password we have
-      if (currentPassword) {
+      if (storedPassword) {
         const success = await saveData(studentInfo);
 
         if (success) {
@@ -85,68 +76,11 @@ export default function Header({
           return;
         }
       }
-
-      // If we get here, we need to prompt for password
-      setIsSaving(false);
-      setShowPasswordModal(true);
     } catch (error) {
       console.error("Error saving data:", error);
       setSaveError(
         error instanceof Error ? error.message : "An unknown error occurred",
       );
-      setIsSaving(false);
-    }
-  };
-
-  // Handle password submission
-  const handlePasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!passwordInput.trim()) {
-      setPasswordError("Password is required");
-      return;
-    }
-
-    if (!authInfo) {
-      setPasswordError("Missing authentication data");
-      return;
-    }
-
-    setPasswordError("");
-    setIsSaving(true);
-
-    try {
-      // Close the modal right away
-      setShowPasswordModal(false);
-
-      if (!studentInfo) {
-        setSaveError("Missing student data");
-        setIsSaving(false);
-        return;
-      }
-
-      // Store password in sessionStorage for future use
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem("enc_pwd", passwordInput);
-      }
-
-      // Try to save with direct values, not relying on state updates yet
-      const success = await saveData(studentInfo);
-
-      if (success) {
-        setSaveSuccess(true);
-        // Hide success message after 3 seconds
-        setTimeout(() => setSaveSuccess(false), 3000);
-      } else {
-        setSaveError("Failed to save data even with password provided");
-      }
-    } catch (error) {
-      setSaveError(
-        error instanceof Error
-          ? error.message
-          : "An error occurred while saving",
-      );
-    } finally {
       setIsSaving(false);
     }
   };
@@ -163,11 +97,11 @@ export default function Header({
 
   return (
     <>
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <h1 className="text-3xl font-bold text-foreground">
           Welcome, {studentInfo.name}
         </h1>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           {saveSuccess && (
             <span className="text-green-500 text-sm">
               Changes saved successfully!
@@ -199,13 +133,15 @@ export default function Header({
           <h2 className="text-xl font-semibold mb-4 text-foreground">
             Current Degree
           </h2>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground break-words">
             {getDegreeName(studentInfo.currentDegree)}
           </p>
           {currentCurriculum && (
             <div className="mt-4">
               <h3 className="text-lg font-medium mb-2">Curriculum</h3>
-              <p className="text-muted-foreground">{currentCurriculum.name}</p>
+              <p className="text-muted-foreground break-words">
+                {currentCurriculum.name}
+              </p>
               <p className="text-sm text-muted-foreground">
                 Total Phases: {currentCurriculum.totalPhases}
               </p>
@@ -221,7 +157,7 @@ export default function Header({
               </h2>
               <ul className="space-y-2">
                 {studentInfo.interestedDegrees.map((degree, index) => (
-                  <li key={index} className="text-muted-foreground">
+                  <li key={index} className="text-muted-foreground break-words">
                     {getDegreeName(degree)}
                   </li>
                 ))}
