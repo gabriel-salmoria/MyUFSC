@@ -14,17 +14,9 @@ import { getCourseInfo } from "./curriculum-parser";
 // configuracoes
 import { COURSE_BOX, PHASE } from "@/styles/visualization";
 
-/**
- * Calculate positions for all courses in the student plan
- */
-export function calculateStudentPositions(
-  studentPlan: StudentPlan,
-  phaseWidth: number = PHASE.MIN_WIDTH,
-): {
+export function createPhases(studentPlan: StudentPlan): {
   phaseArray: Array<Array<StudentCourse>>;
-  courseMap: Map<string, StudentCourse>;
 } {
-  // Create course positions and map
   const studentCourseMap = new Map<string, StudentCourse>();
   const phaseArray = new Array<Array<StudentCourse>>();
 
@@ -36,11 +28,10 @@ export function calculateStudentPositions(
         return;
       }
       phaseArray[semesterIndex].push(course);
-      studentCourseMap.set(course.course.id, course);
     });
   });
 
-  return { phaseArray: phaseArray, courseMap: studentCourseMap };
+  return { phaseArray: phaseArray };
 }
 
 export function parseStudentData(jsonData: StudentInfo): StudentInfo {
@@ -57,27 +48,4 @@ export function parseStudentData(jsonData: StudentInfo): StudentInfo {
     }
   });
   return info;
-}
-
-// fetch pra pegar o json da info do aluno que eventualmente vai estar no servidor
-export function loadStudentFromJson(jsonPath: string): Promise<StudentInfo> {
-  return fetch(jsonPath)
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error(
-          `Failed to load student data: ${response.status} ${response.statusText}`,
-        );
-      }
-      return response.json();
-    })
-    .then((data) => {
-      try {
-        return parseStudentData(data);
-      } catch (parseError) {
-        throw parseError;
-      }
-    })
-    .catch((error) => {
-      throw error;
-    });
 }

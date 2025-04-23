@@ -9,6 +9,7 @@ import { Curriculum } from "@/types/curriculum";
 import CurriculumVisualizer from "@/components/visualizers/curriculum-visualizer";
 import ProgressVisualizer from "@/components/visualizers/progress-visualizer";
 import GridVisualizer from "@/components/visualizers/grid-visualizer";
+import { StudentStore } from "@/lib/student-store";
 
 // Enum for view modes
 export enum ViewMode {
@@ -23,11 +24,7 @@ interface VisualizationsProps {
   electiveCourses: Course[];
   onCourseClick: (course: Course | null) => void;
   onStudentCourseClick: (course: StudentCourse | null) => void;
-  onCourseDropped: (
-    course: Course,
-    semesterNumber: number,
-    positionIndex: number,
-  ) => void;
+  studentStore: StudentStore;
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
 }
@@ -39,7 +36,7 @@ export default function Visualizations({
   electiveCourses,
   onCourseClick,
   onStudentCourseClick,
-  onCourseDropped,
+  studentStore,
   viewMode,
   setViewMode,
 }: VisualizationsProps) {
@@ -129,7 +126,7 @@ export default function Visualizations({
           <ProgressVisualizer
             studentPlan={studentInfo.plans[studentInfo.currentPlan]!}
             onCourseClick={onStudentCourseClick}
-            onCourseDropped={onCourseDropped}
+            studentStore={studentStore}
             height={containerHeight - 50}
             key={`progress-${studentInfo.plans[studentInfo.currentPlan]?.semesters.length || 0}-${studentInfo.currentPlan || "default"}`}
           />

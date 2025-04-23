@@ -11,95 +11,34 @@ import type { Course } from "@/types/curriculum";
 import { PHASE_DIMENSIONS } from "@/styles/course-theme";
 
 // Helper function to ensure we have exactly one empty semester at the end
-const ensureOneEmptySemesterAtEnd = (semesters: StudentSemester[]) => {
+const updateView = (semesters: StudentSemester[]) => {
   if (!semesters || semesters.length === 0) return;
 
-  // Sort semesters by number
-  semesters.sort((a, b) => a.number - b.number);
-
-  // Count empty semesters at the end
-  let emptyAtEnd = 0;
-  for (let i = semesters.length - 1; i >= 0; i--) {
-    if (semesters[i].courses.length === 0) {
-      emptyAtEnd++;
-    } else {
-      break; // Stop counting once we find a non-empty semester
-    }
-  }
-
-  // Get highest semester number
-  const highestNumber = semesters[semesters.length - 1].number;
-
-  if (emptyAtEnd === 0) {
-    // No empty semesters at the end, add one
-    semesters.push({
-      number: highestNumber + 1,
-      courses: [],
-      totalCredits: 0,
-    });
-  } else if (
-    emptyAtEnd > 1 &&
-    semesters.length > PHASE_DIMENSIONS.TOTAL_SEMESTERS
-  ) {
-    // Only remove extra empty semesters if we already have more than the minimum number (8)
-    // Keep removing until we have exactly one empty semester or until we reach the minimum number
-    let removed = 0;
-    while (
-      removed < emptyAtEnd - 1 &&
-      semesters.length > PHASE_DIMENSIONS.TOTAL_SEMESTERS
+  for (let i = semesters.length - 2; i >= 0; i--) {
+    if (
+      semesters[i].courses.length === 0 &&
+      i > PHASE_DIMENSIONS.TOTAL_SEMESTERS
     ) {
       semesters.pop();
-      removed++;
-    }
-  }
-
-  // Ensure we always have at least PHASE_DIMENSIONS.TOTAL_SEMESTERS (8) semesters
-  if (semesters.length < PHASE_DIMENSIONS.TOTAL_SEMESTERS) {
-    const currentHighestNumber = semesters[semesters.length - 1].number;
-
-    // Add more empty semesters until we reach the minimum
-    for (
-      let i = semesters.length + 1;
-      i <= PHASE_DIMENSIONS.TOTAL_SEMESTERS;
-      i++
-    ) {
-      semesters.push({
-        number: currentHighestNumber + (i - semesters.length),
-        courses: [],
-        totalCredits: 0,
-      });
     }
   }
 };
 
 // Normalized student data store
-interface StudentStore {
+export interface StudentStore {
   // Data
   studentInfo: StudentInfo | null;
-  lastUpdate: number;
 
   // Actions
   setStudentInfo: (info: StudentInfo) => void;
   forceUpdate: () => void;
 
   // Course operations
-  addCourseToSemester: (
-    course: Course,
-    semesterNumber: number,
-    positionIndex: number,
-  ) => void;
-  moveCourse: (
-    courseId: string,
-    targetSemesterNumber: number,
-    targetPositionIndex: number,
-  ) => void;
-  removeCourse: (courseId: string) => void;
-  changeCourseStatus: (
-    courseId: string,
-    status: CourseStatus,
-    course?: Course,
-  ) => void;
-  setCourseGrade: (courseId: string, grade: number) => void;
+  addCourseToSemester: (course: Course, targetSemester: number) => void;
+  moveCourse: (course: StudentCourse, targetSemester: number) => void;
+  removeCourse: (course: StudentCourse) => void;
+  changeCourseStatus: (course: StudentCourse, status: CourseStatus) => void;
+  setCourseGrade: (course: StudentCourse, grade: number) => void;
 }
 
 const CheckStudentInfo = (info: StudentInfo | null) => {
@@ -112,7 +51,6 @@ const CheckStudentInfo = (info: StudentInfo | null) => {
 
 export const useStudentStore = create<StudentStore>((set: any) => ({
   studentInfo: null,
-  lastUpdate: Date.now(),
 
   // Force update function to trigger re-renders
   forceUpdate: () =>
@@ -122,12 +60,10 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
         if (
           state.studentInfo?.plans[state.studentInfo.currentPlan]?.semesters
         ) {
-          ensureOneEmptySemesterAtEnd(
+          updateView(
             state.studentInfo.plans[state.studentInfo.currentPlan].semesters,
           );
         }
-
-        state.lastUpdate = Date.now();
       }),
     ),
 
@@ -176,7 +112,7 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
         }
       }
 
-      ensureOneEmptySemesterAtEnd(allSemesters);
+      updateView(allSemesters);
 
       updatedInfo.plans[updatedInfo.currentPlan].semesters = allSemesters;
 
@@ -195,260 +131,115 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
   },
 
   // Add a course to a semester
-  addCourseToSemester: (
-    course: Course,
-    semesterNumber: number,
-    positionIndex: number,
-  ) =>
+  addCourseToSemester: (course: Course, semesterNumber: number) =>
     set(
       produce((state: StudentStore) => {
-        if (!state.studentInfo || state.studentInfo.currentPlan == null) {
-          console.log(
-            "no info idk bro",
-            state.studentInfo,
-            state.studentInfo?.currentPlan,
-          );
-          console.log(state.studentInfo);
-          return;
-        }
+        let plan = CheckStudentInfo(state.studentInfo);
+        if (!plan) return;
 
-        const plan = state.studentInfo.plans[state.studentInfo.currentPlan];
+        console.log(semesterNumber);
 
-        // Check if course already exists in any semester
-        let existingInSemester = false;
-        let sourcePosition = { semesterIndex: -1, courseIndex: -1 };
-
-        // Find the course in any semester
-        for (let i = 0; i < plan.semesters.length; i++) {
-          const semester = plan.semesters[i];
-          const courseIndex = semester.courses.findIndex(
-            (c) => c.course.id === course.id,
-          );
-
-          if (courseIndex >= 0) {
-            existingInSemester = true;
-            sourcePosition = { semesterIndex: i, courseIndex: courseIndex };
-            break;
-          }
-        }
-
-        // Find the target semester
-        const targetSemester = plan.semesters.find(
-          (s) => s.number === semesterNumber,
-        );
+        const targetSemester = plan.semesters[semesterNumber - 1];
         if (!targetSemester) {
           return;
         }
 
-        if (existingInSemester) {
-          // If course exists, simply move it
-          const sourceSemester = plan.semesters[sourcePosition.semesterIndex];
-          const courseToMove =
-            sourceSemester.courses[sourcePosition.courseIndex];
+        // If course doesn't exist, create a new instance
+        const newStudentCourse: StudentCourse = {
+          course,
+          status: CourseStatus.PLANNED,
+          phase: semesterNumber,
+          id: course.id,
+          name: course.name,
+          credits: course.credits,
+          description: course.description,
+          workload: course.workload,
+          prerequisites: course.prerequisites,
+          equivalents: course.equivalents,
+          type: course.type,
+        };
 
-          // Remove from source semester
-          sourceSemester.courses.splice(sourcePosition.courseIndex, 1);
-          sourceSemester.totalCredits -= courseToMove.credits || 0;
+        targetSemester.courses.push(newStudentCourse);
 
-          // Add to target semester
-          if (
-            positionIndex >= 0 &&
-            positionIndex <= targetSemester.courses.length
-          ) {
-            targetSemester.courses.splice(positionIndex, 0, courseToMove);
-          } else {
-            targetSemester.courses.push(courseToMove);
-          }
-
-          // Update target semester credits
-          targetSemester.totalCredits += courseToMove.credits || 0;
-        } else {
-          // If course doesn't exist, create a new instance
-          const newStudentCourse: StudentCourse = {
-            course,
-            status: CourseStatus.PLANNED,
-            id: course.id,
-            name: course.name,
-            credits: course.credits,
-            description: course.description,
-            workload: course.workload,
-            prerequisites: course.prerequisites,
-            equivalents: course.equivalents,
-            type: course.type,
-          };
-
-          // Add to target semester
-          if (
-            positionIndex >= 0 &&
-            positionIndex <= targetSemester.courses.length
-          ) {
-            targetSemester.courses.splice(positionIndex, 0, newStudentCourse);
-          } else {
-            targetSemester.courses.push(newStudentCourse);
-          }
-
-          // Update semester credits
-          targetSemester.totalCredits += course.credits || 0;
-        }
+        // Update semester credits
+        targetSemester.totalCredits += course.credits || 0;
 
         // Ensure we have exactly one empty semester at the end
-        ensureOneEmptySemesterAtEnd(plan.semesters);
+        updateView(plan.semesters);
 
         // Force a timestamp update to trigger rerenders
-        state.lastUpdate = Date.now();
       }),
     ),
 
   // Move a course from one semester to another
-  moveCourse: (
-    courseId: string,
-    targetSemesterNumber: number,
-    targetPositionIndex: number,
-  ) =>
+  moveCourse: (course: StudentCourse, targetSemester: number) =>
     set(
       produce((state: StudentStore) => {
         let plan = CheckStudentInfo(state.studentInfo);
         if (!plan) return;
 
         // Find the course in any semester
-        let sourceSemester: StudentSemester | undefined;
-        let courseToMove: StudentCourse | undefined;
-        let courseIndex = -1;
+        let sourceSemester = plan.semesters[course.phase - 1];
 
-        // Find the course and its source semester
-        for (const semester of plan.semesters) {
-          courseIndex = semester.courses.findIndex(
-            (c) => c.course.id === courseId,
-          );
-          if (courseIndex >= 0) {
-            sourceSemester = semester;
-            courseToMove = semester.courses[courseIndex];
-            break;
-          }
-        }
-
-        // If course not found, exit
-        if (!courseToMove || !sourceSemester) return;
-
-        // Remove from source semester
-        sourceSemester.courses.splice(courseIndex, 1);
-        sourceSemester.totalCredits -= courseToMove.credits || 0;
-
-        // Find target semester - should always exist since we initialize all semesters
-        const targetSemester = plan.semesters.find(
-          (s) => s.number === targetSemesterNumber,
+        sourceSemester.totalCredits -= course.credits || 0;
+        let idx = sourceSemester.courses.findIndex(
+          (c) => c.id === course.id && c.grade === course.grade,
         );
 
-        if (!targetSemester) {
+        if (idx !== -1) {
+          sourceSemester.totalCredits -=
+            sourceSemester.courses[idx].credits || 0;
+          sourceSemester.courses.splice(idx, 1);
+        }
+
+        // Find target semester - should always exist since we initialize all semesters
+        const semester = plan.semesters[targetSemester - 1];
+
+        if (!semester) {
           console.error(
-            `Target semester ${targetSemesterNumber} not found, should never happen`,
+            `Target semester ${targetSemester} not found, should never happen`,
           );
           return;
         }
 
-        // Insert course at target position
-        if (
-          targetPositionIndex >= 0 &&
-          targetPositionIndex <= targetSemester.courses.length
-        ) {
-          targetSemester.courses.splice(targetPositionIndex, 0, courseToMove);
-        } else {
-          targetSemester.courses.push(courseToMove);
-        }
+        course.phase = targetSemester;
 
-        // Update target semester credits
-        targetSemester.totalCredits += courseToMove.credits || 0;
-
-        // Ensure we have exactly one empty semester at the end
-        ensureOneEmptySemesterAtEnd(plan.semesters);
-
-        // Force a timestamp update to trigger rerenders
-        state.lastUpdate = Date.now();
+        semester.courses.push(course);
+        semester.totalCredits += course.credits || 0;
+        updateView(plan.semesters);
       }),
     ),
 
   // Remove a course from any semester
-  removeCourse: (courseId: string) =>
+  removeCourse: (course: StudentCourse) =>
     set(
       produce((state: StudentStore) => {
         let plan = CheckStudentInfo(state.studentInfo);
         if (!plan) return;
 
-        // Find the course in any semester
-        for (const semester of plan.semesters) {
-          const courseIndex = semester.courses.findIndex(
-            (c) => c.course.id === courseId,
-          );
-
-          if (courseIndex >= 0) {
-            // Get course for credit calculation and status updates
-            const removedCourse = semester.courses[courseIndex];
-
-            // Remove course from semester
-            semester.courses.splice(courseIndex, 1);
-
-            // Update semester credits
-            semester.totalCredits -= removedCourse.credits || 0;
-
-            break;
+        plan.semesters[course.phase].courses.forEach((sem_course, idx) => {
+          if (sem_course.grade == course.grade) {
+            plan.semesters[course.phase].courses.splice(idx);
           }
-        }
-
+        });
         // Ensure we have exactly one empty semester at the end
-        ensureOneEmptySemesterAtEnd(plan.semesters);
-
-        // Force a timestamp update to trigger rerenders
-        state.lastUpdate = Date.now();
+        updateView(plan.semesters);
       }),
     ),
 
   // Change a course's status
-  changeCourseStatus: (
-    courseId: string,
-    status: CourseStatus,
-    course?: Course,
-  ) =>
+  changeCourseStatus: (course: StudentCourse, status: CourseStatus) =>
     set(
       produce((state: StudentStore) => {
         let plan = CheckStudentInfo(state.studentInfo);
         if (!plan) return;
 
-        // Find the course in any semester
-        let courseFound = false;
-        let targetCourse: StudentCourse | undefined;
-
-        for (const semester of plan.semesters) {
-          const courseIndex = semester.courses.findIndex(
-            (c) => c.course.id === courseId,
-          );
-
-          if (courseIndex >= 0) {
-            targetCourse = semester.courses[courseIndex];
-            const prevStatus = targetCourse.status;
-
-            // Update the course status
-            targetCourse.status = status;
-
-            // If changing to PLANNED status, remove any grade
-            if (status === CourseStatus.PLANNED) {
-              delete targetCourse.grade;
-            }
-
-            courseFound = true;
-            break;
-          }
-        }
-
-        // Ensure we have exactly one empty semester at the end
-        ensureOneEmptySemesterAtEnd(plan.semesters);
-
-        // Force a timestamp update to trigger rerenders
-        state.lastUpdate = Date.now();
+        course.status = status;
       }),
     ),
 
   // Set a course's grade
-  setCourseGrade: (courseId: string, grade: number) =>
+  setCourseGrade: (course: StudentCourse, grade: number) =>
     set(
       produce((state: StudentStore) => {
         let plan = CheckStudentInfo(state.studentInfo);
@@ -457,24 +248,7 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
         // Round the grade to the nearest 0.5
         const roundedGrade = Math.round(grade * 2) / 2;
 
-        // Find the course in any semester
-        for (const semester of plan.semesters) {
-          const courseIndex = semester.courses.findIndex(
-            (c) => c.course.id === courseId,
-          );
-
-          if (courseIndex >= 0) {
-            // Update the grade
-            semester.courses[courseIndex].grade = roundedGrade;
-            break;
-          }
-        }
-
-        // Ensure we have exactly one empty semester at the end
-        ensureOneEmptySemesterAtEnd(plan.semesters);
-
-        // Force a timestamp update to trigger rerenders
-        state.lastUpdate = Date.now();
+        course.grade = roundedGrade;
       }),
     ),
 }));

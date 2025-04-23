@@ -8,17 +8,14 @@ import type { StudentCourse } from "@/types/student-plan";
 import { COURSE_BOX, PHASE } from "@/styles/visualization";
 import CourseBox from "@/components/visualizers/course-box";
 import GhostCourseBox from "@/components/visualizers/ghost-box";
+import { StudentStore } from "@/lib/student-store";
 
 interface PhaseProps {
   phase: PhaseType;
   studentCourses?: StudentCourse[];
   width: number;
   onCourseClick?: (course: Course | StudentCourse) => void;
-  onCourseDropped?: (
-    course: Course,
-    semesterIndex: number,
-    position: number,
-  ) => void;
+  studentStore: StudentStore;
   isLastPhase?: boolean; // To know if we need to show the right divider
   isProgressVisualizer?: boolean; // Flag to indicate if we're in progress visualizer
 }
@@ -28,7 +25,7 @@ export default function Phase({
   studentCourses = [],
   width,
   onCourseClick,
-  onCourseDropped,
+  studentStore,
   isLastPhase = false,
   isProgressVisualizer = false,
 }: PhaseProps) {
@@ -113,7 +110,7 @@ export default function Phase({
               position={position}
               semesterNumber={phase.number}
               positionIndex={positionIndex}
-              onCourseDropped={onCourseDropped}
+              studentStore={studentStore}
             />
           );
         })}

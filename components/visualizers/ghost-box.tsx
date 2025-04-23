@@ -2,6 +2,7 @@ import { getCourseInfo } from "@/lib/parsers/curriculum-parser";
 import { CSS_CLASSES } from "@/styles/course-theme";
 import { Course } from "@/types/curriculum";
 import { COURSE_BOX } from "@/styles/visualization";
+import { StudentStore } from "@/lib/student-store";
 
 // GhostCourseBox Component
 interface GhostCourseBoxProps {
@@ -11,22 +12,17 @@ interface GhostCourseBoxProps {
     y: number;
     width: number;
     height: number;
-    isGhost?: boolean;
   };
   semesterNumber: number;
   positionIndex: number;
-  onCourseDropped?: (
-    course: Course,
-    semesterIndex: number,
-    position: number,
-  ) => void;
+  studentStore: StudentStore;
 }
 
 export default function GhostCourseBox({
   position,
   semesterNumber,
   positionIndex,
-  onCourseDropped,
+  studentStore,
 }: GhostCourseBoxProps) {
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     // Prevent default to allow drop
@@ -47,39 +43,19 @@ export default function GhostCourseBox({
     e.currentTarget.classList.remove(CSS_CLASSES.GHOST_BOX_DRAG_OVER);
 
     try {
-      // Parse the drop data
       const data = JSON.parse(e.dataTransfer.getData("application/json"));
+      if (!data) return;
 
-      if (data.courseId && onCourseDropped) {
-        // Get the course info from the ID
-        const course = getCourseInfo(data.courseId);
+      const dropTarget = e.currentTarget;
+      dropTarget.classList.add(CSS_CLASSES.GHOST_BOX_DROP_SUCCESS);
+      setTimeout(() => {
+        dropTarget.classList.remove(CSS_CLASSES.GHOST_BOX_DROP_SUCCESS);
+      }, 500);
 
-        if (course) {
-          console.log(
-            "Course dropped:",
-            course.id,
-            "to phase:",
-            semesterNumber,
-            "position:",
-            positionIndex,
-          );
-
-          // Show success animation
-          const dropTarget = e.currentTarget;
-          dropTarget.classList.add(CSS_CLASSES.GHOST_BOX_DROP_SUCCESS);
-          setTimeout(() => {
-            dropTarget.classList.remove(CSS_CLASSES.GHOST_BOX_DROP_SUCCESS);
-          }, 500);
-
-          // Call onCourseDropped with the target position
-          onCourseDropped(course, semesterNumber, positionIndex);
-        } else {
-          console.error("Course not found for ID:", data.courseId);
-        }
+      if (data.sourceVisualizer == "progress") {
+        studentStore.moveCourse(data.studentCourse, semesterNumber);
       } else {
-        console.warn(
-          "Missing courseId in dropped data or onCourseDropped handler",
-        );
+        studentStore.addCourseToSemester(data.course, semesterNumber);
       }
     } catch (error) {
       console.error("Error processing drop:", error);

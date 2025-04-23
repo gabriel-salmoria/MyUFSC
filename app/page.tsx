@@ -16,9 +16,6 @@ import TrashDropZone from "@/components/visualizers/trash-drop-zone";
 // Import the custom useAppSetup hook
 import { useAppSetup } from "@/hooks/useAppSetup";
 
-// Parser and visualization
-import { courseMap } from "@/lib/parsers/curriculum-parser";
-
 export default function Home() {
   // Use our app setup hook to handle all the state and data fetching
   const {
@@ -40,7 +37,7 @@ export default function Home() {
     studentStore,
   } = useAppSetup();
 
-  if (loadingState.loading || !loadingState.allDataLoaded) {
+  if (loadingState.loading || !loadingState.allDataLoaded || !studentStore) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -108,15 +105,7 @@ export default function Home() {
               selectedStudentCourse: course,
             })
           }
-          onCourseDropped={(course, semesterNumber, positionIndex) => {
-            if (studentStore) {
-              (studentStore as any).addCourseToSemester(
-                course,
-                semesterNumber,
-                positionIndex,
-              );
-            }
-          }}
+          studentStore={studentStore}
           viewMode={viewMode}
           setViewMode={setViewMode}
         />

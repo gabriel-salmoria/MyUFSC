@@ -1,15 +1,18 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+
 import { StudentInfo } from "@/types/student-plan";
 import { DegreeProgram } from "@/types/degree-program";
 import { Curriculum } from "@/types/curriculum";
-import { fetchCurriculum } from "@/app/api/course/curriculum/[programId]/route";
-import { fetchClassSchedule } from "@/app/api/schedule/client";
-import { useStudentStore } from "@/lib/student-store";
-import { generateVisualization } from "@/lib/parsers/curriculum-parser";
 import type { Course } from "@/types/curriculum";
 import type { CurriculumVisualization } from "@/types/visualization";
 import type { StudentCourse } from "@/types/student-plan";
+
+import { fetchCurriculum } from "@/app/api/course/curriculum/[programId]/route";
+import { fetchClassSchedule } from "@/app/api/schedule/client";
+import { useStudentStore } from "@/lib/student-store";
+
+import { generateVisualization } from "@/lib/parsers/curriculum-parser";
 
 // Define the enums inside the hook so we can export them
 export enum ViewMode {
@@ -181,7 +184,7 @@ export function useAppSetup(): AppSetupResult {
 
   // Student store - keep both the destructured values and the full store
   const studentStore = useStudentStore();
-  const { studentInfo: storeStudentInfo, lastUpdate } = studentStore;
+  const { studentInfo: storeStudentInfo } = studentStore;
 
   // Sync the student info from the store to local state
   useEffect(() => {
@@ -189,7 +192,7 @@ export function useAppSetup(): AppSetupResult {
       setStudentInfo(storeStudentInfo);
       setLoadingState((prev) => ({ ...prev, profileLoading: false }));
     }
-  }, [storeStudentInfo, lastUpdate]);
+  }, [storeStudentInfo]);
 
   // Update allDataLoaded when all loading states are false
   useEffect(() => {
@@ -363,12 +366,11 @@ export function useAppSetup(): AppSetupResult {
     }
     const plan = studentInfo.plans[studentInfo.currentPlan];
 
-    // Default to semester 1 if no semesters exist (should never happen with our initialization)
     const targetSemester =
       plan.semesters.length > 0 ? plan.semesters[0] : { number: 1 };
 
     // Add the course to the semester
-    studentStore.addCourseToSemester(course, targetSemester.number, -1);
+    studentStore.addCourseToSemester(course, targetSemester.number);
   };
 
   const getDegreeName = (degreeId: string) => {

@@ -7,22 +7,19 @@ import { useRef, useState, useEffect, useMemo } from "react";
 // tipos de dados
 import type { StudentPlan, StudentCourse } from "@/types/student-plan";
 import type { Course } from "@/types/curriculum";
-import { calculateStudentPositions } from "@/lib/parsers/student-parser";
+import { createPhases } from "@/lib/parsers/student-parser";
 
 // componentes visuais da ui
 import Phase from "@/components/visualizers/phase";
 
 // config
 import { PHASE } from "@/styles/visualization";
+import { StudentStore } from "@/lib/student-store";
 
 interface ProgressVisualizerProps {
   studentPlan: StudentPlan;
   onCourseClick?: (course: StudentCourse) => void;
-  onCourseDropped?: (
-    course: Course,
-    semesterIndex: number,
-    position: number,
-  ) => void;
+  studentStore: StudentStore;
   height?: number;
 }
 
@@ -30,7 +27,7 @@ interface ProgressVisualizerProps {
 export default function ProgressVisualizer({
   studentPlan,
   onCourseClick,
-  onCourseDropped,
+  studentStore,
   height,
 }: ProgressVisualizerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -95,9 +92,9 @@ export default function ProgressVisualizer({
   const totalWidth = actualSemesterCount * phaseWidth;
 
   // Use the calculateStudentPositions function
-  const { phaseArray, courseMap: studentCourseMap } = useMemo(() => {
-    return calculateStudentPositions(studentPlan, phaseWidth);
-  }, [studentPlan, phaseWidth]);
+  const { phaseArray } = useMemo(() => {
+    return createPhases(studentPlan);
+  }, [studentPlan]);
 
   return (
     <div className="flex flex-col w-full h-full">
@@ -132,7 +129,7 @@ export default function ProgressVisualizer({
                     onCourseClick?.(course as StudentCourse);
                   }
                 }}
-                onCourseDropped={onCourseDropped}
+                studentStore={studentStore}
                 isLastPhase={index === studentPlan.semesters.length - 1}
                 isProgressVisualizer={true}
               />

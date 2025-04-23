@@ -5,11 +5,6 @@ import path from "path";
 import type { EncryptedUser } from "@/types/user";
 import { hashUsername } from "@/lib/crypto";
 
-// Helper function to hash username - deprecated, use the bcrypt version instead
-// function hashUsername(username: string): string {
-//   return createHash('sha256').update(username).digest('hex')
-// }
-
 export async function POST(request: Request) {
   try {
     const cookieStore = await cookies();
@@ -31,7 +26,6 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log(userId);
     // Get user file path - userId is already the hashed username
     const userFile = path.join(
       process.cwd(),
@@ -49,11 +43,11 @@ export async function POST(request: Request) {
     );
     let newData = { ...userData };
 
-    newData.iv = encryptedData.iv;
-    newData.encryptedData = encryptedData.encryptedData;
+    newData.iv = iv;
+    newData.encryptedData = encryptedData;
 
     // Save updated user data
-    fs.writeFileSync(userFile, JSON.stringify(userData, null, 2));
+    fs.writeFileSync(userFile, JSON.stringify(newData, null, 2));
 
     return NextResponse.json({ success: true });
   } catch (error) {
