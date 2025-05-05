@@ -5,14 +5,11 @@ import { StudentInfo } from "@/types/student-plan";
 import { DegreeProgram } from "@/types/degree-program";
 import { Curriculum } from "@/types/curriculum";
 import type { Course } from "@/types/curriculum";
-import type { CurriculumVisualization } from "@/types/visualization";
 import type { StudentCourse } from "@/types/student-plan";
 
 import { fetchCurriculum } from "@/app/api/course/curriculum/[programId]/route";
 import { fetchClassSchedule } from "@/app/api/schedule/client";
 import { useStudentStore } from "@/lib/student-store";
-
-import { generateVisualization } from "@/lib/parsers/curriculum-parser";
 
 // Define the enums inside the hook so we can export them
 export enum ViewMode {
@@ -25,14 +22,12 @@ export interface AppSetupResult {
   // Curriculum and program data
   curriculumState: {
     curriculum: Curriculum | null;
-    visualization: CurriculumVisualization | null;
     currentCurriculum: Curriculum | null;
     degreePrograms: DegreeProgram[];
   };
   setCurriculumState: React.Dispatch<
     React.SetStateAction<{
       curriculum: Curriculum | null;
-      visualization: CurriculumVisualization | null;
       currentCurriculum: Curriculum | null;
       degreePrograms: DegreeProgram[];
     }>
@@ -136,7 +131,6 @@ export function useAppSetup(): AppSetupResult {
   // Curriculum and program data
   const [curriculumState, setCurriculumState] = useState({
     curriculum: null as Curriculum | null,
-    visualization: null as CurriculumVisualization | null,
     currentCurriculum: null as Curriculum | null,
     degreePrograms: [] as DegreeProgram[],
   });
@@ -265,10 +259,6 @@ export function useAppSetup(): AppSetupResult {
               ...prev,
               currentCurriculum: processedCurriculum,
               curriculum: processedCurriculum,
-              visualization:
-                processedCurriculum.courses.length > 0
-                  ? generateVisualization(processedCurriculum)
-                  : null,
             }));
 
             setLoadingState((prev) => ({ ...prev, curriculumLoading: false }));

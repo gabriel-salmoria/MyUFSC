@@ -43,8 +43,8 @@ export const Schema = {
             nullable: false,
           },
           type: {
-            type: SchemaType.STRING,
-            description: "Course Type (e.g., mandatory, elective, core)",
+            type: SchemaType.BOOLEAN,
+            description: "Course Type (mandatory=1, elective=0)",
             nullable: false,
           },
           credits: {

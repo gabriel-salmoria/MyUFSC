@@ -137,46 +137,12 @@ export default function Home() {
           />
         </div>
 
-        {/* Course Detail Panels and Modals */}
-        {selectionState.selectedCourse && (
+        {(selectionState.selectedStudentCourse ||
+          selectionState.selectedCourse) && (
           <StudentCourseDetailsPanel
             course={selectionState.selectedCourse}
-            onClose={() =>
-              setSelectionState({
-                selectedCourse: null,
-                selectedStudentCourse: null,
-              })
-            }
-            onViewDependencies={() => {
-              if (selectionState.selectedCourse) {
-                handleViewDependencies(selectionState.selectedCourse);
-              }
-            }}
-            onStatusChange={(
-              courseId: string,
-              status: CourseStatus,
-              course?: Course,
-            ) => {
-              if (studentStore) {
-                (studentStore as any).changeCourseStatus(
-                  courseId,
-                  status,
-                  course,
-                );
-              }
-            }}
-            onGradeChange={(courseId: string, grade: number) => {
-              if (studentStore) {
-                (studentStore as any).setCourseGrade(courseId, grade);
-              }
-            }}
-          />
-        )}
-
-        {selectionState.selectedStudentCourse && (
-          <StudentCourseDetailsPanel
-            course={selectionState.selectedStudentCourse.course}
             studentCourse={selectionState.selectedStudentCourse}
+            studentStore={studentStore}
             onClose={() =>
               setSelectionState({
                 selectedCourse: null,
@@ -190,24 +156,6 @@ export default function Home() {
                 );
               }
             }}
-            onStatusChange={(
-              courseId: string,
-              status: CourseStatus,
-              course?: Course,
-            ) => {
-              if (studentStore) {
-                (studentStore as any).changeCourseStatus(
-                  courseId,
-                  status,
-                  course,
-                );
-              }
-            }}
-            onGradeChange={(courseId: string, grade: number) => {
-              if (studentStore) {
-                (studentStore as any).setCourseGrade(courseId, grade);
-              }
-            }}
           />
         )}
 
@@ -219,13 +167,7 @@ export default function Home() {
           />
         )}
 
-        <TrashDropZone
-          onRemoveCourse={(courseId) => {
-            if (studentStore) {
-              (studentStore as any).removeCourse(courseId);
-            }
-          }}
-        />
+        <TrashDropZone studentStore={studentStore} />
       </div>
     </main>
   );

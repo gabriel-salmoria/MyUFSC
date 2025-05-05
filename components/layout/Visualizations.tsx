@@ -20,7 +20,6 @@ export enum ViewMode {
 interface VisualizationsProps {
   studentInfo: StudentInfo;
   curriculum: Curriculum | null;
-  visualization: CurriculumVisualization | null;
   electiveCourses: Course[];
   onCourseClick: (course: Course | null) => void;
   onStudentCourseClick: (course: StudentCourse | null) => void;
@@ -32,7 +31,6 @@ interface VisualizationsProps {
 export default function Visualizations({
   studentInfo,
   curriculum,
-  visualization,
   electiveCourses,
   onCourseClick,
   onStudentCourseClick,
@@ -74,13 +72,9 @@ export default function Visualizations({
           style={{ height: `${containerHeight}px` }}
         >
           {viewMode === ViewMode.CURRICULUM ? (
-            curriculum &&
-            visualization &&
-            visualization.positions &&
-            visualization.positions.length > 0 ? (
+            curriculum ? (
               <CurriculumVisualizer
                 curriculum={curriculum}
-                visualization={visualization}
                 onCourseClick={onCourseClick}
                 height={containerHeight}
               />
@@ -97,17 +91,6 @@ export default function Visualizations({
           ) : (
             <GridVisualizer
               courses={electiveCourses}
-              studentCourses={
-                new Map(
-                  studentInfo.plans[studentInfo.currentPlan]?.semesters.flatMap(
-                    (semester) =>
-                      semester.courses.map((course) => [
-                        course.course.id,
-                        course,
-                      ]),
-                  ) || [],
-                )
-              }
               onCourseClick={onCourseClick}
               height={containerHeight}
             />
@@ -128,7 +111,7 @@ export default function Visualizations({
             onCourseClick={onStudentCourseClick}
             studentStore={studentStore}
             height={containerHeight - 50}
-            key={`progress-${studentInfo.plans[studentInfo.currentPlan]?.semesters.length || 0}-${studentInfo.currentPlan || "default"}`}
+            key={`progress-${studentInfo.currentPlan || "default"}`}
           />
         </div>
       </div>

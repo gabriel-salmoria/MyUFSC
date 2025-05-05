@@ -16,7 +16,6 @@ interface PhaseProps {
   width: number;
   onCourseClick?: (course: Course | StudentCourse) => void;
   studentStore: StudentStore;
-  isLastPhase?: boolean; // To know if we need to show the right divider
   isProgressVisualizer?: boolean; // Flag to indicate if we're in progress visualizer
 }
 
@@ -26,7 +25,6 @@ export default function Phase({
   width,
   onCourseClick,
   studentStore,
-  isLastPhase = false,
   isProgressVisualizer = false,
 }: PhaseProps) {
   // Calculate box width based on phase width
@@ -78,6 +76,7 @@ export default function Phase({
 
         return (
           <CourseBox
+            key={`student-course-${phase.number}-${index}`}
             course={course}
             studentCourse={
               isProgressVisualizer ? (course as StudentCourse) : undefined

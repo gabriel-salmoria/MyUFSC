@@ -42,7 +42,6 @@ export default function useEncryptedData({
   const decryptData = useCallback(
     (encryptedData: any, iv: any, password: string) => {
       try {
-        console.log(password, iv, encryptedData);
         const decrypted = decryptStudentData(password, iv, encryptedData);
 
         setStudentData(decrypted);
@@ -100,8 +99,6 @@ export default function useEncryptedData({
             data.iv,
             hashedPassword,
           );
-
-          console.log("nao seja null", decrypted);
 
           // Store password in sessionStorage to persist between page reloads
           if (typeof window !== "undefined") {

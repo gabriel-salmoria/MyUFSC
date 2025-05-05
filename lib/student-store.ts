@@ -83,7 +83,6 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
     if (updatedInfo.currentPlan !== null) {
       // Initialize missing semesters
       const existingSemesters = info.plans[info.currentPlan]?.semesters || [];
-      console.log(existingSemesters);
 
       const allSemesters: StudentSemester[] = [];
 
@@ -127,7 +126,6 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
     }
 
     set({ studentInfo: updatedInfo });
-    console.log("hey", updatedInfo);
   },
 
   // Add a course to a semester
@@ -136,8 +134,6 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
       produce((state: StudentStore) => {
         let plan = CheckStudentInfo(state.studentInfo);
         if (!plan) return;
-
-        console.log(semesterNumber);
 
         const targetSemester = plan.semesters[semesterNumber - 1];
         if (!targetSemester) {
@@ -217,12 +213,11 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
         let plan = CheckStudentInfo(state.studentInfo);
         if (!plan) return;
 
-        plan.semesters[course.phase].courses.forEach((sem_course, idx) => {
-          if (sem_course.grade == course.grade) {
-            plan.semesters[course.phase].courses.splice(idx);
-          }
-        });
-        // Ensure we have exactly one empty semester at the end
+        let idx = plan.semesters[course.phase - 1].courses.findIndex(
+          (c) => c.id === course.id && c.grade === course.grade,
+        );
+
+        plan.semesters[course.phase - 1].courses.splice(idx, 1);
         updateView(plan.semesters);
       }),
     ),

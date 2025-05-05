@@ -18,7 +18,6 @@ import { generatePhases } from "@/lib/parsers/curriculum-parser";
 
 interface CurriculumVisualizerProps {
   curriculum: Curriculum;
-  visualization: CurriculumVisualization;
   onCourseClick?: (course: Course) => void;
   height?: number;
 }
@@ -26,7 +25,6 @@ interface CurriculumVisualizerProps {
 // componente principal, que renderiza o currculo do aluno
 export default function CurriculumVisualizer({
   curriculum,
-  visualization,
   onCourseClick,
   height = 600,
 }: CurriculumVisualizerProps) {
@@ -38,7 +36,7 @@ export default function CurriculumVisualizer({
   const phases = useMemo(() => generatePhases(curriculum), [curriculum]);
 
   // Safeguard against rendering with invalid data
-  if (!curriculum || !visualization) {
+  if (!curriculum) {
     return (
       <div className="flex items-center justify-center h-full">
         <p className="text-muted-foreground">Loading curriculum data...</p>
@@ -101,7 +99,6 @@ export default function CurriculumVisualizer({
                 phase={phase}
                 width={phaseWidth}
                 onCourseClick={onCourseClick}
-                isLastPhase={index === phases.length - 1}
               />
             ))}
           </div>

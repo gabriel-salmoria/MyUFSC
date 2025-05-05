@@ -42,7 +42,6 @@ export default function LoginPage() {
 
       // Set the decrypted data in the global store
       studentStore.setStudentInfo(result.data as StudentInfo);
-      console.log(result.data);
 
       // Navigate to home page
       router.push("/");

@@ -25,14 +25,10 @@ export default function GhostCourseBox({
   studentStore,
 }: GhostCourseBoxProps) {
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    // Prevent default to allow drop
     e.preventDefault();
-    e.currentTarget.classList.add(CSS_CLASSES.GHOST_BOX_DRAG_OVER);
   };
 
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.currentTarget.classList.remove(CSS_CLASSES.GHOST_BOX_DRAG_OVER);
-  };
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {};
 
   const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -40,17 +36,10 @@ export default function GhostCourseBox({
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    e.currentTarget.classList.remove(CSS_CLASSES.GHOST_BOX_DRAG_OVER);
 
     try {
       const data = JSON.parse(e.dataTransfer.getData("application/json"));
       if (!data) return;
-
-      const dropTarget = e.currentTarget;
-      dropTarget.classList.add(CSS_CLASSES.GHOST_BOX_DROP_SUCCESS);
-      setTimeout(() => {
-        dropTarget.classList.remove(CSS_CLASSES.GHOST_BOX_DROP_SUCCESS);
-      }, 500);
 
       if (data.sourceVisualizer == "progress") {
         studentStore.moveCourse(data.studentCourse, semesterNumber);

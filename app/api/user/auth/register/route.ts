@@ -17,7 +17,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { username, password, iv, encryptedData } = body;
-    console.log("hey ive got here");
 
     // Validate input
     if (!username || !password || !encryptedData || !iv) {

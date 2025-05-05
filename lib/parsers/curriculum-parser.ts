@@ -1,8 +1,5 @@
 import type { Curriculum, Course, Phase } from "@/types/curriculum";
-import type {
-  CurriculumVisualization,
-  CoursePosition,
-} from "@/types/visualization";
+import type { CoursePosition } from "@/types/visualization";
 
 // Import configuration constants
 import { COURSE_BOX, PHASE } from "@/styles/visualization";
@@ -121,67 +118,4 @@ export function generateCurriculumPhases(curriculum: Curriculum): {
   });
 
   return { phaseArray, courseMap };
-}
-
-// Generate visualization data from a curriculum
-export function generateVisualization(
-  curriculum: Curriculum,
-): CurriculumVisualization {
-  // Process the curriculum to get phases and course map
-  const { phaseArray } = generateCurriculumPhases(curriculum);
-
-  if (
-    !curriculum.courses ||
-    !Array.isArray(curriculum.courses) ||
-    curriculum.courses.length === 0
-  ) {
-    return {
-      id: `${curriculum.id}-vis`,
-      curriculumId: curriculum.id,
-      positions: [],
-      phaseLabels: {},
-      panOffset: { x: 0, y: 0 },
-    };
-  }
-
-  // Position all courses by phase
-  const positions: CoursePosition[] = [];
-
-  // Position courses by phase
-  phaseArray.forEach((phaseCourses, phaseIndex) => {
-    phaseCourses.forEach((course, courseIndex) => {
-      positions.push({
-        courseId: course.id,
-        x:
-          phaseIndex * PHASE.MIN_WIDTH +
-          (PHASE.MIN_WIDTH - COURSE_BOX.MIN_WIDTH) / 2,
-        y: courseIndex * COURSE_BOX.SPACING_Y + COURSE_BOX.SPACING_Y,
-        width: COURSE_BOX.MIN_WIDTH,
-        height: COURSE_BOX.HEIGHT,
-      });
-    });
-  });
-
-  // Create phase labels
-  const phaseLabels: Record<
-    number,
-    { x: number; y: number; width: number; height: number }
-  > = {};
-  for (let i = 1; i <= curriculum.totalPhases; i++) {
-    phaseLabels[i] = {
-      x: (i - 1) * PHASE.MIN_WIDTH,
-      y: 0,
-      width: PHASE.MIN_WIDTH,
-      height: COURSE_BOX.HEIGHT * 3, // Use COURSE_BOX.HEIGHT instead of PHASE.HEIGHT which doesn't exist
-    };
-  }
-
-  // Create the visualization object
-  return {
-    id: `${curriculum.id}-vis`,
-    curriculumId: curriculum.id,
-    positions: positions,
-    phaseLabels,
-    panOffset: { x: 0, y: 0 },
-  };
 }
