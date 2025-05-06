@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import fs from "fs";
-import path from "path";
 import type { EncryptedUser } from "@/types/user";
 import { hashUsername } from "@/lib/crypto";
+import { getUserByHashedUsername, updateUser } from "@/lib/db-user";
 
 export async function POST(request: Request) {
   try {
@@ -26,28 +25,20 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get user file path - userId is already the hashed username
-    const userFile = path.join(
-      process.cwd(),
-      "data",
-      "users",
-      `${hashUsername(userId)}.json`,
-    );
-    if (!fs.existsSync(userFile)) {
+    // Get the hashed username
+    const hashedUsername = hashUsername(userId);
+
+    // Check if user exists in database
+    const userData = await getUserByHashedUsername(hashedUsername);
+    if (!userData) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Read existing user data
-    const userData: EncryptedUser = JSON.parse(
-      fs.readFileSync(userFile, "utf8"),
-    );
-    let newData = { ...userData };
-
-    newData.iv = iv;
-    newData.encryptedData = encryptedData;
-
-    // Save updated user data
-    fs.writeFileSync(userFile, JSON.stringify(newData, null, 2));
+    // Update user in the database
+    await updateUser(hashedUsername, {
+      iv,
+      encryptedData,
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

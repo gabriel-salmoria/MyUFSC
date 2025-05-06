@@ -1,17 +1,8 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import fs from "fs";
-import path from "path";
 import bcrypt from "bcryptjs";
-import {
-  generateSalt,
-  deriveEncryptionKey,
-  encryptData,
-  hashUsername,
-} from "@/lib/crypto";
-
-import type { StudentInfo } from "@/types/student-plan";
-import crypto from "crypto";
+import { hashUsername } from "@/lib/crypto";
+import { getUserByHashedUsername, createUser } from "@/lib/db-user";
 
 export async function POST(request: Request) {
   try {
@@ -26,18 +17,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create users directory if it doesn't exist
-    const usersDir = path.join(process.cwd(), "data", "users");
-    if (!fs.existsSync(usersDir)) {
-      fs.mkdirSync(usersDir, { recursive: true });
-    }
-
-    // Hash the username using bcrypt - this will be our file identifier
+    // Hash the username
     const hashedUsername = hashUsername(username);
 
-    // Check if user already exists using the hashed username file
-    const userFile = path.join(usersDir, `${hashedUsername}.json`);
-    if (fs.existsSync(userFile)) {
+    // Check if user already exists
+    const existingUser = await getUserByHashedUsername(hashedUsername);
+    if (existingUser) {
       return NextResponse.json(
         { error: "Username already exists" },
         { status: 400 },
@@ -48,16 +33,13 @@ export async function POST(request: Request) {
     const passwordSalt = await bcrypt.genSalt(12);
     const hashedPassword = await bcrypt.hash(password, passwordSalt);
 
-    // Create user profile with encrypted data - NO plaintext username
-    const userProfile = {
+    // Create user in the database
+    await createUser({
       hashedUsername,
       hashedPassword,
-      iv: iv,
-      encryptedData: encryptedData,
-    };
-
-    // Save user profile using the hashed username as filename
-    fs.writeFileSync(userFile, JSON.stringify(userProfile, null, 2));
+      iv,
+      encryptedData,
+    });
 
     // Set session cookie
     const cookieStore = await cookies();

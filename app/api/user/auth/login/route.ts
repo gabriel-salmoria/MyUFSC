@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import fs from "fs";
-import path from "path";
 import bcrypt from "bcryptjs";
-import { deriveEncryptionKey, hashUsername } from "@/lib/crypto";
+import { hashUsername } from "@/lib/crypto";
 import type { EncryptedUser } from "@/types/user";
+import { getUserByHashedUsername } from "@/lib/db-user";
 
 // Helper function to hash username - deprecated, use the bcrypt version instead
 // function hashUsername(username: string): string {
@@ -26,25 +25,15 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check if user exists using the hashed username file
-    const userFile = path.join(
-      process.cwd(),
-      "data",
-      "users",
-      `${hashedUsername}.json`,
-    );
+    // Get user from database instead of file
+    const userData = await getUserByHashedUsername(hashedUsername);
 
-    if (!fs.existsSync(userFile)) {
+    if (!userData) {
       return NextResponse.json(
         { error: "Invalid credentials" },
         { status: 401 },
       );
     }
-
-    // Read user data
-    const userData: EncryptedUser = JSON.parse(
-      fs.readFileSync(userFile, "utf8"),
-    );
 
     if (
       !userData.hashedPassword ||

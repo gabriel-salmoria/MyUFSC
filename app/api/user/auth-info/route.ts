@@ -1,14 +1,8 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import fs from "fs";
-import path from "path";
 import type { EncryptedUser } from "@/types/user";
 import { hashUsername } from "@/lib/crypto";
-
-// Helper function to hash username - deprecated, use the bcrypt version instead
-// function hashUsername(username: string): string {
-//   return createHash('sha256').update(username).digest('hex')
-// }
+import { getUserByHashedUsername } from "@/lib/db-user";
 
 export async function GET(request: Request) {
   try {
@@ -21,20 +15,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userFile = path.join(
-      process.cwd(),
-      "data",
-      "users",
-      `${hashUsername(userId)}.json`,
-    );
-    if (!fs.existsSync(userFile)) {
+    const hashedUsername = hashUsername(userId);
+
+    // Get user from database
+    const userData = await getUserByHashedUsername(hashedUsername);
+    if (!userData) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
-
-    // Read existing user data
-    const userData: EncryptedUser = JSON.parse(
-      fs.readFileSync(userFile, "utf8"),
-    );
 
     // Return only the auth info needed for encryption
     return NextResponse.json({
