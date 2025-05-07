@@ -7,7 +7,7 @@ import { Curriculum } from "@/types/curriculum";
 import type { Course } from "@/types/curriculum";
 import type { StudentCourse } from "@/types/student-plan";
 
-import { fetchCurriculum } from "@/app/api/course/curriculum/[programId]/route";
+import { fetchCurriculum } from "@/lib/api";
 import { fetchClassSchedule } from "@/app/api/schedule/client";
 import { useStudentStore } from "@/lib/student-store";
 

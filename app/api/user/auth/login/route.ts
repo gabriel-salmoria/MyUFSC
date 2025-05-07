@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 import { hashUsername } from "@/crypto/server/crypto";
 import type { EncryptedUser } from "@/types/user";
-import { getUserByHashedUsername } from "@/database/db-user";
+import { getUserByHashedUsername } from "@/database/users/db-user";
 
 // Helper function to hash username - deprecated, use the bcrypt version instead
 // function hashUsername(username: string): string {

@@ -1,45 +1,6 @@
-import "dotenv/config"; // Add dotenv configuration for self-sufficiency
-import { Client, QueryResult } from "pg"; // Import QueryResult type
+import { QueryResult } from "pg"; // Import QueryResult type
 import { EncryptedUser } from "@/types/user"; // Keep this import
-
-/**
- * Connect to the PostgreSQL database
- * @returns {Promise<Client>} PostgreSQL client
- */
-const connectToDatabase = async (): Promise<Client> => {
-  if (!process.env.NEON_URL) {
-    throw new Error("NEON_URL environment variable is not set.");
-  }
-  const client = new Client(process.env.NEON_URL);
-  await client.connect();
-  return client;
-};
-
-/**
- * Execute a query on the database
- * @param {string} query - SQL query to execute
- * @param {Array} params - Query parameters
- * @returns {Promise<QueryResult>} Query results
- */
-const executeQuery = async (
-  query: string,
-  params: any[] = [],
-): Promise<QueryResult> => {
-  let client: Client | undefined; // Declare client here to ensure it's accessible in finally block
-  try {
-    client = await connectToDatabase();
-    const results = await client.query(query, params);
-    return results;
-  } catch (err) {
-    console.error("Error executing query:", err);
-    throw err;
-  } finally {
-    // Ensure client is ended even on error
-    if (client) {
-      await client.end();
-    }
-  }
-};
+import { executeQuery } from "@/database/ready"; // Import executeQuery from shared file
 
 /**
  * Get a user by their hashed username
