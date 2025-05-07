@@ -79,7 +79,6 @@ export default function StudentCourseDetailsPanel({
   const handleClose = () => {
     clearSelection(); // Use clearSelection from the store
   };
-
   return (
     <>
       <div
@@ -170,7 +169,7 @@ export default function StudentCourseDetailsPanel({
             (studentCourse?.status === CourseStatus.COMPLETED &&
               studentCourse?.grade === undefined)) && (
             <div>
-              <h4 className="text-sm font-medium text-muted-foreground}>
+              <h4 className="text-sm font-medium text-muted-foreground">
                 Grade
               </h4>
               <div className="flex flex-col gap-1 mt-1">
@@ -337,19 +336,22 @@ export default function StudentCourseDetailsPanel({
             }
             className="w-full"
             onClick={() => {
-              setIsEditingGrade(true);
-              if (studentCourse?.status !== CourseStatus.COMPLETED) {
+              // Toggle editing grade if already completed with a grade
+              if (
+                studentCourse?.status === CourseStatus.COMPLETED &&
+                studentCourse?.grade !== undefined
+              ) {
+                setIsEditingGrade(!isEditingGrade);
+              } else {
+                // If changing status to COMPLETED, or if grade is undefined, enable editing
+                changeCourseStatus(studentCourse!, CourseStatus.COMPLETED); // Change status first
+                setIsEditingGrade(true);
+                // Set input value based on potential existing grade
                 setGradeInput(
                   studentCourse?.grade !== undefined
                     ? studentCourse.grade.toString()
                     : "",
                 );
-              } else {
-                if (studentCourse?.grade === undefined) {
-                  setIsEditingGrade(true);
-                } else {
-                  setIsEditingGrade(!isEditingGrade);
-                }
               }
             }}
             disabled={!studentCourse}
