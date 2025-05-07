@@ -101,8 +101,8 @@ export default function CurriculumVisualizer({
                 semesterNumber={semester.number}
                 // Filter curriculum courses for this phase and map to StudentCourse-like structure
                 studentCourses={curriculum.courses
-                  .filter(course => course.phase === semester.number)
-                  .map(course => ({
+                  .filter((course) => course.phase === semester.number)
+                  .map((course) => ({
                     course, // Original Course object
                     id: course.id,
                     name: course.name,
@@ -112,13 +112,18 @@ export default function CurriculumVisualizer({
                     prerequisites: course.prerequisites,
                     equivalents: course.equivalents,
                     type: course.type,
-                    status: studentPlan.semesters.flatMap(s => s.courses).find(sc => sc.id === course.id)?.status || CourseStatus.PLANNED,
-                    grade: studentPlan.semesters.flatMap(s => s.courses).find(sc => sc.id === course.id)?.grade || undefined,
+                    status:
+                      studentPlan.semesters
+                        .flatMap((s) => s.courses)
+                        .find((sc) => sc.id === course.id)?.status ||
+                      CourseStatus.PLANNED,
+                    grade:
+                      studentPlan.semesters
+                        .flatMap((s) => s.courses)
+                        .find((sc) => sc.id === course.id)?.grade || undefined,
                     phase: semester.number,
-                  }))
-                }
+                  }))}
                 width={phaseWidth}
-                studentStore={studentStore}
                 isFromCurriculum={true} // Mark as from curriculum
               />
             ))}

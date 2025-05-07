@@ -3,7 +3,7 @@ import {
   decryptStudentData,
   encryptStudentData,
   hashString,
-} from "@/lib/client/crypto";
+} from "@/crypto/client/crypto";
 import type { StudentInfo } from "@/types/student-plan";
 import { User } from "lucide-react";
 
