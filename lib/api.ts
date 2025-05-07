@@ -1,18 +1,20 @@
 import { Curriculum } from "@/types/curriculum"; // Keep this import
 
-export async function fetchCurriculum(programId: string): Promise<Curriculum | null> {
+export async function fetchCurriculum(
+  programId: string,
+): Promise<Curriculum | null> {
   try {
-    const response = await fetch(`/api/course/curriculum/${programId}`)
+    const response = await fetch(`/api/curriculum/${programId}`);
 
     if (!response.ok) {
-      return null
+      return null;
     }
 
     const data = await response.json();
 
-    return data
+    return data;
   } catch (error) {
     console.error("Error fetching curriculum on client side:", error);
-    return null
+    return null;
   }
 }

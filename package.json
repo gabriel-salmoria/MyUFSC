@@ -1,13 +1,12 @@
 {
-  "name": "my-v0-project",
-  "version": "0.1.0",
+  "name": "MyUFSC",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "update-curriculum": "node scripts/copy-curriculum.js",
     "db:setup:programs": "python database/programs/setup.py",
     "db:setup:curriculum": "python database/curriculum/setup.py",
     "db:setup:schedule": "python database/schedule/setup.py"

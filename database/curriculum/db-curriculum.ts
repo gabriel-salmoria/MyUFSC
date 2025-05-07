@@ -14,7 +14,7 @@ export async function getCurriculumByProgramId(
   const result: QueryResult = await executeQuery(query, [programId]);
 
   if (result.rows.length === 0) {
-    return null; // Curriculum not found
+    return null;
   }
 
   // Return the JSON blob directly
