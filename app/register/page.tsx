@@ -15,7 +15,7 @@ import {
   hashString,
   deriveEncryptionKey,
   encryptStudentData,
-} from "@/lib/client/crypto";
+} from "@/crypto/client/crypto";
 import { StudentPlan } from "@/types/student-plan";
 
 export default function RegisterPage() {
