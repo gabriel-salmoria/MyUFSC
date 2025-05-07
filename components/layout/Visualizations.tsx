@@ -3,15 +3,14 @@
 import { useState } from "react";
 import { StudentInfo, StudentCourse } from "@/types/student-plan";
 import { Course } from "@/types/curriculum";
-import { CurriculumVisualization } from "@/types/visualization";
 import { Curriculum } from "@/types/curriculum";
 
 import CurriculumVisualizer from "@/components/visualizers/curriculum-visualizer";
 import ProgressVisualizer from "@/components/visualizers/progress-visualizer";
 import GridVisualizer from "@/components/visualizers/grid-visualizer";
-import { StudentStore } from "@/lib/student-store";
+import { useStudentStore } from "@/lib/student-store";
 
-// Enum for view modes
+
 export enum ViewMode {
   CURRICULUM = "curriculum",
   ELECTIVES = "electives",
@@ -21,9 +20,7 @@ interface VisualizationsProps {
   studentInfo: StudentInfo;
   curriculum: Curriculum | null;
   electiveCourses: Course[];
-  onCourseClick: (course: Course | null) => void;
-  onStudentCourseClick: (course: StudentCourse | null) => void;
-  studentStore: StudentStore;
+  
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
 }
@@ -32,12 +29,11 @@ export default function Visualizations({
   studentInfo,
   curriculum,
   electiveCourses,
-  onCourseClick,
-  onStudentCourseClick,
-  studentStore,
+  
   viewMode,
   setViewMode,
 }: VisualizationsProps) {
+  const studentStore = useStudentStore();
   // Toggle view mode between curriculum and electives
   const toggleView = () => {
     setViewMode(
@@ -50,6 +46,7 @@ export default function Visualizations({
   // Calculate container height for visualizers
   const containerHeight = 500; // Using fixed height for simplicity
 
+  
   return (
     <div className="flex-1 space-y-6">
       <div>
@@ -75,7 +72,7 @@ export default function Visualizations({
             curriculum ? (
               <CurriculumVisualizer
                 curriculum={curriculum}
-                onCourseClick={onCourseClick}
+                studentPlan={studentInfo.plans[studentInfo.currentPlan]!}
                 height={containerHeight}
               />
             ) : (
@@ -91,7 +88,6 @@ export default function Visualizations({
           ) : (
             <GridVisualizer
               courses={electiveCourses}
-              onCourseClick={onCourseClick}
               height={containerHeight}
             />
           )}
@@ -108,7 +104,6 @@ export default function Visualizations({
         >
           <ProgressVisualizer
             studentPlan={studentInfo.plans[studentInfo.currentPlan]!}
-            onCourseClick={onStudentCourseClick}
             studentStore={studentStore}
             height={containerHeight - 50}
             key={`progress-${studentInfo.currentPlan || "default"}`}

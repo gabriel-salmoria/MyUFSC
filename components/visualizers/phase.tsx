@@ -2,32 +2,28 @@
 "use client";
 
 import { useMemo } from "react";
-import type { Phase as PhaseType } from "@/types/curriculum";
 import type { Course } from "@/types/curriculum";
 import type { StudentCourse } from "@/types/student-plan";
 import { COURSE_BOX, PHASE } from "@/styles/visualization";
 import CourseBox from "@/components/visualizers/course-box";
 import GhostCourseBox from "@/components/visualizers/ghost-box";
 import { StudentStore } from "@/lib/student-store";
+import { useStudentStore } from "@/lib/student-store";
 
 interface PhaseProps {
-  phase: PhaseType;
-  studentCourses?: StudentCourse[];
+  semesterNumber: number; // Added
+  studentCourses: StudentCourse[]; // Added
   width: number;
-  onCourseClick?: (course: Course | StudentCourse) => void;
-  studentStore: StudentStore;
-  isProgressVisualizer?: boolean; // Flag to indicate if we're in progress visualizer
+  isFromCurriculum?: boolean; // Renamed from isActualSemester
 }
 
 export default function Phase({
-  phase,
-  studentCourses = [],
+  semesterNumber,
+  studentCourses,
   width,
-  onCourseClick,
-  studentStore,
-  isProgressVisualizer = false,
+  isFromCurriculum,
 }: PhaseProps) {
-  // Calculate box width based on phase width
+  const studentStore = useStudentStore();
   const boxWidth = useMemo(() => {
     return Math.max(COURSE_BOX.MIN_WIDTH, width * COURSE_BOX.WIDTH_FACTOR);
   }, [width]);
@@ -37,22 +33,6 @@ export default function Phase({
     return (width - boxWidth) / 2;
   }, [width, boxWidth]);
 
-  // Determine which courses to display based on mode
-  const displayCourses = useMemo(() => {
-    return isProgressVisualizer ? studentCourses : phase.courses;
-  }, [isProgressVisualizer, studentCourses, phase.courses]);
-
-  // Determine how many ghost boxes to add if we're in progress visualizer
-  const ghostBoxCount = useMemo(() => {
-    if (!isProgressVisualizer) return 0;
-
-    // If in progress visualizer, add ghost boxes to meet minimum count
-    const coursesCount = displayCourses.length;
-    return coursesCount >= PHASE.BOXES_PER_COLUMN
-      ? 1 // At least one ghost box for adding more
-      : PHASE.BOXES_PER_COLUMN - coursesCount;
-  }, [displayCourses.length, isProgressVisualizer]);
-
   return (
     <div
       className="relative h-full border border-border"
@@ -60,14 +40,14 @@ export default function Phase({
     >
       {/* Phase header */}
       <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-sm px-2 py-3 text-center font-medium border-b border-border">
-        Phase {phase.number}
+        Phase {semesterNumber}
       </div>
 
       {/* Course boxes - positioned dynamically within the phase */}
-      {displayCourses.map((course, index) => {
+      {studentCourses.map((studentCourse: StudentCourse, index) => {
         // Calculate position directly here instead of using external state
         const position = {
-          courseId: course.id,
+          courseId: studentCourse.id, // Use studentCourse ID
           x: xOffset,
           y: index * COURSE_BOX.SPACING_Y + COURSE_BOX.SPACING_Y,
           width: boxWidth,
@@ -76,41 +56,35 @@ export default function Phase({
 
         return (
           <CourseBox
-            key={`student-course-${phase.number}-${index}`}
-            course={course}
-            studentCourse={
-              isProgressVisualizer ? (course as StudentCourse) : undefined
-            }
+            key={`student-course-${semesterNumber}-${index}`}
+            studentCourse={studentCourse} // Pass the StudentCourse object
             position={position}
             isEmpty={false}
-            isDraggable={true}
-            onClick={() => onCourseClick?.(course)}
+            isDraggable={true} // Should be draggable if not empty
+            isFromCurriculum={isFromCurriculum}
           />
         );
       })}
 
-      {/* Add ghost boxes for empty slots if in progress visualizer */}
-      {isProgressVisualizer &&
-        ghostBoxCount > 0 &&
-        Array.from({ length: ghostBoxCount }).map((_, index) => {
-          const positionIndex = displayCourses.length + index;
+      {/* Add ghost boxes for empty slots if it's an actual semester (progress view) */}
+      {!isFromCurriculum && Array.from({ length: 6 - studentCourses.length }).map((_, index) => {
+          const positionIndex = studentCourses.length + index;
           const position = {
-            courseId: `ghost-${phase.number}-${index}`,
-            x: xOffset,
-            y: positionIndex * COURSE_BOX.SPACING_Y + COURSE_BOX.SPACING_Y,
-            width: boxWidth,
-            height: COURSE_BOX.HEIGHT,
-            isGhost: true,
-          };
+             courseId: `ghost-${semesterNumber}-${positionIndex}`, // Unique ID for ghost
+             x: xOffset,
+             y: positionIndex * COURSE_BOX.SPACING_Y + COURSE_BOX.SPACING_Y,
+             width: boxWidth,
+             height: COURSE_BOX.HEIGHT,
+             isGhost: true,
+           };
 
           return (
             <GhostCourseBox
-              key={`ghost-${phase.number}-${index}`}
+              key={`ghost-${semesterNumber}-${positionIndex}`}
               position={position}
-              semesterNumber={phase.number}
+              semesterNumber={semesterNumber}
               positionIndex={positionIndex}
-              studentStore={studentStore}
-            />
+              />
           );
         })}
     </div>

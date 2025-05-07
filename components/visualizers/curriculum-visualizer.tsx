@@ -4,11 +4,12 @@ import type React from "react";
 import { useRef, useState, useEffect, useMemo } from "react";
 
 // tipos de dados
-import type { Curriculum, Course, Phase } from "@/types/curriculum";
-import type { CurriculumVisualization } from "@/types/visualization";
+import type { Curriculum, Course } from "@/types/curriculum";
+import type { StudentCourse, StudentPlan } from "@/types/student-plan"; // Added for onCourseClick type, though prop will be removed
+import { CourseStatus } from "@/types/student-plan";
 
 // componentes visuais da ui
-import PhaseComponent from "@/components/visualizers/phase";
+import Phase from "@/components/visualizers/phase";
 
 // config
 import { PHASE } from "@/styles/visualization";
@@ -16,18 +17,21 @@ import { PHASE } from "@/styles/visualization";
 // helper to generate phases - import directly from the file where it's defined
 import { generatePhases } from "@/lib/parsers/curriculum-parser";
 
+import { useStudentStore } from "@/lib/student-store";
+
 interface CurriculumVisualizerProps {
   curriculum: Curriculum;
-  onCourseClick?: (course: Course) => void;
+  studentPlan: StudentPlan;
   height?: number;
 }
 
 // componente principal, que renderiza o currculo do aluno
 export default function CurriculumVisualizer({
   curriculum,
-  onCourseClick,
+  studentPlan,
   height = 600,
 }: CurriculumVisualizerProps) {
+  const studentStore = useStudentStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [phaseWidth, setPhaseWidth] = useState<number>(PHASE.MIN_WIDTH);
@@ -44,12 +48,10 @@ export default function CurriculumVisualizer({
     );
   }
 
-  // Calculate dynamic phase width based on container size
   useEffect(() => {
     const updatePhaseWidth = () => {
       if (containerRef.current) {
         const containerWidth = containerRef.current.clientWidth;
-        // Calculate phase width: max of MIN_PHASE_WIDTH or container width divided by phases
         const calculatedWidth = Math.max(
           PHASE.MIN_WIDTH,
           containerWidth / curriculum.totalPhases,
@@ -93,12 +95,31 @@ export default function CurriculumVisualizer({
         >
           {/* Phase components that handle course positioning internally */}
           <div className="flex">
-            {phases.map((phase: Phase, index) => (
-              <PhaseComponent
-                key={phase.number}
-                phase={phase}
+            {phases.map((semester, index) => (
+              <Phase
+                key={`phase-${semester.number}`}
+                semesterNumber={semester.number}
+                // Filter curriculum courses for this phase and map to StudentCourse-like structure
+                studentCourses={curriculum.courses
+                  .filter(course => course.phase === semester.number)
+                  .map(course => ({
+                    course, // Original Course object
+                    id: course.id,
+                    name: course.name,
+                    credits: course.credits,
+                    description: course.description,
+                    workload: course.workload,
+                    prerequisites: course.prerequisites,
+                    equivalents: course.equivalents,
+                    type: course.type,
+                    status: studentPlan.semesters.flatMap(s => s.courses).find(sc => sc.id === course.id)?.status || CourseStatus.PLANNED,
+                    grade: studentPlan.semesters.flatMap(s => s.courses).find(sc => sc.id === course.id)?.grade || undefined,
+                    phase: semester.number,
+                  }))
+                }
                 width={phaseWidth}
-                onCourseClick={onCourseClick}
+                studentStore={studentStore}
+                isFromCurriculum={true} // Mark as from curriculum
               />
             ))}
           </div>

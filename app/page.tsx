@@ -23,8 +23,6 @@ export default function Home() {
     studentInfo,
     viewMode,
     setViewMode,
-    selectionState,
-    setSelectionState,
     dependencyState,
     scheduleState,
     setScheduleState,
@@ -36,6 +34,9 @@ export default function Home() {
     getDegreeName,
     studentStore,
   } = useAppSetup();
+
+  // Destructure selection state from the store for easier access
+  const { selectedCourse, selectedStudentCourse, selectCourse } = studentStore || {};
 
   if (loadingState.loading || !loadingState.allDataLoaded || !studentStore) {
     return (
@@ -93,18 +94,18 @@ export default function Home() {
               (course) => course.type !== "mandatory",
             ) || []
           }
-          onCourseClick={(course) =>
-            setSelectionState({
-              selectedCourse: course,
-              selectedStudentCourse: null,
-            })
-          }
-          onStudentCourseClick={(course) =>
-            setSelectionState({
-              selectedCourse: null,
-              selectedStudentCourse: course,
-            })
-          }
+          // onCourseClick={(course, studentCourse) => // Removed
+          //   setSelectionState({
+          //     selectedCourse: course,
+          //     selectedStudentCourse: studentCourse,
+          //   })
+          // }
+          // onStudentCourseClick={(course) => // Removed
+          //   setSelectionState({
+          //     selectedCourse: null,
+          //     selectedStudentCourse: course,
+          //   })
+          // }
           studentStore={studentStore}
           viewMode={viewMode}
           setViewMode={setViewMode}
@@ -115,11 +116,8 @@ export default function Home() {
           <Timetable
             studentInfo={studentInfo}
             scheduleData={scheduleState.scheduleData}
-            onCourseClick={(course) =>
-              setSelectionState({
-                selectedCourse: null,
-                selectedStudentCourse: course,
-              })
+            onCourseClick={(courseFromTimetable) => // Modified to use store action
+              selectCourse(null, courseFromTimetable) // Assuming Timetable provides StudentCourse
             }
             onAddCourse={handleAddCourse}
             selectedCampus={scheduleState.selectedCampus}
@@ -137,23 +135,19 @@ export default function Home() {
           />
         </div>
 
-        {(selectionState.selectedStudentCourse ||
-          selectionState.selectedCourse) && (
+        {(selectedCourse || selectedStudentCourse) && studentStore && (
           <StudentCourseDetailsPanel
-            course={selectionState.selectedCourse}
-            studentCourse={selectionState.selectedStudentCourse}
-            studentStore={studentStore}
-            onClose={() =>
-              setSelectionState({
-                selectedCourse: null,
-                selectedStudentCourse: null,
-              })
-            }
+            // course={selectedCourse} // Removed, panel uses store
+            // studentCourse={selectedStudentCourse} // Removed, panel uses store
+            // studentStore={studentStore} // Removed, panel uses store
+            // onClose={() => // Removed, panel uses store action
+            //   studentStore.clearSelection()
+            // }
             onViewDependencies={() => {
-              if (selectionState.selectedStudentCourse) {
-                handleViewDependencies(
-                  selectionState.selectedStudentCourse.course,
-                );
+              // Ensure we pass the correct course to handleViewDependencies
+              const courseToView = selectedStudentCourse?.course || selectedCourse;
+              if (courseToView) {
+                handleViewDependencies(courseToView);
               }
             }}
           />

@@ -21,30 +21,31 @@ import {
   STATUS_COLORS,
 } from "@/styles/course-theme";
 
+// store
+import { useStudentStore } from "@/lib/student-store"; // Added
+
 interface CourseBoxProps {
-  course: Course;
   position: CoursePosition;
-  onClick?: () => void;
-  studentCourse?: StudentCourse;
-  isPlaceholder?: boolean;
+  studentCourse: StudentCourse;
   isEmpty?: boolean;
   isDraggable?: boolean;
   onDragStart?: (course: Course) => void;
+  isFromCurriculum?: boolean; // Added
 }
 
 // quadradinho de cada disciplina, que aparece nos visualizadores
 // recebe um course e uma posicao, e renderiza o quadradinho
 // so tem bastantinho switch case pra decidir a cor e o icone dele
 export default function CourseBox({
-  course,
   position,
-  onClick,
   studentCourse,
   isEmpty = false,
   isDraggable = false,
   onDragStart,
+  isFromCurriculum, // Include in destructured props
 }: CourseBoxProps) {
   const courseBoxRef = useRef<HTMLDivElement>(null);
+  const studentStore = useStudentStore(); // Added
 
   // Get appropriate status class based on course status
   const getStatusClass = () => {
@@ -52,7 +53,13 @@ export default function CourseBox({
       return isEmpty ? STATUS_CLASSES.EMPTY : STATUS_CLASSES.EMPTY_ALT;
     }
 
-    if (!studentCourse) return STATUS_CLASSES.DEFAULT;
+    if (isFromCurriculum && (
+      studentCourse.status != CourseStatus.COMPLETED &&
+      studentCourse.status != CourseStatus.FAILED
+    )) {
+      return STATUS_CLASSES.DEFAULT;
+    }
+
 
     switch (studentCourse.status) {
       case CourseStatus.COMPLETED:
@@ -73,7 +80,8 @@ export default function CourseBox({
   // Get appropriate status icon based on course status
   const getStatusIcon = () => {
     if (isEmpty) return null;
-    if (!studentCourse) return null;
+    if (isFromCurriculum) return null;
+
 
     switch (studentCourse.status) {
       case CourseStatus.COMPLETED:
@@ -134,9 +142,9 @@ export default function CourseBox({
       ghostEl.style.height = `${position.height}px`;
       ghostEl.innerHTML = `
         <div class="flex items-center justify-between">
-          <div class="${CSS_CLASSES.COURSE_ID}">${course.id}</div>
+          <div class="${CSS_CLASSES.COURSE_ID}">${studentCourse.course.id}</div>
         </div>
-        <div class="${CSS_CLASSES.COURSE_NAME}">${course.name}</div>
+        <div class="${CSS_CLASSES.COURSE_NAME}">${studentCourse.course.name}</div>
       `;
 
       // Position off-screen to not interfere with the actual drag
@@ -153,9 +161,8 @@ export default function CourseBox({
 
       // Set the drag data - include both application/json and text/plain
       const dragData = JSON.stringify({
-        course,
         studentCourse,
-        sourceVisualizer: studentCourse ? "progress" : "curriculum",
+        sourceVisualizer: isFromCurriculum ? "curriculum" : "progress", // Use new prop
       });
 
       e.dataTransfer.setData("application/json", dragData);
@@ -163,7 +170,7 @@ export default function CourseBox({
 
       // Call the drag start handler if provided
       if (onDragStart) {
-        onDragStart(course);
+        onDragStart(studentCourse.course);
       }
 
       // Clean up the ghost element after a short delay
@@ -177,7 +184,14 @@ export default function CourseBox({
     return () => {
       el.removeEventListener("dragstart", handleDragStart);
     };
-  }, [course, position, isDraggable, isEmpty, onDragStart, getStatusClass]);
+  }, [studentCourse, position, isDraggable, isEmpty, onDragStart, getStatusClass]); // Added studentCourse to dependency array
+
+  const handleCourseClick = () => { // Added
+    console.log('CourseBox clicked:', studentCourse);
+    if (!isEmpty) {
+      studentStore.selectCourse(studentCourse);
+    }
+  };
 
   return (
     <div
@@ -194,21 +208,21 @@ export default function CourseBox({
         height: `${position.height}px`,
         opacity: isEmpty && !studentCourse ? 0.4 : 1,
       }}
-      onClick={!isEmpty ? onClick : undefined}
-      data-course-id={course.id}
+      onClick={handleCourseClick} // Re-attached internal handler
+      data-course-id={studentCourse.course.id}
       draggable={isDraggable && !isEmpty}
       role={isDraggable && !isEmpty ? "button" : undefined}
       aria-label={
-        isDraggable && !isEmpty ? `Drag course ${course.id}` : undefined
+        isDraggable && !isEmpty ? `Drag course ${studentCourse.course.id}` : undefined
       }
     >
       {!isEmpty && (
         <>
           <div className="flex items-center justify-between">
-            <div className={CSS_CLASSES.COURSE_ID}>{course.id}</div>
+            <div className={CSS_CLASSES.COURSE_ID}>{studentCourse.course.id}</div>
             {getStatusIcon()}
           </div>
-          <div className={CSS_CLASSES.COURSE_NAME}>{course.name}</div>
+          <div className={CSS_CLASSES.COURSE_NAME}>{studentCourse.course.name}</div>
         </>
       )}
     </div>

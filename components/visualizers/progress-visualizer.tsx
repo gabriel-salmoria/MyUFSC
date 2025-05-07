@@ -7,7 +7,7 @@ import { useRef, useState, useEffect, useMemo } from "react";
 // tipos de dados
 import type { StudentPlan, StudentCourse } from "@/types/student-plan";
 import type { Course } from "@/types/curriculum";
-import { createPhases } from "@/lib/parsers/student-parser";
+// import { createPhases } from "@/lib/parsers/student-parser"; // This doesn't seem needed anymore
 
 // componentes visuais da ui
 import Phase from "@/components/visualizers/phase";
@@ -15,21 +15,21 @@ import Phase from "@/components/visualizers/phase";
 // config
 import { PHASE } from "@/styles/visualization";
 import { StudentStore } from "@/lib/student-store";
+import { useStudentStore } from "@/lib/student-store";
 
 interface ProgressVisualizerProps {
   studentPlan: StudentPlan;
-  onCourseClick?: (course: StudentCourse) => void;
-  studentStore: StudentStore;
+  
   height?: number;
 }
 
 // visualizador de progresso, que mostra as disciplinas ja cursadas e as que faltam
 export default function ProgressVisualizer({
   studentPlan,
-  onCourseClick,
-  studentStore,
+  
   height,
 }: ProgressVisualizerProps) {
+  const studentStore = useStudentStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [phaseWidth, setPhaseWidth] = useState<number>(PHASE.MIN_WIDTH);
@@ -91,10 +91,10 @@ export default function ProgressVisualizer({
   // Use the actual number of semesters for the total width
   const totalWidth = actualSemesterCount * phaseWidth;
 
-  // Use the calculateStudentPositions function
-  const { phaseArray } = useMemo(() => {
-    return createPhases(studentPlan);
-  }, [studentPlan]);
+  // The createPhases function is likely no longer needed here as Phase will handle StudentCourse[] directly
+  // const { phaseArray } = useMemo(() => {
+  //   return createPhases(studentPlan);
+  // }, [studentPlan]);
 
   return (
     <div className="flex flex-col w-full h-full">
@@ -117,21 +117,11 @@ export default function ProgressVisualizer({
             {studentPlan.semesters.map((semester, index) => (
               <Phase
                 key={`phase-${semester.number}`}
-                phase={{
-                  number: semester.number,
-                  name: `Phase ${semester.number}`,
-                  courses: semester.courses.map((sc) => sc.course),
-                }}
-                studentCourses={phaseArray[index] || []}
+                semesterNumber={semester.number}
+                studentCourses={semester.courses}
                 width={phaseWidth}
-                onCourseClick={(course) => {
-                  if ("status" in course) {
-                    onCourseClick?.(course as StudentCourse);
-                  }
-                }}
                 studentStore={studentStore}
-                isLastPhase={index === studentPlan.semesters.length - 1}
-                isProgressVisualizer={true}
+                isFromCurriculum={false} // Mark as not from curriculum (it's student progress)
               />
             ))}
           </div>

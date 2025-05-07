@@ -3,6 +3,7 @@ import { CSS_CLASSES } from "@/styles/course-theme";
 import { Course } from "@/types/curriculum";
 import { COURSE_BOX } from "@/styles/visualization";
 import { StudentStore } from "@/lib/student-store";
+import { useStudentStore } from "@/lib/student-store";
 
 // GhostCourseBox Component
 interface GhostCourseBoxProps {
@@ -15,15 +16,15 @@ interface GhostCourseBoxProps {
   };
   semesterNumber: number;
   positionIndex: number;
-  studentStore: StudentStore;
+  
 }
 
 export default function GhostCourseBox({
   position,
   semesterNumber,
   positionIndex,
-  studentStore,
-}: GhostCourseBoxProps) {
+} : GhostCourseBoxProps) {
+  const studentStore = useStudentStore();
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
   };
@@ -41,10 +42,12 @@ export default function GhostCourseBox({
       const data = JSON.parse(e.dataTransfer.getData("application/json"));
       if (!data) return;
 
+      console.log('GhostCourseBox drop data:', data);
+
       if (data.sourceVisualizer == "progress") {
         studentStore.moveCourse(data.studentCourse, semesterNumber);
       } else {
-        studentStore.addCourseToSemester(data.course, semesterNumber);
+        studentStore.addCourseToSemester(data.studentCourse.course, semesterNumber);
       }
     } catch (error) {
       console.error("Error processing drop:", error);

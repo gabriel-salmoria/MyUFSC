@@ -41,18 +41,6 @@ export interface AppSetupResult {
   viewMode: ViewMode;
   setViewMode: React.Dispatch<React.SetStateAction<ViewMode>>;
 
-  // Selected course state
-  selectionState: {
-    selectedCourse: Course | null;
-    selectedStudentCourse: StudentCourse | null;
-  };
-  setSelectionState: React.Dispatch<
-    React.SetStateAction<{
-      selectedCourse: Course | null;
-      selectedStudentCourse: StudentCourse | null;
-    }>
-  >;
-
   // Dependency tree state
   dependencyState: {
     showDependencyTree: boolean;
@@ -127,6 +115,7 @@ export interface AppSetupResult {
 
 export function useAppSetup(): AppSetupResult {
   const router = useRouter();
+  const studentStore = useStudentStore(); // Moved up to be available earlier
 
   // Curriculum and program data
   const [curriculumState, setCurriculumState] = useState({
@@ -141,11 +130,11 @@ export function useAppSetup(): AppSetupResult {
   // UI view state
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.CURRICULUM);
 
-  // Selected course state
-  const [selectionState, setSelectionState] = useState({
-    selectedCourse: null as Course | null,
-    selectedStudentCourse: null as StudentCourse | null,
-  });
+  // Selected course state - REMOVED
+  // const [selectionState, setSelectionState] = useState({
+  //   selectedCourse: null as Course | null,
+  //   selectedStudentCourse: null as StudentCourse | null,
+  // });
 
   // Dependency tree state
   const [dependencyState, setDependencyState] = useState({
@@ -177,7 +166,7 @@ export function useAppSetup(): AppSetupResult {
   });
 
   // Student store - keep both the destructured values and the full store
-  const studentStore = useStudentStore();
+  // const studentStore = useStudentStore(); // Already initialized above
   const { studentInfo: storeStudentInfo } = studentStore;
 
   // Sync the student info from the store to local state
@@ -332,14 +321,19 @@ export function useAppSetup(): AppSetupResult {
 
   // Dependency tree handlers
   const handleViewDependencies = (course: Course) => {
+    // No longer need to get course from selectionState, it's passed directly or could be from store if needed
+    // The calling component (page.tsx) will decide which course to pass.
+    // If we always want to use the store's selected course, this would be:
+    // const courseToView = studentStore.selectedStudentCourse?.course || studentStore.selectedCourse;
+    // if (!courseToView) return;
+    // setDependencyState({ showDependencyTree: true, dependencyCourse: courseToView });
+    // For now, we keep the passed 'course' argument.
+
     setDependencyState({
       showDependencyTree: true,
       dependencyCourse: course,
     });
-    setSelectionState({
-      selectedCourse: null,
-      selectedStudentCourse: null,
-    });
+    studentStore.clearSelection(); // Clear main selection when viewing dependencies
   };
 
   const handleCloseDependencyTree = () => {
@@ -357,7 +351,7 @@ export function useAppSetup(): AppSetupResult {
     const plan = studentInfo.plans[studentInfo.currentPlan];
 
     const targetSemester =
-      plan.semesters.length > 0 ? plan.semesters[0] : { number: 1 };
+      plan.semesters.length > 0 ? plan.semesters[0] : { number: 1, courses: [], totalCredits: 0 }; // Added default structure
 
     // Add the course to the semester
     studentStore.addCourseToSemester(course, targetSemester.number);
@@ -377,8 +371,8 @@ export function useAppSetup(): AppSetupResult {
     setStudentInfo,
     viewMode,
     setViewMode,
-    selectionState,
-    setSelectionState,
+    // selectionState, // REMOVED
+    // setSelectionState, // REMOVED
     dependencyState,
     setDependencyState,
     scheduleState,

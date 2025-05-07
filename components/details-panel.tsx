@@ -6,24 +6,34 @@ import { type StudentCourse, CourseStatus } from "@/types/student-plan";
 import { Button } from "@/components/ui/button";
 import { X, Check, Clock, AlertTriangle, GitGraph, Save } from "lucide-react";
 import { getCourseInfo } from "@/lib/parsers/curriculum-parser";
-import { StudentStore } from "@/lib/student-store";
+import { useStudentStore } from "@/lib/student-store"; // Changed from StudentStore to useStudentStore
 
 interface StudentCourseDetailsPanelProps {
-  course: Course;
-  studentCourse: StudentCourse;
-  studentStore: StudentStore;
-  onClose: () => void;
   onViewDependencies?: () => void;
 }
 
-// painel de detalhes da disciplina, que aparece quando clica no quadradinho da disciplina
+// painel de detalhes da disciplina, que aparece quando
+// clica no quadradinho da disciplina
 export default function StudentCourseDetailsPanel({
-  course,
-  studentCourse,
-  studentStore,
-  onClose,
   onViewDependencies,
 }: StudentCourseDetailsPanelProps) {
+  const studentStore = useStudentStore();
+
+  const {
+    selectedCourse,
+    selectedStudentCourse,
+    clearSelection,
+    setCourseGrade,
+    changeCourseStatus,
+  } = studentStore;
+
+  const course = selectedCourse;
+  const studentCourse = selectedStudentCourse;
+
+  if (!course || !studentCourse) {
+    return null;
+  }
+
   // State for grade input
   const [gradeInput, setGradeInput] = useState<string>(
     studentCourse?.grade !== undefined ? studentCourse.grade.toString() : "",
@@ -31,58 +41,62 @@ export default function StudentCourseDetailsPanel({
   const [isEditingGrade, setIsEditingGrade] = useState<boolean>(false);
   const [gradeError, setGradeError] = useState<string>("");
 
-  if (!course) return;
-
   useEffect(() => {
     if (studentCourse?.grade !== undefined) {
       setGradeInput(studentCourse.grade.toString());
     } else {
       setGradeInput("");
     }
-    if (studentCourse?.status !== CourseStatus.COMPLETED) {
-      setIsEditingGrade(false);
-    }
 
-    // Clear any previous errors
+    // Simplified logic: Editing is allowed only if status is COMPLETED and grade is undefined
+    setIsEditingGrade(
+      studentCourse?.status === CourseStatus.COMPLETED &&
+        studentCourse?.grade === undefined,
+    );
     setGradeError("");
-  }, [studentCourse]);
+  }, [studentCourse]); // studentCourse from store is now the dependency
 
   // Handle saving the grade
   const handleSaveGrade = () => {
-    if (!studentCourse) return;
-    const parseResult = parseFloat(gradeInput);
-    if (!isNaN(parseResult) && parseResult >= 0 && parseResult <= 10) {
-      // Clear any previous errors
-      setGradeError("");
-
-      // Round to the nearest 0.5
-      const grade = Math.round(parseResult * 2) / 2;
-
-      // First update the grade
-      studentStore.setCourseGrade(studentCourse, grade);
-
-      // Then set the appropriate status based on the grade
-      const newStatus =
-        grade >= 6.0 ? CourseStatus.COMPLETED : CourseStatus.FAILED;
-      studentStore.changeCourseStatus(studentCourse, newStatus);
+    if (!studentCourse) {
+      console.error("handleSaveGrade: studentCourse is undefined"); // Keep error logs
+      return;
     }
 
+    const parseResult = parseFloat(gradeInput);
+    if (isNaN(parseResult) || parseResult < 0 || parseResult > 10) {
+      setGradeError("Grade must be between 0 and 10.");
+      return;
+    }
+    setGradeError("");
+    const grade = Math.round(parseResult * 2) / 2;
+
+    // Use setCourseGrade from the store
+    setCourseGrade(studentCourse, grade);
     setIsEditingGrade(false);
+  };
+
+  const handleClose = () => {
+    clearSelection(); // Use clearSelection from the store
   };
 
   return (
     <>
       <div
         className="fixed inset-0 bg-black/20 dark:bg-black/50 z-40"
-        onClick={onClose}
+        onClick={handleClose} // Use internal handleClose
       />
       <div
         className="fixed right-0 top-0 h-full bg-background shadow-lg border-l border-border p-4 z-50 overflow-y-auto transform translate-x-0 transition-transform duration-200"
         style={{ width: "480px" }}
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-foreground">{course.id}</h3>
-          <Button variant="ghost" size="icon" onClick={onClose}>
+          <h3 className="text-lg font-bold text-foreground">
+            {course?.id ?? "N/A"}
+          </h3>
+          <Button variant="ghost" size="icon" onClick={handleClose}>
+            {" "}
+            {/* Use internal handleClose */}
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -92,28 +106,30 @@ export default function StudentCourseDetailsPanel({
             <h4 className="text-sm font-medium text-muted-foreground">
               Course Name
             </h4>
-            <p className="text-foreground">{course.name}</p>
+            <p className="text-foreground">{course?.name ?? "N/A"}</p>
           </div>
 
           <div>
             <h4 className="text-sm font-medium text-muted-foreground">
               Credits
             </h4>
-            <p className="text-foreground">{course.credits}</p>
+            <p className="text-foreground">{course?.credits ?? "N/A"}</p>
           </div>
 
           <div>
             <h4 className="text-sm font-medium text-muted-foreground">
               Workload
             </h4>
-            <p className="text-foreground">{course.workload} hours</p>
+            <p className="text-foreground">
+              {course?.workload ? `${course.workload} hours` : "N/A"}
+            </p>
           </div>
 
           <div>
             <h4 className="text-sm font-medium text-muted-foreground">
               Recommended Phase
             </h4>
-            <p className="text-foreground">{course.phase}</p>
+            <p className="text-foreground">{course?.phase ?? "N/A"}</p>
           </div>
 
           {studentCourse?.grade !== undefined && !isEditingGrade && (
@@ -141,16 +157,20 @@ export default function StudentCourseDetailsPanel({
                     Edit
                   </Button>
                 )}
+                {studentCourse.status === CourseStatus.FAILED && (
+                  <span className="text-xs text-red-500 dark:text-red-400">
+                    Failed
+                  </span>
+                )}
               </div>
             </div>
           )}
 
-          {/* Grade input for completed courses */}
           {(isEditingGrade ||
             (studentCourse?.status === CourseStatus.COMPLETED &&
               studentCourse?.grade === undefined)) && (
             <div>
-              <h4 className="text-sm font-medium text-muted-foreground">
+              <h4 className="text-sm font-medium text-muted-foreground}>
                 Grade
               </h4>
               <div className="flex flex-col gap-1 mt-1">
@@ -165,13 +185,24 @@ export default function StudentCourseDetailsPanel({
                       setGradeInput(e.target.value);
                       setGradeError("");
                     }}
-                    className={`border border-input rounded px-2 py-1 w-20 text-sm bg-background text-foreground ${gradeError ? "border-red-500 dark:border-red-400" : ""}`}
+                    onBlur={handleSaveGrade}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        handleSaveGrade();
+                        (e.target as HTMLInputElement).blur();
+                      }
+                    }}
+                    className={`border rounded px-2 py-1 w-20 text-sm bg-background text-foreground
+                      ${gradeError ? "border-red-500 dark:border-red-400 focus:border-red-500 focus:ring-red-500" : "border-input focus:border-blue-500 focus:ring-blue-500"}
+                      focus:outline-none focus:ring-1`}
                     placeholder="0-10"
+                    disabled={!studentCourse}
                   />
                   <Button
                     size="sm"
                     onClick={handleSaveGrade}
                     className="h-8 px-3"
+                    disabled={!studentCourse || gradeError !== ""}
                   >
                     <Save className="h-3 w-3 mr-1" />
                     Save
@@ -185,7 +216,8 @@ export default function StudentCourseDetailsPanel({
                 <p className="text-xs text-muted-foreground mt-1">
                   Enter a grade between 0-10 (rounded to nearest 0.5).
                   {parseFloat(gradeInput) >= 0 &&
-                    !isNaN(parseFloat(gradeInput)) && (
+                    !isNaN(parseFloat(gradeInput)) &&
+                    parseFloat(gradeInput) <= 10 && (
                       <span className="font-medium">
                         {" "}
                         Value will be saved as:{" "}
@@ -212,7 +244,7 @@ export default function StudentCourseDetailsPanel({
             <h4 className="text-sm font-medium text-muted-foreground">
               Equivalents
             </h4>
-            {course.equivalents && course.equivalents.length > 0 ? (
+            {course?.equivalents && course.equivalents.length > 0 ? (
               <ul className="list-disc pl-5 text-foreground">
                 {course.equivalents.map((eq) => {
                   const equivalentCourse = getCourseInfo(eq);
@@ -235,7 +267,7 @@ export default function StudentCourseDetailsPanel({
             <h4 className="text-sm font-medium text-muted-foreground">
               Prerequisites
             </h4>
-            {course.prerequisites && course.prerequisites.length > 0 ? (
+            {course?.prerequisites && course.prerequisites.length > 0 ? (
               <ul className="list-disc pl-5 text-foreground">
                 {course.prerequisites.map((prereq) => {
                   const prerequisiteCourse = getCourseInfo(prereq);
@@ -259,27 +291,25 @@ export default function StudentCourseDetailsPanel({
               Description
             </h4>
             <ul className="list-disc pl-5 text-foreground">
-              {course.description ?? "No description"}
+              {course?.description ?? "No description"}
             </ul>
           </div>
         </div>
 
         <div className="mt-6 space-y-2">
-          {/* View Dependencies button */}
-          {course.prerequisites &&
+          {course?.prerequisites &&
             course.prerequisites.length > 0 &&
             onViewDependencies && (
               <Button
                 variant="secondary"
                 className="w-full flex items-center justify-center gap-2"
-                onClick={onViewDependencies}
+                onClick={onViewDependencies} // This prop is still passed from page.tsx
               >
                 <GitGraph className="h-4 w-4" />
                 View Dependency Tree
               </Button>
             )}
 
-          {/* Mark as In Progress button - always show */}
           <Button
             className="w-full"
             variant={
@@ -288,16 +318,17 @@ export default function StudentCourseDetailsPanel({
                 : "outline"
             }
             onClick={() =>
-              studentStore.changeCourseStatus(
-                studentCourse,
+              changeCourseStatus(
+                // Use changeCourseStatus from the store
+                studentCourse!,
                 CourseStatus.IN_PROGRESS,
               )
             }
+            disabled={!studentCourse}
           >
             Mark as In Progress
           </Button>
 
-          {/* Mark as Completed button - always show */}
           <Button
             variant={
               studentCourse?.status === CourseStatus.COMPLETED
@@ -306,14 +337,26 @@ export default function StudentCourseDetailsPanel({
             }
             className="w-full"
             onClick={() => {
-              // Don't immediately mark as completed, just show the grade input
               setIsEditingGrade(true);
+              if (studentCourse?.status !== CourseStatus.COMPLETED) {
+                setGradeInput(
+                  studentCourse?.grade !== undefined
+                    ? studentCourse.grade.toString()
+                    : "",
+                );
+              } else {
+                if (studentCourse?.grade === undefined) {
+                  setIsEditingGrade(true);
+                } else {
+                  setIsEditingGrade(!isEditingGrade);
+                }
+              }
             }}
+            disabled={!studentCourse}
           >
             Mark as Completed
           </Button>
 
-          {/* Mark as Planned button - always show */}
           <Button
             variant={
               studentCourse?.status === CourseStatus.PLANNED
@@ -322,14 +365,12 @@ export default function StudentCourseDetailsPanel({
             }
             className="w-full"
             onClick={() => {
-              studentStore.changeCourseStatus(
-                studentCourse,
-                CourseStatus.PLANNED,
-              );
-              // Reset the grade input when changing to planned
+              if (!studentCourse) return;
+              changeCourseStatus(studentCourse, CourseStatus.PLANNED); // Use changeCourseStatus from the store
               setGradeInput("");
               setIsEditingGrade(false);
             }}
+            disabled={!studentCourse}
           >
             Mark as Planned
           </Button>

@@ -3,12 +3,14 @@
 import { useState, useEffect } from "react";
 import { Trash2 } from "lucide-react";
 import { StudentStore } from "@/lib/student-store";
+import { useStudentStore } from "@/lib/student-store";
 
 interface TrashDropZoneProps {
-  studentStore: StudentStore;
+  
 }
 
-export default function TrashDropZone({ studentStore }: TrashDropZoneProps) {
+export default function TrashDropZone({} : TrashDropZoneProps) {
+  const studentStore = useStudentStore();
   const [isDragging, setIsDragging] = useState(false);
   const [isActive, setIsActive] = useState(false);
   const [isFromProgress, setIsFromProgress] = useState(false);
