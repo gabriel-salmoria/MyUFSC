@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import type { EncryptedUser } from "@/types/user";
-import { hashUsername } from "@/lib/crypto";
-import { getUserByHashedUsername, updateUser } from "@/lib/db-user";
+import { hashUsername } from "@/crypto/server/crypto";
+import { getUserByHashedUsername, updateUser } from "@/database/users/db-user";
 
 export async function POST(request: Request) {
   try {

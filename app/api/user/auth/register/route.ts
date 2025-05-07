@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
-import { hashUsername } from "@/lib/crypto";
-import { getUserByHashedUsername, createUser } from "@/lib/db-user";
+import { hashUsername } from "@/crypto/server/crypto";
+import { getUserByHashedUsername, createUser } from "@/database/users/db-user";
 
 export async function POST(request: Request) {
   try {
