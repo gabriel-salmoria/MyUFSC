@@ -15,7 +15,7 @@ import Phase from "@/components/visualizers/phase";
 import { PHASE } from "@/styles/visualization";
 
 // helper to generate phases - import directly from the file where it's defined
-import { generatePhases } from "@/lib/parsers/curriculum-parser";
+import { generatePhases } from "@/parsers/curriculum-parser";
 
 import { useStudentStore } from "@/lib/student-store";
 

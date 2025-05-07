@@ -22,9 +22,10 @@ const emptyScheduleData = {
 interface CourseStatsProps {
   courses: StudentCourse[];
   timetableData?: any; // Optional timetable data (parsed MatrUFSC or default)
-  onCourseClick?: (course: StudentCourse) => void;
+  selectedPhase: number; // ADDED
+  // onCourseClick?: (course: StudentCourse) => void; // REMOVED
   onProfessorSelect?: (course: StudentCourse, professorId: string) => void;
-  onAddCourse?: (course: Course) => void;
+  // onAddCourse?: (course: Course) => void; // REMOVED
   coursesInTimetable?: string[]; // New prop with IDs of courses in timetable
   courseColors?: Map<string, string>; // Color map from timetable component
   onRemoveCourse?: (courseId: string) => void; // New prop for removing a course
@@ -43,9 +44,10 @@ type ProfessorData = {
 export default function CourseStats({
   courses,
   timetableData,
-  onCourseClick,
+  selectedPhase, // ADDED
+  // onCourseClick, // REMOVED
   onProfessorSelect,
-  onAddCourse,
+  // onAddCourse, // REMOVED
   coursesInTimetable = [],
   courseColors,
   onRemoveCourse,
@@ -81,27 +83,15 @@ export default function CourseStats({
     isCurrentCourse: boolean,
   ) => {
     if (isCurrentCourse) {
-      const studentCourse = course as StudentCourse;
-      setSelectedCourse(studentCourse);
-
-      if (onCourseClick) {
-        onCourseClick(studentCourse);
-      }
+      studentStore.selectCourse(course as StudentCourse); // Use store action
     } else {
-      // If onAddCourse is provided, use it
-      if (onAddCourse) {
-        onAddCourse(course as Course);
-      }
-      // Otherwise use the store directly
-      else {
-        const newCourse = course as Course;
-        studentStore.changeCourseStatus(
-          newCourse.id,
-          CourseStatus.IN_PROGRESS,
-          newCourse,
-        );
-      }
+      const newCourse = course as Course;
+      studentStore.addCourseToSemester(
+        newCourse,
+        selectedPhase, // Use the selectedPhase prop
+      );
     }
+    setIsSearchOpen(false); // Close popup after selection/addition
   };
 
   // Calculate total weekly hours
@@ -127,9 +117,7 @@ export default function CourseStats({
   ) => {
     event.stopPropagation();
 
-    setSelectedCourse((prev) =>
-      prev?.course.id === course.course.id ? null : course,
-    );
+    studentStore.selectCourse(course); // Use store action directly
     setSelectedProfessor(null);
   };
 

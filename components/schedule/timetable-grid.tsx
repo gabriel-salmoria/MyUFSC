@@ -1,35 +1,43 @@
-"use client"
+"use client";
 
-import React from 'react'
-import { cn } from "@/lib/utils"
-import { CSS_CLASSES } from "@/styles/course-theme"
-import type { StudentCourse } from "@/types/student-plan"
-import { TIMETABLE } from "@/styles/visualization"
+import React from "react";
+import { cn } from "@/components/ui/utils";
+import { CSS_CLASSES } from "@/styles/course-theme";
+import type { StudentCourse } from "@/types/student-plan";
+import { TIMETABLE } from "@/styles/visualization";
+import { useStudentStore } from "@/lib/student-store"; // Import the store
 
 interface TimetableGridProps {
-  courseSchedule: Record<string, Record<string, {
-    courses: {
-      course: StudentCourse;
-      isConflicting: boolean;
-      location?: string;
-    }[];
-  }>>
-  onCourseClick: (course: StudentCourse) => void
-  selectedCourse: StudentCourse | null
-  getCourseColor: (courseId: string) => string
+  courseSchedule: Record<
+    string,
+    Record<
+      string,
+      {
+        courses: {
+          course: StudentCourse;
+          isConflicting: boolean;
+          location?: string;
+        }[];
+      }
+    >
+  >;
+  // onCourseClick: (course: StudentCourse) => void // REMOVED
+  // selectedCourse: StudentCourse | null // REMOVED - Will derive from store
+  getCourseColor: (courseId: string) => string;
 }
 
 export default function TimetableGrid({
   courseSchedule,
-  onCourseClick,
-  selectedCourse,
-  getCourseColor
+  // onCourseClick, // REMOVED
+  // selectedCourse, // REMOVED
+  getCourseColor,
 }: TimetableGridProps) {
+  const { selectedStudentCourse, selectCourse } = useStudentStore(); // Use the store
 
   // Render a single course cell
   const renderCourseItem = (courseData: any, idx: number) => {
     const location = courseData.location;
-    
+
     return (
       <div
         key={`${courseData.course.course.id}-${idx}`}
@@ -38,9 +46,12 @@ export default function TimetableGrid({
           "flex-1 min-w-0",
           courseData.isConflicting && "border-[3px] border-red-600",
           getCourseColor(courseData.course.course.id),
-          selectedCourse?.course.id === courseData.course.course.id && CSS_CLASSES.COURSE_SELECTED
+          // Compare with selectedStudentCourse from the store
+          selectedStudentCourse?.course.id === courseData.course.course.id &&
+            CSS_CLASSES.COURSE_SELECTED,
         )}
-        onClick={() => onCourseClick(courseData.course)}
+        // Use the store action directly
+        onClick={() => selectCourse(courseData.course)}
       >
         <div className="flex items-center justify-between">
           {false && (
@@ -64,24 +75,28 @@ export default function TimetableGrid({
   // Render a table cell for a specific time slot and day
   const renderTimeSlotCell = (slot: any, dayIndex: number) => {
     const cellData = courseSchedule[slot.id]?.[dayIndex];
-    
+
     if (!cellData?.courses.length) {
       return <td key={dayIndex} className={CSS_CLASSES.TIMETABLE_CELL} />;
     }
-    
+
     return (
       <td
         key={dayIndex}
         className={cn(
           CSS_CLASSES.TIMETABLE_CELL,
-          cellData.courses.length > 1 && "p-0"
+          cellData.courses.length > 1 && "p-0",
         )}
       >
-        <div className={cn(
-          "flex gap-[1px]",
-          cellData.courses.length > 1 && "h-full"
-        )}>
-          {cellData.courses.map((courseData, idx) => renderCourseItem(courseData, idx))}
+        <div
+          className={cn(
+            "flex gap-[1px]",
+            cellData.courses.length > 1 && "h-full",
+          )}
+        >
+          {cellData.courses.map((courseData, idx) =>
+            renderCourseItem(courseData, idx),
+          )}
         </div>
       </td>
     );
@@ -92,12 +107,15 @@ export default function TimetableGrid({
       <div className="w-full overflow-auto">
         <table className={CSS_CLASSES.TIMETABLE_TABLE}>
           <colgroup>
-            <col style={{ width: '80px' }} />
+            <col style={{ width: "80px" }} />
             {TIMETABLE.DAYS.map((_, index) => (
-              <col key={index} style={{ width: `${100 / TIMETABLE.DAYS.length}%` }} />
+              <col
+                key={index}
+                style={{ width: `${100 / TIMETABLE.DAYS.length}%` }}
+              />
             ))}
           </colgroup>
-          
+
           <thead>
             <tr>
               <th className={CSS_CLASSES.TIMETABLE_HEADER}></th>
@@ -108,14 +126,16 @@ export default function TimetableGrid({
               ))}
             </tr>
           </thead>
-          
+
           <tbody>
             {TIMETABLE.TIME_SLOTS.map((slot) => (
               <tr key={slot.id} className="h-14">
                 <td className={CSS_CLASSES.TIMETABLE_TIME_CELL}>
                   {slot.label}
                 </td>
-                {TIMETABLE.DAYS.map((_, dayIndex) => renderTimeSlotCell(slot, dayIndex))}
+                {TIMETABLE.DAYS.map((_, dayIndex) =>
+                  renderTimeSlotCell(slot, dayIndex),
+                )}
               </tr>
             ))}
           </tbody>
@@ -123,4 +143,4 @@ export default function TimetableGrid({
       </div>
     </div>
   );
-} 
+}

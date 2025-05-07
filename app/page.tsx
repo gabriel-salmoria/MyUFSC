@@ -24,19 +24,19 @@ export default function Home() {
     viewMode,
     setViewMode,
     dependencyState,
+    setDependencyState,
     scheduleState,
     setScheduleState,
     loadingState,
     authState,
-    handleViewDependencies,
-    handleCloseDependencyTree,
-    handleAddCourse,
+    setAuthState,
     getDegreeName,
     studentStore,
   } = useAppSetup();
 
   // Destructure selection state from the store for easier access
-  const { selectedCourse, selectedStudentCourse, selectCourse } = studentStore || {};
+  const { selectedCourse, selectedStudentCourse, selectCourse } =
+    studentStore || {};
 
   if (loadingState.loading || !loadingState.allDataLoaded || !studentStore) {
     return (
@@ -88,25 +88,11 @@ export default function Home() {
         <Visualizations
           studentInfo={studentInfo}
           curriculum={curriculumState.curriculum}
-          visualization={curriculumState.visualization}
           electiveCourses={
             curriculumState.curriculum?.courses.filter(
               (course) => course.type !== "mandatory",
             ) || []
           }
-          // onCourseClick={(course, studentCourse) => // Removed
-          //   setSelectionState({
-          //     selectedCourse: course,
-          //     selectedStudentCourse: studentCourse,
-          //   })
-          // }
-          // onStudentCourseClick={(course) => // Removed
-          //   setSelectionState({
-          //     selectedCourse: null,
-          //     selectedStudentCourse: course,
-          //   })
-          // }
-          studentStore={studentStore}
           viewMode={viewMode}
           setViewMode={setViewMode}
         />
@@ -116,10 +102,6 @@ export default function Home() {
           <Timetable
             studentInfo={studentInfo}
             scheduleData={scheduleState.scheduleData}
-            onCourseClick={(courseFromTimetable) => // Modified to use store action
-              selectCourse(null, courseFromTimetable) // Assuming Timetable provides StudentCourse
-            }
-            onAddCourse={handleAddCourse}
             selectedCampus={scheduleState.selectedCampus}
             selectedSemester={scheduleState.selectedSemester}
             isLoadingscheduleData={scheduleState.isLoading}
@@ -137,19 +119,7 @@ export default function Home() {
 
         {(selectedCourse || selectedStudentCourse) && studentStore && (
           <StudentCourseDetailsPanel
-            // course={selectedCourse} // Removed, panel uses store
-            // studentCourse={selectedStudentCourse} // Removed, panel uses store
-            // studentStore={studentStore} // Removed, panel uses store
-            // onClose={() => // Removed, panel uses store action
-            //   studentStore.clearSelection()
-            // }
-            onViewDependencies={() => {
-              // Ensure we pass the correct course to handleViewDependencies
-              const courseToView = selectedStudentCourse?.course || selectedCourse;
-              if (courseToView) {
-                handleViewDependencies(courseToView);
-              }
-            }}
+            setDependencyState={setDependencyState} // Pass setDependencyState prop
           />
         )}
 
@@ -157,7 +127,7 @@ export default function Home() {
           <DependencyTree
             course={dependencyState.dependencyCourse}
             isVisible={dependencyState.showDependencyTree}
-            onClose={handleCloseDependencyTree}
+            setDependencyState={setDependencyState} // Pass setDependencyState prop
           />
         )}
 

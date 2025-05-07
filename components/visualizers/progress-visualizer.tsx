@@ -6,8 +6,6 @@ import { useRef, useState, useEffect, useMemo } from "react";
 
 // tipos de dados
 import type { StudentPlan, StudentCourse } from "@/types/student-plan";
-import type { Course } from "@/types/curriculum";
-// import { createPhases } from "@/lib/parsers/student-parser"; // This doesn't seem needed anymore
 
 // componentes visuais da ui
 import Phase from "@/components/visualizers/phase";
@@ -19,14 +17,14 @@ import { useStudentStore } from "@/lib/student-store";
 
 interface ProgressVisualizerProps {
   studentPlan: StudentPlan;
-  
+
   height?: number;
 }
 
 // visualizador de progresso, que mostra as disciplinas ja cursadas e as que faltam
 export default function ProgressVisualizer({
   studentPlan,
-  
+
   height,
 }: ProgressVisualizerProps) {
   const studentStore = useStudentStore();

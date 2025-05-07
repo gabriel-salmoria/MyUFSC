@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/components/ui/utils";
 import CourseStats from "./course-stats";
 import type { Course } from "@/types/curriculum";
 import type { StudentInfo, StudentCourse } from "@/types/student-plan";
@@ -12,7 +12,8 @@ import {
   TIMETABLE_COLOR_CLASSES,
   STATUS_CLASSES,
 } from "@/styles/course-theme";
-import { parsescheduleData } from "@/lib/parsers/class-parser";
+import { parsescheduleData } from "@/parsers/class-parser";
+import { useStudentStore } from "@/lib/student-store"; // Import useStudentStore
 
 // Import the new components
 import TimetableHeader from "./timetable-header";
@@ -29,8 +30,6 @@ const emptyScheduleData = {
 interface TimetableProps {
   studentInfo: StudentInfo;
   scheduleData?: any; // Optional MatrUFSC data that can be parsed
-  onCourseClick?: (course: StudentCourse) => void;
-  onAddCourse?: (course: Course) => void;
   selectedCampus: string;
   selectedSemester: string;
   isLoadingscheduleData: boolean;
@@ -101,9 +100,7 @@ export default function Timetable({
     new Map(),
   );
   // State for the selected course in the timetable
-  const [selectedTimetableCourse, setSelectedTimetableCourse] =
-    useState<StudentCourse | null>(null);
-
+  // REMOVED selectedTimetableCourse state
   let plan = studentInfo.plans[studentInfo.currentPlan];
   // Safeguard against rendering with invalid data
   if (!studentInfo || !plan || !plan.semesters) {
@@ -391,10 +388,7 @@ export default function Timetable({
 
   // Handle when a course is clicked in the timetable grid
   const handleTimetableCourseClick = (course: StudentCourse) => {
-    setSelectedTimetableCourse(course);
-    if (onCourseClick) {
-      onCourseClick(course);
-    }
+    studentStore.selectCourse(course); // Use store action directly
   };
 
   return (
@@ -416,8 +410,6 @@ export default function Timetable({
         {/* Timetable Grid */}
         <TimetableGrid
           courseSchedule={courseSchedule}
-          onCourseClick={handleTimetableCourseClick}
-          selectedCourse={selectedTimetableCourse}
           getCourseColor={getCourseColor}
         />
       </div>
@@ -427,13 +419,7 @@ export default function Timetable({
         <CourseStats
           courses={selectedPhaseCourses}
           timetableData={timetableData}
-          onCourseClick={(course) => {
-            setSelectedTimetableCourse(course);
-            if (onCourseClick) {
-              onCourseClick(course);
-            }
-          }}
-          onAddCourse={onAddCourse}
+          selectedPhase={selectedPhase} // Pass selectedPhase
           onProfessorSelect={handleProfessorSelect}
           coursesInTimetable={professorOverrides.map((o) => o.courseId)}
           courseColors={courseColors}

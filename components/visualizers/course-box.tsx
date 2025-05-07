@@ -5,7 +5,7 @@ import { Check, Clock, AlertTriangle } from "lucide-react";
 import { useRef, useEffect } from "react";
 
 // utils
-import { cn } from "@/lib/utils";
+import { cn } from "@/components/ui/utils";
 
 // tipos de dados
 import type { Course } from "@/types/curriculum";
@@ -53,13 +53,13 @@ export default function CourseBox({
       return isEmpty ? STATUS_CLASSES.EMPTY : STATUS_CLASSES.EMPTY_ALT;
     }
 
-    if (isFromCurriculum && (
+    if (
+      isFromCurriculum &&
       studentCourse.status != CourseStatus.COMPLETED &&
       studentCourse.status != CourseStatus.FAILED
-    )) {
+    ) {
       return STATUS_CLASSES.DEFAULT;
     }
-
 
     switch (studentCourse.status) {
       case CourseStatus.COMPLETED:
@@ -81,7 +81,6 @@ export default function CourseBox({
   const getStatusIcon = () => {
     if (isEmpty) return null;
     if (isFromCurriculum) return null;
-
 
     switch (studentCourse.status) {
       case CourseStatus.COMPLETED:
@@ -184,10 +183,18 @@ export default function CourseBox({
     return () => {
       el.removeEventListener("dragstart", handleDragStart);
     };
-  }, [studentCourse, position, isDraggable, isEmpty, onDragStart, getStatusClass]); // Added studentCourse to dependency array
+  }, [
+    studentCourse,
+    position,
+    isDraggable,
+    isEmpty,
+    onDragStart,
+    getStatusClass,
+  ]); // Added studentCourse to dependency array
 
-  const handleCourseClick = () => { // Added
-    console.log('CourseBox clicked:', studentCourse);
+  const handleCourseClick = () => {
+    // Added
+    console.log("CourseBox clicked:", studentCourse);
     if (!isEmpty) {
       studentStore.selectCourse(studentCourse);
     }
@@ -213,16 +220,22 @@ export default function CourseBox({
       draggable={isDraggable && !isEmpty}
       role={isDraggable && !isEmpty ? "button" : undefined}
       aria-label={
-        isDraggable && !isEmpty ? `Drag course ${studentCourse.course.id}` : undefined
+        isDraggable && !isEmpty
+          ? `Drag course ${studentCourse.course.id}`
+          : undefined
       }
     >
       {!isEmpty && (
         <>
           <div className="flex items-center justify-between">
-            <div className={CSS_CLASSES.COURSE_ID}>{studentCourse.course.id}</div>
+            <div className={CSS_CLASSES.COURSE_ID}>
+              {studentCourse.course.id}
+            </div>
             {getStatusIcon()}
           </div>
-          <div className={CSS_CLASSES.COURSE_NAME}>{studentCourse.course.name}</div>
+          <div className={CSS_CLASSES.COURSE_NAME}>
+            {studentCourse.course.name}
+          </div>
         </>
       )}
     </div>

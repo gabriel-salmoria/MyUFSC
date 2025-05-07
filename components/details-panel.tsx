@@ -5,17 +5,22 @@ import type { Course } from "@/types/curriculum";
 import { type StudentCourse, CourseStatus } from "@/types/student-plan";
 import { Button } from "@/components/ui/button";
 import { X, Check, Clock, AlertTriangle, GitGraph, Save } from "lucide-react";
-import { getCourseInfo } from "@/lib/parsers/curriculum-parser";
+import { getCourseInfo } from "@/parsers/curriculum-parser";
 import { useStudentStore } from "@/lib/student-store"; // Changed from StudentStore to useStudentStore
 
 interface StudentCourseDetailsPanelProps {
-  onViewDependencies?: () => void;
+  setDependencyState: React.Dispatch<
+    React.SetStateAction<{
+      showDependencyTree: boolean;
+      dependencyCourse: Course | null;
+    }>
+  >; // ADDED - To control dependency tree visibility
 }
 
 // painel de detalhes da disciplina, que aparece quando
 // clica no quadradinho da disciplina
 export default function StudentCourseDetailsPanel({
-  onViewDependencies,
+  setDependencyState,
 }: StudentCourseDetailsPanelProps) {
   const studentStore = useStudentStore();
 
@@ -79,6 +84,15 @@ export default function StudentCourseDetailsPanel({
   const handleClose = () => {
     clearSelection(); // Use clearSelection from the store
   };
+
+  // Handle viewing dependencies
+  const handleViewDependenciesClick = () => {
+    if (course) {
+      setDependencyState({ showDependencyTree: true, dependencyCourse: course });
+      studentStore.clearSelection(); // Clear main selection when viewing dependencies
+    }
+  };
+
   return (
     <>
       <div
@@ -297,12 +311,11 @@ export default function StudentCourseDetailsPanel({
 
         <div className="mt-6 space-y-2">
           {course?.prerequisites &&
-            course.prerequisites.length > 0 &&
-            onViewDependencies && (
+            course.prerequisites.length > 0 && (
               <Button
                 variant="secondary"
                 className="w-full flex items-center justify-center gap-2"
-                onClick={onViewDependencies} // This prop is still passed from page.tsx
+                onClick={handleViewDependenciesClick} // Use the new internal handler
               >
                 <GitGraph className="h-4 w-4" />
                 View Dependency Tree

@@ -12,10 +12,14 @@ import InfoBanner from "@/components/dependency-tree/InfoBanner"
 interface DependencyTreeProps {
   course: Course
   isVisible: boolean
-  onClose: () => void
+  setDependencyState: React.Dispatch<React.SetStateAction<{ showDependencyTree: boolean; dependencyCourse: Course | null; }>>;
 }
 
-export default function DependencyTree({ course, isVisible, onClose }: DependencyTreeProps) {
+export default function DependencyTree({
+  course,
+  isVisible,
+  setDependencyState,
+}: DependencyTreeProps) {
   // Get the dependency graph data
   const { 
     connections, 
@@ -51,25 +55,25 @@ export default function DependencyTree({ course, isVisible, onClose }: Dependenc
   useEffect(() => {
     if (!isVisible || !isReady) return
     
-    const handleScroll = () => onClose()
-    
+    const handleScroll = () => setDependencyState({ showDependencyTree: false, dependencyCourse: null });
+
     const handleOutsideClick = (e: MouseEvent) => {
       const target = e.target as Element
       if (target.closest('[data-course-id]') || target.closest('#dependency-close-button')) {
         return
       }
-      onClose()
+      setDependencyState({ showDependencyTree: false, dependencyCourse: null });
     }
-    
+
     window.addEventListener('scroll', handleScroll, true)
     document.addEventListener('click', handleOutsideClick)
-    
+
     return () => {
       window.removeEventListener('scroll', handleScroll, true)
       document.removeEventListener('click', handleOutsideClick)
     }
-  }, [isVisible, isReady, onClose])
-  
+  }, [isVisible, isReady, setDependencyState]) // Updated dependency array
+
   const cleanupDashboard = () => {
     // Remove dashboard highlights (kept minimal for essential cleanup)
     document.querySelectorAll('.border.rounded-lg.overflow-hidden.shadow-md').forEach(dashboard => {

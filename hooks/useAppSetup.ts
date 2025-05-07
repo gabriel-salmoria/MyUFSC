@@ -102,12 +102,8 @@ export interface AppSetupResult {
   // Student store reference
   studentStore: ReturnType<typeof useStudentStore>;
 
-  // Handle the dependency tree functionality
-  handleViewDependencies: (course: Course) => void;
   handleCloseDependencyTree: () => void;
 
-  // Course handling
-  handleAddCourse: (course: Course) => void;
 
   // Helper functions
   getDegreeName: (degreeId: string) => string;
@@ -129,12 +125,6 @@ export function useAppSetup(): AppSetupResult {
 
   // UI view state
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.CURRICULUM);
-
-  // Selected course state - REMOVED
-  // const [selectionState, setSelectionState] = useState({
-  //   selectedCourse: null as Course | null,
-  //   selectedStudentCourse: null as StudentCourse | null,
-  // });
 
   // Dependency tree state
   const [dependencyState, setDependencyState] = useState({
@@ -319,42 +309,11 @@ export function useAppSetup(): AppSetupResult {
     fetchScheduleData();
   }, [studentInfo, scheduleState.scheduleData]);
 
-  // Dependency tree handlers
-  const handleViewDependencies = (course: Course) => {
-    // No longer need to get course from selectionState, it's passed directly or could be from store if needed
-    // The calling component (page.tsx) will decide which course to pass.
-    // If we always want to use the store's selected course, this would be:
-    // const courseToView = studentStore.selectedStudentCourse?.course || studentStore.selectedCourse;
-    // if (!courseToView) return;
-    // setDependencyState({ showDependencyTree: true, dependencyCourse: courseToView });
-    // For now, we keep the passed 'course' argument.
-
-    setDependencyState({
-      showDependencyTree: true,
-      dependencyCourse: course,
-    });
-    studentStore.clearSelection(); // Clear main selection when viewing dependencies
-  };
-
   const handleCloseDependencyTree = () => {
     setDependencyState({
       showDependencyTree: false,
       dependencyCourse: null,
     });
-  };
-
-  // Course handling
-  const handleAddCourse = (course: Course) => {
-    if (!studentInfo?.plans[studentInfo.currentPlan]) {
-      return;
-    }
-    const plan = studentInfo.plans[studentInfo.currentPlan];
-
-    const targetSemester =
-      plan.semesters.length > 0 ? plan.semesters[0] : { number: 1, courses: [], totalCredits: 0 }; // Added default structure
-
-    // Add the course to the semester
-    studentStore.addCourseToSemester(course, targetSemester.number);
   };
 
   const getDegreeName = (degreeId: string) => {
@@ -382,9 +341,7 @@ export function useAppSetup(): AppSetupResult {
     authState,
     setAuthState,
     studentStore,
-    handleViewDependencies,
     handleCloseDependencyTree,
-    handleAddCourse,
     getDegreeName,
   };
 }
