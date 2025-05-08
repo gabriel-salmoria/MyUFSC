@@ -23,9 +23,7 @@ interface CourseStatsProps {
   courses: StudentCourse[];
   timetableData?: any; // Optional timetable data (parsed MatrUFSC or default)
   selectedPhase: number; // ADDED
-  // onCourseClick?: (course: StudentCourse) => void; // REMOVED
   onProfessorSelect?: (course: StudentCourse, professorId: string) => void;
-  // onAddCourse?: (course: Course) => void; // REMOVED
   coursesInTimetable?: string[]; // New prop with IDs of courses in timetable
   courseColors?: Map<string, string>; // Color map from timetable component
   onRemoveCourse?: (courseId: string) => void; // New prop for removing a course
@@ -45,17 +43,11 @@ export default function CourseStats({
   courses,
   timetableData,
   selectedPhase, // ADDED
-  // onCourseClick, // REMOVED
   onProfessorSelect,
-  // onAddCourse, // REMOVED
   coursesInTimetable = [],
   courseColors,
   onRemoveCourse,
 }: CourseStatsProps) {
-  // State for the selected course
-  const [selectedCourse, setSelectedCourse] = useState<StudentCourse | null>(
-    null,
-  );
   const [selectedProfessor, setSelectedProfessor] = useState<string | null>(
     null,
   );
@@ -63,6 +55,7 @@ export default function CourseStats({
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const studentStore = useStudentStore();
+  const { selectedStudentCourse } = studentStore; // Destructure from store
 
   // Use provided timetable data or fall back to empty data
   const scheduleDataToUse = timetableData || emptyScheduleData;
@@ -83,7 +76,7 @@ export default function CourseStats({
     isCurrentCourse: boolean,
   ) => {
     if (isCurrentCourse) {
-      studentStore.selectCourse(course as StudentCourse); // Use store action
+      setLocallySelectedCourse(course as StudentCourse); // Use local state setter for existing courses
     } else {
       const newCourse = course as Course;
       studentStore.addCourseToSemester(
@@ -103,11 +96,9 @@ export default function CourseStats({
 
   // Get the course color based on its ID
   const getCourseColor = (courseId: string) => {
-    // If the course is in the timetable, use its color from courseColors map
     if (courseColors && coursesInTimetable.includes(courseId)) {
       return courseColors.get(courseId) || STATUS_CLASSES.DEFAULT;
     }
-    // Otherwise use default color
     return STATUS_CLASSES.DEFAULT;
   };
 
@@ -117,7 +108,9 @@ export default function CourseStats({
   ) => {
     event.stopPropagation();
 
-    studentStore.selectCourse(course); // Use store action directly
+    setLocallySelectedCourse((prev) =>
+      prev?.course.id === course.course.id ? null : course,
+    ); // Use local state setter
     setSelectedProfessor(null);
   };
 
@@ -131,20 +124,20 @@ export default function CourseStats({
     setSelectedProfessor(professorId);
 
     // Call the callback if provided and a course is selected
-    if (selectedCourse && onProfessorSelect) {
-      onProfessorSelect(selectedCourse, professorId);
+    if (locallySelectedCourse && onProfessorSelect) {
+      onProfessorSelect(locallySelectedCourse, professorId);
     }
   };
 
-  // Get professors for the selected course
+  // Get professors for the locally selected course
   const professors = useMemo((): ProfessorData[] => {
-    if (!selectedCourse) return [];
+    if (!locallySelectedCourse) return [];
 
     // Get professors from the schedule data
     const professorsData =
-      scheduleDataToUse.professors?.[selectedCourse.course.id];
+      scheduleDataToUse.professors?.[locallySelectedCourse.course.id];
     return professorsData || [];
-  }, [selectedCourse, scheduleDataToUse]);
+  }, [locallySelectedCourse, scheduleDataToUse]); // Updated dependency array
 
   return (
     <div className={CSS_CLASSES.STATS_CONTAINER}>
@@ -160,37 +153,34 @@ export default function CourseStats({
           />
 
           {/* Current Courses Section */}
-          <CourseList
-            courses={courses}
-            onCourseClick={handleCourseClick}
-            getCourseColor={getCourseColor}
-          />
+          <CourseList courses={courses} getCourseColor={getCourseColor} />
 
           {/* Credits Summary */}
           <CreditsSummary totalCredits={weeklyHours} />
 
           {/* Professor Selection */}
-          {selectedCourse && (
+          {locallySelectedCourse && (
             <ProfessorSelector
-              selectedCourse={selectedCourse}
+              selectedCourse={locallySelectedCourse} // Pass locallySelectedCourse from local state
               professors={professors}
               selectedProfessor={selectedProfessor}
               onProfessorSelect={handleProfessorSelect}
               onRemoveCourse={onRemoveCourse}
               isInTimetable={coursesInTimetable.includes(
-                selectedCourse.course.id,
+                locallySelectedCourse.course.id, // Use locallySelectedCourse
               )}
             />
           )}
-        </div>
-      </div>
-
+        </div>{" "}
+        {/* <-- Added missing closing div tag */}
+      </div>{" "}
+      {/* <-- Added missing closing div tag */}
       {/* Search popup */}
       {isSearchOpen && (
         <SearchPopup
           searchTerm={searchTerm}
-          onSelect={handleSelectSearchedCourse}
           onClose={() => setIsSearchOpen(false)}
+          selectedPhase={selectedPhase}
         />
       )}
     </div>

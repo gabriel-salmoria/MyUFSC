@@ -117,7 +117,7 @@ export default function Home() {
           />
         </div>
 
-        {(selectedCourse || selectedStudentCourse) && studentStore && (
+        {(selectedCourse || selectedStudentCourse) && (
           <StudentCourseDetailsPanel
             setDependencyState={setDependencyState} // Pass setDependencyState prop
           />

@@ -59,7 +59,7 @@ const CheckStudentInfo = (info: StudentInfo | null): StudentPlan | null => {
   return plan;
 };
 
-export const useStudentStore = create<StudentStore>((set: any) => ({
+export const useStudentStore = create<StudentStore>((set) => ({
   studentInfo: null,
   selectedCourse: null, // Added
   selectedStudentCourse: null, // Added
@@ -78,63 +78,69 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
 
   // Set the entire student info (used for initialization)
   setStudentInfo: (info: StudentInfo) => {
-    set(produce((state: StudentStore) => {
-      state.studentInfo = info;
-      // Make sure we have a valid plan with semesters
-      if (
-        !info.plans[info.currentPlan] ||
-        !info.plans[info.currentPlan].semesters
-      ) {
-        console.log("no information provided to student store, or plan/semesters missing");
-        // Ensure studentInfo is at least set
-        return;
-      }
-
-      const currentPlan = state.studentInfo.plans[state.studentInfo.currentPlan];
-      if (!currentPlan) return;
-
-
-      // Ensure all expected semesters exist (at least the minimum required)
-      const existingSemesters = currentPlan.semesters || [];
-      const allSemesters: StudentSemester[] = [];
-
-      for (let i = 1; i <= PHASE_DIMENSIONS.TOTAL_SEMESTERS; i++) {
-        const existingSemester = existingSemesters.find((s) => s.number === i);
-        if (existingSemester) {
-          let totalCredits = 0;
-          existingSemester.courses.forEach((course) => {
-            totalCredits += course.credits || 0;
-          });
-          allSemesters.push({
-            ...existingSemester,
-            totalCredits,
-          });
-        } else {
-          allSemesters.push({
-            number: i,
-            courses: [],
-            totalCredits: 0,
-          });
+    set(
+      produce((state: StudentStore) => {
+        state.studentInfo = info;
+        // Make sure we have a valid plan with semesters
+        if (
+          !info.plans[info.currentPlan] ||
+          !info.plans[info.currentPlan].semesters
+        ) {
+          console.log(
+            "no information provided to student store, or plan/semesters missing",
+          );
+          // Ensure studentInfo is at least set
+          return;
         }
-      }
 
-      updateView(allSemesters);
-      currentPlan.semesters = allSemesters;
+        const currentPlan =
+          state.studentInfo.plans[state.studentInfo.currentPlan];
+        if (!currentPlan) return;
 
-      if (!state.studentInfo.plans || state.studentInfo.plans.length === 0) {
-        state.studentInfo.plans = [
-          {
-            id: "default_plan_id", // Ensure plan has an ID if it's new
-            name: "Default Plan",  // Ensure plan has a name
-            semesters: [...allSemesters],
-          },
-        ];
-         // If currentPlan was pointing to an index that's now invalid, reset or handle
-        if (state.studentInfo.currentPlan >= state.studentInfo.plans.length) {
+        // Ensure all expected semesters exist (at least the minimum required)
+        const existingSemesters = currentPlan.semesters || [];
+        const allSemesters: StudentSemester[] = [];
+
+        for (let i = 1; i <= PHASE_DIMENSIONS.TOTAL_SEMESTERS; i++) {
+          const existingSemester = existingSemesters.find(
+            (s) => s.number === i,
+          );
+          if (existingSemester) {
+            let totalCredits = 0;
+            existingSemester.courses.forEach((course) => {
+              totalCredits += course.credits || 0;
+            });
+            allSemesters.push({
+              ...existingSemester,
+              totalCredits,
+            });
+          } else {
+            allSemesters.push({
+              number: i,
+              courses: [],
+              totalCredits: 0,
+            });
+          }
+        }
+
+        updateView(allSemesters);
+        currentPlan.semesters = allSemesters;
+
+        if (!state.studentInfo.plans || state.studentInfo.plans.length === 0) {
+          state.studentInfo.plans = [
+            {
+              id: "default_plan_id", // Ensure plan has an ID if it's new
+              name: "Default Plan", // Ensure plan has a name
+              semesters: [...allSemesters],
+            },
+          ];
+          // If currentPlan was pointing to an index that's now invalid, reset or handle
+          if (state.studentInfo.currentPlan >= state.studentInfo.plans.length) {
             state.studentInfo.currentPlan = 0;
+          }
         }
-      }
-    }));
+      }),
+    );
   },
 
   // Add a course to a semester
@@ -144,9 +150,11 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
         let plan = CheckStudentInfo(state.studentInfo);
         if (!plan) return;
 
-        const targetSemester = plan.semesters.find(s => s.number === semesterNumber);
+        const targetSemester = plan.semesters.find(
+          (s) => s.number === semesterNumber,
+        );
         if (!targetSemester) {
-            console.warn(`Target semester ${semesterNumber} not found.`);
+          console.warn(`Target semester ${semesterNumber} not found.`);
           return;
         }
 
@@ -166,7 +174,8 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
         };
 
         targetSemester.courses.push(newStudentCourse);
-        targetSemester.totalCredits = (targetSemester.totalCredits || 0) + (course.credits || 0);
+        targetSemester.totalCredits =
+          (targetSemester.totalCredits || 0) + (course.credits || 0);
         updateView(plan.semesters);
       }),
     ),
@@ -178,7 +187,9 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
         let plan = CheckStudentInfo(state.studentInfo);
         if (!plan) return;
 
-        let sourceSemester = plan.semesters.find(s => s.number === studentCourse.phase);
+        let sourceSemester = plan.semesters.find(
+          (s) => s.number === studentCourse.phase,
+        );
         if (sourceSemester) {
           const courseIndex = sourceSemester.courses.findIndex(
             (c) => c.id === studentCourse.id && c.grade === studentCourse.grade, // Assuming id and grade make it unique enough for this op
@@ -186,19 +197,26 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
 
           if (courseIndex !== -1) {
             const [movedCourse] = sourceSemester.courses.splice(courseIndex, 1);
-            sourceSemester.totalCredits = (sourceSemester.totalCredits || 0) - (movedCourse.credits || 0);
+            sourceSemester.totalCredits =
+              (sourceSemester.totalCredits || 0) - (movedCourse.credits || 0);
 
-            const targetSemester = plan.semesters.find(s => s.number === targetSemesterNumber);
+            const targetSemester = plan.semesters.find(
+              (s) => s.number === targetSemesterNumber,
+            );
             if (targetSemester) {
               movedCourse.phase = targetSemesterNumber;
               targetSemester.courses.push(movedCourse);
-              targetSemester.totalCredits = (targetSemester.totalCredits || 0) + (movedCourse.credits || 0);
+              targetSemester.totalCredits =
+                (targetSemester.totalCredits || 0) + (movedCourse.credits || 0);
               updateView(plan.semesters);
             } else {
               // Handle case where target semester doesn't exist, perhaps put it back or log error
               sourceSemester.courses.splice(courseIndex, 0, movedCourse); // Put back
-               sourceSemester.totalCredits = (sourceSemester.totalCredits || 0) + (movedCourse.credits || 0); // Add credits back
-              console.error(`Target semester ${targetSemesterNumber} not found for move.`);
+              sourceSemester.totalCredits =
+                (sourceSemester.totalCredits || 0) + (movedCourse.credits || 0); // Add credits back
+              console.error(
+                `Target semester ${targetSemesterNumber} not found for move.`,
+              );
             }
           }
         }
@@ -212,14 +230,20 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
         let plan = CheckStudentInfo(state.studentInfo);
         if (!plan) return;
 
-        const sourceSemester = plan.semesters.find(s => s.number === studentCourse.phase);
+        const sourceSemester = plan.semesters.find(
+          (s) => s.number === studentCourse.phase,
+        );
         if (sourceSemester) {
           const courseIndex = sourceSemester.courses.findIndex(
             (c) => c.id === studentCourse.id && c.grade === studentCourse.grade, // Assuming id and grade make it unique
           );
           if (courseIndex !== -1) {
-            const removedCourse = sourceSemester.courses.splice(courseIndex, 1)[0];
-            sourceSemester.totalCredits = (sourceSemester.totalCredits || 0) - (removedCourse.credits || 0);
+            const removedCourse = sourceSemester.courses.splice(
+              courseIndex,
+              1,
+            )[0];
+            sourceSemester.totalCredits =
+              (sourceSemester.totalCredits || 0) - (removedCourse.credits || 0);
             updateView(plan.semesters);
           }
         }
@@ -232,16 +256,23 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
       produce((state: StudentStore) => {
         const plan = CheckStudentInfo(state.studentInfo);
         if (!plan) return;
-        const semester = plan.semesters.find(s => s.number === studentCourse.phase);
+        const semester = plan.semesters.find(
+          (s) => s.number === studentCourse.phase,
+        );
         if (semester) {
-            const courseInStore = semester.courses.find(c => c.id === studentCourse.id);
-            if (courseInStore) {
-                courseInStore.status = status;
-            } else {
-                 console.warn("Course not found in store for status change:", studentCourse);
-            }
+          const courseInStore = semester.courses.find(
+            (c) => c.id === studentCourse.id,
+          );
+          if (courseInStore) {
+            courseInStore.status = status;
+          } else {
+            console.warn(
+              "Course not found in store for status change:",
+              studentCourse,
+            );
+          }
         } else {
-            console.warn("Semester not found for status change:", studentCourse);
+          console.warn("Semester not found for status change:", studentCourse);
         }
       }),
     ),
@@ -254,25 +285,33 @@ export const useStudentStore = create<StudentStore>((set: any) => ({
         if (!plan) return;
 
         const roundedGrade = Math.round(grade * 2) / 2;
-        const semester = plan.semesters.find(s => s.number === studentCourse.phase);
+        const semester = plan.semesters.find(
+          (s) => s.number === studentCourse.phase,
+        );
         if (semester) {
-            const courseInStore = semester.courses.find(c => c.id === studentCourse.id);
-            if (courseInStore) {
-                courseInStore.grade = roundedGrade;
-                courseInStore.status = roundedGrade >= 6.0 ? CourseStatus.COMPLETED : CourseStatus.FAILED;
-            } else {
-                console.warn("Course not found in store for grade set:", studentCourse);
-            }
+          const courseInStore = semester.courses.find(
+            (c) => c.id === studentCourse.id,
+          );
+          if (courseInStore) {
+            courseInStore.grade = roundedGrade;
+            courseInStore.status =
+              roundedGrade >= 6.0
+                ? CourseStatus.COMPLETED
+                : CourseStatus.FAILED;
+          } else {
+            console.warn(
+              "Course not found in store for grade set:",
+              studentCourse,
+            );
+          }
         } else {
-            console.warn("Semester not found for grade set:", studentCourse);
+          console.warn("Semester not found for grade set:", studentCourse);
         }
       }),
     ),
 
   // Selection actions
-  selectCourse: (
-    studentCourse: StudentCourse | null,
-  ) =>
+  selectCourse: (studentCourse: StudentCourse | null) =>
     set(
       produce((state: StudentStore) => {
         state.selectedCourse = studentCourse ? studentCourse.course : null; // Set the base Course object
