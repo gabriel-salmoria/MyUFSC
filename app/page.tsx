@@ -2,6 +2,7 @@
 
 import { CourseStatus } from "@/types/student-plan";
 import type { Course } from "@/types/curriculum";
+import { useState } from "react";
 
 // Main layout components
 import Header from "@/components/layout/Header";
@@ -13,57 +14,89 @@ import DependencyTree from "@/components/dependency-tree/dependency-tree";
 import Timetable from "@/components/schedule/timetable";
 import TrashDropZone from "@/components/visualizers/trash-drop-zone";
 
-// Import the custom useAppSetup hook
+// Import the custom hooks
 import { useAppSetup } from "@/hooks/useAppSetup";
+import { useCurriculum } from "@/hooks/UseCurriculum";
+import { useSchedule } from "@/hooks/UseSchedule";
 import { StudentStore } from "@/lib/student-store";
 
 export default function Home() {
-  // Use our app setup hook to handle all the state and data fetching
+  // Use our app setup hook for auth, student info, and profile loading
   const {
-    // student info data
     studentStore,
     studentInfo,
-
-    // curriculum
-    curriculumState,
-
-    // dependency
-    dependencyState,
-    setDependencyState,
-
-    // schedule
-    scheduleState,
-    setScheduleState,
-
-    // all of above
-    loadingState,
-
-    // auth
+    setStudentInfo, // Kept in case page needs to modify it, though less likely now
+    isProfileLoading,
     authState,
     setAuthState,
+    isAuthenticated,
+    authCheckCompleted,
   } = useAppSetup();
 
-  // Destructure selection state from the store for easier access
-  const { selectedCourse, selectedStudentCourse, selectCourse } =
-    studentStore as StudentStore;
+  // Curriculum Hook
+  const { curriculumState, isCurriculumLoading } = useCurriculum({
+    isAuthenticated,
+    authCheckCompleted,
+    studentInfo,
+    isProfileLoading,
+  });
 
-  if (loadingState.loading || !loadingState.allDataLoaded || !studentStore) {
+  // Schedule Hook
+  const { scheduleState, isScheduleLoading } = useSchedule({
+    isAuthenticated,
+    authCheckCompleted,
+    studentInfo,
+    isProfileLoading,
+    isCurriculumLoading, // Schedule might wait for curriculum
+    setAuthState, // For reporting schedule-specific errors to auth state
+  });
+
+  // Dependency tree state (moved to top level)
+  const [dependencyState, setDependencyState] = useState<{
+    showDependencyTree: boolean;
+    dependencyCourse: Course | null;
+  }>({
+    showDependencyTree: false,
+    dependencyCourse: null,
+  });
+
+  // Destructure selection state from the store for easier access
+  const { selectedCourse, selectedStudentCourse, selectCourse } = studentStore;
+
+  // Combined loading condition
+  const isLoading =
+    !authCheckCompleted ||
+    isProfileLoading ||
+    isCurriculumLoading ||
+    isScheduleLoading;
+
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="mb-4">Loading your semester planner...</div>
           <div className="text-sm text-muted-foreground">
-            {loadingState.profileLoading
+            {!authCheckCompleted
+              ? "Checking authentication..."
+              : "Auth checked ✓"}
+            <br />
+            {isProfileLoading
               ? "Loading profile..."
-              : "Profile loaded ✓"}
+              : studentInfo
+                ? "Profile loaded ✓"
+                : "Profile not available"}
             <br />
-            {loadingState.curriculumLoading
+            {isCurriculumLoading
               ? "Loading curriculum..."
-              : "Curriculum loaded ✓"}
+              : curriculumState.currentCurriculum
+                ? "Curriculum loaded ✓"
+                : "Curriculum not available"}
             <br />
-            {loadingState.scheduleLoading
+            {isScheduleLoading
               ? "Loading class schedule..."
-              : "Schedule loaded ✓"}
+              : scheduleState.scheduleData
+                ? "Schedule loaded ✓"
+                : "Schedule not available"}
           </div>
         </div>
       </div>
@@ -73,11 +106,37 @@ export default function Home() {
   if (authState.error) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center text-red-500">{authState.error}</div>
+        <div className="text-center text-red-500">Error: {authState.error}</div>
       </div>
     );
   }
 
+  // If authenticated but studentInfo is null after loading, it implies a problem (e.g., redirected by a hook)
+  if (!studentInfo && isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center text-muted-foreground">
+          Student information could not be loaded. You might be redirected
+          shortly.
+        </div>
+      </div>
+    );
+  }
+
+  // If not authenticated and all checks are done, user should have been redirected.
+  // This is a fallback or if redirection hasn't completed yet.
+  if (!isAuthenticated && authCheckCompleted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center text-muted-foreground">
+          Redirecting to login...
+        </div>
+      </div>
+    );
+  }
+
+  // At this point, if we don't have studentInfo, and not loading, something is wrong or user is unauthed.
+  // The above checks should handle most cases. This is a final guard.
   if (!studentInfo) {
     return null;
   }
