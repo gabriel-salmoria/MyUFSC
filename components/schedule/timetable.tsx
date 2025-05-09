@@ -29,12 +29,7 @@ const emptyScheduleData = {
 
 interface TimetableProps {
   studentInfo: StudentInfo;
-  scheduleData?: any; // Optional MatrUFSC data that can be parsed
-  selectedCampus: string;
-  selectedSemester: string;
-  isLoadingscheduleData: boolean;
-  onCampusChange: (campus: string) => void;
-  onSemesterChange: (semester: string) => void;
+  scheduleState: any;
 }
 
 // Type for professor schedule data
@@ -78,19 +73,30 @@ type ConflictMap = Map<ConflictKey, Set<string>>;
 
 export default function Timetable({
   studentInfo,
-  scheduleData,
-  onCourseClick,
-  onAddCourse,
-  selectedCampus,
-  selectedSemester,
-  isLoadingscheduleData,
-  onCampusChange,
-  onSemesterChange,
+  scheduleState,
 }: TimetableProps) {
   // State for professor overrides
   const [professorOverrides, setProfessorOverrides] = useState<
     ProfessorOverride[]
   >([]);
+
+  const {
+    scheduleData,
+    selectedCampus,
+    selectedSemester,
+    isLoading: isLoadingscheduleData,
+    setScheduleState,
+  } = scheduleState;
+
+  const onCampusChange = (campus: string) =>
+    setScheduleState((prev: any) => ({ ...prev, selectedCampus: campus }));
+
+  const onSemesterChange = (semester: string) =>
+    setScheduleState((prev: any) => ({
+      ...prev,
+      selectedSemester: semester,
+    }));
+
   // State for selected phase
   const [selectedPhase, setSelectedPhase] = useState<number>(1);
   // State to maintain consistent colors for courses

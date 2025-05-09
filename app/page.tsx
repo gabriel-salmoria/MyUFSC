@@ -20,19 +20,27 @@ import { StudentStore } from "@/lib/student-store";
 export default function Home() {
   // Use our app setup hook to handle all the state and data fetching
   const {
-    curriculumState,
+    // student info data
+    studentStore,
     studentInfo,
-    viewMode,
-    setViewMode,
+
+    // curriculum
+    curriculumState,
+
+    // dependency
     dependencyState,
     setDependencyState,
+
+    // schedule
     scheduleState,
     setScheduleState,
+
+    // all of above
     loadingState,
+
+    // auth
     authState,
     setAuthState,
-    getDegreeName,
-    studentStore,
   } = useAppSetup();
 
   // Destructure selection state from the store for easier access
@@ -74,6 +82,13 @@ export default function Home() {
     return null;
   }
 
+  const getDegreeName = (degreeId: string) => {
+    const program = curriculumState.degreePrograms.find(
+      (p) => p.id === degreeId,
+    );
+    return program?.name || degreeId;
+  };
+
   return (
     <main className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
@@ -89,28 +104,11 @@ export default function Home() {
         <Visualizations
           studentInfo={studentInfo}
           curriculum={curriculumState.curriculum}
-          viewMode={viewMode}
-          setViewMode={setViewMode}
         />
 
         {/* Schedule Section */}
         <div className="mt-8">
-          <Timetable
-            studentInfo={studentInfo}
-            scheduleData={scheduleState.scheduleData}
-            selectedCampus={scheduleState.selectedCampus}
-            selectedSemester={scheduleState.selectedSemester}
-            isLoadingscheduleData={scheduleState.isLoading}
-            onCampusChange={(campus) =>
-              setScheduleState((prev) => ({ ...prev, selectedCampus: campus }))
-            }
-            onSemesterChange={(semester) =>
-              setScheduleState((prev) => ({
-                ...prev,
-                selectedSemester: semester,
-              }))
-            }
-          />
+          <Timetable studentInfo={studentInfo} scheduleState={scheduleState} />
         </div>
 
         {(selectedCourse || selectedStudentCourse) && (
@@ -127,7 +125,7 @@ export default function Home() {
           />
         )}
 
-        <TrashDropZone studentStore={studentStore} />
+        <TrashDropZone />
       </div>
     </main>
   );

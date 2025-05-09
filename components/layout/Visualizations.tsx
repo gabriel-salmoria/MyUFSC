@@ -18,20 +18,17 @@ export enum ViewMode {
 interface VisualizationsProps {
   studentInfo: StudentInfo;
   curriculum: Curriculum | null;
-
-  viewMode: ViewMode;
-  setViewMode: (mode: ViewMode) => void;
 }
 
 export default function Visualizations({
   studentInfo,
   curriculum,
-
-  viewMode,
-  setViewMode,
 }: VisualizationsProps) {
   const studentStore = useStudentStore();
+
   // Toggle view mode between curriculum and electives
+  const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.CURRICULUM);
+
   const toggleView = () => {
     setViewMode(
       viewMode === ViewMode.CURRICULUM

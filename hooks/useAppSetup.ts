@@ -11,12 +11,6 @@ import { fetchCurriculum } from "@/lib/api";
 import { fetchClassSchedule } from "@/app/api/schedule/client";
 import { useStudentStore } from "@/lib/student-store";
 
-// Define the enums inside the hook so we can export them
-export enum ViewMode {
-  CURRICULUM = "curriculum",
-  ELECTIVES = "electives",
-}
-
 // Define the return type of the hook for better type safety
 export interface AppSetupResult {
   // Curriculum and program data
@@ -36,10 +30,6 @@ export interface AppSetupResult {
   // Student information
   studentInfo: StudentInfo | null;
   setStudentInfo: React.Dispatch<React.SetStateAction<StudentInfo | null>>;
-
-  // UI view state
-  viewMode: ViewMode;
-  setViewMode: React.Dispatch<React.SetStateAction<ViewMode>>;
 
   // Dependency tree state
   dependencyState: {
@@ -101,12 +91,6 @@ export interface AppSetupResult {
 
   // Student store reference
   studentStore: ReturnType<typeof useStudentStore>;
-
-  handleCloseDependencyTree: () => void;
-
-
-  // Helper functions
-  getDegreeName: (degreeId: string) => string;
 }
 
 export function useAppSetup(): AppSetupResult {
@@ -122,9 +106,6 @@ export function useAppSetup(): AppSetupResult {
 
   // Student information
   const [studentInfo, setStudentInfo] = useState<StudentInfo | null>(null);
-
-  // UI view state
-  const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.CURRICULUM);
 
   // Dependency tree state
   const [dependencyState, setDependencyState] = useState({
@@ -316,22 +297,11 @@ export function useAppSetup(): AppSetupResult {
     });
   };
 
-  const getDegreeName = (degreeId: string) => {
-    const program = curriculumState.degreePrograms.find(
-      (p) => p.id === degreeId,
-    );
-    return program?.name || degreeId;
-  };
-
   return {
     curriculumState,
     setCurriculumState,
     studentInfo,
     setStudentInfo,
-    viewMode,
-    setViewMode,
-    // selectionState, // REMOVED
-    // setSelectionState, // REMOVED
     dependencyState,
     setDependencyState,
     scheduleState,
@@ -341,7 +311,5 @@ export function useAppSetup(): AppSetupResult {
     authState,
     setAuthState,
     studentStore,
-    handleCloseDependencyTree,
-    getDegreeName,
   };
 }

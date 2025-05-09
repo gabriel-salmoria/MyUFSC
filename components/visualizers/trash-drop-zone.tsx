@@ -5,11 +5,7 @@ import { Trash2 } from "lucide-react";
 import { StudentStore } from "@/lib/student-store";
 import { useStudentStore } from "@/lib/student-store";
 
-interface TrashDropZoneProps {
-  
-}
-
-export default function TrashDropZone({} : TrashDropZoneProps) {
+export default function TrashDropZone() {
   const studentStore = useStudentStore();
   const [isDragging, setIsDragging] = useState(false);
   const [isActive, setIsActive] = useState(false);
