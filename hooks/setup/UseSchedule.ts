@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { StudentInfo } from "@/types/student-plan";
 import { fetchClassSchedule } from "@/app/api/schedule/client";
 import type { AuthState } from "./CheckAuth"; // For setAuthState prop type
@@ -17,11 +17,10 @@ export interface UseScheduleResult {
 }
 
 interface UseScheduleProps {
-  // isAuthenticated and authCheckCompleted removed
   studentInfo: StudentInfo | null;
   isProfileLoading: boolean;
-  isCurriculumLoading: boolean; // To wait for curriculum data if necessary
-  setAuthState: React.Dispatch<React.SetStateAction<AuthState>>; // For error reporting
+  isCurriculumLoading: boolean; 
+  setAuthState: React.Dispatch<React.SetStateAction<AuthState>>; 
 }
 
 export function useSchedule({
@@ -37,77 +36,71 @@ export function useSchedule({
     selectedSemester: "",
   });
   const [isScheduleLoading, setIsScheduleLoading] = useState(true);
+  const fetchedForDegreeRef_Schedule = useRef<string | null | undefined>(null); // Tracks degree for schedule fetch
 
   useEffect(() => {
-    // Only proceed if profile and curriculum are done loading, and studentInfo is available with a currentDegree.
     if (isProfileLoading || isCurriculumLoading) {
-      setIsScheduleLoading(true); // If prerequisites are loading, schedule is also pending
+      setIsScheduleLoading(true); // Stay loading if prerequisites are loading
+      fetchedForDegreeRef_Schedule.current = null; // Reset fetched marker
       return;
     }
 
     if (!studentInfo || !studentInfo.currentDegree) {
-      // If no studentInfo or no currentDegree (e.g., not authenticated, profile/curriculum fetch failed, or no degree set),
-      // set loading to false and clear any existing schedule data.
-      setIsScheduleLoading(false);
-      setScheduleState((prev) => ({
-        ...prev,
-        scheduleData: null, // Clear schedule data
-      }));
+      setIsScheduleLoading(false); // Not loading if no student info or no current degree
+      setScheduleState((prev) => ({ ...prev, scheduleData: null }));
+      fetchedForDegreeRef_Schedule.current = null; // Reset
       return;
     }
 
-    // Skip if schedule is already loaded for the current studentInfo.currentDegree
-    // This check might need refinement if studentInfo.currentDegree can change and require a reload.
-    if (scheduleState.scheduleData !== null) {
-      // Consider adding a dependency on studentInfo.currentDegree if re-fetch is needed when it changes
-      // For now, assume initial load: if data exists, stop loading.
-      setIsScheduleLoading(false);
-      return;
-    }
-
-    let active = true;
-    const fetchScheduleData = async () => {
-      setIsScheduleLoading(true);
-      setScheduleState((prev) => ({ ...prev, isLoading: true }));
-      try {
-        const fetchedScheduleData = await fetchClassSchedule(studentInfo.currentDegree);
-        if (active) {
-          if (!fetchedScheduleData) {
+    // Only fetch if studentInfo.currentDegree has changed since last schedule fetch OR if scheduleData is null
+    if (studentInfo.currentDegree !== fetchedForDegreeRef_Schedule.current || scheduleState.scheduleData === null) {
+      let active = true;
+      const fetchScheduleData = async () => {
+        setIsScheduleLoading(true); // Set loading true ONLY when we actually decide to fetch
+        setScheduleState((prev) => ({ ...prev, isLoading: true }));
+        fetchedForDegreeRef_Schedule.current = studentInfo.currentDegree; // Mark fetching for this degree
+        try {
+          const fetchedScheduleData = await fetchClassSchedule(studentInfo.currentDegree);
+          if (active) {
+            if (!fetchedScheduleData) {
+              setScheduleState((prev) => ({ ...prev, scheduleData: null }));
+              setAuthState((prevAuthState) => ({
+                ...prevAuthState,
+                error: "Failed to load class schedules. Please try again later.",
+              }));
+            } else {
+              setScheduleState((prev) => ({ ...prev, scheduleData: fetchedScheduleData }));
+            }
+          }
+        } catch (error) {
+          if (active) {
             setScheduleState((prev) => ({ ...prev, scheduleData: null }));
             setAuthState((prevAuthState) => ({
               ...prevAuthState,
-              error: "Failed to load class schedules. Please try again later.",
+              error: "An error occurred while loading class schedules.",
             }));
-          } else {
-            setScheduleState((prev) => ({ ...prev, scheduleData: fetchedScheduleData }));
+          }
+        } finally {
+          if (active) {
+            setScheduleState((prev) => ({ ...prev, isLoading: false }));
+            setIsScheduleLoading(false);
           }
         }
-      } catch (error) {
-        if (active) {
-          setScheduleState((prev) => ({ ...prev, scheduleData: null }));
-          setAuthState((prevAuthState) => ({
-            ...prevAuthState,
-            error: "An error occurred while loading class schedules.",
-          }));
-        }
-      } finally {
-        if (active) {
-          setScheduleState((prev) => ({ ...prev, isLoading: false }));
-          setIsScheduleLoading(false);
-        }
-      }
-    };
+      };
 
-    fetchScheduleData();
-    return () => {
-      active = false;
-    };
+      fetchScheduleData();
+      return () => { active = false; };
+    } else {
+      // Data already loaded for currentDegree, or no degree to load for.
+      // Ensure loading is false if it wasn't already.
+      if (isScheduleLoading) setIsScheduleLoading(false);
+    }
   }, [
-    studentInfo, // Effect now primarily depends on studentInfo (and its currentDegree)
+    studentInfo, 
     isProfileLoading, 
     isCurriculumLoading, 
-    setAuthState 
-    // scheduleState.scheduleData removed from deps to prevent loop if set to null then re-fetched, relying on outer conditions.
+    setAuthState,
+    scheduleState.scheduleData // Added to re-evaluate if data gets nulled externally but conditions for fetch are met
   ]);
 
   return { scheduleState, setScheduleState, isScheduleLoading };

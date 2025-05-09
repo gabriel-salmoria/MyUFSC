@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react"; // Add useRef
 import { useRouter } from "next/navigation";
 import type { StudentInfo } from "@/types/student-plan";
 
@@ -9,34 +9,46 @@ export interface UseStudentProfileResult {
 }
 
 interface UseStudentProfileProps {
-  storeStudentInfo: StudentInfo | null; // From useStudentStore().studentInfo
-  // isAuthenticated and authCheckCompleted removed
+  storeStudentInfo: StudentInfo | null;
 }
 
 export function useStudentProfile({
   storeStudentInfo,
 }: UseStudentProfileProps): UseStudentProfileResult {
-  const router = useRouter(); // Keep router for potential future use if profile itself needs to redirect
+  const router = useRouter(); // Kept for potential future use
   const [studentInfo, setStudentInfo] = useState<StudentInfo | null>(null);
-  const [isProfileLoading, setIsProfileLoading] = useState(true);
+  // Initialize isProfileLoading based on whether storeStudentInfo is initially null
+  const [isProfileLoading, setIsProfileLoading] = useState(storeStudentInfo === null);
+  const prevStoreStudentInfoRef = useRef<StudentInfo | null>(storeStudentInfo);
 
   useEffect(() => {
-    // The decision to process storeStudentInfo is now implicitly based on whether it's provided.
-    // The page component will control when this hook effectively runs by passing storeStudentInfo
-    // only after authentication is confirmed.
-    
-    setIsProfileLoading(true); // Start loading when storeStudentInfo changes or on initial run
-    if (storeStudentInfo) {
+    // Case 1: storeStudentInfo has become available (was null, now has data)
+    if (storeStudentInfo && !prevStoreStudentInfoRef.current) {
       setStudentInfo(storeStudentInfo);
       setIsProfileLoading(false);
-    } else {
-      // If storeStudentInfo is null, it might mean it's not loaded yet from the store,
-      // or the user genuinely has no profile data there.
-      // The page will handle redirection if an authenticated user has no profile.
-      setStudentInfo(null); // Ensure local state is null if store is null
-      setIsProfileLoading(false); // Stop loading, data is "as loaded as it can be" from this hook's perspective
     }
-  }, [storeStudentInfo, router]); // router is kept if any internal navigation becomes necessary
+    // Case 2: storeStudentInfo was available and has been updated (reference changed)
+    else if (storeStudentInfo && prevStoreStudentInfoRef.current) {
+      setStudentInfo(storeStudentInfo);
+      // isProfileLoading should already be false from Case 1 or initial state, no change needed
+      if (isProfileLoading) setIsProfileLoading(false); // Defensive: ensure it's false
+    }
+    // Case 3: storeStudentInfo has become null (was populated, now it's null - e.g., logout)
+    else if (!storeStudentInfo && prevStoreStudentInfoRef.current) {
+      setStudentInfo(null);
+      setIsProfileLoading(false); // No longer loading a profile, it's gone.
+    }
+    // Case 4: storeStudentInfo is null and was null (e.g. initial state, or remains null)
+    else if (!storeStudentInfo && !prevStoreStudentInfoRef.current) {
+        // If it's null and was null, loading status depends on if we ever had info.
+        // For simplicity here, we assume if it starts null and stays null, loading eventually stops.
+        // The page component orchestrates based on auth.
+        if(isProfileLoading) setIsProfileLoading(false); 
+    }
+
+    // Update previous storeStudentInfo for the next render
+    prevStoreStudentInfoRef.current = storeStudentInfo;
+  }, [storeStudentInfo, isProfileLoading]); // router removed as it's not directly used in this effect's logic now
 
   return { studentInfo, setStudentInfo, isProfileLoading };
 }

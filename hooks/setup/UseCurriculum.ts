@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { StudentInfo } from "@/types/student-plan";
 import type { DegreeProgram } from "@/types/degree-program";
 import type { Curriculum } from "@/types/curriculum";
@@ -16,9 +16,8 @@ export interface UseCurriculumResult {
 }
 
 interface UseCurriculumProps {
-  // isAuthenticated and authCheckCompleted removed
   studentInfo: StudentInfo | null;
-  isProfileLoading: boolean; // To ensure studentInfo is potentially ready
+  isProfileLoading: boolean; 
 }
 
 async function fetchDegreePrograms(): Promise<DegreeProgram[]> {
@@ -60,75 +59,71 @@ export function useCurriculum({
     degreePrograms: [],
   });
   const [isCurriculumLoading, setIsCurriculumLoading] = useState(true);
+  const fetchedForDegreeRef = useRef<string | null | undefined>(null); // Tracks the degree for which data was fetched
 
   useEffect(() => {
-    // Only proceed if profile is not loading and studentInfo is available.
-    // The decision to call this hook at all (or pass valid studentInfo)
-    // will be managed by the page component based on authentication.
     if (isProfileLoading) {
-      setIsCurriculumLoading(true); // If profile is loading, curriculum is also pending
+      setIsCurriculumLoading(true); // Stay loading if profile is loading
+      fetchedForDegreeRef.current = null; // Reset fetched marker
       return;
     }
 
     if (!studentInfo) {
-      // If no studentInfo (e.g., not authenticated or profile fetch failed),
-      // set loading to false and clear any existing curriculum data.
-      setIsCurriculumLoading(false);
-      setCurriculumState({
-        curriculum: null,
-        currentCurriculum: null,
-        degreePrograms: [],
-      });
+      setIsCurriculumLoading(false); // Not loading if no student info
+      setCurriculumState({ curriculum: null, currentCurriculum: null, degreePrograms: [] });
+      fetchedForDegreeRef.current = null; // Reset
       return;
     }
 
-    let active = true;
-    const loadDegreeAndCurriculumData = async () => {
-      setIsCurriculumLoading(true);
-      try {
-        const programs = await fetchDegreePrograms();
-        if (active) {
-          setCurriculumState((prev) => ({
-            ...prev,
-            degreePrograms: programs,
-          }));
-        }
-
-        if (active && studentInfo.currentDegree) {
-          const curriculum = await fetchCurriculumData(studentInfo.currentDegree);
-          if (active && curriculum) {
-            const processedCurriculum: Curriculum = {
-              ...curriculum,
-              courses: Array.isArray(curriculum.courses) ? curriculum.courses : [],
-            };
-            setCurriculumState((prev) => ({
-              ...prev,
-              currentCurriculum: processedCurriculum,
-              curriculum: processedCurriculum,
-            }));
+    // Only fetch if studentInfo.currentDegree has changed since last fetch OR if never fetched for this student
+    // OR if studentInfo object itself is new and we haven't fetched for its currentDegree yet.
+    if (studentInfo.currentDegree !== fetchedForDegreeRef.current || !curriculumState.currentCurriculum) {
+      let active = true;
+      const loadDegreeAndCurriculumData = async () => {
+        setIsCurriculumLoading(true); // Set loading true ONLY when we actually decide to fetch
+        fetchedForDegreeRef.current = studentInfo.currentDegree; // Mark that we are fetching for this degree
+        try {
+          const programs = await fetchDegreePrograms();
+          if (active) {
+            setCurriculumState((prev) => ({ ...prev, degreePrograms: programs }));
           }
-        } else if (active) {
-          // No current degree, or no curriculum found, clear relevant fields
-           setCurriculumState((prev) => ({
-            ...prev,
-            currentCurriculum: null,
-            curriculum: null,
-          }));
-        }
-      } catch (err) {
-        console.error("Failed to load degree programs or curriculum:", err);
-      } finally {
-        if (active) {
-          setIsCurriculumLoading(false);
-        }
-      }
-    };
 
-    loadDegreeAndCurriculumData();
-    return () => {
-      active = false;
-    };
-  }, [studentInfo, isProfileLoading]); // Dependencies are now studentInfo and isProfileLoading
+          if (active && studentInfo.currentDegree) {
+            const curriculum = await fetchCurriculumData(studentInfo.currentDegree);
+            if (active && curriculum) {
+              const processedCurriculum: Curriculum = {
+                ...curriculum,
+                courses: Array.isArray(curriculum.courses) ? curriculum.courses : [],
+              };
+              setCurriculumState((prev) => ({
+                ...prev,
+                currentCurriculum: processedCurriculum,
+                curriculum: processedCurriculum,
+              }));
+            } else if (active) { // Curriculum fetch failed or no curriculum for degree
+                 setCurriculumState((prev) => ({ ...prev, currentCurriculum: null, curriculum: null}));
+            }
+          } else if (active) { // No current degree on studentInfo
+             setCurriculumState((prev) => ({ ...prev, currentCurriculum: null, curriculum: null}));
+          }
+        } catch (err) {
+          console.error("Failed to load degree programs or curriculum:", err);
+          if(active)  setCurriculumState((prev) => ({ ...prev, currentCurriculum: null, curriculum: null, degreePrograms: [] })); // Clear on error
+        } finally {
+          if (active) {
+            setIsCurriculumLoading(false);
+          }
+        }
+      };
+
+      loadDegreeAndCurriculumData();
+      return () => { active = false; };
+    } else {
+      // Data already loaded for currentDegree and studentInfo, or no degree to load for
+      // Ensure loading is false if it wasn't already.
+      if (isCurriculumLoading) setIsCurriculumLoading(false);
+    }
+  }, [studentInfo, isProfileLoading, curriculumState.currentCurriculum]); 
 
   return { curriculumState, setCurriculumState, isCurriculumLoading };
 }

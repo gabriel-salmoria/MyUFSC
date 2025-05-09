@@ -31,7 +31,7 @@ export default function Home() {
   // Student Store Hook
   const studentStore = useStudentStore();
   const {
-    studentInfo: storeStudentInfo, 
+    studentInfo: storeStudentInfo,
     selectedCourse,
     selectedStudentCourse,
     selectCourse,
@@ -51,9 +51,9 @@ export default function Home() {
   // Schedule Hook
   const { scheduleState, isScheduleLoading } = useSchedule({
     studentInfo, // Pass studentInfo from useStudentProfile directly
-    isProfileLoading, 
-    isCurriculumLoading, 
-    setAuthState, 
+    isProfileLoading,
+    isCurriculumLoading,
+    setAuthState,
   });
 
   // Dependency tree state
@@ -70,12 +70,12 @@ export default function Home() {
     if (
       authCheckCompleted && // Ensure auth check is done before evaluating redirect for authenticated user
       isAuthenticated &&
-      !isProfileLoading && 
-      !isCurriculumLoading && 
-      !isScheduleLoading && 
+      !isProfileLoading &&
+      !isCurriculumLoading &&
+      !isScheduleLoading &&
       !studentInfo
     ) {
-      router.push('/login');
+      router.push("/login");
     }
   }, [
     authCheckCompleted,
@@ -104,7 +104,11 @@ export default function Home() {
   // If authenticated, check for data loading states
   if (isAuthenticated) {
     // This combined loading check is for the UI message, individual hooks manage their own fetching logic.
-    if (isProfileLoading || (studentInfo && isCurriculumLoading) || (studentInfo && isScheduleLoading)) {
+    if (
+      isProfileLoading ||
+      (studentInfo && isCurriculumLoading) ||
+      (studentInfo && isScheduleLoading)
+    ) {
       return (
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
@@ -113,15 +117,25 @@ export default function Home() {
               Auth checked ✓<br />
               {isProfileLoading
                 ? "Loading profile..."
-                : studentInfo ? "Profile loaded ✓" : "Profile not available (auth OK)"}
+                : studentInfo
+                  ? "Profile loaded ✓"
+                  : "Profile not available (auth OK)"}
               <br />
               {studentInfo && isCurriculumLoading
                 ? "Loading curriculum..."
-                : studentInfo && curriculumState.currentCurriculum ? "Curriculum loaded ✓" : (studentInfo ? "Curriculum not available" : "")}
+                : studentInfo && curriculumState.currentCurriculum
+                  ? "Curriculum loaded ✓"
+                  : studentInfo
+                    ? "Curriculum not available"
+                    : ""}
               <br />
               {studentInfo && isScheduleLoading
                 ? "Loading class schedule..."
-                : studentInfo && scheduleState.scheduleData ? "Schedule loaded ✓" : (studentInfo ? "Schedule not available" : "")}
+                : studentInfo && scheduleState.scheduleData
+                  ? "Schedule loaded ✓"
+                  : studentInfo
+                    ? "Schedule not available"
+                    : ""}
             </div>
           </div>
         </div>
@@ -131,14 +145,16 @@ export default function Home() {
     if (authState.error) {
       return (
         <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center text-red-500">Error: {authState.error}</div>
+          <div className="text-center text-red-500">
+            Error: {authState.error}
+          </div>
         </div>
       );
     }
 
     // If after all loading, authenticated but no studentInfo, show redirecting message
     // The useEffect above will handle the actual redirection.
-    if (!studentInfo) { 
+    if (!studentInfo) {
       return (
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center text-muted-foreground">
@@ -170,10 +186,15 @@ export default function Home() {
             curriculum={curriculumState.curriculum}
           />
           <div className="mt-8">
-            <Timetable studentInfo={studentInfo} scheduleState={scheduleState} />
+            <Timetable
+              studentInfo={studentInfo}
+              scheduleState={scheduleState}
+            />
           </div>
           {(selectedCourse || selectedStudentCourse) && (
-            <StudentCourseDetailsPanel setDependencyState={setDependencyState} />
+            <StudentCourseDetailsPanel
+              setDependencyState={setDependencyState}
+            />
           )}
           {dependencyState.dependencyCourse && (
             <DependencyTree
@@ -191,7 +212,9 @@ export default function Home() {
     if (authState.error) {
       return (
         <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center text-red-500">Authentication Error: {authState.error}</div>
+          <div className="text-center text-red-500">
+            Authentication Error: {authState.error}
+          </div>
         </div>
       );
     }
