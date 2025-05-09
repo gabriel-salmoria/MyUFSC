@@ -207,24 +207,5 @@ export default function Home() {
         </div>
       </main>
     );
-  } else {
-    // Not authenticated, and auth check is complete.
-    if (authState.error) {
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center text-red-500">
-            Authentication Error: {authState.error}
-          </div>
-        </div>
-      );
-    }
-    // useCheckAuth should handle the actual redirect. This is a fallback UI message.
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center text-muted-foreground">
-          Redirecting to login...
-        </div>
-      </div>
-    );
   }
 }

@@ -120,14 +120,24 @@ export default function GridVisualizer({
   }, [curriculumElectiveCourses, columns, boxWidth]);
 
   // Calculate the total required height
-  const totalRows = Math.ceil(curriculumElectiveCourses.length / columns);
-  const contentHeight = Math.max(
-    height, // Use the prop height as minimum
-    GRID.PADDING * 2 + totalRows * (COURSE_BOX.HEIGHT + COURSE_BOX.MARGIN * 2), // Corrected calculation
-  );
+  const totalRows =
+    columns > 0 ? Math.ceil(curriculumElectiveCourses.length / columns) : 0;
+
+  const calculatedGridHeight = useMemo(() => {
+    if (totalRows === 0) {
+      return GRID.PADDING * 2; // Only padding if no courses
+    }
+    // Height of all boxes + height of all inter-box margins + top/bottom padding
+    const heightOfBoxes = totalRows * COURSE_BOX.HEIGHT;
+    const heightOfMargins = (totalRows - 1) * COURSE_BOX.MARGIN;
+    return GRID.PADDING * 2 + heightOfBoxes + heightOfMargins;
+  }, [totalRows, columns]); // Added columns to dependencies as totalRows depends on it
 
   return (
-    <div className="flex flex-col w-full h-full">
+    <div
+      className="flex flex-col w-full"
+      style={{ height: `${height}px` }}
+    >
       <div
         className="relative flex-1 overflow-auto bg-background"
         ref={containerRef}
@@ -137,7 +147,7 @@ export default function GridVisualizer({
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px)`,
             transformOrigin: "0 0",
-            height: `${contentHeight}px`,
+            height: `${calculatedGridHeight}px`,
           }}
         >
           {/* Grid of courses */}
