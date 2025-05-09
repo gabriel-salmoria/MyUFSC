@@ -1,6 +1,6 @@
 // MyUFSC/hooks/CheckAuth.ts
 import { useState, useEffect } from "react";
-import { useRouter, NextRouter } from "next/navigation"; // Import NextRouter for type
+import { useRouter } from "next/navigation"; // Import NextRouter for type
 
 export interface AuthState {
   error: string;

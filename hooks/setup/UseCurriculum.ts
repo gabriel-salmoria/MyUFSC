@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import type { StudentInfo } from "@/types/student-plan";
 import type { DegreeProgram } from "@/types/degree-program";
 import type { Curriculum } from "@/types/curriculum";
-import { fetchCurriculum } from "@/lib/api";
 
 export interface CurriculumHookState {
   curriculum: Curriculum | null;
@@ -23,6 +22,23 @@ interface UseCurriculumProps {
   isProfileLoading: boolean; // To ensure studentInfo is potentially ready
 }
 
+async function fetchCurriculum(programId: string): Promise<Curriculum | null> {
+  try {
+    const response = await fetch(`/api/curriculum/${programId}`);
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching curriculum on client side:", error);
+    return null;
+  }
+}
+
 export function useCurriculum({
   isAuthenticated,
   authCheckCompleted,
@@ -41,7 +57,12 @@ export function useCurriculum({
       // If auth isn't done, not authenticated, or profile is still loading, wait.
       // If these conditions are met but studentInfo is null (e.g. profile load failed/redirected),
       // then set loading to false.
-      if (authCheckCompleted && isAuthenticated && !isProfileLoading && !studentInfo) {
+      if (
+        authCheckCompleted &&
+        isAuthenticated &&
+        !isProfileLoading &&
+        !studentInfo
+      ) {
         setIsCurriculumLoading(false);
       } else if (!authCheckCompleted || !isAuthenticated || isProfileLoading) {
         // Still waiting for prerequisites, keep loading true or let it be set by default
@@ -72,11 +93,15 @@ export function useCurriculum({
 
         // Load curriculum for current degree
         if (studentInfo.currentDegree) {
-          const curriculumData = await fetchCurriculum(studentInfo.currentDegree);
+          const curriculumData = await fetchCurriculum(
+            studentInfo.currentDegree,
+          );
           if (active && curriculumData) {
             const processedCurriculum: Curriculum = {
               ...curriculumData,
-              courses: Array.isArray(curriculumData.courses) ? curriculumData.courses : [],
+              courses: Array.isArray(curriculumData.courses)
+                ? curriculumData.courses
+                : [],
             };
             setCurriculumState((prev) => ({
               ...prev,

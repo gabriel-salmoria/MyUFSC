@@ -46,18 +46,31 @@ export function useSchedule({
       !authCheckCompleted ||
       !isAuthenticated ||
       isProfileLoading ||
-      isCurriculumLoading 
+      isCurriculumLoading
     ) {
-        // If any prerequisite is not met, wait.
-        // If all prior loading is done, but no studentInfo or currentDegree, then scheduleLoading should be false.
-        if (authCheckCompleted && isAuthenticated && !isProfileLoading && !isCurriculumLoading && studentInfo && !studentInfo.currentDegree) {
-            setIsScheduleLoading(false); // No degree to load for
-        } else if (authCheckCompleted && isAuthenticated && !isProfileLoading && !isCurriculumLoading && !studentInfo){
-            setIsScheduleLoading(false); // No student info
-        }
+      // If any prerequisite is not met, wait.
+      // If all prior loading is done, but no studentInfo or currentDegree, then scheduleLoading should be false.
+      if (
+        authCheckCompleted &&
+        isAuthenticated &&
+        !isProfileLoading &&
+        !isCurriculumLoading &&
+        studentInfo &&
+        !studentInfo.currentDegree
+      ) {
+        setIsScheduleLoading(false); // No degree to load for
+      } else if (
+        authCheckCompleted &&
+        isAuthenticated &&
+        !isProfileLoading &&
+        !isCurriculumLoading &&
+        !studentInfo
+      ) {
+        setIsScheduleLoading(false); // No student info
+      }
       return;
     }
-    
+
     // Ensure studentInfo and currentDegree are present
     if (!studentInfo || !studentInfo.currentDegree) {
       setIsScheduleLoading(false);
@@ -66,7 +79,7 @@ export function useSchedule({
 
     // Skip if schedule is already loaded
     if (scheduleState.scheduleData !== null) {
-      if(isScheduleLoading) setIsScheduleLoading(false); // Ensure loading is false if data already exists
+      if (isScheduleLoading) setIsScheduleLoading(false); // Ensure loading is false if data already exists
       return;
     }
 
@@ -75,7 +88,9 @@ export function useSchedule({
       setIsScheduleLoading(true);
       setScheduleState((prev) => ({ ...prev, isLoading: true }));
       try {
-        const fetchedScheduleData = await fetchClassSchedule(studentInfo.currentDegree);
+        const fetchedScheduleData = await fetchClassSchedule(
+          studentInfo.currentDegree,
+        );
         if (active) {
           if (!fetchedScheduleData) {
             setScheduleState((prev) => ({ ...prev, scheduleData: null }));
@@ -84,7 +99,10 @@ export function useSchedule({
               error: "Failed to load class schedules. Please try again later.",
             }));
           } else {
-            setScheduleState((prev) => ({ ...prev, scheduleData: fetchedScheduleData }));
+            setScheduleState((prev) => ({
+              ...prev,
+              scheduleData: fetchedScheduleData,
+            }));
           }
         }
       } catch (error) {

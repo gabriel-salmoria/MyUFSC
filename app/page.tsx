@@ -1,6 +1,5 @@
 "use client";
 
-import { CourseStatus } from "@/types/student-plan";
 import type { Course } from "@/types/curriculum";
 import { useState } from "react";
 
@@ -15,29 +14,38 @@ import Timetable from "@/components/schedule/timetable";
 import TrashDropZone from "@/components/visualizers/trash-drop-zone";
 
 // Import the custom hooks
-import { useAppSetup } from "@/hooks/useAppSetup";
-import { useCurriculum } from "@/hooks/UseCurriculum";
-import { useSchedule } from "@/hooks/UseSchedule";
-import { StudentStore } from "@/lib/student-store";
+import { useCheckAuth } from "@/hooks/setup/CheckAuth";
+import { useStudentStore } from "@/lib/student-store";
+import { useStudentProfile } from "@/hooks/setup/useStudentProfile";
+import { useCurriculum } from "@/hooks/setup/UseCurriculum";
+import { useSchedule } from "@/hooks/setup/UseSchedule";
 
 export default function Home() {
-  // Use our app setup hook for auth, student info, and profile loading
+  // Authentication Hook
+  const { authState, setAuthState, isAuthenticated, authCheckCompleted } =
+    useCheckAuth();
+
+  // Student Store Hook
+  const studentStore = useStudentStore();
   const {
-    studentStore,
-    studentInfo,
-    setStudentInfo, // Kept in case page needs to modify it, though less likely now
-    isProfileLoading,
-    authState,
-    setAuthState,
+    studentInfo: storeStudentInfo, // Get studentInfo from the store to pass to useStudentProfile
+    selectedCourse,
+    selectedStudentCourse,
+    selectCourse,
+  } = studentStore;
+
+  // Student Profile Hook
+  const { studentInfo, isProfileLoading } = useStudentProfile({
     isAuthenticated,
     authCheckCompleted,
-  } = useAppSetup();
+    storeStudentInfo, // Pass studentInfo from the store
+  });
 
   // Curriculum Hook
   const { curriculumState, isCurriculumLoading } = useCurriculum({
     isAuthenticated,
     authCheckCompleted,
-    studentInfo,
+    studentInfo, // Pass studentInfo from useStudentProfile
     isProfileLoading,
   });
 
@@ -45,13 +53,13 @@ export default function Home() {
   const { scheduleState, isScheduleLoading } = useSchedule({
     isAuthenticated,
     authCheckCompleted,
-    studentInfo,
+    studentInfo, // Pass studentInfo from useStudentProfile
     isProfileLoading,
-    isCurriculumLoading, // Schedule might wait for curriculum
-    setAuthState, // For reporting schedule-specific errors to auth state
+    isCurriculumLoading,
+    setAuthState, // For reporting schedule-specific errors
   });
 
-  // Dependency tree state (moved to top level)
+  // Dependency tree state
   const [dependencyState, setDependencyState] = useState<{
     showDependencyTree: boolean;
     dependencyCourse: Course | null;
@@ -59,9 +67,6 @@ export default function Home() {
     showDependencyTree: false,
     dependencyCourse: null,
   });
-
-  // Destructure selection state from the store for easier access
-  const { selectedCourse, selectedStudentCourse, selectCourse } = studentStore;
 
   // Combined loading condition
   const isLoading =
@@ -111,21 +116,9 @@ export default function Home() {
     );
   }
 
-  // If authenticated but studentInfo is null after loading, it implies a problem (e.g., redirected by a hook)
-  if (!studentInfo && isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center text-muted-foreground">
-          Student information could not be loaded. You might be redirected
-          shortly.
-        </div>
-      </div>
-    );
-  }
-
-  // If not authenticated and all checks are done, user should have been redirected.
-  // This is a fallback or if redirection hasn't completed yet.
   if (!isAuthenticated && authCheckCompleted) {
+    // User is not authenticated and auth check is complete, useCheckAuth should have redirected.
+    // This state implies redirection is in progress or a final safety net.
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center text-muted-foreground">
@@ -135,8 +128,21 @@ export default function Home() {
     );
   }
 
-  // At this point, if we don't have studentInfo, and not loading, something is wrong or user is unauthed.
-  // The above checks should handle most cases. This is a final guard.
+  if (isAuthenticated && !studentInfo && !isProfileLoading) {
+    // Authenticated, profile has been processed (not loading), but no studentInfo.
+    // This suggests an issue like student data missing from store, useStudentProfile might have redirected.
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center text-muted-foreground">
+          Student information could not be loaded. You may be redirected
+          shortly.
+        </div>
+      </div>
+    );
+  }
+
+  // Final guard: if still no studentInfo after all checks and not loading, render nothing.
+  // This case should ideally be covered by the above conditions.
   if (!studentInfo) {
     return null;
   }
@@ -151,7 +157,6 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
-        {/* Header Section */}
         <Header
           studentInfo={studentInfo}
           currentCurriculum={curriculumState.currentCurriculum}
@@ -159,28 +164,24 @@ export default function Home() {
           getDegreeName={getDegreeName}
         />
 
-        {/* Visualizations Section */}
         <Visualizations
           studentInfo={studentInfo}
           curriculum={curriculumState.curriculum}
         />
 
-        {/* Schedule Section */}
         <div className="mt-8">
           <Timetable studentInfo={studentInfo} scheduleState={scheduleState} />
         </div>
 
         {(selectedCourse || selectedStudentCourse) && (
-          <StudentCourseDetailsPanel
-            setDependencyState={setDependencyState} // Pass setDependencyState prop
-          />
+          <StudentCourseDetailsPanel setDependencyState={setDependencyState} />
         )}
 
         {dependencyState.dependencyCourse && (
           <DependencyTree
             course={dependencyState.dependencyCourse}
             isVisible={dependencyState.showDependencyTree}
-            setDependencyState={setDependencyState} // Pass setDependencyState prop
+            setDependencyState={setDependencyState}
           />
         )}
 

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { LogOut, Save } from "lucide-react";
 import { StudentInfo } from "@/types/student-plan";
 import { DegreeProgram } from "@/types/degree-program";
-import useEncryptedData from "@/hooks/useEncryptedData";
+import useEncryptedData from "@/hooks/setup/LoadUser";
 import { Curriculum } from "@/types/curriculum";
 
 interface HeaderProps {

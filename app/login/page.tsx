@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import useEncryptedData from "@/hooks/useEncryptedData";
+import useEncryptedData from "@/hooks/setup/LoadUser";
 import { useStudentStore } from "@/lib/student-store";
 import { StudentInfo } from "@/types/student-plan";
 
