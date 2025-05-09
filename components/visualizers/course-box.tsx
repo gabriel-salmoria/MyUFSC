@@ -29,7 +29,7 @@ interface CourseBoxProps {
   studentCourse: StudentCourse;
   isEmpty?: boolean;
   isDraggable?: boolean;
-  onDragStart?: (course: Course) => void;
+  onDragStart?: (course: StudentCourse) => void; // Corrected type
   isFromCurriculum?: boolean; // Added
 }
 
@@ -53,27 +53,20 @@ export default function CourseBox({
       return isEmpty ? STATUS_CLASSES.EMPTY : STATUS_CLASSES.EMPTY_ALT;
     }
 
-    if (
-      isFromCurriculum &&
-      studentCourse.status != CourseStatus.COMPLETED &&
-      studentCourse.status != CourseStatus.FAILED
-    ) {
+    if (isFromCurriculum && studentCourse.status != CourseStatus.COMPLETED) {
       return STATUS_CLASSES.DEFAULT;
     }
 
-    switch (studentCourse.status) {
-      case CourseStatus.COMPLETED:
-        return STATUS_CLASSES.COMPLETED;
-      case CourseStatus.IN_PROGRESS:
-        return STATUS_CLASSES.IN_PROGRESS;
-      case CourseStatus.FAILED:
-        return STATUS_CLASSES.FAILED;
-      case CourseStatus.PLANNED:
-        return STATUS_CLASSES.PLANNED;
-      case CourseStatus.EXEMPTED:
-        return STATUS_CLASSES.EXEMPTED;
-      default:
-        return STATUS_CLASSES.DEFAULT;
+    if (studentCourse.status === CourseStatus.COMPLETED) {
+      return STATUS_CLASSES.COMPLETED;
+    } else if (studentCourse.status === CourseStatus.IN_PROGRESS) {
+      return STATUS_CLASSES.IN_PROGRESS;
+    } else if (studentCourse.status === CourseStatus.FAILED) {
+      return STATUS_CLASSES.FAILED;
+    } else if (studentCourse.status === CourseStatus.PLANNED) {
+      return STATUS_CLASSES.PLANNED;
+    } else {
+      return STATUS_CLASSES.DEFAULT;
     }
   };
 
@@ -109,13 +102,6 @@ export default function CourseBox({
           <Clock
             className="w-3 h-3"
             style={{ color: STATUS_COLORS.PLANNED.icon }}
-          />
-        );
-      case CourseStatus.EXEMPTED:
-        return (
-          <Check
-            className="w-3 h-3"
-            style={{ color: STATUS_COLORS.EXEMPTED.icon }}
           />
         );
       default:

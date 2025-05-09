@@ -10,6 +10,7 @@ export enum CourseStatus {
   FAILED = "failed", // Failed and needs to retake
   EXEMPTED = "exempted", // Exempted/credited from another institution
   PLANNED = "planned", // Planned for a future semester
+  DEFAULT = "default",
 }
 
 /**

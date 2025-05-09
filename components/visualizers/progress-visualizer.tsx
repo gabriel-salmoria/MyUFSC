@@ -118,7 +118,6 @@ export default function ProgressVisualizer({
                 semesterNumber={semester.number}
                 studentCourses={semester.courses}
                 width={phaseWidth}
-                studentStore={studentStore}
                 isFromCurriculum={false} // Mark as not from curriculum (it's student progress)
               />
             ))}

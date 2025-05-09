@@ -42,7 +42,7 @@ type ProfessorData = {
 export default function CourseStats({
   courses,
   timetableData,
-  selectedPhase, // ADDED
+  selectedPhase,
   onProfessorSelect,
   coursesInTimetable = [],
   courseColors,
@@ -70,6 +70,9 @@ export default function CourseStats({
       setIsSearchOpen(true);
     }
   };
+
+  const [locallySelectedCourse, setLocallySelectedCourse] =
+    useState<StudentCourse | null>(null);
 
   const handleSelectSearchedCourse = (
     course: StudentCourse | Course,

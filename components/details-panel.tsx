@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { X, Check, Clock, AlertTriangle, GitGraph, Save } from "lucide-react";
 import { getCourseInfo } from "@/parsers/curriculum-parser";
 import { useStudentStore } from "@/lib/student-store"; // Changed from StudentStore to useStudentStore
+import { STATUS_CLASSES } from "@/styles/course-theme";
 
 interface StudentCourseDetailsPanelProps {
   setDependencyState: React.Dispatch<
@@ -55,7 +56,8 @@ export default function StudentCourseDetailsPanel({
 
     // Simplified logic: Editing is allowed only if status is COMPLETED and grade is undefined
     setIsEditingGrade(
-      studentCourse?.status === CourseStatus.COMPLETED &&
+      (studentCourse?.status === CourseStatus.COMPLETED ||
+        studentCourse?.status === CourseStatus.DEFAULT) &&
         studentCourse?.grade === undefined,
     );
     setGradeError("");
@@ -88,7 +90,10 @@ export default function StudentCourseDetailsPanel({
   // Handle viewing dependencies
   const handleViewDependenciesClick = () => {
     if (course) {
-      setDependencyState({ showDependencyTree: true, dependencyCourse: course });
+      setDependencyState({
+        showDependencyTree: true,
+        dependencyCourse: course,
+      });
       studentStore.clearSelection(); // Clear main selection when viewing dependencies
     }
   };
@@ -160,7 +165,8 @@ export default function StudentCourseDetailsPanel({
                 >
                   {studentCourse.grade.toFixed(1)}
                 </p>
-                {studentCourse.status === CourseStatus.COMPLETED && (
+                {(studentCourse.status === CourseStatus.COMPLETED ||
+                  studentCourse.status === CourseStatus.FAILED) && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -169,11 +175,6 @@ export default function StudentCourseDetailsPanel({
                   >
                     Edit
                   </Button>
-                )}
-                {studentCourse.status === CourseStatus.FAILED && (
-                  <span className="text-xs text-red-500 dark:text-red-400">
-                    Failed
-                  </span>
                 )}
               </div>
             </div>
@@ -310,17 +311,16 @@ export default function StudentCourseDetailsPanel({
         </div>
 
         <div className="mt-6 space-y-2">
-          {course?.prerequisites &&
-            course.prerequisites.length > 0 && (
-              <Button
-                variant="secondary"
-                className="w-full flex items-center justify-center gap-2"
-                onClick={handleViewDependenciesClick} // Use the new internal handler
-              >
-                <GitGraph className="h-4 w-4" />
-                View Dependency Tree
-              </Button>
-            )}
+          {course?.prerequisites && course.prerequisites.length > 0 && (
+            <Button
+              variant="secondary"
+              className="w-full flex items-center justify-center gap-2"
+              onClick={handleViewDependenciesClick} // Use the new internal handler
+            >
+              <GitGraph className="h-4 w-4" />
+              View Dependency Tree
+            </Button>
+          )}
 
           <Button
             className="w-full"
@@ -357,7 +357,6 @@ export default function StudentCourseDetailsPanel({
                 setIsEditingGrade(!isEditingGrade);
               } else {
                 // If changing status to COMPLETED, or if grade is undefined, enable editing
-                changeCourseStatus(studentCourse!, CourseStatus.COMPLETED); // Change status first
                 setIsEditingGrade(true);
                 // Set input value based on potential existing grade
                 setGradeInput(

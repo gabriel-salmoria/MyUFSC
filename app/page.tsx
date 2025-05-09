@@ -88,11 +88,6 @@ export default function Home() {
         <Visualizations
           studentInfo={studentInfo}
           curriculum={curriculumState.curriculum}
-          electiveCourses={
-            curriculumState.curriculum?.courses.filter(
-              (course) => course.type !== "mandatory",
-            ) || []
-          }
           viewMode={viewMode}
           setViewMode={setViewMode}
         />

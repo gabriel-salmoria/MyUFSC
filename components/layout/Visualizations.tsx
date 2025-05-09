@@ -10,7 +10,6 @@ import ProgressVisualizer from "@/components/visualizers/progress-visualizer";
 import GridVisualizer from "@/components/visualizers/grid-visualizer";
 import { useStudentStore } from "@/lib/student-store";
 
-
 export enum ViewMode {
   CURRICULUM = "curriculum",
   ELECTIVES = "electives",
@@ -19,8 +18,7 @@ export enum ViewMode {
 interface VisualizationsProps {
   studentInfo: StudentInfo;
   curriculum: Curriculum | null;
-  electiveCourses: Course[];
-  
+
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
 }
@@ -28,8 +26,7 @@ interface VisualizationsProps {
 export default function Visualizations({
   studentInfo,
   curriculum,
-  electiveCourses,
-  
+
   viewMode,
   setViewMode,
 }: VisualizationsProps) {
@@ -46,7 +43,6 @@ export default function Visualizations({
   // Calculate container height for visualizers
   const containerHeight = 500; // Using fixed height for simplicity
 
-  
   return (
     <div className="flex-1 space-y-6">
       <div>
@@ -87,7 +83,8 @@ export default function Visualizations({
             )
           ) : (
             <GridVisualizer
-              courses={electiveCourses}
+              studentInfo={studentInfo}
+              curriculum={curriculum}
               height={containerHeight}
             />
           )}
@@ -104,7 +101,6 @@ export default function Visualizations({
         >
           <ProgressVisualizer
             studentPlan={studentInfo.plans[studentInfo.currentPlan]!}
-            studentStore={studentStore}
             height={containerHeight - 50}
             key={`progress-${studentInfo.currentPlan || "default"}`}
           />
