@@ -17,8 +17,7 @@ export interface UseScheduleResult {
 }
 
 interface UseScheduleProps {
-  isAuthenticated: boolean;
-  authCheckCompleted: boolean;
+  // isAuthenticated and authCheckCompleted removed
   studentInfo: StudentInfo | null;
   isProfileLoading: boolean;
   isCurriculumLoading: boolean; // To wait for curriculum data if necessary
@@ -26,8 +25,6 @@ interface UseScheduleProps {
 }
 
 export function useSchedule({
-  isAuthenticated,
-  authCheckCompleted,
   studentInfo,
   isProfileLoading,
   isCurriculumLoading,
@@ -42,44 +39,29 @@ export function useSchedule({
   const [isScheduleLoading, setIsScheduleLoading] = useState(true);
 
   useEffect(() => {
-    if (
-      !authCheckCompleted ||
-      !isAuthenticated ||
-      isProfileLoading ||
-      isCurriculumLoading
-    ) {
-      // If any prerequisite is not met, wait.
-      // If all prior loading is done, but no studentInfo or currentDegree, then scheduleLoading should be false.
-      if (
-        authCheckCompleted &&
-        isAuthenticated &&
-        !isProfileLoading &&
-        !isCurriculumLoading &&
-        studentInfo &&
-        !studentInfo.currentDegree
-      ) {
-        setIsScheduleLoading(false); // No degree to load for
-      } else if (
-        authCheckCompleted &&
-        isAuthenticated &&
-        !isProfileLoading &&
-        !isCurriculumLoading &&
-        !studentInfo
-      ) {
-        setIsScheduleLoading(false); // No student info
-      }
+    // Only proceed if profile and curriculum are done loading, and studentInfo is available with a currentDegree.
+    if (isProfileLoading || isCurriculumLoading) {
+      setIsScheduleLoading(true); // If prerequisites are loading, schedule is also pending
       return;
     }
 
-    // Ensure studentInfo and currentDegree are present
     if (!studentInfo || !studentInfo.currentDegree) {
+      // If no studentInfo or no currentDegree (e.g., not authenticated, profile/curriculum fetch failed, or no degree set),
+      // set loading to false and clear any existing schedule data.
       setIsScheduleLoading(false);
+      setScheduleState((prev) => ({
+        ...prev,
+        scheduleData: null, // Clear schedule data
+      }));
       return;
     }
 
-    // Skip if schedule is already loaded
+    // Skip if schedule is already loaded for the current studentInfo.currentDegree
+    // This check might need refinement if studentInfo.currentDegree can change and require a reload.
     if (scheduleState.scheduleData !== null) {
-      if (isScheduleLoading) setIsScheduleLoading(false); // Ensure loading is false if data already exists
+      // Consider adding a dependency on studentInfo.currentDegree if re-fetch is needed when it changes
+      // For now, assume initial load: if data exists, stop loading.
+      setIsScheduleLoading(false);
       return;
     }
 
@@ -88,9 +70,7 @@ export function useSchedule({
       setIsScheduleLoading(true);
       setScheduleState((prev) => ({ ...prev, isLoading: true }));
       try {
-        const fetchedScheduleData = await fetchClassSchedule(
-          studentInfo.currentDegree,
-        );
+        const fetchedScheduleData = await fetchClassSchedule(studentInfo.currentDegree);
         if (active) {
           if (!fetchedScheduleData) {
             setScheduleState((prev) => ({ ...prev, scheduleData: null }));
@@ -99,10 +79,7 @@ export function useSchedule({
               error: "Failed to load class schedules. Please try again later.",
             }));
           } else {
-            setScheduleState((prev) => ({
-              ...prev,
-              scheduleData: fetchedScheduleData,
-            }));
+            setScheduleState((prev) => ({ ...prev, scheduleData: fetchedScheduleData }));
           }
         }
       } catch (error) {
@@ -126,13 +103,11 @@ export function useSchedule({
       active = false;
     };
   }, [
-    authCheckCompleted,
-    isAuthenticated,
-    studentInfo,
-    isProfileLoading,
-    isCurriculumLoading,
-    scheduleState.scheduleData, // Re-run if this changes externally, though unlikely for initial load
-    setAuthState,
+    studentInfo, // Effect now primarily depends on studentInfo (and its currentDegree)
+    isProfileLoading, 
+    isCurriculumLoading, 
+    setAuthState 
+    // scheduleState.scheduleData removed from deps to prevent loop if set to null then re-fetched, relying on outer conditions.
   ]);
 
   return { scheduleState, setScheduleState, isScheduleLoading };

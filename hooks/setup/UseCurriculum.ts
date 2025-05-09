@@ -16,32 +16,41 @@ export interface UseCurriculumResult {
 }
 
 interface UseCurriculumProps {
-  isAuthenticated: boolean;
-  authCheckCompleted: boolean;
+  // isAuthenticated and authCheckCompleted removed
   studentInfo: StudentInfo | null;
   isProfileLoading: boolean; // To ensure studentInfo is potentially ready
 }
 
-async function fetchCurriculum(programId: string): Promise<Curriculum | null> {
+async function fetchDegreePrograms(): Promise<DegreeProgram[]> {
+  try {
+    const response = await fetch(`/api/degree-programs`);
+    if (!response.ok) {
+      console.error("Failed to fetch degree programs", response.status);
+      return [];
+    }
+    const data = await response.json();
+    return data.programs || [];
+  } catch (error) {
+    console.error("Error fetching degree programs:", error);
+    return [];
+  }
+}
+
+async function fetchCurriculumData(programId: string): Promise<Curriculum | null> {
   try {
     const response = await fetch(`/api/curriculum/${programId}`);
-
     if (!response.ok) {
+      console.error("Failed to fetch curriculum", response.status);
       return null;
     }
-
-    const data = await response.json();
-
-    return data;
+    return await response.json();
   } catch (error) {
-    console.error("Error fetching curriculum on client side:", error);
+    console.error("Error fetching curriculum:", error);
     return null;
   }
 }
 
 export function useCurriculum({
-  isAuthenticated,
-  authCheckCompleted,
   studentInfo,
   isProfileLoading,
 }: UseCurriculumProps): UseCurriculumResult {
@@ -53,27 +62,23 @@ export function useCurriculum({
   const [isCurriculumLoading, setIsCurriculumLoading] = useState(true);
 
   useEffect(() => {
-    if (!authCheckCompleted || !isAuthenticated || isProfileLoading) {
-      // If auth isn't done, not authenticated, or profile is still loading, wait.
-      // If these conditions are met but studentInfo is null (e.g. profile load failed/redirected),
-      // then set loading to false.
-      if (
-        authCheckCompleted &&
-        isAuthenticated &&
-        !isProfileLoading &&
-        !studentInfo
-      ) {
-        setIsCurriculumLoading(false);
-      } else if (!authCheckCompleted || !isAuthenticated || isProfileLoading) {
-        // Still waiting for prerequisites, keep loading true or let it be set by default
-        // setIsCurriculumLoading(true); // Not strictly needed as it defaults to true
-      }
+    // Only proceed if profile is not loading and studentInfo is available.
+    // The decision to call this hook at all (or pass valid studentInfo)
+    // will be managed by the page component based on authentication.
+    if (isProfileLoading) {
+      setIsCurriculumLoading(true); // If profile is loading, curriculum is also pending
       return;
     }
 
-    // studentInfo should be valid here if isProfileLoading is false
     if (!studentInfo) {
-      setIsCurriculumLoading(false); // No student info, nothing to load
+      // If no studentInfo (e.g., not authenticated or profile fetch failed),
+      // set loading to false and clear any existing curriculum data.
+      setIsCurriculumLoading(false);
+      setCurriculumState({
+        curriculum: null,
+        currentCurriculum: null,
+        degreePrograms: [],
+      });
       return;
     }
 
@@ -81,27 +86,20 @@ export function useCurriculum({
     const loadDegreeAndCurriculumData = async () => {
       setIsCurriculumLoading(true);
       try {
-        // Load degree programs
-        const programsResponse = await fetch("/api/degree-programs");
-        const programsData = await programsResponse.json();
+        const programs = await fetchDegreePrograms();
         if (active) {
           setCurriculumState((prev) => ({
             ...prev,
-            degreePrograms: programsData.programs || [],
+            degreePrograms: programs,
           }));
         }
 
-        // Load curriculum for current degree
-        if (studentInfo.currentDegree) {
-          const curriculumData = await fetchCurriculum(
-            studentInfo.currentDegree,
-          );
-          if (active && curriculumData) {
+        if (active && studentInfo.currentDegree) {
+          const curriculum = await fetchCurriculumData(studentInfo.currentDegree);
+          if (active && curriculum) {
             const processedCurriculum: Curriculum = {
-              ...curriculumData,
-              courses: Array.isArray(curriculumData.courses)
-                ? curriculumData.courses
-                : [],
+              ...curriculum,
+              courses: Array.isArray(curriculum.courses) ? curriculum.courses : [],
             };
             setCurriculumState((prev) => ({
               ...prev,
@@ -109,10 +107,16 @@ export function useCurriculum({
               curriculum: processedCurriculum,
             }));
           }
+        } else if (active) {
+          // No current degree, or no curriculum found, clear relevant fields
+           setCurriculumState((prev) => ({
+            ...prev,
+            currentCurriculum: null,
+            curriculum: null,
+          }));
         }
       } catch (err) {
         console.error("Failed to load degree programs or curriculum:", err);
-        // Potentially set an error state within this hook or bubble up
       } finally {
         if (active) {
           setIsCurriculumLoading(false);
@@ -124,7 +128,7 @@ export function useCurriculum({
     return () => {
       active = false;
     };
-  }, [authCheckCompleted, isAuthenticated, studentInfo, isProfileLoading]);
+  }, [studentInfo, isProfileLoading]); // Dependencies are now studentInfo and isProfileLoading
 
   return { curriculumState, setCurriculumState, isCurriculumLoading };
 }

@@ -9,39 +9,34 @@ export interface UseStudentProfileResult {
 }
 
 interface UseStudentProfileProps {
-  isAuthenticated: boolean;
-  authCheckCompleted: boolean;
   storeStudentInfo: StudentInfo | null; // From useStudentStore().studentInfo
+  // isAuthenticated and authCheckCompleted removed
 }
 
 export function useStudentProfile({
-  isAuthenticated,
-  authCheckCompleted,
   storeStudentInfo,
 }: UseStudentProfileProps): UseStudentProfileResult {
-  const router = useRouter();
+  const router = useRouter(); // Keep router for potential future use if profile itself needs to redirect
   const [studentInfo, setStudentInfo] = useState<StudentInfo | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
 
   useEffect(() => {
-    if (authCheckCompleted) {
-      if (isAuthenticated && storeStudentInfo) {
-        setStudentInfo(storeStudentInfo);
-        setIsProfileLoading(false);
-      } else if (isAuthenticated && !storeStudentInfo) {
-        // Authenticated, but no student info in store. This is an issue.
-        router.push("/login"); // Redirect
-        setIsProfileLoading(false); // Stop loading as we're redirecting
-      } else if (!isAuthenticated) {
-        // Not authenticated. useCheckAuth handles redirection if needed.
-        // Mark profile as not loading since there's no profile to load.
-        setIsProfileLoading(false);
-      }
+    // The decision to process storeStudentInfo is now implicitly based on whether it's provided.
+    // The page component will control when this hook effectively runs by passing storeStudentInfo
+    // only after authentication is confirmed.
+    
+    setIsProfileLoading(true); // Start loading when storeStudentInfo changes or on initial run
+    if (storeStudentInfo) {
+      setStudentInfo(storeStudentInfo);
+      setIsProfileLoading(false);
     } else {
-      // Auth check not yet completed, so profile is effectively still loading.
-      setIsProfileLoading(true);
+      // If storeStudentInfo is null, it might mean it's not loaded yet from the store,
+      // or the user genuinely has no profile data there.
+      // The page will handle redirection if an authenticated user has no profile.
+      setStudentInfo(null); // Ensure local state is null if store is null
+      setIsProfileLoading(false); // Stop loading, data is "as loaded as it can be" from this hook's perspective
     }
-  }, [authCheckCompleted, isAuthenticated, storeStudentInfo, router]);
+  }, [storeStudentInfo, router]); // router is kept if any internal navigation becomes necessary
 
   return { studentInfo, setStudentInfo, isProfileLoading };
 }
