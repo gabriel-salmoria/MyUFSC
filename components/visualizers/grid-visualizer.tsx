@@ -54,27 +54,6 @@ export default function GridVisualizer({
           electiveCourses.push(course);
         }
       });
-    } else if (
-      studentInfo &&
-      studentInfo.currentPlan != null &&
-      studentInfo.plans
-    ) {
-      // Fallback: If no curriculum is provided, get electives from the student's plan
-      // This might be redundant if Step 1 already processed them, but ensures electives
-      // from the plan are included if curriculum is missing.
-      const currentPlan = studentInfo.plans[studentInfo.currentPlan];
-      if (currentPlan && currentPlan.semesters) {
-        currentPlan.semesters
-          .flatMap((semester) => semester.courses)
-          .forEach((sc) => {
-            if (
-              sc.course.type === "optional" &&
-              !electiveCourses.some((c) => c.id === sc.course.id)
-            ) {
-              electiveCourses.push(sc.course);
-            }
-          });
-      }
     }
 
     // Return both results
@@ -174,31 +153,17 @@ export default function GridVisualizer({
               electiveCourse.id,
             );
 
-            // Construct the StudentCourse object for CourseBox
-            // We create a default StudentCourse object if it's not in the plan,
-            // so CourseBox always receives a StudentCourse.
-            const studentCourseForBox: StudentCourse = studentCourseFromPlan
-              ? studentCourseFromPlan // If in plan, use its data (status, grade, etc.)
-              : {
-                  // Otherwise, create a default representation for an un-planned elective
-                  course: electiveCourse, // Use the Course object from the elective list
-                  id: electiveCourse.id,
-                  name: electiveCourse.name,
-                  credits: electiveCourse.credits,
-                  phase: electiveCourse.phase || "", // Provide a default if phase is undefined
-                  type: electiveCourse.type,
-                  status: CourseStatus.PLANNED, // Default for electives not yet in plan
-                  // You might need to add default values for other StudentCourse fields
-                  // that are not present in the Course type, depending on its structure.
-                  // e.g., grade: undefined, semester: undefined
-                };
+            const studentCourse: StudentCourse = {
+              course: electiveCourse,
+              status: CourseStatus.PLANNED,
+            };
 
             return (
               <CourseBox
                 key={`${electiveCourse.id}-${position.x}-${position.y}`}
                 position={position}
                 isFromCurriculum={true}
-                studentCourse={studentCourseForBox} // Pass the full StudentCourse object
+                studentCourse={studentCourse} // Pass the full StudentCourse object
                 isEmpty={false} // This box represents a course, not an empty slot
                 isDraggable={true} // Allow dragging these courses
               />

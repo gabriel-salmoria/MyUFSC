@@ -15,6 +15,7 @@ import TrashDropZone from "@/components/visualizers/trash-drop-zone";
 
 // Import the custom useAppSetup hook
 import { useAppSetup } from "@/hooks/useAppSetup";
+import { StudentStore } from "@/lib/student-store";
 
 export default function Home() {
   // Use our app setup hook to handle all the state and data fetching
@@ -36,7 +37,7 @@ export default function Home() {
 
   // Destructure selection state from the store for easier access
   const { selectedCourse, selectedStudentCourse, selectCourse } =
-    studentStore || {};
+    studentStore as StudentStore;
 
   if (loadingState.loading || !loadingState.allDataLoaded || !studentStore) {
     return (

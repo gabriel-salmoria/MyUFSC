@@ -47,7 +47,7 @@ export default function Phase({
       {studentCourses.map((studentCourse: StudentCourse, index) => {
         // Calculate position directly here instead of using external state
         const position = {
-          courseId: studentCourse.id, // Use studentCourse ID
+          courseId: studentCourse.course.id, // Use studentCourse ID
           x: xOffset,
           y: index * COURSE_BOX.SPACING_Y + COURSE_BOX.SPACING_Y,
           width: boxWidth,
@@ -67,16 +67,17 @@ export default function Phase({
       })}
 
       {/* Add ghost boxes for empty slots if it's an actual semester (progress view) */}
-      {!isFromCurriculum && Array.from({ length: 6 - studentCourses.length }).map((_, index) => {
+      {!isFromCurriculum &&
+        Array.from({ length: 6 - studentCourses.length }).map((_, index) => {
           const positionIndex = studentCourses.length + index;
           const position = {
-             courseId: `ghost-${semesterNumber}-${positionIndex}`, // Unique ID for ghost
-             x: xOffset,
-             y: positionIndex * COURSE_BOX.SPACING_Y + COURSE_BOX.SPACING_Y,
-             width: boxWidth,
-             height: COURSE_BOX.HEIGHT,
-             isGhost: true,
-           };
+            courseId: `ghost-${semesterNumber}-${positionIndex}`, // Unique ID for ghost
+            x: xOffset,
+            y: positionIndex * COURSE_BOX.SPACING_Y + COURSE_BOX.SPACING_Y,
+            width: boxWidth,
+            height: COURSE_BOX.HEIGHT,
+            isGhost: true,
+          };
 
           return (
             <GhostCourseBox
@@ -84,7 +85,7 @@ export default function Phase({
               position={position}
               semesterNumber={semesterNumber}
               positionIndex={positionIndex}
-              />
+            />
           );
         })}
     </div>

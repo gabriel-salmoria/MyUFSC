@@ -16,7 +16,7 @@ export enum CourseStatus {
 /**
  * Represents a course in the student's personal plan
  */
-export interface StudentCourse extends Course {
+export interface StudentCourse {
   course: Course;
   status: CourseStatus;
   grade?: number;
