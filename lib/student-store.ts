@@ -31,6 +31,13 @@ export interface StudentStore {
   selectedCourse: Course | null;
   selectedStudentCourse: StudentCourse | null;
 
+  // todo: organize
+  selectedSchedule: Course | null;
+  selectedStudentSchedule: StudentCourse | null;
+
+  selectSchedule: (studentCourse: StudentCourse | null) => void;
+  clearSchedule: () => void;
+
   // Actions
   setStudentInfo: (info: StudentInfo) => void;
   forceUpdate: () => void;
@@ -58,8 +65,12 @@ const CheckStudentInfo = (info: StudentInfo | null): StudentPlan | null => {
 
 export const useStudentStore = create<StudentStore>((set) => ({
   studentInfo: null,
+
   selectedCourse: null,
   selectedStudentCourse: null,
+
+  selectedSchedule: null,
+  selectedStudentSchedule: null,
 
   forceUpdate: () =>
     set(
@@ -72,75 +83,31 @@ export const useStudentStore = create<StudentStore>((set) => ({
     ),
 
   setStudentInfo: (info: StudentInfo) => {
-    console.log(
-      "[StudentStore] setStudentInfo called with (full info):",
-      JSON.parse(JSON.stringify(info)),
-    );
     set(
       produce((state: StudentStore) => {
-        console.log(
-          "[StudentStore] setStudentInfo: Inside produce. Initial state.studentInfo:",
-          JSON.parse(JSON.stringify(state.studentInfo)),
-        );
         state.studentInfo = info;
-        console.log(
-          "[StudentStore] setStudentInfo: state.studentInfo assigned.",
-        );
-
-        console.log(
-          "[StudentStore] setStudentInfo: info.currentPlan index:",
-          info.currentPlan,
-        );
-        console.log(
-          "[StudentStore] setStudentInfo: info.plans object:",
-          JSON.parse(JSON.stringify(info.plans)),
-        );
 
         if (
           info.currentPlan == null ||
           !info.plans ||
           info.currentPlan >= info.plans.length
         ) {
-          console.error(
-            "[StudentStore] setStudentInfo - CRITICAL: currentPlan index is invalid or plans array is missing/empty.",
-          );
           return;
         }
 
         const currentPlanObject = info.plans[info.currentPlan];
-        console.log(
-          "[StudentStore] setStudentInfo: currentPlanObject from info.plans[info.currentPlan]:",
-          JSON.parse(JSON.stringify(currentPlanObject)),
-        );
 
         if (!currentPlanObject || !currentPlanObject.semesters) {
-          console.error(
-            "[StudentStore] setStudentInfo - CRITICAL: Current plan object missing or its semesters property is missing!",
-            "Current Plan Index:",
-            info.currentPlan,
-            "Selected Plan Object:",
-            JSON.parse(JSON.stringify(currentPlanObject)),
-          );
           return;
         }
-        console.log(
-          "[StudentStore] setStudentInfo: Initial plan and semesters seem present for currentPlan.",
-        );
 
         const currentPlanInState =
           state.studentInfo.plans[state.studentInfo.currentPlan];
         if (!currentPlanInState) {
-          console.error(
-            "[StudentStore] setStudentInfo - CRITICAL: currentPlanInState became null/undefined unexpectedly after assignment.",
-          );
           return;
         }
 
         const existingSemesters = currentPlanInState.semesters || [];
-        console.log(
-          "[StudentStore] setStudentInfo: existingSemesters from currentPlanInState:",
-          JSON.parse(JSON.stringify(existingSemesters)),
-        );
         const allSemesters: StudentSemester[] = [];
 
         for (let i = 1; i <= PHASE_DIMENSIONS.TOTAL_SEMESTERS; i++) {
@@ -157,22 +124,11 @@ export const useStudentStore = create<StudentStore>((set) => ({
             allSemesters.push({ number: i, courses: [], totalCredits: 0 });
           }
         }
-        console.log(
-          "[StudentStore] setStudentInfo: Processed allSemesters:",
-          JSON.parse(JSON.stringify(allSemesters)),
-        );
 
         updateView(allSemesters);
-        console.log(
-          "[StudentStore] setStudentInfo: allSemesters after updateView:",
-          JSON.parse(JSON.stringify(allSemesters)),
-        );
         currentPlanInState.semesters = allSemesters;
 
         if (!state.studentInfo.plans || state.studentInfo.plans.length === 0) {
-          console.warn(
-            "[StudentStore] setStudentInfo: state.studentInfo.plans was empty or null. Creating default plan.",
-          );
           state.studentInfo.plans = [
             {
               id: "default_plan_id",
@@ -181,16 +137,9 @@ export const useStudentStore = create<StudentStore>((set) => ({
             },
           ];
           if (state.studentInfo.currentPlan >= state.studentInfo.plans.length) {
-            console.warn(
-              "[StudentStore] setStudentInfo: Resetting currentPlan index to 0 as it was out of bounds after default plan creation.",
-            );
             state.studentInfo.currentPlan = 0;
           }
         }
-        console.log(
-          "[StudentStore] setStudentInfo: Final state.studentInfo before produce finishes:",
-          JSON.parse(JSON.stringify(state.studentInfo)),
-        );
       }),
     );
   },
@@ -205,7 +154,6 @@ export const useStudentStore = create<StudentStore>((set) => ({
           (s) => s.number === semesterNumber,
         );
         if (!targetSemester) {
-          console.warn(`Target semester ${semesterNumber} not found.`);
           return;
         }
 
@@ -262,9 +210,6 @@ export const useStudentStore = create<StudentStore>((set) => ({
               sourceSemester.courses.splice(courseIndex, 0, movedCourse); // Put back
               sourceSemester.totalCredits =
                 (sourceSemester.totalCredits || 0) + (movedCourse.credits || 0); // Add credits back
-              console.error(
-                `Target semester ${targetSemesterNumber} not found for move.`,
-              );
             }
           }
         }
@@ -312,13 +257,8 @@ export const useStudentStore = create<StudentStore>((set) => ({
           if (courseInStore) {
             courseInStore.status = status;
           } else {
-            console.warn(
-              "Course not found in store for status change:",
-              studentCourse,
-            );
           }
         } else {
-          console.warn("Semester not found for status change:", studentCourse);
         }
       }),
     ),
@@ -344,13 +284,8 @@ export const useStudentStore = create<StudentStore>((set) => ({
                 ? CourseStatus.COMPLETED
                 : CourseStatus.FAILED;
           } else {
-            console.warn(
-              "Course not found in store for grade set:",
-              studentCourse,
-            );
           }
         } else {
-          console.warn("Semester not found for grade set:", studentCourse);
         }
       }),
     ),
@@ -368,6 +303,22 @@ export const useStudentStore = create<StudentStore>((set) => ({
       produce((state: StudentStore) => {
         state.selectedCourse = null;
         state.selectedStudentCourse = null;
+      }),
+    ),
+
+  selectSchedule: (studentCourse: StudentCourse | null) =>
+    set(
+      produce((state: StudentStore) => {
+        state.selectedSchedule = studentCourse ? studentCourse.course : null;
+        state.selectedStudentSchedule = studentCourse;
+      }),
+    ),
+
+  clearSchedule: () =>
+    set(
+      produce((state: StudentStore) => {
+        state.selectedSchedule = null;
+        state.selectedStudentSchedule = null;
       }),
     ),
 }));

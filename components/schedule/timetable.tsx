@@ -167,7 +167,7 @@ export default function Timetable({
     professorId: string,
   ) => {
     // Get the professor data - use the parsed data if available
-    const professorsForCourse = timetableData.professors[course.course.id];
+    const professorsForCourse = timetableData.professors[course.id];
     const professorData = professorsForCourse?.find(
       (p) => p.professorId === professorId,
     );
@@ -220,9 +220,9 @@ export default function Timetable({
 
     // Update professor overrides first
     const newProfessorOverrides = [
-      ...professorOverrides.filter((o) => o.courseId !== course.course.id),
+      ...professorOverrides.filter((o) => o.courseId !== course.id),
       {
-        courseId: course.course.id,
+        courseId: course.id,
         professorId,
         schedule: scheduleEntries,
         classNumber: professorData.classNumber,
@@ -363,9 +363,9 @@ export default function Timetable({
   const courseColorMap = useMemo(() => {
     // For any new courses that don't have a color yet, assign them one
     selectedPhaseCourses.forEach((course) => {
-      if (!courseColors.has(course.course.id)) {
+      if (!courseColors.has(course.id)) {
         const colorIndex = courseColors.size % TIMETABLE_COLORS.length;
-        courseColors.set(course.course.id, TIMETABLE_COLORS[colorIndex]);
+        courseColors.set(course.id, TIMETABLE_COLORS[colorIndex]);
       }
     });
     return courseColors;

@@ -31,20 +31,20 @@ export default function ProfessorSelector({
   onRemoveCourse,
   isInTimetable,
 }: ProfessorSelectorProps) {
-  const { selectedStudentCourse } = useStudentStore(); // Get selected course from store
+  const { selectedStudentSchedule } = useStudentStore(); // Get selected course from store
 
   // If no course is selected in the store, don't render anything
-  if (!selectedStudentCourse || !professors.length) return null;
+  if (!selectedStudentSchedule || !professors.length) return null;
 
   return (
     <div className={CSS_CLASSES.STATS_SECTION}>
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-medium">
-          Professors for {selectedStudentCourse.course.id}
+          Professors for {selectedStudentSchedule.id}
         </h3>
         {isInTimetable && onRemoveCourse && (
           <button
-            onClick={() => onRemoveCourse(selectedStudentCourse.course.id)}
+            onClick={() => onRemoveCourse(selectedStudentSchedule.course.id)}
             className="text-sm text-destructive hover:text-destructive/90 font-medium"
           >
             Remove from timetable

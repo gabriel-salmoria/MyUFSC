@@ -55,7 +55,14 @@ export default function CourseStats({
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const studentStore = useStudentStore();
-  const { selectedStudentCourse } = studentStore; // Destructure from store
+
+  const {
+    selectedSchedule,
+    selectedStudentSchedule,
+
+    selectSchedule,
+    clearSchedule,
+  } = studentStore;
 
   // Use provided timetable data or fall back to empty data
   const scheduleDataToUse = timetableData || emptyScheduleData;
@@ -71,15 +78,12 @@ export default function CourseStats({
     }
   };
 
-  const [locallySelectedCourse, setLocallySelectedCourse] =
-    useState<StudentCourse | null>(null);
-
   const handleSelectSearchedCourse = (
     course: StudentCourse | Course,
     isCurrentCourse: boolean,
   ) => {
     if (isCurrentCourse) {
-      setLocallySelectedCourse(course as StudentCourse); // Use local state setter for existing courses
+      selectSchedule(course as StudentCourse); // Use local state setter for existing courses
     } else {
       const newCourse = course as Course;
       studentStore.addCourseToSemester(
@@ -105,18 +109,6 @@ export default function CourseStats({
     return STATUS_CLASSES.DEFAULT;
   };
 
-  const handleCourseClick = (
-    course: StudentCourse,
-    event: React.MouseEvent,
-  ) => {
-    event.stopPropagation();
-
-    setLocallySelectedCourse((prev) =>
-      prev?.course.id === course.course.id ? null : course,
-    ); // Use local state setter
-    setSelectedProfessor(null);
-  };
-
   const handleProfessorSelect = (
     professorId: string,
     event: React.MouseEvent,
@@ -127,20 +119,19 @@ export default function CourseStats({
     setSelectedProfessor(professorId);
 
     // Call the callback if provided and a course is selected
-    if (locallySelectedCourse && onProfessorSelect) {
-      onProfessorSelect(locallySelectedCourse, professorId);
+    if (selectedSchedule && onProfessorSelect) {
+      onProfessorSelect(selectedSchedule, professorId);
     }
   };
 
-  // Get professors for the locally selected course
+  // Get professors for the selected course from the store
   const professors = useMemo((): ProfessorData[] => {
-    if (!locallySelectedCourse) return [];
+    if (!selectedSchedule) return [];
 
     // Get professors from the schedule data
-    const professorsData =
-      scheduleDataToUse.professors?.[locallySelectedCourse.course.id];
+    const professorsData = scheduleDataToUse.professors?.[selectedSchedule.id];
     return professorsData || [];
-  }, [locallySelectedCourse, scheduleDataToUse]); // Updated dependency array
+  }, [selectedSchedule, scheduleDataToUse]); // Updated dependency array to use selectedSchedule
 
   return (
     <div className={CSS_CLASSES.STATS_CONTAINER}>
@@ -162,23 +153,20 @@ export default function CourseStats({
           <CreditsSummary totalCredits={weeklyHours} />
 
           {/* Professor Selection */}
-          {locallySelectedCourse && (
+          {selectedSchedule && ( // Use selectedSchedule from the store
             <ProfessorSelector
-              selectedCourse={locallySelectedCourse} // Pass locallySelectedCourse from local state
+              selectedCourse={selectedSchedule} // Pass selectedSchedule
               professors={professors}
               selectedProfessor={selectedProfessor}
               onProfessorSelect={handleProfessorSelect}
               onRemoveCourse={onRemoveCourse}
               isInTimetable={coursesInTimetable.includes(
-                locallySelectedCourse.course.id, // Use locallySelectedCourse
+                selectedSchedule.id, // Use selectedSchedule
               )}
             />
           )}
         </div>{" "}
-        {/* <-- Added missing closing div tag */}
       </div>{" "}
-      {/* <-- Added missing closing div tag */}
-      {/* Search popup */}
       {isSearchOpen && (
         <SearchPopup
           searchTerm={searchTerm}

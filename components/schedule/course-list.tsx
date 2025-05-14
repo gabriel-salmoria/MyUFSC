@@ -8,7 +8,6 @@ import { useStudentStore } from "@/lib/student-store"; // Import the store
 
 interface CourseListProps {
   courses: StudentCourse[];
-  // onCourseClick: (course: StudentCourse, event: React.MouseEvent) => void // REMOVED
   getCourseColor: (courseId: string) => string;
 }
 
@@ -17,7 +16,7 @@ export default function CourseList({
   // onCourseClick, // REMOVED
   getCourseColor,
 }: CourseListProps) {
-  const { selectCourse } = useStudentStore(); // Use the store
+  const { selectSchedule } = useStudentStore(); // Use the store
 
   return (
     <div className={CSS_CLASSES.STATS_SECTION}>
@@ -33,7 +32,7 @@ export default function CourseList({
             // Use the store action directly
             onClick={(e) => {
               e.stopPropagation(); // Prevent event from bubbling
-              selectCourse(course);
+              selectSchedule(course);
             }}
           >
             <div className={CSS_CLASSES.COURSE_ID}>{course.course.id}</div>
