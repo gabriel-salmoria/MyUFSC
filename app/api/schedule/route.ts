@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     // Accept currentDegree as a query parameter
     const url = new URL(request.url);
     const currentDegree = url.searchParams.get("currentDegree");
-    const semester = url.searchParams.get("semester") || "20251"; // Default to 20251 if not provided
+    const semester = url.searchParams.get("semester") || "20261"; // Default to 20251 if not provided
 
     if (!userId) {
       return NextResponse.json(
