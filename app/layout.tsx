@@ -5,6 +5,11 @@ import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
+export const metadata = {
+  verification: {
+    google: "EH4gahostTccN-LRM-LGTdkgjzSSY648CO5X9SddRvA",
+  },
+}
 export default function RootLayout({
   children,
 }: {
