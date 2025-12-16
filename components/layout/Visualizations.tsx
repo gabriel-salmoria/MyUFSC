@@ -46,14 +46,14 @@ export default function Visualizations({
         <div className="flex justify-between items-center mb-2">
           <h2 className="text-xl font-semibold text-foreground">
             {viewMode === ViewMode.CURRICULUM
-              ? "Curriculum Overview"
-              : "Elective Courses"}
+              ? "Visão Geral do Currículo"
+              : "Disciplinas Optativas"}
           </h2>
           <button
             onClick={toggleView}
             className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition"
           >
-            Show {viewMode === ViewMode.CURRICULUM ? "Electives" : "Curriculum"}
+            Mostrar {viewMode === ViewMode.CURRICULUM ? "Optativas" : "Currículo"}
           </button>
         </div>
 
@@ -70,10 +70,10 @@ export default function Visualizations({
               />
             ) : (
               <div className="flex items-center justify-center h-full text-muted-foreground">
-                Loading curriculum data...
+                Carregando dados do currículo...
                 {curriculum ? (
                   <span className="ml-2">
-                    (Curriculum loaded, waiting for visualization...)
+                    (Currículo carregado, aguardando visualização...)
                   </span>
                 ) : null}
               </div>
@@ -90,7 +90,7 @@ export default function Visualizations({
 
       <div>
         <h2 className="text-xl font-semibold mb-2 text-foreground">
-          My Progress
+          Meu Progresso
         </h2>
         <div
           className="border border-border rounded-lg overflow-hidden shadow-md bg-card"

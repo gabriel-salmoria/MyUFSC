@@ -286,14 +286,14 @@ export default function SearchPopup({
                 <path d="m21 21-4.3-4.3"></path>
               </svg>
               <div className="text-sm text-muted-foreground">
-                Showing {searchResults.length} result
+                Mostrando {searchResults.length} resultado
                 {searchResults.length !== 1 ? "s" : ""}
               </div>
             </div>
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="Search courses by name or code..."
+              placeholder="Buscar disciplinas por nome ou código..."
               className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               value={localSearchTerm}
               onChange={(e) => setLocalSearchTerm(e.target.value)}
@@ -312,7 +312,7 @@ export default function SearchPopup({
                     className={cn(
                       "p-2 rounded-md cursor-pointer hover:bg-accent",
                       index === activeIndex &&
-                        "bg-primary/10 hover:bg-primary/10",
+                      "bg-primary/10 hover:bg-primary/10",
                     )}
                     onClick={() => handleResultClick(result)} // Call local handler
                   >
@@ -329,7 +329,7 @@ export default function SearchPopup({
                     </div>
                     {result.isCurrentCourse && (
                       <div className="mt-1 text-xs text-primary font-medium">
-                        Currently in your plan
+                        No seu plano atual
                       </div>
                     )}
                   </div>
@@ -337,7 +337,7 @@ export default function SearchPopup({
               </div>
             ) : (
               <div className="p-8 text-center text-muted-foreground">
-                No courses found matching "{localSearchTerm}"
+                Nenhuma disciplina encontrada para "{localSearchTerm}"
               </div>
             )}
           </div>

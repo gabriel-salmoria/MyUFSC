@@ -37,8 +37,8 @@ export default function LoginForm() {
 
   return (
     <div className="w-full max-w-md p-8 space-y-6 bg-card rounded-lg shadow-lg">
-      <h1 className="text-2xl font-bold text-center text-foreground">Login</h1>
-      
+      <h1 className="text-2xl font-bold text-center text-foreground">Entrar</h1>
+
       {error && (
         <div className="p-3 text-sm text-red-500 bg-red-100 rounded">
           {error}
@@ -48,7 +48,7 @@ export default function LoginForm() {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="username" className="block text-sm font-medium text-foreground">
-            Username
+            Usuário
           </label>
           <input
             type="text"
@@ -62,7 +62,7 @@ export default function LoginForm() {
 
         <div>
           <label htmlFor="password" className="block text-sm font-medium text-foreground">
-            Password
+            Senha
           </label>
           <input
             type="password"
@@ -78,14 +78,14 @@ export default function LoginForm() {
           type="submit"
           className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition"
         >
-          Sign In
+          Entrar
         </button>
       </form>
 
       <div className="text-center text-sm text-foreground">
-        Don't have an account?{" "}
+        Não tem uma conta?{" "}
         <Link href="/register" className="text-primary hover:underline">
-          Register here
+          Registre-se aqui
         </Link>
       </div>
     </div>

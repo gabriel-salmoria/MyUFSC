@@ -40,14 +40,14 @@ export default function ProfessorSelector({
     <div className={CSS_CLASSES.STATS_SECTION}>
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-medium">
-          Professors for {selectedStudentSchedule.id}
+          Professores de {selectedStudentSchedule.course.id}
         </h3>
         {isInTimetable && onRemoveCourse && (
           <button
             onClick={() => onRemoveCourse(selectedStudentSchedule.course.id)}
             className="text-sm text-destructive hover:text-destructive/90 font-medium"
           >
-            Remove from timetable
+            Remover do cronograma
           </button>
         )}
       </div>
@@ -59,7 +59,7 @@ export default function ProfessorSelector({
               className={cn(
                 CSS_CLASSES.STATS_PROFESSOR_CARD,
                 selectedProfessor === professor.professorId &&
-                  CSS_CLASSES.STATS_PROFESSOR_ACTIVE,
+                CSS_CLASSES.STATS_PROFESSOR_ACTIVE,
               )}
               onClick={(e) => onProfessorSelect(professor.professorId, e)}
             >
@@ -75,13 +75,13 @@ export default function ProfessorSelector({
               <div className="mt-2">
                 <div className="text-xs text-muted-foreground flex justify-between mb-1">
                   <span>
-                    Enrollment: {professor.enrolledStudents}/
+                    Vagas: {professor.enrolledStudents}/
                     {professor.maxStudents}
                   </span>
                   <span>
                     {Math.round(
                       (professor.enrolledStudents / professor.maxStudents) *
-                        100,
+                      100,
                     )}
                     %
                   </span>

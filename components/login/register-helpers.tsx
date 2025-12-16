@@ -43,7 +43,7 @@ export function FormField({
       <label htmlFor={id} className="block text-sm font-medium text-foreground">
         {label}{" "}
         {optional && (
-          <span className="text-sm font-medium text-blue-500">(optional)</span>
+          <span className="text-sm font-medium text-blue-500">(opcional)</span>
         )}
       </label>
       <input
@@ -76,12 +76,12 @@ export function DegreeProgramSelector({
   onClearSelection,
   getProgramName,
 }: {
-  ref: React.RefObject<HTMLDivElement>;
+  ref: React.RefObject<HTMLDivElement | null>;
   label: string;
   selectedDegree: string;
   isOpen: boolean;
   searchTerm: string;
-  searchInputRef: React.RefObject<HTMLInputElement>;
+  searchInputRef: React.RefObject<HTMLInputElement | null>;
   activeIndex: number;
   filteredPrograms: Array<{ id: string; name: string }>;
   onOpenDropdown: () => void;
@@ -121,8 +121,8 @@ export function DegreeProgramSelector({
       >
         <span style={{ color: "#888888" }}>
           {selectedDegree
-            ? "Change degree program"
-            : "Search degree programs..."}
+            ? "Alterar curso"
+            : "Buscar cursos..."}
         </span>
         <SearchIcon className="h-4 w-4 opacity-50" />
       </div>
@@ -159,13 +159,13 @@ export function DegreesOfInterestSelector({
   onToggleProgram,
   getProgramName,
 }: {
-  ref: React.RefObject<HTMLDivElement>;
+  ref: React.RefObject<HTMLDivElement | null>;
   label: string;
   optional?: boolean;
   selectedDegrees: string[];
   isOpen: boolean;
   searchTerm: string;
-  searchInputRef: React.RefObject<HTMLInputElement>;
+  searchInputRef: React.RefObject<HTMLInputElement | null>;
   activeIndex: number;
   filteredPrograms: Array<{ id: string; name: string }>;
   onOpenDropdown: () => void;
@@ -179,7 +179,7 @@ export function DegreesOfInterestSelector({
       <label className="block text-sm font-medium text-foreground">
         {label}{" "}
         {optional && (
-          <span className="text-sm font-medium text-blue-500">(optional)</span>
+          <span className="text-sm font-medium text-blue-500">(opcional)</span>
         )}
       </label>
 
@@ -208,7 +208,7 @@ export function DegreesOfInterestSelector({
         className="mt-1 flex w-full items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-sm cursor-pointer"
         onClick={onOpenDropdown}
       >
-        <span style={{ color: "#888888" }}>Search degree programs...</span>
+        <span style={{ color: "#888888" }}>Buscar cursos...</span>
         <SearchIcon className="h-4 w-4 opacity-50" />
       </div>
 
@@ -238,7 +238,7 @@ export function SearchDropdown({
   onSelectItem,
   selectedIds,
 }: {
-  searchInputRef: React.RefObject<HTMLInputElement>;
+  searchInputRef: React.RefObject<HTMLInputElement | null>;
   searchTerm: string;
   onSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onKeyDown: (e: React.KeyboardEvent) => void;
@@ -255,7 +255,7 @@ export function SearchDropdown({
           <input
             ref={searchInputRef}
             type="text"
-            placeholder="Search programs..."
+            placeholder="Buscar programas..."
             className="w-full py-2 pl-8 pr-4 text-sm border border-border rounded-md bg-background"
             value={searchTerm}
             onChange={onSearchChange}
@@ -266,15 +266,14 @@ export function SearchDropdown({
       <ul className="py-1">
         {filteredPrograms.length === 0 ? (
           <li className="px-4 py-2 text-sm text-muted-foreground">
-            No programs found
+            Nenhum curso encontrado
           </li>
         ) : (
           filteredPrograms.map((program, index) => (
             <li
               key={program.id}
-              className={`px-4 py-2 text-sm cursor-pointer flex items-center justify-between ${
-                index === activeIndex ? "bg-accent text-accent-foreground" : ""
-              } ${selectedIds.includes(program.id) ? "bg-primary/10" : ""}`}
+              className={`px-4 py-2 text-sm cursor-pointer flex items-center justify-between ${index === activeIndex ? "bg-accent text-accent-foreground" : ""
+                } ${selectedIds.includes(program.id) ? "bg-primary/10" : ""}`}
               onClick={() => onSelectItem(program.id)}
             >
               <span>{program.name}</span>

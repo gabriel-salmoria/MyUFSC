@@ -75,7 +75,7 @@ export default function RegisterPage() {
     setError("");
 
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
+      setError("Senhas não conferem");
       return;
     }
 
@@ -110,7 +110,7 @@ export default function RegisterPage() {
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || "Registration failed");
+        throw new Error(data.error || "Falha no registro");
       }
 
       router.push("/");
@@ -118,7 +118,7 @@ export default function RegisterPage() {
       setError(
         err instanceof Error
           ? err.message
-          : "Registration failed. Please try again.",
+          : "Falha no registro. Por favor tente novamente.",
       );
     }
   };
@@ -222,7 +222,7 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="w-full max-w-md p-8 space-y-6 bg-card rounded-lg shadow-lg">
         <h1 className="text-2xl font-bold text-center text-foreground">
-          Register
+          Registrar
         </h1>
 
         {error && (
@@ -233,22 +233,22 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Student Information Section */}
-          <FormSection title="Student Information">
+          <FormSection title="Informações do Estudante">
             <FormField
-              label="Full Name"
+              label="Nome Completo"
               optional={true}
               id="name"
               value={formData.name}
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
               }
-              placeholder="Student"
+              placeholder="Estudante"
               style={{ color: formData.name ? "inherit" : "#888888" }}
             />
 
             <DegreeProgramSelector
               ref={currentDegreeRef}
-              label="Current Degree Program"
+              label="Curso atual"
               selectedDegree={formData.currentDegree}
               isOpen={isCurrentDegreeOpen}
               searchTerm={searchTerm}
@@ -276,7 +276,7 @@ export default function RegisterPage() {
 
             <DegreesOfInterestSelector
               ref={interestedDegreesRef}
-              label="Degrees of Interest"
+              label="Cursos de Interesse"
               optional={true}
               selectedDegrees={formData.interestedDegrees}
               isOpen={isInterestedDegreesOpen}
@@ -301,9 +301,9 @@ export default function RegisterPage() {
           <div className="border-t border-border/60 pt-1"></div>
 
           {/* Account Information Section */}
-          <FormSection title="Account Information">
+          <FormSection title="Informações da Conta">
             <FormField
-              label="Username"
+              label="Usuário"
               id="username"
               value={formData.username}
               onChange={(e) =>
@@ -313,7 +313,7 @@ export default function RegisterPage() {
             />
 
             <FormField
-              label="Password"
+              label="Senha"
               id="password"
               type="password"
               value={formData.password}
@@ -324,7 +324,7 @@ export default function RegisterPage() {
             />
 
             <FormField
-              label="Confirm Password"
+              label="Confirmar Senha"
               id="confirmPassword"
               type="password"
               value={formData.confirmPassword}
@@ -339,14 +339,14 @@ export default function RegisterPage() {
             type="submit"
             className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition"
           >
-            Register
+            Registrar
           </button>
         </form>
 
         <div className="text-center text-sm text-foreground">
-          Already have an account?{" "}
+          Já tem uma conta?{" "}
           <Link href="/login" className="text-primary hover:underline">
-            Login here
+            Entre aqui
           </Link>
         </div>
       </div>

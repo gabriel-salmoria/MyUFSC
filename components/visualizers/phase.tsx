@@ -48,7 +48,7 @@ export default function Phase({
     >
       {/* Phase header */}
       <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-sm px-2 py-3 text-center font-medium border-b border-border">
-        Phase {semesterNumber}
+        Fase {semesterNumber}
       </div>
 
       {/* Course boxes - positioned dynamically within the phase */}

@@ -20,7 +20,7 @@ export default function CourseList({
 
   return (
     <div className={CSS_CLASSES.STATS_SECTION}>
-      <h3 className="text-sm font-medium mb-2">Current Courses</h3>
+      <h3 className="text-sm font-medium mb-2">Disciplinas Atuais</h3>
       <div className={CSS_CLASSES.STATS_GRID}>
         {courses.map((course) => (
           <div
@@ -38,7 +38,7 @@ export default function CourseList({
             <div className={CSS_CLASSES.COURSE_ID}>{course.course.id}</div>
             <div className={CSS_CLASSES.COURSE_NAME}>{course.course.name}</div>
             <div className="mt-1 text-black dark:text-white text-center text-opacity-70 dark:text-opacity-80">
-              Credits: {course.course.credits}
+              Créditos: {course.course.credits}
             </div>
           </div>
         ))}
