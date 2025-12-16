@@ -56,9 +56,8 @@ export default function StudentCourseDetailsPanel({
 
     // Simplified logic: Editing is allowed only if status is COMPLETED and grade is undefined
     setIsEditingGrade(
-      (studentCourse?.status === CourseStatus.COMPLETED ||
-        studentCourse?.status === CourseStatus.DEFAULT) &&
-      studentCourse?.grade === undefined,
+      studentCourse?.status === CourseStatus.COMPLETED &&
+      studentCourse?.grade === undefined
     );
     setGradeError("");
   }, [studentCourse]); // studentCourse from store is now the dependency
