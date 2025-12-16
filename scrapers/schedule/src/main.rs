@@ -28,7 +28,7 @@ fn filter_out_errors(
 async fn main() -> Result<()> {
     env_logger::init();
 
-    let semesters = scrape_last_n_semesters(1, enum_iterator::all::<Campus>()).await?;
+    let semesters = scrape_last_n_semesters(5, enum_iterator::all::<Campus>()).await?;
 
     for (semester, campus_classes_pairs) in semesters {
         let data = filter_out_errors(&semester, campus_classes_pairs);

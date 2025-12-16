@@ -9,11 +9,11 @@ const GEMINI_KEY = process.env.GEMINI_KEY;
 const genAI = new GoogleGenerativeAI(GEMINI_KEY);
 
 const model = genAI.getGenerativeModel({
-     model: 'gemini-2.5-pro-exp-03-25',
-     generationConfig: {
-        responseMimeType: 'application/json',
-        responseSchema: Schema,
-     }
+  model: 'gemini-3-pro-preview',
+  generationConfig: {
+    responseMimeType: 'application/json',
+    responseSchema: Schema,
+  }
 });
 
 const prompt = 'Extract the data from the PDF file and return it in the JSON format provided in the schema';
@@ -45,27 +45,42 @@ function compressCurriculumData(data) {
 }
 
 async function generatePdfSummary(compress = true) {
+  const args = process.argv.slice(2);
+  const inputPdfPath = args[0] || "./comp.PDF";
+  const outputJsonPath = args[1] || "output.json";
+  // If provided, write the uncompressed (full) JSON here.
+  // If not provided, we won't write it (or could default, but let's be explicit).
+  const outputFullJsonPath = args[2];
+
   const result = await model.generateContent([
     {
       inlineData: {
-        data: Buffer.from(fs.readFileSync("./comp.PDF")).toString("base64"),
+        data: Buffer.from(fs.readFileSync(inputPdfPath)).toString("base64"),
         mimeType: "application/pdf",
       },
     },
     prompt
   ]);
-  
+
   const jsonText = result.response.text();
   const data = JSON.parse(jsonText);
-  
-  // Write both full and compressed versions
-  fs.writeFileSync('output-full.json', jsonText);
-  
+
+  if (outputFullJsonPath) {
+    fs.writeFileSync(outputFullJsonPath, jsonText);
+    console.log(`Full JSON data saved to ${outputFullJsonPath}`);
+  }
+
   if (compress) {
     const compressedData = compressCurriculumData(data);
-    fs.writeFileSync('output.json', JSON.stringify(compressedData));
-  }  
-  console.log("JSON data extracted and saved to output.json");
+    fs.writeFileSync(outputJsonPath, JSON.stringify(compressedData));
+  } else {
+    // If not compressing, the output path gets the full json anyway
+    fs.writeFileSync(outputJsonPath, jsonText);
+  }
+  console.log(`JSON data extracted and saved to ${outputJsonPath}`);
 }
 
-generatePdfSummary().catch(console.error); 
+generatePdfSummary().catch(err => {
+  console.error(err);
+  process.exit(1);
+});
