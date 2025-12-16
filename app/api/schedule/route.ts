@@ -1,18 +1,16 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { getScheduleByProgramAndSemester } from "@/database/schedule/db-schedule"; // Import the new DB function
-// import path from "path"; // No longer needed
-// import fs from "fs"; // No longer needed
+import { getScheduleByProgramAndSemester, getLatestSemester } from "@/database/schedule/db-schedule"; // Import the new DB function
 
 // Server-side route handler
 export async function GET(request: Request) {
   try {
-    const cookieStore = cookies(); // Await is not needed here according to Next.js docs for cookies()
+    const cookieStore = await cookies(); // Awaited!
     const userId = cookieStore.get("userId")?.value;
     // Accept currentDegree as a query parameter
     const url = new URL(request.url);
     const currentDegree = url.searchParams.get("currentDegree");
-    const semester = url.searchParams.get("semester") || "20261"; // Default to 20251 if not provided
+    let semester = url.searchParams.get("semester");
 
     if (!userId) {
       return NextResponse.json(
@@ -28,6 +26,12 @@ export async function GET(request: Request) {
       );
     }
 
+    // Determine semester: Use provided, or fetch latest, or fallback
+    if (!semester) {
+      const latest = await getLatestSemester(currentDegree);
+      semester = latest || "20261"; // Fallback if DB empty
+    }
+
     // Fetch schedule from the database
     const schedule = await getScheduleByProgramAndSemester(
       currentDegree,
@@ -41,9 +45,10 @@ export async function GET(request: Request) {
       );
     }
 
-    // Structure the response properly with the degree code as the key, similar to the original JSON structure
+    // Structure the response properly
     const response = {
       DATA: new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', ' -'), // Match original DATA format
+      fetchedSemester: semester, // Return the semester we actually fetched
       [currentDegree]: schedule,
     };
 

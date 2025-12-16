@@ -32,8 +32,8 @@ export function useSchedule({
   const [scheduleState, setScheduleState] = useState<ScheduleHookState>({
     scheduleData: null,
     isLoading: false,
-    selectedCampus: "",
-    selectedSemester: "",
+    selectedCampus: "FLO",
+    selectedSemester: `${new Date().getFullYear() + 1}1`,
   });
   const [isScheduleLoading, setIsScheduleLoading] = useState(true);
   const fetchedForDegreeRef_Schedule = useRef<string | null | undefined>(null); // Tracks degree for schedule fetch
@@ -88,15 +88,27 @@ export function useSchedule({
             } else {
               // Merge logic: Merge the raw degree objects. 
               // unique keys (degree codes) will just coexist in the merged object.
-              const mergedData = {};
+              const mergedData: any = {};
+              let fetchedSemester = "";
 
               successfulResults.forEach(data => {
                 if (data) {
                   Object.assign(mergedData, data);
+                  // Check for metadata "fetchedSemester"
+                  if (data.fetchedSemester) {
+                    fetchedSemester = data.fetchedSemester;
+                  }
                 }
               });
 
-              setScheduleState((prev) => ({ ...prev, scheduleData: mergedData }));
+              setScheduleState((prev) => {
+                const newState = { ...prev, scheduleData: mergedData };
+                // If the server told us which semester it fetched, update our selection to match
+                if (fetchedSemester && fetchedSemester !== prev.selectedSemester) {
+                  newState.selectedSemester = fetchedSemester;
+                }
+                return newState;
+              });
             }
           }
         } catch (error) {
