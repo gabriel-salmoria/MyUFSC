@@ -84,7 +84,7 @@ export default function GridVisualizer({
   const { boxWidth, columns } = useMemo(() => {
     const maxPossibleColumns = Math.floor(
       (containerWidth - GRID.PADDING * 2) /
-        (COURSE_BOX.MIN_WIDTH + COURSE_BOX.MARGIN),
+      (COURSE_BOX.MIN_WIDTH + COURSE_BOX.MARGIN),
     );
     const optimalColumns = Math.max(
       GRID.MIN_COLUMNS,
@@ -163,9 +163,9 @@ export default function GridVisualizer({
               electiveCourse.id,
             );
 
-            const studentCourse: StudentCourse = {
+            const studentCourse: StudentCourse = studentCourseFromPlan || {
               course: electiveCourse,
-              status: CourseStatus.PLANNED,
+              status: CourseStatus.DEFAULT,
             };
 
             return (
