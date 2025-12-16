@@ -23,6 +23,15 @@ export default function TimetableHeader({
   onPhaseChange,
   availablePhases
 }: TimetableHeaderProps) {
+  // Generate dynamic semester options (Current Year +/- 1)
+  const currentYear = new Date().getFullYear();
+  // Include next year to ensure upcoming semester (e.g. 2026.1) is available
+  const years = [currentYear + 1, currentYear, currentYear - 1];
+  const semesterOptions = years.flatMap((year) => [
+    { value: `${year}2`, label: `${year}.2` },
+    { value: `${year}1`, label: `${year}.1` },
+  ]);
+
   return (
     <div className="flex items-center justify-between mb-6">
       <div className="flex items-center gap-4">
@@ -44,27 +53,28 @@ export default function TimetableHeader({
             onChange={(e) => onSemesterChange(e.target.value)}
             className="bg-background border border-border rounded px-3 py-1 text-sm text-foreground"
           >
-            <option value="20251">2025.1</option>
-            <option value="20243">2024.3</option>
-            <option value="20242">2024.2</option>
-            <option value="20241">2024.1</option>
+            {semesterOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
           </select>
           {isLoadingData && <span className="text-sm text-muted-foreground">(Carregando...)</span>}
         </div>
       </div>
       <div className="flex items-center gap-3">
         <label htmlFor="phase-select" className="text-sm font-medium text-muted-foreground">
-          Selecionar Fase:
+          Fase:
         </label>
         <select
           id="phase-select"
           value={selectedPhase}
           onChange={(e) => onPhaseChange(Number(e.target.value))}
-          className="block w-36 rounded-md border border-border bg-background text-foreground shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+          className="block w-24 rounded-md border border-border bg-background text-foreground shadow-sm focus:border-primary focus:ring-primary sm:text-sm pl-2"
         >
           {availablePhases.map((phase) => (
             <option key={phase} value={phase}>
-              Fase {phase}
+              {phase}
             </option>
           ))}
         </select>

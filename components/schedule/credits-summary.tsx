@@ -9,8 +9,8 @@ interface CreditsSummaryProps {
 
 export default function CreditsSummary({ totalCredits }: CreditsSummaryProps) {
   return (
-    <div className={CSS_CLASSES.STATS_GRID}>
-      <div className={CSS_CLASSES.STATS_SUMMARY_CARD}>
+    <div className="w-full">
+      <div className={`${CSS_CLASSES.STATS_SUMMARY_CARD} w-full`}>
         <h3 className="text-sm font-medium mb-1">Créditos Totais</h3>
         <div className="text-2xl font-bold">
           {totalCredits}
