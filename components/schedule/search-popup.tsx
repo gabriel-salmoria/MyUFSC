@@ -39,7 +39,7 @@ export default function SearchPopup({
 
   // Fetch interested degrees curriculums and add to available courses
   useEffect(() => {
-    const fetchInterestedCurriculums = async () => {
+    const updateAvailableCourses = () => {
       const studentInfo = studentStore.studentInfo;
       if (!studentInfo || !studentInfo.interestedDegrees) return;
 
@@ -50,38 +50,29 @@ export default function SearchPopup({
 
       if (interestedDegrees.length === 0) return;
 
-      const newAvailableCourses = new Map(availableCourses);
-      let hasChanges = false;
+      // We reconstruct the map from the cache every time the cache or interest changes
+      // This is much lighter than fetching
+      const newAvailableCourses = new Map(courseMap); // Start with global/base map if appropriate, or previous state? 
+      // Actually courseMap is imported from parsers, it might be the base.
+      // But let's build from scratch or reuse existing if possible.
 
-      await Promise.all(
-        interestedDegrees.map(async (degreeId) => {
-          try {
-            const response = await fetch(`/api/curriculum/${degreeId}`);
-            if (!response.ok) return;
-            const curriculum: Curriculum = await response.json();
-
-            if (curriculum && curriculum.courses) {
-              const parsedCourses = parseCourses(curriculum.courses);
-              parsedCourses.forEach((course) => {
-                if (!newAvailableCourses.has(course.id)) {
-                  newAvailableCourses.set(course.id, course);
-                  hasChanges = true;
-                }
-              });
+      // Let's just build it from the cache.
+      interestedDegrees.forEach(degreeId => {
+        const cachedCourses = studentStore.curriculumCache[degreeId];
+        if (cachedCourses) {
+          cachedCourses.forEach(course => {
+            if (!newAvailableCourses.has(course.id)) {
+              newAvailableCourses.set(course.id, course);
             }
-          } catch (error) {
-            console.error(`Error fetching curriculum for ${degreeId}:`, error);
-          }
-        }),
-      );
+          });
+        }
+      });
 
-      if (hasChanges) {
-        setAvailableCourses(newAvailableCourses);
-      }
+      setAvailableCourses(newAvailableCourses);
     };
 
-    fetchInterestedCurriculums();
-  }, [studentStore.studentInfo]);
+    updateAvailableCourses();
+  }, [studentStore.studentInfo, studentStore.curriculumCache]);
 
   // Focus search input when popup opens
   useEffect(() => {

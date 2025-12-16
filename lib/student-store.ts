@@ -54,6 +54,10 @@ export interface StudentStore {
   // Selection actions
   selectCourse: (studentCourse: StudentCourse | null) => void;
   clearSelection: () => void;
+
+  // Cache
+  curriculumCache: Record<string, Course[]>;
+  cacheCurriculum: (degreeId: string, courses: Course[]) => void;
 }
 
 const CheckStudentInfo = (info: StudentInfo | null): StudentPlan | null => {
@@ -73,6 +77,14 @@ export const useStudentStore = create<StudentStore>((set) => ({
 
   selectedSchedule: null,
   selectedStudentSchedule: null,
+
+  curriculumCache: {},
+  cacheCurriculum: (degreeId: string, courses: Course[]) =>
+    set(
+      produce((state: StudentStore) => {
+        state.curriculumCache[degreeId] = courses;
+      }),
+    ),
 
   forceUpdate: () =>
     set(
