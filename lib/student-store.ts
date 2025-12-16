@@ -40,6 +40,7 @@ export interface StudentStore {
 
   // Actions
   setStudentInfo: (info: StudentInfo) => void;
+  setInterestedDegrees: (degrees: string[]) => void;
   forceUpdate: () => void;
 
   // Course operations
@@ -143,6 +144,15 @@ export const useStudentStore = create<StudentStore>((set) => ({
       }),
     );
   },
+
+  setInterestedDegrees: (degrees: string[]) =>
+    set(
+      produce((state: StudentStore) => {
+        if (state.studentInfo) {
+          state.studentInfo.interestedDegrees = degrees;
+        }
+      }),
+    ),
 
   addCourseToSemester: (course: Course, semesterNumber: number) =>
     set(

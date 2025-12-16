@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { cn } from "@/components/ui/utils";
-import type { Course } from "@/types/curriculum";
+import type { Course, Curriculum } from "@/types/curriculum";
 import type { StudentCourse } from "@/types/student-plan";
-import { courseMap } from "@/parsers/curriculum-parser";
+import { courseMap, parseCourses } from "@/parsers/curriculum-parser";
 import { useStudentStore } from "@/lib/student-store";
 
 interface SearchPopupProps {
@@ -30,9 +30,58 @@ export default function SearchPopup({
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [localSearchTerm, setLocalSearchTerm] = useState(initialSearchTerm);
+  const [availableCourses, setAvailableCourses] = useState<Map<string, Course>>(
+    new Map(courseMap),
+  );
   const popupRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const studentStore = useStudentStore(); // Use the store
+
+  // Fetch interested degrees curriculums and add to available courses
+  useEffect(() => {
+    const fetchInterestedCurriculums = async () => {
+      const studentInfo = studentStore.studentInfo;
+      if (!studentInfo || !studentInfo.interestedDegrees) return;
+
+      const currentDegree = studentInfo.currentDegree;
+      const interestedDegrees = studentInfo.interestedDegrees.filter(
+        (degree) => degree !== currentDegree,
+      );
+
+      if (interestedDegrees.length === 0) return;
+
+      const newAvailableCourses = new Map(availableCourses);
+      let hasChanges = false;
+
+      await Promise.all(
+        interestedDegrees.map(async (degreeId) => {
+          try {
+            const response = await fetch(`/api/curriculum/${degreeId}`);
+            if (!response.ok) return;
+            const curriculum: Curriculum = await response.json();
+
+            if (curriculum && curriculum.courses) {
+              const parsedCourses = parseCourses(curriculum.courses);
+              parsedCourses.forEach((course) => {
+                if (!newAvailableCourses.has(course.id)) {
+                  newAvailableCourses.set(course.id, course);
+                  hasChanges = true;
+                }
+              });
+            }
+          } catch (error) {
+            console.error(`Error fetching curriculum for ${degreeId}:`, error);
+          }
+        }),
+      );
+
+      if (hasChanges) {
+        setAvailableCourses(newAvailableCourses);
+      }
+    };
+
+    fetchInterestedCurriculums();
+  }, [studentStore.studentInfo]);
 
   // Focus search input when popup opens
   useEffect(() => {
@@ -97,7 +146,7 @@ export default function SearchPopup({
 
     if (!localSearchTerm.trim()) {
       // Show all available courses from the curriculum when no search term
-      const allCourses = Array.from(courseMap.values())
+      const allCourses = Array.from(availableCourses.values())
         // Filter out "Optativa X" placeholder courses
         .filter((course) => !course.id.includes("Optativa"));
 
@@ -156,7 +205,7 @@ export default function SearchPopup({
     });
 
     // Then check all available courses in the curriculum
-    courseMap.forEach((course) => {
+    availableCourses.forEach((course) => {
       // Skip if already in current courses or if it's an optativa placeholder
       if (currentCourseIds.has(course.id) || course.id.includes("Optativa"))
         return;
@@ -177,7 +226,7 @@ export default function SearchPopup({
 
     setSearchResults(results);
     setActiveIndex(0);
-  }, [localSearchTerm, currentCourses]);
+  }, [localSearchTerm, currentCourses, availableCourses]);
 
   // Initialize local search term on initial prop change
   useEffect(() => {
@@ -247,7 +296,7 @@ export default function SearchPopup({
               placeholder="Search courses by name or code..."
               className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               value={localSearchTerm}
-              onChange={e => setLocalSearchTerm(e.target.value)}
+              onChange={(e) => setLocalSearchTerm(e.target.value)}
             />
           </div>
 
