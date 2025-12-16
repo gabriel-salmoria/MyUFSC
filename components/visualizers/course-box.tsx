@@ -53,9 +53,7 @@ export default function CourseBox({
       return isEmpty ? STATUS_CLASSES.EMPTY : STATUS_CLASSES.EMPTY_ALT;
     }
 
-    if (isFromCurriculum && studentCourse.status != CourseStatus.COMPLETED) {
-      return STATUS_CLASSES.DEFAULT;
-    }
+
 
     if (studentCourse.status === CourseStatus.COMPLETED) {
       return STATUS_CLASSES.COMPLETED;
@@ -73,7 +71,6 @@ export default function CourseBox({
   // Get appropriate status icon based on course status
   const getStatusIcon = () => {
     if (isEmpty) return null;
-    if (isFromCurriculum) return null;
 
     switch (studentCourse.status) {
       case CourseStatus.COMPLETED:
