@@ -30,49 +30,41 @@ export default function SearchPopup({
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [localSearchTerm, setLocalSearchTerm] = useState(initialSearchTerm);
-  const [availableCourses, setAvailableCourses] = useState<Map<string, Course>>(
-    new Map(courseMap),
-  );
   const popupRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const studentStore = useStudentStore(); // Use the store
+  // Use specific selectors to avoid subscribing to the entire store
+  const studentInfo = useStudentStore((state) => state.studentInfo);
+  const curriculumCache = useStudentStore((state) => state.curriculumCache);
+  const selectCourse = useStudentStore((state) => state.selectCourse);
+  const addCourseToSemester = useStudentStore((state) => state.addCourseToSemester);
 
-  // Fetch interested degrees curriculums and add to available courses
-  useEffect(() => {
-    const updateAvailableCourses = () => {
-      const studentInfo = studentStore.studentInfo;
-      if (!studentInfo || !studentInfo.interestedDegrees) return;
+  // Derive available courses from the global cache
+  // This avoids double-rendering (flash) and state duplication
+  const availableCourses = useMemo(() => {
+    const map = new Map<string, Course>();
 
-      const currentDegree = studentInfo.currentDegree;
-      const interestedDegrees = studentInfo.interestedDegrees.filter(
-        (degree) => degree !== currentDegree,
-      );
+    if (studentInfo) {
+      const { currentDegree, interestedDegrees } = studentInfo;
+      // Combine current + interested
+      const allDegrees = [currentDegree, ...(interestedDegrees || [])];
 
-      if (interestedDegrees.length === 0) return;
-
-      // We reconstruct the map from the cache every time the cache or interest changes
-      // This is much lighter than fetching
-      const newAvailableCourses = new Map(courseMap); // Start with global/base map if appropriate, or previous state? 
-      // Actually courseMap is imported from parsers, it might be the base.
-      // But let's build from scratch or reuse existing if possible.
-
-      // Let's just build it from the cache.
-      interestedDegrees.forEach(degreeId => {
-        const cachedCourses = studentStore.curriculumCache[degreeId];
-        if (cachedCourses) {
-          cachedCourses.forEach(course => {
-            if (!newAvailableCourses.has(course.id)) {
-              newAvailableCourses.set(course.id, course);
+      allDegrees.forEach(degreeId => {
+        const courses = curriculumCache[degreeId];
+        if (courses) {
+          courses.forEach(c => {
+            if (!map.has(c.id)) {
+              map.set(c.id, c);
             }
           });
         }
       });
+    } else {
+      // Fallback to global map if no student info
+      courseMap.forEach((v, k) => map.set(k, v));
+    }
 
-      setAvailableCourses(newAvailableCourses);
-    };
-
-    updateAvailableCourses();
-  }, [studentStore.studentInfo, studentStore.curriculumCache]);
+    return map;
+  }, [studentInfo, curriculumCache]);
 
   // Focus search input when popup opens
   useEffect(() => {
@@ -88,7 +80,7 @@ export default function SearchPopup({
         onClose();
       } else if (e.key === "ArrowDown") {
         e.preventDefault();
-        setActiveIndex((prev) => Math.min(prev + 1, searchResults.length - 1));
+        setActiveIndex((prev) => Math.min(prev + 1, Math.min(searchResults.length, 50) - 1));
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
         setActiveIndex((prev) => Math.max(prev - 1, 0));
@@ -96,9 +88,9 @@ export default function SearchPopup({
         const result = searchResults[activeIndex];
         // Use store actions directly
         if (result.isCurrentCourse) {
-          studentStore.selectCourse(result.originalCourse as StudentCourse);
+          selectCourse(result.originalCourse as StudentCourse);
         } else {
-          studentStore.addCourseToSemester(
+          addCourseToSemester(
             result.originalCourse as Course,
             selectedPhase, // Use the selectedPhase
           );
@@ -112,18 +104,18 @@ export default function SearchPopup({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onClose, searchResults, activeIndex, studentStore, selectedPhase]); // Added studentStore and selectedPhase to dependency array
+  }, [onClose, searchResults, activeIndex, selectCourse, addCourseToSemester, selectedPhase]);
 
   // Extract current courses from the student info
   const currentCourses = useMemo(() => {
-    if (!studentStore.studentInfo?.plans[studentStore.studentInfo.currentPlan])
+    if (!studentInfo?.plans[studentInfo.currentPlan])
       return [];
 
     // Get all courses from all semesters
-    return studentStore.studentInfo.plans[
-      studentStore.studentInfo.currentPlan
+    return studentInfo.plans[
+      studentInfo.currentPlan
     ].semesters.flatMap((semester) => semester.courses);
-  }, [studentStore.studentInfo]);
+  }, [studentInfo]);
 
   // Filter courses based on search term
   useEffect(() => {
@@ -242,15 +234,19 @@ export default function SearchPopup({
   const handleResultClick = (result: SearchResult) => {
     // Use store actions directly
     if (result.isCurrentCourse) {
-      studentStore.selectCourse(result.originalCourse as StudentCourse);
+      selectCourse(result.originalCourse as StudentCourse);
     } else {
-      studentStore.addCourseToSemester(
+      addCourseToSemester(
         result.originalCourse as Course,
         selectedPhase, // Use the selectedPhase
       );
     }
     onClose();
   };
+
+  // Render Limit for Performance
+  const displayedResults = searchResults.slice(0, 50);
+
   return (
     <>
       <div className="fixed inset-0 bg-black/20 dark:bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center pt-[10vh]">
@@ -277,7 +273,7 @@ export default function SearchPopup({
                 <path d="m21 21-4.3-4.3"></path>
               </svg>
               <div className="text-sm text-muted-foreground">
-                Mostrando {searchResults.length} resultado
+                Mostrando {Math.min(searchResults.length, 50)} de {searchResults.length} resultado
                 {searchResults.length !== 1 ? "s" : ""}
               </div>
             </div>
@@ -295,9 +291,9 @@ export default function SearchPopup({
             className="overflow-y-auto"
             style={{ maxHeight: "calc(60vh - 100px)" }}
           >
-            {searchResults.length > 0 ? (
+            {displayedResults.length > 0 ? (
               <div className="p-1">
-                {searchResults.map((result, index) => (
+                {displayedResults.map((result, index) => (
                   <div
                     key={`${result.id}-${result.isCurrentCourse}`}
                     className={cn(
