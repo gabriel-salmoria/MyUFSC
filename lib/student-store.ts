@@ -49,6 +49,7 @@ export interface StudentStore {
   removeCourse: (course: StudentCourse) => void;
   changeCourseStatus: (course: StudentCourse, status: CourseStatus) => void;
   setCourseGrade: (course: StudentCourse, grade: number) => void;
+  setCourseClass: (course: StudentCourse, classId: string) => void;
 
   // Selection actions
   selectCourse: (studentCourse: StudentCourse | null) => void;
@@ -280,22 +281,50 @@ export const useStudentStore = create<StudentStore>((set) => ({
         if (!plan) return;
 
         const roundedGrade = Math.round(grade * 2) / 2;
-        const semester = plan.semesters.find(
-          (s) => s.number === studentCourse.phase,
-        );
-        if (semester) {
-          const courseInStore = semester.courses.find(
-            (c) => c.id === studentCourse.id,
-          );
-          if (courseInStore) {
-            courseInStore.grade = roundedGrade;
-            courseInStore.status =
-              roundedGrade >= 6.0
-                ? CourseStatus.COMPLETED
-                : CourseStatus.FAILED;
-          } else {
+
+        // Find the semester containing the course
+        let courseInStore: StudentCourse | undefined;
+        let semesterIndex = -1;
+
+        for (let i = 0; i < plan.semesters.length; i++) {
+          const found = plan.semesters[i].courses.find(c => c.course.id === studentCourse.course.id);
+          if (found) {
+            courseInStore = found;
+            semesterIndex = i;
+            break;
           }
-        } else {
+        }
+
+        if (courseInStore) {
+          courseInStore.grade = roundedGrade;
+          courseInStore.status =
+            roundedGrade >= 6.0
+              ? CourseStatus.COMPLETED
+              : CourseStatus.FAILED;
+        }
+      }),
+    ),
+
+  setCourseClass: (studentCourse: StudentCourse, classId: string) =>
+    set(
+      produce((state: StudentStore) => {
+        const plan = CheckStudentInfo(state.studentInfo);
+        if (!plan) return;
+
+        // Find the semester containing the course
+        // We use course.course.id to match safely
+        // But wait, studentCourse might be a flat structure in some contexts? 
+        // No, in the store it should be robust.
+        // We'll traverse and match ID.
+
+        const targetId = studentCourse.course ? studentCourse.course.id : (studentCourse as any).id;
+
+        for (const semester of plan.semesters) {
+          const courseInStore = semester.courses.find(c => c.course.id === targetId);
+          if (courseInStore) {
+            courseInStore.class = classId;
+            return; // Found and updated
+          }
         }
       }),
     ),

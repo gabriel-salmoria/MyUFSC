@@ -19,8 +19,8 @@ export interface UseScheduleResult {
 interface UseScheduleProps {
   studentInfo: StudentInfo | null;
   isProfileLoading: boolean;
-  isCurriculumLoading: boolean; 
-  setAuthState: React.Dispatch<React.SetStateAction<AuthState>>; 
+  isCurriculumLoading: boolean;
+  setAuthState: React.Dispatch<React.SetStateAction<AuthState>>;
 }
 
 export function useSchedule({
@@ -52,24 +52,51 @@ export function useSchedule({
       return;
     }
 
-    // Only fetch if studentInfo.currentDegree has changed since last schedule fetch OR if scheduleData is null
-    if (studentInfo.currentDegree !== fetchedForDegreeRef_Schedule.current || scheduleState.scheduleData === null) {
+    // Collect all degrees to fetch (current + interested)
+    const distinctDegrees = new Set<string>([studentInfo.currentDegree]);
+    if (studentInfo.interestedDegrees) {
+      studentInfo.interestedDegrees.forEach((d) => distinctDegrees.add(d));
+    }
+    const degreesToFetch = Array.from(distinctDegrees).sort();
+    const degreesSignature = degreesToFetch.join(",");
+
+    // Only fetch if degrees signature has changed since last schedule fetch OR if scheduleData is null
+    if (degreesSignature !== fetchedForDegreeRef_Schedule.current || scheduleState.scheduleData === null) {
       let active = true;
       const fetchScheduleData = async () => {
         setIsScheduleLoading(true); // Set loading true ONLY when we actually decide to fetch
         setScheduleState((prev) => ({ ...prev, isLoading: true }));
-        fetchedForDegreeRef_Schedule.current = studentInfo.currentDegree; // Mark fetching for this degree
+        fetchedForDegreeRef_Schedule.current = degreesSignature; // Mark fetching for this combination
         try {
-          const fetchedScheduleData = await fetchClassSchedule(studentInfo.currentDegree);
+          // Fetch all schedules in parallel
+          const results = await Promise.all(
+            degreesToFetch.map(degree => fetchClassSchedule(degree))
+          );
+
           if (active) {
-            if (!fetchedScheduleData) {
+            // Check if all failed
+            const successfulResults = results.filter(r => r !== null);
+
+            if (successfulResults.length === 0) {
               setScheduleState((prev) => ({ ...prev, scheduleData: null }));
-              setAuthState((prevAuthState) => ({
-                ...prevAuthState,
-                error: "Failed to load class schedules. Please try again later.",
-              }));
+              if (results.length > 0) {
+                setAuthState((prevAuthState) => ({
+                  ...prevAuthState,
+                  error: "Failed to load class schedules.",
+                }));
+              }
             } else {
-              setScheduleState((prev) => ({ ...prev, scheduleData: fetchedScheduleData }));
+              // Merge logic: Merge the raw degree objects. 
+              // unique keys (degree codes) will just coexist in the merged object.
+              const mergedData = {};
+
+              successfulResults.forEach(data => {
+                if (data) {
+                  Object.assign(mergedData, data);
+                }
+              });
+
+              setScheduleState((prev) => ({ ...prev, scheduleData: mergedData }));
             }
           }
         } catch (error) {
@@ -96,9 +123,9 @@ export function useSchedule({
       if (isScheduleLoading) setIsScheduleLoading(false);
     }
   }, [
-    studentInfo, 
-    isProfileLoading, 
-    isCurriculumLoading, 
+    studentInfo,
+    isProfileLoading,
+    isCurriculumLoading,
     setAuthState,
     scheduleState.scheduleData // Added to re-evaluate if data gets nulled externally but conditions for fetch are met
   ]);
