@@ -1,18 +1,16 @@
-import { NextResponse } from "next/server"
-import path from "path"
-import fs from "fs"
+import { NextResponse } from "next/server";
+import { getAllPrograms } from "@/database/programs/db-programs";
 
 export async function GET() {
   try {
-    const filePath = path.join(process.cwd(), "data", "degree-programs.json")
-    const fileContents = fs.readFileSync(filePath, "utf8")
-    const data = JSON.parse(fileContents)
+    const programs = await getAllPrograms();
 
-    return NextResponse.json(data)
+    return NextResponse.json({ programs });
   } catch (error) {
+    console.error("Failed to load degree programs:", error);
     return NextResponse.json(
       { error: "Failed to load degree programs" },
-      { status: 500 }
-    )
+      { status: 500 },
+    );
   }
 } 
