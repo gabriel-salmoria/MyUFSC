@@ -1,5 +1,5 @@
 import CryptoJS from "crypto-js";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 /**
  * Generates a random salt for key derivation
