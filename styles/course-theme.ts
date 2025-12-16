@@ -61,7 +61,7 @@ export const PHASE_DIMENSIONS = {
   MIN_WIDTH: 200,
   PADDING: 30,
   BOXES_PER_COLUMN: 6,
-  TOTAL_SEMESTERS: 8, // Total number of semesters in the curriculum
+  TOTAL_SEMESTERS: 12, // Total number of semesters in the curriculum
 };
 
 // Timetable configuration
