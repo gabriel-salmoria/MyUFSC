@@ -4,9 +4,9 @@ import { getCurriculumByProgramId } from "@/database/curriculum/db-curriculum"; 
 // Server-side route handler
 export async function GET(
   request: Request,
-  { params }: { params: { programId: string } },
+  { params }: { params: Promise<{ programId: string }> },
 ) {
-  const { programId } = params;
+  const { programId } = await params;
 
   try {
     if (!programId) {
