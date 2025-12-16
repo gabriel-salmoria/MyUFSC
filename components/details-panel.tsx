@@ -58,7 +58,7 @@ export default function StudentCourseDetailsPanel({
     setIsEditingGrade(
       (studentCourse?.status === CourseStatus.COMPLETED ||
         studentCourse?.status === CourseStatus.DEFAULT) &&
-        studentCourse?.grade === undefined,
+      studentCourse?.grade === undefined,
     );
     setGradeError("");
   }, [studentCourse]); // studentCourse from store is now the dependency
@@ -122,30 +122,30 @@ export default function StudentCourseDetailsPanel({
         <div className="space-y-4">
           <div>
             <h4 className="text-sm font-medium text-muted-foreground">
-              Course Name
+              Nome da Disciplina
             </h4>
             <p className="text-foreground">{course?.name ?? "N/A"}</p>
           </div>
 
           <div>
             <h4 className="text-sm font-medium text-muted-foreground">
-              Credits
+              Créditos
             </h4>
             <p className="text-foreground">{course?.credits ?? "N/A"}</p>
           </div>
 
           <div>
             <h4 className="text-sm font-medium text-muted-foreground">
-              Workload
+              Carga Horária
             </h4>
             <p className="text-foreground">
-              {course?.workload ? `${course.workload} hours` : "N/A"}
+              {course?.workload ? `${course.workload} horas` : "N/A"}
             </p>
           </div>
 
           <div>
             <h4 className="text-sm font-medium text-muted-foreground">
-              Recommended Phase
+              Fase Recomendada
             </h4>
             <p className="text-foreground">{course?.phase ?? "N/A"}</p>
           </div>
@@ -153,7 +153,7 @@ export default function StudentCourseDetailsPanel({
           {studentCourse?.grade !== undefined && !isEditingGrade && (
             <div>
               <h4 className="text-sm font-medium text-muted-foreground">
-                Grade
+                Nota
               </h4>
               <div className="flex items-center gap-2">
                 <p
@@ -167,15 +167,15 @@ export default function StudentCourseDetailsPanel({
                 </p>
                 {(studentCourse.status === CourseStatus.COMPLETED ||
                   studentCourse.status === CourseStatus.FAILED) && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsEditingGrade(true)}
-                    className="h-6 px-2 text-xs"
-                  >
-                    Edit
-                  </Button>
-                )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsEditingGrade(true)}
+                      className="h-6 px-2 text-xs"
+                    >
+                      Editar
+                    </Button>
+                  )}
               </div>
             </div>
           )}
@@ -183,80 +183,80 @@ export default function StudentCourseDetailsPanel({
           {(isEditingGrade ||
             (studentCourse?.status === CourseStatus.COMPLETED &&
               studentCourse?.grade === undefined)) && (
-            <div>
-              <h4 className="text-sm font-medium text-muted-foreground">
-                Grade
-              </h4>
-              <div className="flex flex-col gap-1 mt-1">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min="0"
-                    max="10"
-                    step="0.5"
-                    value={gradeInput}
-                    onChange={(e) => {
-                      setGradeInput(e.target.value);
-                      setGradeError("");
-                    }}
-                    onBlur={handleSaveGrade}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        handleSaveGrade();
-                        (e.target as HTMLInputElement).blur();
-                      }
-                    }}
-                    className={`border rounded px-2 py-1 w-20 text-sm bg-background text-foreground
+              <div>
+                <h4 className="text-sm font-medium text-muted-foreground">
+                  Nota
+                </h4>
+                <div className="flex flex-col gap-1 mt-1">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      max="10"
+                      step="0.5"
+                      value={gradeInput}
+                      onChange={(e) => {
+                        setGradeInput(e.target.value);
+                        setGradeError("");
+                      }}
+                      onBlur={handleSaveGrade}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          handleSaveGrade();
+                          (e.target as HTMLInputElement).blur();
+                        }
+                      }}
+                      className={`border rounded px-2 py-1 w-20 text-sm bg-background text-foreground
                       ${gradeError ? "border-red-500 dark:border-red-400 focus:border-red-500 focus:ring-red-500" : "border-input focus:border-blue-500 focus:ring-blue-500"}
                       focus:outline-none focus:ring-1`}
-                    placeholder="0-10"
-                    disabled={!studentCourse}
-                  />
-                  <Button
-                    size="sm"
-                    onClick={handleSaveGrade}
-                    className="h-8 px-3"
-                    disabled={!studentCourse || gradeError !== ""}
-                  >
-                    <Save className="h-3 w-3 mr-1" />
-                    Save
-                  </Button>
-                </div>
-                {gradeError && (
-                  <p className="text-red-500 dark:text-red-400 text-xs mt-1">
-                    {gradeError}
+                      placeholder="0-10"
+                      disabled={!studentCourse}
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handleSaveGrade}
+                      className="h-8 px-3"
+                      disabled={!studentCourse || gradeError !== ""}
+                    >
+                      <Save className="h-3 w-3 mr-1" />
+                      Salvar
+                    </Button>
+                  </div>
+                  {gradeError && (
+                    <p className="text-red-500 dark:text-red-400 text-xs mt-1">
+                      {gradeError}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Insira uma nota entre 0-10 (arredondada para 0.5).
+                    {parseFloat(gradeInput) >= 0 &&
+                      !isNaN(parseFloat(gradeInput)) &&
+                      parseFloat(gradeInput) <= 10 && (
+                        <span className="font-medium">
+                          {" "}
+                          Valor será salvo como:{" "}
+                          {Math.round(parseFloat(gradeInput) * 2) / 2}
+                        </span>
+                      )}
                   </p>
-                )}
-                <p className="text-xs text-muted-foreground mt-1">
-                  Enter a grade between 0-10 (rounded to nearest 0.5).
-                  {parseFloat(gradeInput) >= 0 &&
-                    !isNaN(parseFloat(gradeInput)) &&
-                    parseFloat(gradeInput) <= 10 && (
-                      <span className="font-medium">
-                        {" "}
-                        Value will be saved as:{" "}
-                        {Math.round(parseFloat(gradeInput) * 2) / 2}
-                      </span>
-                    )}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Grades ≥ 6.0 will mark the course as{" "}
-                  <span className="text-green-600 dark:text-green-400 font-medium">
-                    Completed
-                  </span>
-                  , grades &lt; 6.0 will mark the course as{" "}
-                  <span className="text-red-600 dark:text-red-400 font-medium">
-                    Failed
-                  </span>
-                  .
-                </p>
+                  <p className="text-xs text-muted-foreground">
+                    Notas ≥ 6.0 marcarão como{" "}
+                    <span className="text-green-600 dark:text-green-400 font-medium">
+                      Concluído
+                    </span>
+                    , notas &lt; 6.0 marcarão como{" "}
+                    <span className="text-red-600 dark:text-red-400 font-medium">
+                      Reprovado
+                    </span>
+                    .
+                  </p>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
           <div>
             <h4 className="text-sm font-medium text-muted-foreground">
-              Equivalents
+              Equivalências
             </h4>
             {course?.equivalents && course.equivalents.length > 0 ? (
               <ul className="list-disc pl-5 text-foreground">
@@ -273,13 +273,13 @@ export default function StudentCourseDetailsPanel({
                 })}
               </ul>
             ) : (
-              <p className="text-foreground">No equivalents</p>
+              <p className="text-foreground">Sem equivalências</p>
             )}
           </div>
 
           <div>
             <h4 className="text-sm font-medium text-muted-foreground">
-              Prerequisites
+              Pré-requisitos
             </h4>
             {course?.prerequisites && course.prerequisites.length > 0 ? (
               <ul className="list-disc pl-5 text-foreground">
@@ -296,16 +296,16 @@ export default function StudentCourseDetailsPanel({
                 })}
               </ul>
             ) : (
-              <p className="text-foreground">No prerequisites</p>
+              <p className="text-foreground">Sem pré-requisitos</p>
             )}
           </div>
 
           <div>
             <h4 className="text-sm font-medium text-muted-foreground">
-              Description
+              Ementa
             </h4>
             <ul className="list-disc pl-5 text-foreground">
-              {course?.description ?? "No description"}
+              {course?.description ?? "Sem descrição"}
             </ul>
           </div>
         </div>
@@ -318,7 +318,7 @@ export default function StudentCourseDetailsPanel({
               onClick={handleViewDependenciesClick} // Use the new internal handler
             >
               <GitGraph className="h-4 w-4" />
-              View Dependency Tree
+              Ver Árvore de Dependências
             </Button>
           )}
 
@@ -338,7 +338,7 @@ export default function StudentCourseDetailsPanel({
             }
             disabled={!studentCourse}
           >
-            Mark as In Progress
+            Marcar como Cursando
           </Button>
 
           <Button
@@ -368,7 +368,7 @@ export default function StudentCourseDetailsPanel({
             }}
             disabled={!studentCourse}
           >
-            Mark as Completed
+            Marcar como Concluído
           </Button>
 
           <Button
@@ -386,7 +386,7 @@ export default function StudentCourseDetailsPanel({
             }}
             disabled={!studentCourse}
           >
-            Mark as Planned
+            Marcar como Planejado
           </Button>
         </div>
       </div>

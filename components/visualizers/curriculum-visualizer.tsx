@@ -12,7 +12,7 @@ import { CourseStatus } from "@/types/student-plan";
 import Phase from "@/components/visualizers/phase";
 
 // config
-import { PHASE } from "@/styles/visualization";
+import { PHASE, COURSE_BOX } from "@/styles/visualization";
 
 // helper to generate phases - import directly from the file where it's defined
 import { generatePhases } from "@/parsers/curriculum-parser";
@@ -78,6 +78,33 @@ export default function CurriculumVisualizer({
   // calcula a largura total do curriculo
   const totalWidth = curriculum.totalPhases * phaseWidth;
 
+  // Calculate max slots across all phases for uniform height
+  const globalTotalSlots = useMemo(() => {
+    const maxCourses = phases.reduce(
+      (max, phase) => Math.max(max, phase.courses.length),
+      0
+    );
+    return Math.max(PHASE.BOXES_PER_COLUMN || 6, maxCourses + 1);
+  }, [phases]);
+
+  // Dynamic height calculation based on Phase component formula
+  // Formula: totalSlots * SPACING_Y + HEIGHT + PADDING
+  const exactHeight = useMemo(() => {
+    // These defaults must match styles/course-theme.ts
+    const height = COURSE_BOX.HEIGHT || 50;
+    const spacing = COURSE_BOX.SPACING_Y || 60;
+    const bottomPadding = 20;
+
+    // Formula from Phase.tsx
+    // Last box bottom = totalSlots * SPACING_Y + HEIGHT
+    const phaseHeight = globalTotalSlots * spacing + height - bottomPadding;
+
+    return phaseHeight;
+  }, [globalTotalSlots]);
+
+  // Use exactHeight or fallback
+  const containerHeight = exactHeight > 0 ? exactHeight : (height || 600);
+
   return (
     <div className="flex flex-col w-full h-full">
       <div
@@ -90,11 +117,11 @@ export default function CurriculumVisualizer({
             transform: `translate(${pan.x}px, ${pan.y}px)`,
             transformOrigin: "0 0",
             width: totalWidth,
-            height: `${height}px`,
+            height: `${containerHeight}px`,
           }}
         >
           {/* Phase components that handle course positioning internally */}
-          <div className="flex">
+          <div className="flex" style={{ height: `${containerHeight}px` }}>
             {phases.map((semester, index) => (
               <Phase
                 key={`phase-${semester.number}`}
@@ -115,16 +142,17 @@ export default function CurriculumVisualizer({
                     status:
                       studentPlan.semesters
                         .flatMap((s) => s.courses)
-                        .find((sc) => sc.id === course.id)?.status ||
+                        .find((sc) => sc.course.id === course.id)?.status ||
                       CourseStatus.PLANNED,
                     grade:
                       studentPlan.semesters
                         .flatMap((s) => s.courses)
-                        .find((sc) => sc.id === course.id)?.grade || undefined,
+                        .find((sc) => sc.course.id === course.id)?.grade || undefined,
                     phase: semester.number,
                   }))}
                 width={phaseWidth}
                 isFromCurriculum={true} // Mark as from curriculum
+                totalSlots={globalTotalSlots} // Pass uniform height
               />
             ))}
           </div>
