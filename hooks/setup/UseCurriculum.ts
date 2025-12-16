@@ -119,7 +119,13 @@ export function useCurriculum({
     if (degreesSignature !== fetchedForDegreeRef.current) {
       let active = true;
       const loadData = async () => {
-        setIsCurriculumLoading(true);
+        // Only block UI on initial load. Subsequent updates (adding interests) 
+        // will happen in "background" from user perspective.
+        const isInitialLoad = !fetchedForDegreeRef.current;
+        if (isInitialLoad) {
+          setIsCurriculumLoading(true);
+        }
+
         fetchedForDegreeRef.current = degreesSignature;
 
         try {
@@ -127,6 +133,8 @@ export function useCurriculum({
 
           if (active) {
             // Fetch all curriculums in parallel
+            // Since we are not strictly filtering "missing" locally, we rely on browser/network cache 
+            // or just accept the lightweight refetch for robustness.
             const curriculumsResults = await Promise.all(
               degreesToFetch.map(async (degreeId) => {
                 const curr = await fetchCurriculumData(degreeId);
@@ -137,7 +145,7 @@ export function useCurriculum({
             const newCache: Record<string, Curriculum> = {};
             let currentCurrParsed: Curriculum | null = null;
 
-            // Get the store action
+            // Update global store
             const { cacheCurriculum } = useStudentStore.getState();
 
             curriculumsResults.forEach(({ degreeId, curr }) => {
@@ -154,31 +162,27 @@ export function useCurriculum({
               }
             });
 
-            // We need to parse courses to store them in the cache compatible with SearchPopup
-            // But UseCurriculum uses `Curriculum` objects in its local cache.
-            // StudentStore uses `Course[]` in its cache.
-            // Let's do the parsing here to populate the store.
-
-
             const viewingDegree = targetDegree || studentInfo.currentDegree;
+            // Use new cache or fallback to what we just fetched (which is in newCache)
+            // If viewingDegree wasn't in degreesToFetch, we might be in trouble? 
+            // But targetDegree is usually currentDegree or one of interest.
             const viewingCurr = newCache[viewingDegree] || null;
 
-            // Processed check
+            // Processed check to ensure compatibility
             const processedViewing = viewingCurr ? { ...viewingCurr, courses: Array.isArray(viewingCurr.courses) ? viewingCurr.courses : [] } : null;
             const processedCurrent = currentCurrParsed ? { ...currentCurrParsed, courses: Array.isArray(currentCurrParsed.courses) ? currentCurrParsed.courses : [] } : null;
 
             setCurriculumState(prev => ({
               ...prev,
               degreePrograms: programs,
-              curriculumsCache: newCache,
-              currentCurriculum: processedCurrent,
-              curriculum: processedViewing,
+              curriculumsCache: { ...prev.curriculumsCache, ...newCache },
+              currentCurriculum: processedCurrent || prev.currentCurriculum,
+              curriculum: processedViewing || prev.curriculum,
               viewingDegreeId: viewingDegree
             }));
           }
         } catch (err) {
           console.error("Failed to load data", err);
-          // handle error
         } finally {
           if (active) setIsCurriculumLoading(false);
         }
