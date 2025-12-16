@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react"; // Add useRef
 import { useRouter } from "next/navigation";
 import type { StudentInfo } from "@/types/student-plan";
+import { decryptStudentData, hashString } from "@/crypto/client/crypto";
 
 export interface UseStudentProfileResult {
   studentInfo: StudentInfo | null;
@@ -10,10 +11,16 @@ export interface UseStudentProfileResult {
 
 interface UseStudentProfileProps {
   storeStudentInfo: StudentInfo | null;
+  userId?: string | null;
+  setStoreStudentInfo?: (info: StudentInfo) => void;
+  authCheckCompleted?: boolean;
 }
 
 export function useStudentProfile({
   storeStudentInfo,
+  userId,
+  setStoreStudentInfo,
+  authCheckCompleted = true, // Default to true if not provided (legacy behavior)
 }: UseStudentProfileProps): UseStudentProfileResult {
   const router = useRouter(); // Kept for potential future use
   const [studentInfo, setStudentInfo] = useState<StudentInfo | null>(null);
@@ -22,8 +29,56 @@ export function useStudentProfile({
   const prevStoreStudentInfoRef = useRef<StudentInfo | null>(storeStudentInfo);
 
   useEffect(() => {
+    // Case 0: Data missing but we have a user ID -> FETCH IT
+    if (!storeStudentInfo && !studentInfo && userId && setStoreStudentInfo) {
+      setIsProfileLoading(true);
+
+      const loadData = async () => {
+        try {
+          // Check for encryption key first
+          const pwd = typeof window !== 'undefined' ? localStorage.getItem("enc_pwd") : null;
+          if (!pwd) {
+            console.error("No encryption key found. Redirecting to login.");
+            router.push("/login");
+            return;
+          }
+
+          const response = await fetch(`/api/user/profile/${userId}`);
+          if (response.ok) {
+            const encryptedResponse = await response.json();
+
+            // Decrypt logic
+            try {
+              const hashedPwd = hashString(pwd);
+              const decryptedData = decryptStudentData(hashedPwd, encryptedResponse.iv, encryptedResponse.encryptedData);
+
+              if (decryptedData) {
+                setStoreStudentInfo(decryptedData); // This will trigger Case 1 via store update
+              } else {
+                console.error("Decryption failed (returned null).");
+                router.push("/login"); // Password likely changed or wrong
+              }
+            } catch (decryptError) {
+              console.error("Decryption error:", decryptError);
+              router.push("/login");
+            }
+          } else {
+            setIsProfileLoading(false);
+            // If 404 or other error, maybe redirect?
+            if (response.status === 404) {
+              // Profile not found - clear auth?
+              // router.push("/login");
+            }
+          }
+        } catch (error) {
+          setIsProfileLoading(false);
+        }
+      }
+
+      loadData();
+    }
     // Case 1: storeStudentInfo has become available (was null, now has data)
-    if (storeStudentInfo && !prevStoreStudentInfoRef.current) {
+    else if (storeStudentInfo && !prevStoreStudentInfoRef.current) {
       setStudentInfo(storeStudentInfo);
       setIsProfileLoading(false);
     }
@@ -40,15 +95,16 @@ export function useStudentProfile({
     }
     // Case 4: storeStudentInfo is null and was null (e.g. initial state, or remains null)
     else if (!storeStudentInfo && !prevStoreStudentInfoRef.current) {
-        // If it's null and was null, loading status depends on if we ever had info.
-        // For simplicity here, we assume if it starts null and stays null, loading eventually stops.
-        // The page component orchestrates based on auth.
-        if(isProfileLoading) setIsProfileLoading(false); 
+      // If we are fetching (Case 0), do nothing.
+      // If we are NOT fetching and have no userId, then we are just waiting or unauthed.
+      // BUT, we should only stop loading if we are sure auth check is done.
+      // If auth check is NOT done, we might still get a userId, so keep loading.
+      if (!userId && isProfileLoading && authCheckCompleted) setIsProfileLoading(false);
     }
 
     // Update previous storeStudentInfo for the next render
     prevStoreStudentInfoRef.current = storeStudentInfo;
-  }, [storeStudentInfo, isProfileLoading]); // router removed as it's not directly used in this effect's logic now
+  }, [storeStudentInfo, isProfileLoading, userId, setStoreStudentInfo, authCheckCompleted]); // router removed as it's not directly used in this effect's logic now
 
   return { studentInfo, setStudentInfo, isProfileLoading };
 }

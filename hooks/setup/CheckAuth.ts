@@ -12,6 +12,7 @@ export interface UseCheckAuthResult {
   setAuthState: React.Dispatch<React.SetStateAction<AuthState>>;
   isAuthenticated: boolean;
   authCheckCompleted: boolean; // To signal when the check is done
+  userId: string | null;
 }
 
 export function useCheckAuth(): UseCheckAuthResult {
@@ -22,6 +23,7 @@ export function useCheckAuth(): UseCheckAuthResult {
   });
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authCheckCompleted, setAuthCheckCompleted] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     // Prevent multiple auth checks if already checked
@@ -32,13 +34,14 @@ export function useCheckAuth(): UseCheckAuthResult {
 
     const performCheck = async () => {
       try {
-        const response = await fetch("/api/user/auth/check");
+        const response = await fetch("/api/user/auth/check", { cache: "no-store", credentials: "include" });
         const data = await response.json();
 
         setAuthState((prev) => ({ ...prev, authChecked: true, error: "" }));
 
         if (data.authenticated && data.userId) {
           setIsAuthenticated(true);
+          setUserId(data.userId); // Set userId
         } else {
           setIsAuthenticated(false);
           router.push("/login");
@@ -59,5 +62,5 @@ export function useCheckAuth(): UseCheckAuthResult {
     performCheck();
   }, [router, authState.authChecked]); // Dependency on authState.authChecked to prevent re-runs
 
-  return { authState, setAuthState, isAuthenticated, authCheckCompleted };
+  return { authState, setAuthState, isAuthenticated, authCheckCompleted, userId };
 }
