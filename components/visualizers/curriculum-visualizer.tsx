@@ -143,7 +143,7 @@ export default function CurriculumVisualizer({
                       studentPlan.semesters
                         .flatMap((s) => s.courses)
                         .find((sc) => sc.course.id === course.id)?.status ||
-                      CourseStatus.PLANNED,
+                      CourseStatus.DEFAULT,
                     grade:
                       studentPlan.semesters
                         .flatMap((s) => s.courses)
