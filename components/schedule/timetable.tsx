@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { cn } from "@/components/ui/utils";
 import CourseStats from "./course-stats";
 import type { Course } from "@/types/curriculum";
@@ -79,6 +79,8 @@ export default function Timetable({
   const [professorOverrides, setProfessorOverrides] = useState<
     ProfessorOverride[]
   >([]);
+
+  const studentStore = useStudentStore();
 
   const {
     scheduleData,
@@ -161,33 +163,18 @@ export default function Timetable({
     return hours * 60 + minutes;
   };
 
-  // Handle professor selection
-  const handleProfessorSelect = (
-    course: StudentCourse,
-    professorId: string,
-  ) => {
-    // Get the professor data - use the parsed data if available
-    const professorsForCourse = timetableData.professors[course.id];
-    const professorData = professorsForCourse?.find(
-      (p) => p.professorId === professorId,
-    );
-
-    if (!professorData) return;
-
-    // Parse the professor's schedule
+  // Helper to parse schedule
+  const parseScheduleForProfessor = (professorData: Professor, course: StudentCourse): ProfessorOverride | null => {
     const scheduleText = professorData.schedule;
-
-    // Create new schedule entries in the exact same format as the default schedule
     const scheduleEntries: ScheduleEntry[] = [];
 
-    // Parse schedule text that can contain multiple time slots
+    // Safely get course ID
+    const courseId = course.course ? course.course.id : (course as any).id;
+
     if (scheduleText) {
       const timeSlots = scheduleText.split(",").map((s) => s.trim());
 
       timeSlots.forEach((timeSlot) => {
-        // Split by spaces but preserve location information
-        // Format could be like "Segunda/Quarta 13:30-15:10 CTC-CTC102"
-        // We need to extract days, time range, and location
         const daysAndTimeMatch = timeSlot.match(
           /^(.+?) (\d+:\d+-\d+:\d+)(.*)$/,
         );
@@ -196,14 +183,12 @@ export default function Timetable({
           const [_, daysStr, timeRange, locationPart] = daysAndTimeMatch;
           const days = daysStr.split("/");
           const [startTime, endTime] = timeRange.split("-");
-
-          // Extract location (trim any leading spaces)
           const slotLocation = locationPart ? locationPart.trim() : "";
 
           days.forEach((dayName) => {
             const dayIndex =
               TIMETABLE.DAYS_MAP[
-                dayName.trim() as keyof typeof TIMETABLE.DAYS_MAP
+              dayName.trim() as keyof typeof TIMETABLE.DAYS_MAP
               ];
             if (dayIndex === undefined || !startTime || !endTime) return;
 
@@ -218,26 +203,49 @@ export default function Timetable({
       });
     }
 
-    // Update professor overrides first
-    const newProfessorOverrides = [
-      ...professorOverrides.filter((o) => o.courseId !== course.id),
-      {
-        courseId: course.id,
-        professorId,
-        schedule: scheduleEntries,
-        classNumber: professorData.classNumber,
-        location: scheduleEntries[scheduleEntries.length - 1]?.location || "",
-      },
-    ];
+    return {
+      courseId: courseId,
+      professorId: professorData.professorId,
+      schedule: scheduleEntries,
+      classNumber: professorData.classNumber,
+      location: scheduleEntries[scheduleEntries.length - 1]?.location || "",
+    }
+  }
 
-    // Clear existing conflicts and rebuild from scratch
+  // Effect to sync overrides with selectedPhaseCourses (Source of Truth)
+  useEffect(() => {
+    if (!timetableData || !selectedPhaseCourses) return;
+
+    const newOverrides: ProfessorOverride[] = [];
+
+    selectedPhaseCourses.forEach(studentCourse => {
+      // Check if class is selected (persisted in store)
+      // Accessing .class properly - might need 'as any' if types are broken in store but working here
+      const classId = (studentCourse as any).class;
+      // Safely get course ID
+      const courseId = studentCourse.course ? studentCourse.course.id : (studentCourse as any).id;
+
+      if (classId) {
+        const profs = timetableData.professors[courseId];
+        if (profs) {
+          const prof = profs.find((p: Professor) => p.classNumber === classId);
+          if (prof) {
+            const override = parseScheduleForProfessor(prof, studentCourse);
+            if (override) {
+              newOverrides.push(override);
+            }
+          }
+        }
+      }
+    });
+
+    // START CONFLICT CALCULATION (Moved from handleProfessorSelect)
     const newConflicts = new Map<string, Set<string>>();
 
-    // Check all courses against each other for conflicts
-    for (let i = 0; i < newProfessorOverrides.length; i++) {
-      for (let j = i + 1; j < newProfessorOverrides.length; j++) {
-        const override1 = newProfessorOverrides[i];
-        const override2 = newProfessorOverrides[j];
+    for (let i = 0; i < newOverrides.length; i++) {
+      for (let j = i + 1; j < newOverrides.length; j++) {
+        const override1 = newOverrides[i];
+        const override2 = newOverrides[j];
 
         override1.schedule.forEach((entry1) => {
           if (!entry1.endTime) return;
@@ -250,22 +258,16 @@ export default function Timetable({
             const start2 = timeToMinutes(entry2.startTime);
             const end2 = timeToMinutes(entry2.endTime as string);
 
-            // Check for overlap
             if (
               (start1 >= start2 && start1 < end2) ||
               (end1 > start2 && end1 <= end2) ||
               (start1 < start2 && end1 > end2)
             ) {
-              // Add conflict for both courses
               const key1 = `${override1.courseId}-${entry1.day}-${entry1.startTime}`;
               const key2 = `${override2.courseId}-${entry2.day}-${entry2.startTime}`;
 
-              if (!newConflicts.has(key1)) {
-                newConflicts.set(key1, new Set());
-              }
-              if (!newConflicts.has(key2)) {
-                newConflicts.set(key2, new Set());
-              }
+              if (!newConflicts.has(key1)) newConflicts.set(key1, new Set());
+              if (!newConflicts.has(key2)) newConflicts.set(key2, new Set());
 
               newConflicts.get(key1)!.add(override2.courseId);
               newConflicts.get(key2)!.add(override1.courseId);
@@ -274,10 +276,30 @@ export default function Timetable({
         });
       }
     }
+    // END CONFLICT CALCULATION
 
-    // Update both states
-    setProfessorOverrides(newProfessorOverrides);
+    setProfessorOverrides(newOverrides);
     setConflicts(newConflicts);
+
+  }, [selectedPhaseCourses, timetableData]);
+
+  // Handle professor selection - Updates Store
+  const handleProfessorSelect = (
+    course: StudentCourse,
+    professorId: string,
+  ) => {
+    // Safely get course ID
+    const courseId = course.course ? course.course.id : (course as any).id;
+
+    const professorsForCourse = timetableData.professors[courseId]; // Fixed access
+    const professorData = professorsForCourse?.find(
+      (p) => p.professorId === professorId,
+    );
+
+    if (professorData) {
+      // Update the store - this will trigger the effect above
+      studentStore.setCourseClass(course, professorData.classNumber);
+    }
   };
 
   // Create a mapping of time slots to courses
@@ -363,9 +385,9 @@ export default function Timetable({
   const courseColorMap = useMemo(() => {
     // For any new courses that don't have a color yet, assign them one
     selectedPhaseCourses.forEach((course) => {
-      if (!courseColors.has(course.id)) {
+      if (!courseColors.has(course.course.id)) {
         const colorIndex = courseColors.size % TIMETABLE_COLORS.length;
-        courseColors.set(course.id, TIMETABLE_COLORS[colorIndex]);
+        courseColors.set(course.course.id, TIMETABLE_COLORS[colorIndex]);
       }
     });
     return courseColors;
@@ -378,10 +400,15 @@ export default function Timetable({
 
   // Handle removing a course from the timetable
   const handleRemoveCourse = (courseId: string) => {
-    setProfessorOverrides((prev) =>
-      prev.filter((o) => o.courseId !== courseId),
-    );
-    setConflicts(new Map()); // Reset conflicts when removing a course
+    // Find course object to pass to store
+    // We only have ID here, but setCourseClass needs StudentCourse object (mostly for phase/id usually)
+    // However, our new setCourseClass might assume it has phase.
+    // The current signature of setCourseClass is (course: StudentCourse, classId: string)
+
+    const course = selectedPhaseCourses.find(c => c.course.id === courseId);
+    if (course) {
+      studentStore.setCourseClass(course, "");
+    }
   };
 
   // Get the list of available phases from the student info
