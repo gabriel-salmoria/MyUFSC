@@ -2,7 +2,11 @@
   "programs": [
     {
       "id": "208",
-      "name": "Computer Science"
+      "name": "Ciências da Computação"
+    },
+    {
+      "id": "238",
+      "name": "Sistemas de Informação"
     }
   ]
-} 
+}
