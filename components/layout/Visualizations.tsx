@@ -106,17 +106,17 @@ export default function Visualizations({
 
         <div
           className="border border-border rounded-lg overflow-hidden shadow-md bg-card"
-          style={{ height: `${containerHeight}px` }}
+        // Removed fixed height style to allow auto-sizing
         >
           {viewMode === ViewMode.CURRICULUM ? (
             curriculum ? (
               <CurriculumVisualizer
                 curriculum={curriculum}
                 studentPlan={studentInfo.plans[studentInfo.currentPlan]!}
-                height={containerHeight}
+              // Removed fixed height prop
               />
             ) : (
-              <div className="flex items-center justify-center h-full text-muted-foreground">
+              <div className="flex items-center justify-center h-64 text-muted-foreground"> {/* Added min-h for loading state */}
                 Carregando dados do currículo...
                 {curriculum ? (
                   <span className="ml-2">
@@ -129,7 +129,7 @@ export default function Visualizations({
             <GridVisualizer
               studentInfo={studentInfo}
               curriculum={curriculum}
-              height={containerHeight}
+              height={500} // Keep fixed height for grid visualizer as it's a different view type
             />
           )}
         </div>
@@ -141,11 +141,14 @@ export default function Visualizations({
         </h2>
         <div
           className="border border-border rounded-lg overflow-hidden shadow-md bg-card"
-          style={{ height: `${containerHeight - 50}px` }}
+        // Removed fixed height style
         >
           <ProgressVisualizer
             studentPlan={studentInfo.plans[studentInfo.currentPlan]!}
-            height={containerHeight - 50}
+            totalPhases={curriculum?.totalPhases || 8}
+            height={500} // Keeps a default reasonable height for progress, or better yet, make it dynamic too later if needed?
+            // For now, user specifically asked about Curriculum Visualizer unused space.
+            // But let's keep it consistent.
             key={`progress-${studentInfo.currentPlan || "default"}`}
           />
         </div>

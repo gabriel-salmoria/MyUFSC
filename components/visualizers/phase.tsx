@@ -15,6 +15,7 @@ interface PhaseProps {
   studentCourses: StudentCourse[]; // Added
   width: number;
   isFromCurriculum?: boolean; // Renamed from isActualSemester
+  totalSlots?: number; // Added
 }
 
 export default function Phase({
@@ -22,6 +23,7 @@ export default function Phase({
   studentCourses,
   width,
   isFromCurriculum,
+  totalSlots: explicitTotalSlots,
 }: PhaseProps) {
   const studentStore = useStudentStore();
   const boxWidth = useMemo(() => {
@@ -36,10 +38,19 @@ export default function Phase({
   // Estimate header height (adjust if needed)
   const headerHeight = 0; // px, adjust to match your actual header height
 
-  // Calculate total phase height: (box height + spacing) * number of boxes + header
+  // Calculate dynamic slots
+  const minSlots = 6;
+  const utilizedSlots = studentCourses.length;
+
+  // Use explicit total slots if provided, otherwise calculate locally
+  const totalSlots = explicitTotalSlots || Math.max(minSlots, utilizedSlots + 1);
+
+  // Calculate total phase height:
+  // Last box bottom = totalSlots * SPACING_Y + HEIGHT
+  // Add some bottom padding
+  const bottomPadding = 20;
   const phaseHeight =
-    (COURSE_BOX.HEIGHT + COURSE_BOX.SPACING_Y / 3) * PHASE.BOXES_PER_COLUMN +
-    headerHeight;
+    totalSlots * COURSE_BOX.SPACING_Y + COURSE_BOX.HEIGHT + bottomPadding;
 
   return (
     <div
@@ -77,9 +88,9 @@ export default function Phase({
       {/* Add ghost boxes for empty slots if it's an actual semester (progress view) */}
       {!isFromCurriculum &&
         Array.from({
-          length: PHASE.BOXES_PER_COLUMN - studentCourses.length,
+          length: totalSlots - utilizedSlots,
         }).map((_, index) => {
-          const positionIndex = studentCourses.length + index;
+          const positionIndex = utilizedSlots + index;
           const position = {
             courseId: `ghost-${semesterNumber}-${positionIndex}`, // Unique ID for ghost
             x: xOffset,
