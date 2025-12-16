@@ -43,7 +43,7 @@ export default function Home() {
   });
 
   // Curriculum Hook
-  const { curriculumState, isCurriculumLoading } = useCurriculum({
+  const { curriculumState, isCurriculumLoading, setViewingDegreeId } = useCurriculum({
     studentInfo, // Pass studentInfo from useStudentProfile directly
     isProfileLoading, // isProfileLoading is still relevant
   });
@@ -184,6 +184,9 @@ export default function Home() {
           <Visualizations
             studentInfo={studentInfo}
             curriculum={curriculumState.curriculum}
+            viewingDegreeId={curriculumState.viewingDegreeId}
+            setViewingDegreeId={setViewingDegreeId}
+            degreePrograms={curriculumState.degreePrograms}
           />
           <div className="mt-8">
             <Timetable

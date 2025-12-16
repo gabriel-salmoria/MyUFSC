@@ -7,17 +7,19 @@ export interface CurriculumHookState {
   curriculum: Curriculum | null;
   currentCurriculum: Curriculum | null;
   degreePrograms: DegreeProgram[];
+  viewingDegreeId: string | null;
 }
 
 export interface UseCurriculumResult {
   curriculumState: CurriculumHookState;
   setCurriculumState: React.Dispatch<React.SetStateAction<CurriculumHookState>>;
   isCurriculumLoading: boolean;
+  setViewingDegreeId: (id: string) => void;
 }
 
 interface UseCurriculumProps {
   studentInfo: StudentInfo | null;
-  isProfileLoading: boolean; 
+  isProfileLoading: boolean;
 }
 
 async function fetchDegreePrograms(): Promise<DegreeProgram[]> {
@@ -57,73 +59,123 @@ export function useCurriculum({
     curriculum: null,
     currentCurriculum: null,
     degreePrograms: [],
+    viewingDegreeId: null,
+    curriculumsCache: {},
   });
   const [isCurriculumLoading, setIsCurriculumLoading] = useState(true);
-  const fetchedForDegreeRef = useRef<string | null | undefined>(null); // Tracks the degree for which data was fetched
+  const fetchedForDegreeRef = useRef<string | null | undefined>(null); // Tracks signature of fetched degrees
+
+  // Exposed setter that updates state 
+  const setViewingDegreeId = (id: string) => {
+    setCurriculumState(prev => {
+      // If we have it in cache, use it immediately
+      const cached = prev.curriculumsCache[id];
+      return {
+        ...prev,
+        viewingDegreeId: id,
+        curriculum: cached ? { ...cached, courses: Array.isArray(cached.courses) ? cached.courses : [] } : prev.curriculum
+      };
+    });
+  };
 
   useEffect(() => {
     if (isProfileLoading) {
-      setIsCurriculumLoading(true); // Stay loading if profile is loading
-      fetchedForDegreeRef.current = null; // Reset fetched marker
+      setIsCurriculumLoading(true);
+      fetchedForDegreeRef.current = null;
       return;
     }
 
-    if (!studentInfo) {
-      setIsCurriculumLoading(false); // Not loading if no student info
-      setCurriculumState({ curriculum: null, currentCurriculum: null, degreePrograms: [] });
-      fetchedForDegreeRef.current = null; // Reset
+    if (!studentInfo || !studentInfo.currentDegree) {
+      setIsCurriculumLoading(false);
+      setCurriculumState({
+        curriculum: null,
+        currentCurriculum: null,
+        degreePrograms: [],
+        viewingDegreeId: null,
+        curriculumsCache: {}
+      });
+      fetchedForDegreeRef.current = null;
       return;
     }
 
-    // Only fetch if studentInfo.currentDegree has changed since last fetch OR if never fetched for this student
-    // OR if studentInfo object itself is new and we haven't fetched for its currentDegree yet.
-    if (studentInfo.currentDegree !== fetchedForDegreeRef.current || !curriculumState.currentCurriculum) {
+    // Determine all degrees to fetch
+    const distinctDegrees = new Set<string>([studentInfo.currentDegree]);
+    if (studentInfo.interestedDegrees) {
+      studentInfo.interestedDegrees.forEach(d => distinctDegrees.add(d));
+    }
+    const degreesToFetch = Array.from(distinctDegrees).sort();
+    const degreesSignature = degreesToFetch.join(",");
+
+    // Initialize viewingDegreeId if not set
+    let targetDegree = curriculumState.viewingDegreeId;
+    if (!targetDegree) {
+      targetDegree = studentInfo.currentDegree;
+    }
+
+    // Check if we need to fetch (signature changed)
+    if (degreesSignature !== fetchedForDegreeRef.current) {
       let active = true;
-      const loadDegreeAndCurriculumData = async () => {
-        setIsCurriculumLoading(true); // Set loading true ONLY when we actually decide to fetch
-        fetchedForDegreeRef.current = studentInfo.currentDegree; // Mark that we are fetching for this degree
+      const loadData = async () => {
+        setIsCurriculumLoading(true);
+        fetchedForDegreeRef.current = degreesSignature;
+
         try {
           const programs = await fetchDegreePrograms();
-          if (active) {
-            setCurriculumState((prev) => ({ ...prev, degreePrograms: programs }));
-          }
 
-          if (active && studentInfo.currentDegree) {
-            const curriculum = await fetchCurriculumData(studentInfo.currentDegree);
-            if (active && curriculum) {
-              const processedCurriculum: Curriculum = {
-                ...curriculum,
-                courses: Array.isArray(curriculum.courses) ? curriculum.courses : [],
-              };
-              setCurriculumState((prev) => ({
-                ...prev,
-                currentCurriculum: processedCurriculum,
-                curriculum: processedCurriculum,
-              }));
-            } else if (active) { // Curriculum fetch failed or no curriculum for degree
-                 setCurriculumState((prev) => ({ ...prev, currentCurriculum: null, curriculum: null}));
-            }
-          } else if (active) { // No current degree on studentInfo
-             setCurriculumState((prev) => ({ ...prev, currentCurriculum: null, curriculum: null}));
+          if (active) {
+            // Fetch all curriculums in parallel
+            const curriculumsResults = await Promise.all(
+              degreesToFetch.map(async (degreeId) => {
+                const curr = await fetchCurriculumData(degreeId);
+                return { degreeId, curr };
+              })
+            );
+
+            const newCache: Record<string, Curriculum> = {};
+            let currentCurrParsed: Curriculum | null = null;
+
+            curriculumsResults.forEach(({ degreeId, curr }) => {
+              if (curr) {
+                newCache[degreeId] = curr;
+                if (degreeId === studentInfo.currentDegree) {
+                  currentCurrParsed = curr;
+                }
+              }
+            });
+
+            const viewingDegree = targetDegree || studentInfo.currentDegree;
+            const viewingCurr = newCache[viewingDegree] || null;
+
+            // Processed check
+            const processedViewing = viewingCurr ? { ...viewingCurr, courses: Array.isArray(viewingCurr.courses) ? viewingCurr.courses : [] } : null;
+            const processedCurrent = currentCurrParsed ? { ...currentCurrParsed, courses: Array.isArray(currentCurrParsed.courses) ? currentCurrParsed.courses : [] } : null;
+
+            setCurriculumState(prev => ({
+              ...prev,
+              degreePrograms: programs,
+              curriculumsCache: newCache,
+              currentCurriculum: processedCurrent,
+              curriculum: processedViewing,
+              viewingDegreeId: viewingDegree
+            }));
           }
         } catch (err) {
-          console.error("Failed to load degree programs or curriculum:", err);
-          if(active)  setCurriculumState((prev) => ({ ...prev, currentCurriculum: null, curriculum: null, degreePrograms: [] })); // Clear on error
+          console.error("Failed to load data", err);
+          // handle error
         } finally {
-          if (active) {
-            setIsCurriculumLoading(false);
-          }
+          if (active) setIsCurriculumLoading(false);
         }
       };
 
-      loadDegreeAndCurriculumData();
+      loadData();
       return () => { active = false; };
     } else {
-      // Data already loaded for currentDegree and studentInfo, or no degree to load for
-      // Ensure loading is false if it wasn't already.
+      // Already fetched, just ensure viewingDegreeId logic matches cache if needed
+      // But typically usage of setViewingDegreeId handles internal switches.
       if (isCurriculumLoading) setIsCurriculumLoading(false);
     }
-  }, [studentInfo, isProfileLoading, curriculumState.currentCurriculum]); 
 
-  return { curriculumState, setCurriculumState, isCurriculumLoading };
+  }, [studentInfo, isProfileLoading]); // Removed curriculumState dependencies to separate fetch from view state
+
+  return { curriculumState, setCurriculumState, isCurriculumLoading, setViewingDegreeId };
 }
