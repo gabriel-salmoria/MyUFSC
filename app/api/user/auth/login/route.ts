@@ -52,14 +52,16 @@ export async function POST(request: Request) {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
     // Set user ID cookie - using hashed username not plaintext
-    cookieStore.set("userId", hUsername, {
+    cookieStore.set("userId", hashedUsername, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
     // Return encrypted data to client

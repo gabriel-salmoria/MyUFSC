@@ -31,7 +31,7 @@ export default function useEncryptedData({
   // Load password from sessionStorage on initial mount
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const storedPassword = sessionStorage.getItem("enc_pwd");
+      const storedPassword = localStorage.getItem("enc_pwd");
       if (storedPassword) {
         setPassword(storedPassword);
       }
@@ -47,9 +47,9 @@ export default function useEncryptedData({
         setStudentData(decrypted);
         setPassword(password);
 
-        // Store password in sessionStorage to persist between page reloads
+        // Store password in localStorage to persist between page reloads
         if (typeof window !== "undefined") {
-          sessionStorage.setItem("enc_pwd", password);
+          localStorage.setItem("enc_pwd", password);
         }
 
         return decrypted;
@@ -100,9 +100,9 @@ export default function useEncryptedData({
             hashedPassword,
           );
 
-          // Store password in sessionStorage to persist between page reloads
+          // Store password in localStorage to persist between page reloads
           if (typeof window !== "undefined") {
-            sessionStorage.setItem("enc_pwd", password);
+            localStorage.setItem("enc_pwd", password);
           }
 
           return { success: true, data: decrypted };

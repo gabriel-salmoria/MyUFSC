@@ -25,7 +25,7 @@ export default function Home() {
   const router = useRouter();
 
   // Authentication Hook
-  const { authState, setAuthState, isAuthenticated, authCheckCompleted } =
+  const { authState, setAuthState, isAuthenticated, authCheckCompleted, userId } =
     useCheckAuth();
 
   // Student Store Hook
@@ -35,11 +35,15 @@ export default function Home() {
     selectedCourse,
     selectedStudentCourse,
     selectCourse,
+    setStudentInfo: setStoreStudentInfo,
   } = studentStore;
 
   // Student Profile Hook
   const { studentInfo, isProfileLoading } = useStudentProfile({
     storeStudentInfo, // Pass storeStudentInfo directly
+    userId,
+    setStoreStudentInfo,
+    authCheckCompleted,
   });
 
   // Curriculum Hook

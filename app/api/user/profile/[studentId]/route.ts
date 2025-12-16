@@ -1,39 +1,31 @@
 import { NextResponse } from "next/server";
-import type { StudentInfo } from "@/types/student-plan";
-import { parseStudentData } from "@/parsers/student-parser";
-import path from "path";
+import { getUserByHashedUsername } from "@/database/users/db-user";
 
 // Server-side route handler
 export async function GET(
   request: Request,
-  { params }: { params: { studentId: string } },
+  { params }: { params: Promise<{ studentId: string }> },
 ) {
   try {
-    const { studentId } = await Promise.resolve(params);
+    const { studentId } = await params;
 
-    // Show the file path for debugging
-    const userFilePath = path.join(
-      process.cwd(),
-      "data",
-      "users",
-      `${studentId}.json`,
-    );
+    // Get user from database
+    const userData = await getUserByHashedUsername(studentId);
 
-    // Use dynamic import to load the JSON file
-    try {
-      const rawProfileData = await import(`@/data/users/${studentId}.json`);
-
-      // Process the raw data into the required format
-      const processedData = parseStudentData(rawProfileData.default);
-
-      return NextResponse.json(processedData);
-    } catch (importError) {
+    if (!userData) {
       return NextResponse.json(
         { error: "Student profile not found" },
         { status: 404 },
       );
     }
+
+    // Return the encrypted data structure expected by the client
+    // Note: We return the container object that has the encrypted payload
+    // The client needs "encryptedData", "iv", "hashedUsername", "hashedPassword"
+    // The `userData` from DB matches `EncryptedUser` type which has these fields
+    return NextResponse.json(userData);
   } catch (error) {
+    console.error("Error fetching profile:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },
@@ -41,18 +33,4 @@ export async function GET(
   }
 }
 
-// Client-side function to fetch student profile
-export async function fetchStudentProfile(
-  studentId: string,
-): Promise<StudentInfo | null> {
-  try {
-    const response = await fetch(`/api/user/profile/${studentId}`);
-    if (!response.ok) {
-      return null;
-    }
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    return null;
-  }
-}
+
