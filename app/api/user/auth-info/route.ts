@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import type { EncryptedUser } from "@/types/user";
-import { hashUsername } from "@/crypto/server/crypto";
+// import { hashUsername } from "@/crypto/server/crypto";
 import { getUserByHashedUsername } from "@/database/users/db-user";
 
 export async function GET(request: Request) {
@@ -15,7 +15,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const hashedUsername = hashUsername(userId);
+    const hashedUsername = userId;
 
     // Get user from database
     const userData = await getUserByHashedUsername(hashedUsername);

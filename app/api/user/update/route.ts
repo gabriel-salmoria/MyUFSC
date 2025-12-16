@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import type { EncryptedUser } from "@/types/user";
-import { hashUsername } from "@/crypto/server/crypto";
+// import { hashUsername } from "@/crypto/server/crypto";
 import { getUserByHashedUsername, updateUser } from "@/database/users/db-user";
 
 export async function POST(request: Request) {
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     }
 
     // Get the hashed username
-    const hashedUsername = hashUsername(userId);
+    const hashedUsername = userId;
 
     // Check if user exists in database
     const userData = await getUserByHashedUsername(hashedUsername);

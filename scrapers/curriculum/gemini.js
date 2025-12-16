@@ -16,7 +16,8 @@ const model = genAI.getGenerativeModel({
   }
 });
 
-const prompt = 'Extract the data from the PDF file and return it in the JSON format provided in the schema';
+const prompt = 'Extract the data from the PDF file and return it in the JSON format provided in the schema. \
+                If a course doesnt have a code (As in, Optativa x), just use a mnemonic like (OPTx).';
 
 /**
  * Compresses the curriculum data by removing redundant information and using arrays

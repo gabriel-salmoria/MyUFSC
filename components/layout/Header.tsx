@@ -77,7 +77,9 @@ export default function Header({
     setSaveSuccess(false);
 
     try {
-      const storedPassword = sessionStorage.getItem("enc_pwd");
+      if (typeof window === "undefined") return;
+
+      const storedPassword = localStorage.getItem("enc_pwd");
 
       // Attempt to save with the password we have
       if (storedPassword) {
@@ -86,15 +88,20 @@ export default function Header({
         if (success) {
           setSaveSuccess(true);
           setTimeout(() => setSaveSuccess(false), 3000);
-          setIsSaving(false);
-          return;
+        } else {
+          // saveData might return false if it failed without throwing
+          setSaveError("Failed to save data");
         }
+      } else {
+        setSaveError("Encryption key not found. Please log in again.");
+        // Ideally trigger re-login flow or password prompt
       }
     } catch (error) {
       console.error("Error saving data:", error);
       setSaveError(
         error instanceof Error ? error.message : "An unknown error occurred",
       );
+    } finally {
       setIsSaving(false);
     }
   };
