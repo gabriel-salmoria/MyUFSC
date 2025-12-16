@@ -12,29 +12,11 @@ export function getCourseInfo(courseCode: string): Course | undefined {
   return courseMap.get(courseCode) ?? undefined;
 }
 
-// Process courses and create phases from curriculum in one pass
-export function generatePhases(curriculum: Curriculum): Phase[] {
-  // Create an array of phases based on totalPhases in curriculum
-  const phases: Phase[] = [];
+// Helper to parse raw course data
+export function parseCourses(courses: any[]): Course[] {
+  if (!courses || !Array.isArray(courses)) return [];
 
-  // Check if curriculum exists
-  if (!curriculum) {
-    return phases;
-  }
-
-  // Check if curriculum.courses exists and is an array
-  if (!curriculum.courses || !Array.isArray(curriculum.courses)) {
-    return phases;
-  }
-
-  // Check that we have the total phases value
-  const totalPhases = curriculum.totalPhases || 8;
-
-  // Clear and rebuild the course map
-  courseMap.clear();
-
-  // Process the courses to convert from array format to object format
-  const processedCourses = curriculum.courses.map((courseData: any) => {
+  return courses.map((courseData: any) => {
     if (Array.isArray(courseData)) {
       // Course data is in array format, convert to object
       // Example format: ["EEL5105","Circuitos e Técnicas Digitais",5,90,"Description",[],[],"mandatory",1]
@@ -58,10 +40,35 @@ export function generatePhases(curriculum: Curriculum): Phase[] {
         equivalents: Array.isArray(courseData[6]) ? courseData[6] : [],
         type: normalizedType,
         phase: coursePhase != null ? Number(coursePhase) : 0,
-      };
+      } as Course;
     }
-    return courseData;
+    return courseData as Course;
   });
+}
+
+// Process courses and create phases from curriculum in one pass
+export function generatePhases(curriculum: Curriculum): Phase[] {
+  // Create an array of phases based on totalPhases in curriculum
+  const phases: Phase[] = [];
+
+  // Check if curriculum exists
+  if (!curriculum) {
+    return phases;
+  }
+
+  // Check if curriculum.courses exists and is an array
+  if (!curriculum.courses || !Array.isArray(curriculum.courses)) {
+    return phases;
+  }
+
+  // Check that we have the total phases value
+  const totalPhases = curriculum.totalPhases || 8;
+
+  // Clear and rebuild the course map
+  courseMap.clear();
+
+  // Process the courses to convert from array format to object format
+  const processedCourses = parseCourses(curriculum.courses);
 
   // Update the curriculum courses with the processed format
   curriculum.courses = processedCourses;
