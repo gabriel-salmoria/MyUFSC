@@ -2,12 +2,15 @@ import { useState, useEffect, useRef } from "react";
 import type { StudentInfo } from "@/types/student-plan";
 import type { DegreeProgram } from "@/types/degree-program";
 import type { Curriculum } from "@/types/curriculum";
+import { useStudentStore } from "@/lib/student-store";
+import { parseCourses } from "@/parsers/curriculum-parser";
 
 export interface CurriculumHookState {
   curriculum: Curriculum | null;
   currentCurriculum: Curriculum | null;
   degreePrograms: DegreeProgram[];
   viewingDegreeId: string | null;
+  curriculumsCache: Record<string, Curriculum>;
 }
 
 export interface UseCurriculumResult {
@@ -134,14 +137,28 @@ export function useCurriculum({
             const newCache: Record<string, Curriculum> = {};
             let currentCurrParsed: Curriculum | null = null;
 
+            // Get the store action
+            const { cacheCurriculum } = useStudentStore.getState();
+
             curriculumsResults.forEach(({ degreeId, curr }) => {
               if (curr) {
                 newCache[degreeId] = curr;
+                if (curr.courses) {
+                  const parsed = parseCourses(curr.courses);
+                  cacheCurriculum(degreeId, parsed);
+                }
+
                 if (degreeId === studentInfo.currentDegree) {
                   currentCurrParsed = curr;
                 }
               }
             });
+
+            // We need to parse courses to store them in the cache compatible with SearchPopup
+            // But UseCurriculum uses `Curriculum` objects in its local cache.
+            // StudentStore uses `Course[]` in its cache.
+            // Let's do the parsing here to populate the store.
+
 
             const viewingDegree = targetDegree || studentInfo.currentDegree;
             const viewingCurr = newCache[viewingDegree] || null;
