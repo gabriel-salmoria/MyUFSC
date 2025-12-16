@@ -56,7 +56,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="w-full max-w-md p-8 space-y-6 bg-card rounded-lg shadow-lg">
         <h1 className="text-2xl font-bold text-center text-foreground">
-          Login
+          Entrar
         </h1>
 
         {error && (
@@ -71,7 +71,7 @@ export default function LoginPage() {
               htmlFor="username"
               className="block text-sm font-medium text-foreground"
             >
-              Username
+              Usuário
             </label>
             <input
               type="text"
@@ -90,7 +90,7 @@ export default function LoginPage() {
               htmlFor="password"
               className="block text-sm font-medium text-foreground"
             >
-              Password
+              Senha
             </label>
             <input
               type="password"
@@ -109,14 +109,14 @@ export default function LoginPage() {
             disabled={isLoading}
             className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition disabled:opacity-50"
           >
-            {isLoading ? "Logging in..." : "Login"}
+            {isLoading ? "Entrando..." : "Entrar"}
           </button>
         </form>
 
         <div className="text-center text-sm text-foreground">
-          Don't have an account?{" "}
+          Não tem uma conta?{" "}
           <Link href="/register" className="text-primary hover:underline">
-            Register here
+            Registre-se aqui
           </Link>
         </div>
       </div>

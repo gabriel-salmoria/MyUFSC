@@ -92,7 +92,7 @@ export default function Home() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="mb-4">Loading your semester planner...</div>
+          <div className="mb-4">Carregando seu MyUFSC...</div>
           <div className="text-sm text-muted-foreground">
             Checking authentication...
           </div>
@@ -112,29 +112,29 @@ export default function Home() {
       return (
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
-            <div className="mb-4">Loading your semester planner...</div>
+            <div className="mb-4">Carregando seu MyUFSC...</div>
             <div className="text-sm text-muted-foreground">
               Auth checked ✓<br />
               {isProfileLoading
-                ? "Loading profile..."
+                ? "Carregando perfil..."
                 : studentInfo
-                  ? "Profile loaded ✓"
-                  : "Profile not available (auth OK)"}
+                  ? "Perfil carregado ✓"
+                  : "Perfil não disponível (autenticação OK)"}
               <br />
               {studentInfo && isCurriculumLoading
-                ? "Loading curriculum..."
+                ? "Carregando currículo..."
                 : studentInfo && curriculumState.currentCurriculum
-                  ? "Curriculum loaded ✓"
+                  ? "Currículo carregado ✓"
                   : studentInfo
-                    ? "Curriculum not available"
+                    ? "Currículo não disponível"
                     : ""}
               <br />
               {studentInfo && isScheduleLoading
-                ? "Loading class schedule..."
+                ? "Carregando cronograma..."
                 : studentInfo && scheduleState.scheduleData
-                  ? "Schedule loaded ✓"
+                  ? "Cronograma carregado ✓"
                   : studentInfo
-                    ? "Schedule not available"
+                    ? "Cronograma não disponível"
                     : ""}
             </div>
           </div>
@@ -158,7 +158,7 @@ export default function Home() {
       return (
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center text-muted-foreground">
-            Student information missing. Redirecting to login...
+            Informações do estudante ausentes. Redirecionando para login...
           </div>
         </div>
       );

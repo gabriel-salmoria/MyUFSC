@@ -135,7 +135,7 @@ export default function CourseStats({
 
   return (
     <div className={CSS_CLASSES.STATS_CONTAINER}>
-      <h2 className={CSS_CLASSES.STATS_HEADER}>Course Stats</h2>
+      <h2 className={CSS_CLASSES.STATS_HEADER}>Minhas Matérias</h2>
       <div className="p-4">
         <div className="space-y-6">
           {/* Search Box */}
@@ -155,7 +155,6 @@ export default function CourseStats({
           {/* Professor Selection */}
           {selectedSchedule && ( // Use selectedSchedule from the store
             <ProfessorSelector
-              selectedCourse={selectedSchedule} // Pass selectedSchedule
               professors={professors}
               selectedProfessor={selectedProfessor}
               onProfessorSelect={handleProfessorSelect}

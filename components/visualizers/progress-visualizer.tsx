@@ -52,7 +52,7 @@ export default function ProgressVisualizer({
   ) {
     return (
       <div className="flex items-center justify-center h-full">
-        <p className="text-muted-foreground">Loading student plan data...</p>
+        <p className="text-muted-foreground">Carregando plano de estudos...</p>
       </div>
     );
   }

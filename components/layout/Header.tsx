@@ -195,12 +195,12 @@ export default function Header({
     <>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <h1 className="text-3xl font-bold text-foreground">
-          Welcome, {studentInfo.name}
+          Bem-vindo, {studentInfo.name}
         </h1>
         <div className="flex flex-wrap items-center gap-4">
           {saveSuccess && (
             <span className="text-green-500 text-sm">
-              Changes saved successfully!
+              Alterações salvas com sucesso!
             </span>
           )}
           {saveError && (
@@ -212,14 +212,14 @@ export default function Header({
             className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors"
           >
             <Save className="w-4 h-4" />
-            {isSaving ? "Saving..." : "Save"}
+            {isSaving ? "Salvando..." : "Salvar"}
           </button>
           <button
             onClick={handleLogout}
             className="flex items-center gap-2 px-4 py-2 text-red-500 hover:text-red-700 transition-colors"
           >
             <LogOut className="w-4 h-4" />
-            Logout
+            Sair
           </button>
         </div>
       </div>
@@ -227,19 +227,19 @@ export default function Header({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
         <div className="bg-card p-6 rounded-lg shadow-lg">
           <h2 className="text-xl font-semibold mb-4 text-foreground">
-            Current Degree
+            Curso Atual
           </h2>
           <p className="text-muted-foreground break-words">
             {getDegreeName(studentInfo.currentDegree)}
           </p>
           {currentCurriculum && (
             <div className="mt-4">
-              <h3 className="text-lg font-medium mb-2">Curriculum</h3>
+              <h3 className="text-lg font-medium mb-2">Currículo</h3>
               <p className="text-muted-foreground break-words">
                 {currentCurriculum.name}
               </p>
               <p className="text-sm text-muted-foreground">
-                Total Phases: {currentCurriculum.totalPhases}
+                Total de Fases: {currentCurriculum.totalPhases}
               </p>
             </div>
           )}
@@ -248,7 +248,7 @@ export default function Header({
         <div className="bg-card p-6 rounded-lg shadow-lg relative">
           <div className="flex justify-between items-start mb-4">
             <h2 className="text-xl font-semibold text-foreground">
-              Degrees of Interest
+              Cursos de Interesse
             </h2>
             <button
               onClick={() => {
@@ -267,7 +267,7 @@ export default function Header({
                 }
               }}
               className="p-1 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-              title={isEditingInterest ? "Done" : "Edit Interests"}
+              title={isEditingInterest ? "Pronto" : "Editar Interesses"}
             >
               {isEditingInterest ? (
                 <Check className="w-5 h-5" />
@@ -300,7 +300,7 @@ export default function Header({
                 getProgramName={getDegreeName}
               />
               <div className="mt-4 text-xs text-muted-foreground">
-                Add degrees here to include their courses in your search results.
+                Adicione cursos aqui para incluir suas disciplinas na busca.
               </div>
             </div>
           ) : (
@@ -314,7 +314,7 @@ export default function Header({
                 ))
               ) : (
                 <li className="text-muted-foreground italic text-sm">
-                  No interested degrees selected.
+                  Nenhum curso de interesse selecionado.
                 </li>
               )}
             </ul>

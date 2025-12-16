@@ -26,7 +26,7 @@ export default function SearchInput({
         searchInputRef.current?.focus()
       }
     }
-    
+
     window.addEventListener("keydown", handleGlobalKeyDown)
     return () => window.removeEventListener("keydown", handleGlobalKeyDown)
   }, [])
@@ -36,9 +36,9 @@ export default function SearchInput({
       <div className="relative">
         <div className={CSS_CLASSES.STATS_SEARCH_ICON}>
           <svg xmlns="http://www.w3.org/2000/svg"
-               width="16" height="16" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-               strokeLinejoin="round" className="h-4 w-4">
+            width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+            strokeLinejoin="round" className="h-4 w-4">
 
             <circle cx="11" cy="11" r="8"></circle>
             <path d="m21 21-4.3-4.3"></path>
@@ -47,7 +47,7 @@ export default function SearchInput({
         <input
           ref={searchInputRef}
           type="text"
-          placeholder="Search all curriculum courses... (Press / to focus)"
+          placeholder="Buscar disciplinas... (Pressione / para focar)"
           className={CSS_CLASSES.STATS_SEARCH}
           value={searchTerm}
           onChange={e => onSearchChange(e.target.value)}
