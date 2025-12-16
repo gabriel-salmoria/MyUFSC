@@ -33,10 +33,18 @@ export default function Phase({
     return (width - boxWidth) / 2;
   }, [width, boxWidth]);
 
+  // Estimate header height (adjust if needed)
+  const headerHeight = 0; // px, adjust to match your actual header height
+
+  // Calculate total phase height: (box height + spacing) * number of boxes + header
+  const phaseHeight =
+    (COURSE_BOX.HEIGHT + COURSE_BOX.SPACING_Y / 3) * PHASE.BOXES_PER_COLUMN +
+    headerHeight;
+
   return (
     <div
-      className="relative h-full border border-border"
-      style={{ width: `${width}px` }}
+      className="relative border border-border"
+      style={{ width: `${width}px`, height: `${phaseHeight}px` }}
     >
       {/* Phase header */}
       <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-sm px-2 py-3 text-center font-medium border-b border-border">
@@ -68,7 +76,9 @@ export default function Phase({
 
       {/* Add ghost boxes for empty slots if it's an actual semester (progress view) */}
       {!isFromCurriculum &&
-        Array.from({ length: 6 - studentCourses.length }).map((_, index) => {
+        Array.from({
+          length: PHASE.BOXES_PER_COLUMN - studentCourses.length,
+        }).map((_, index) => {
           const positionIndex = studentCourses.length + index;
           const position = {
             courseId: `ghost-${semesterNumber}-${positionIndex}`, // Unique ID for ghost

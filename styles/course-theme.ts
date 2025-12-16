@@ -60,7 +60,7 @@ export const COURSE_BOX_DIMENSIONS = {
 export const PHASE_DIMENSIONS = {
   MIN_WIDTH: 200,
   PADDING: 30,
-  BOXES_PER_COLUMN: 6,
+  BOXES_PER_COLUMN: 8,
   TOTAL_SEMESTERS: 12, // Total number of semesters in the curriculum
 };
 
