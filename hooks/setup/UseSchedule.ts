@@ -64,7 +64,11 @@ export function useSchedule({
     if (degreesSignature !== fetchedForDegreeRef_Schedule.current || scheduleState.scheduleData === null) {
       let active = true;
       const fetchScheduleData = async () => {
-        setIsScheduleLoading(true); // Set loading true ONLY when we actually decide to fetch
+        const isInitialLoad = !fetchedForDegreeRef_Schedule.current;
+        if (isInitialLoad) {
+          setIsScheduleLoading(true); // Set loading true ONLY on initial load
+        }
+
         setScheduleState((prev) => ({ ...prev, isLoading: true }));
         fetchedForDegreeRef_Schedule.current = degreesSignature; // Mark fetching for this combination
         try {
@@ -90,6 +94,19 @@ export function useSchedule({
               // unique keys (degree codes) will just coexist in the merged object.
               const mergedData: any = {};
               let fetchedSemester = "";
+
+              // If we are doing a background update, we should start with existing data?
+              // The logic below creates 'mergedData' from 'successfulResults'.
+              // successfulResults contains ALL requested degrees, because degreesToFetch includes current + interested.
+              // So we are re-fetching EVERYTHING.
+              // This is fine for correctness, and since it is background, user won't notice.
+              // But we can optimize by only fetching missing?
+              // For now, let's keep re-fetching all to ensure freshness, as schedule can change. 
+              // But we must ensure we don't clear data if we are just updating.
+
+              // Wait, 'mergedData' is built FRESH from 'successfulResults'.
+              // Since 'degreesToFetch' has ALL keys, 'mergedData' will have ALL keys.
+              // So replacing 'scheduleData' with 'mergedData' is correct.
 
               successfulResults.forEach(data => {
                 if (data) {
