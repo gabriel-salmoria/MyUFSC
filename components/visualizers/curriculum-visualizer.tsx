@@ -29,7 +29,7 @@ interface CurriculumVisualizerProps {
 export default function CurriculumVisualizer({
   curriculum,
   studentPlan,
-  height = 600,
+  height = 500,
 }: CurriculumVisualizerProps) {
   const studentStore = useStudentStore();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -78,32 +78,22 @@ export default function CurriculumVisualizer({
   // calcula a largura total do curriculo
   const totalWidth = curriculum.totalPhases * phaseWidth;
 
-  // Calculate max slots across all phases for uniform height
   const globalTotalSlots = useMemo(() => {
-    const maxCourses = phases.reduce(
-      (max, phase) => Math.max(max, phase.courses.length),
-      0
-    );
+    let maxCourses = 0;
+    for (let i = 1; i <= curriculum.totalPhases; i++) {
+      const count = curriculum.courses.filter(
+        (c) => c.phase === i
+      ).length;
+      if (count > maxCourses) maxCourses = count;
+    }
+    // Use the exact max courses. Phase component adds padding automatically.
+    // Ensure at least min slots (e.g. 6) for empty phases visual consistency.
+    // Matching ProgressVisualizer behavior: max + 1 for buffer
     return Math.max(PHASE.BOXES_PER_COLUMN || 6, maxCourses + 1);
-  }, [phases]);
+  }, [curriculum]);
 
-  // Dynamic height calculation based on Phase component formula
-  // Formula: totalSlots * SPACING_Y + HEIGHT + PADDING
-  const exactHeight = useMemo(() => {
-    // These defaults must match styles/course-theme.ts
-    const height = COURSE_BOX.HEIGHT || 50;
-    const spacing = COURSE_BOX.SPACING_Y || 60;
-    const bottomPadding = 20;
-
-    // Formula from Phase.tsx
-    // Last box bottom = totalSlots * SPACING_Y + HEIGHT
-    const phaseHeight = globalTotalSlots * spacing + height - bottomPadding;
-
-    return phaseHeight;
-  }, [globalTotalSlots]);
-
-  // Use exactHeight or fallback
-  const containerHeight = exactHeight > 0 ? exactHeight : (height || 600);
+  // Use fixed height for the container logic (scrollable), mirroring ProgressVisualizer
+  const containerHeight = height || 500;
 
   return (
     <div className="flex flex-col w-full h-full">
