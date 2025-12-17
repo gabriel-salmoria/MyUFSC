@@ -102,7 +102,7 @@ export default function CurriculumVisualizer({
         ref={containerRef}
       >
         <div
-          className="relative"
+          className="relative dashboard-content"
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px)`,
             transformOrigin: "0 0",
