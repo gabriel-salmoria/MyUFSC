@@ -109,6 +109,12 @@ export function useCurriculum({
     const degreesToFetch = Array.from(distinctDegrees).sort();
     const degreesSignature = degreesToFetch.join(",");
 
+    // Set cookie for server-side prefetching
+    // Max-age: 1 year
+    if (typeof document !== 'undefined') {
+      document.cookie = `ufsc_prefetch_degrees=${degreesSignature}; path=/; max-age=31536000; SameSite=Lax`;
+    }
+
     // Initialize viewingDegreeId if not set
     let targetDegree = curriculumState.viewingDegreeId;
     if (!targetDegree) {
@@ -133,10 +139,31 @@ export function useCurriculum({
 
           if (active) {
             // Fetch all curriculums in parallel
-            // Since we are not strictly filtering "missing" locally, we rely on browser/network cache 
-            // or just accept the lightweight refetch for robustness.
+            // Check student store cache first to avoid redundant fetches
+            const { curriculumCache } = useStudentStore.getState();
+
             const curriculumsResults = await Promise.all(
               degreesToFetch.map(async (degreeId) => {
+                // If present in store, use it directly
+                if (curriculumCache[degreeId]) {
+                  // We need to return structure matching what the loop expects
+                  // The loop expects { degreeId, curr } where curr Is the raw Curriculum object
+                  // But the cache stores parsed courses: Course[].
+                  // This mismatch is tricky. 
+                  // If we have cached courses, we can construct a partial curriculum object 
+                  // enough to satisfy the downstream logic (which parses it again? or uses it?)
+
+                  // Downstream logic:
+                  // 1. newCache[degreeId] = curr;
+                  // 2. parseCourses(curr.courses) -> cacheCurriculum
+
+                  // If we already have it in cache, we don't need to re-parse or re-cache.
+                  // But we do need to populate 'newCache' so 'curriculumState' gets updated.
+
+                  // So we might need to change the flow.
+                  return { degreeId, cachedCourses: curriculumCache[degreeId] };
+                }
+
                 const curr = await fetchCurriculumData(degreeId);
                 return { degreeId, curr };
               })
@@ -148,8 +175,30 @@ export function useCurriculum({
             // Update global store
             const { cacheCurriculum } = useStudentStore.getState();
 
-            curriculumsResults.forEach(({ degreeId, curr }) => {
-              if (curr) {
+            curriculumsResults.forEach((result) => {
+              const { degreeId } = result;
+
+              if ('cachedCourses' in result && result.cachedCourses) {
+                // Reconstruct a minimal Curriculum object from cached courses
+                // This is needed for the local hook state 'curriculumsCache' which expects Curriculum
+
+                // Derive totalPhases from the max phase in the courses array
+                const maxPhase = result.cachedCourses.reduce((max, c) => Math.max(max, c.phase || 0), 0);
+
+                const reconstructed: Curriculum = {
+                  id: degreeId,
+                  name: "", // Placeholder
+                  department: "", // Placeholder
+                  totalPhases: maxPhase || 8, // Default to 8 if calculation fails
+                  courses: result.cachedCourses as any // Type assertion needed as we are mixing types
+                };
+                newCache[degreeId] = reconstructed;
+
+                if (degreeId === studentInfo.currentDegree) {
+                  currentCurrParsed = reconstructed;
+                }
+              } else if ('curr' in result && result.curr) {
+                const curr = result.curr;
                 newCache[degreeId] = curr;
                 if (curr.courses) {
                   const parsed = parseCourses(curr.courses);
