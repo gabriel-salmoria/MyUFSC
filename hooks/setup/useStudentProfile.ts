@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from "react"; // Add useRef
 import { useRouter } from "next/navigation";
 import type { StudentInfo } from "@/types/student-plan";
 import { decryptStudentData, hashString } from "@/crypto/client/crypto";
+import { useStudentStore } from "@/lib/student-store";
+import { parseCourses } from "@/parsers/curriculum-parser";
+import { primeScheduleCache } from "@/app/api/schedule/client";
 
 export interface UseStudentProfileResult {
   studentInfo: StudentInfo | null;
@@ -46,6 +49,29 @@ export function useStudentProfile({
           const response = await fetch(`/api/user/profile/${userId}`);
           if (response.ok) {
             const encryptedResponse = await response.json();
+
+            // Handle Prefetched Data
+            if (encryptedResponse.prefetched) {
+              const { curriculums, schedules } = encryptedResponse.prefetched;
+
+              // Hydrate Curriculum Cache
+              if (curriculums) {
+                const { cacheCurriculum } = useStudentStore.getState();
+                Object.entries(curriculums).forEach(([degreeId, curr]: [string, any]) => {
+                  if (curr && curr.courses) {
+                    const parsed = parseCourses(curr.courses);
+                    cacheCurriculum(degreeId, parsed);
+                  }
+                });
+              }
+
+              // Hydrate Schedule Cache
+              if (schedules) {
+                Object.entries(schedules).forEach(([degreeId, scheduleData]: [string, any]) => {
+                  primeScheduleCache(degreeId, scheduleData);
+                });
+              }
+            }
 
             // Decrypt logic
             try {
