@@ -18,16 +18,22 @@ import {
 } from "@/crypto/client/crypto";
 import { StudentPlan } from "@/types/student-plan";
 
+import { useStudentStore } from "@/lib/student-store"; // Import store
+
 export default function RegisterPage() {
   const router = useRouter();
+  const studentStore = useStudentStore(); // Use store
+
   const [degreePrograms, setDegreePrograms] = useState<DegreeProgram[]>([]);
+
+  // Initialize form with store data if available
   const [formData, setFormData] = useState({
     username: "",
     password: "",
     confirmPassword: "",
-    name: "",
-    currentDegree: "",
-    interestedDegrees: [] as string[],
+    name: studentStore.studentInfo?.name || "",
+    currentDegree: studentStore.studentInfo?.currentDegree || "",
+    interestedDegrees: studentStore.studentInfo?.interestedDegrees || [] as string[],
   });
   const [error, setError] = useState("");
 
@@ -69,6 +75,18 @@ export default function RegisterPage() {
     loadDegreePrograms();
   }, []);
 
+  // Update formData if store loads late or was already loaded
+  useEffect(() => {
+    if (studentStore.studentInfo) {
+      setFormData(prev => ({
+        ...prev,
+        name: prev.name || studentStore.studentInfo?.name || "",
+        currentDegree: prev.currentDegree || studentStore.studentInfo?.currentDegree || "",
+        interestedDegrees: prev.interestedDegrees.length > 0 ? prev.interestedDegrees : studentStore.studentInfo?.interestedDegrees || []
+      }));
+    }
+  }, [studentStore.studentInfo]);
+
   // function to handle the submit of the login information to the server
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,18 +100,32 @@ export default function RegisterPage() {
     let hUsername = hashString(formData.username);
     let hPassword = hashString(formData.password);
 
-    let plan: StudentPlan = {
-      semesters: [],
-    };
+    // Use existing info from store or create new
+    let studentData;
 
-    let studentData = {
-      currentDegree: formData.currentDegree,
-      interestedDegrees: formData.interestedDegrees ?? [],
-      name: formData.name ?? "Student",
-      currentPlan: 0,
-      currentSemester: "1",
-      plans: [plan],
-    };
+    if (studentStore.studentInfo) {
+      // Use existing data but update name/degrees if changed in form
+      studentData = {
+        ...studentStore.studentInfo,
+        name: formData.name,
+        currentDegree: formData.currentDegree,
+        interestedDegrees: formData.interestedDegrees
+        // Preserve plans and other data
+      };
+    } else {
+      let plan: StudentPlan = {
+        semesters: [],
+      };
+
+      studentData = {
+        currentDegree: formData.currentDegree,
+        interestedDegrees: formData.interestedDegrees ?? [],
+        name: formData.name ?? "Student",
+        currentPlan: 0,
+        currentSemester: "1",
+        plans: [plan],
+      };
+    }
 
     let result = encryptStudentData(studentData, hPassword);
 
@@ -113,7 +145,18 @@ export default function RegisterPage() {
         throw new Error(data.error || "Falha no registro");
       }
 
-      router.push("/");
+      // Update store with new password implicitly (handled by login usually, but here we might need to login)
+      // Actually after register we usually redirect to login or auto-login.
+      // The register route sets the cookie. So we are logged in.
+      // We should update the local password storage.
+      if (typeof window !== "undefined") {
+        localStorage.setItem("enc_pwd", formData.password);
+      }
+
+      // Update store auth info so UI reflects logged in state immediately?
+      // Or just reload page. Reload is safer.
+      window.location.href = "/";
+
     } catch (err) {
       setError(
         err instanceof Error

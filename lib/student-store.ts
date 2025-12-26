@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { produce } from "immer";
 import type {
   StudentInfo,
@@ -39,9 +40,10 @@ export interface StudentStore {
   clearSchedule: () => void;
 
   // Actions
-  setStudentInfo: (info: StudentInfo) => void;
+  setStudentInfo: (info: StudentInfo | null) => void;
   setInterestedDegrees: (degrees: string[]) => void;
   forceUpdate: () => void;
+  reset: () => void;
 
   // Course operations
   addCourseToSemester: (course: Course, targetSemester: number) => void;
@@ -69,7 +71,7 @@ const CheckStudentInfo = (info: StudentInfo | null): StudentPlan | null => {
   return plan;
 };
 
-export const useStudentStore = create<StudentStore>((set) => ({
+export const useStudentStore = create<StudentStore>()(persist((set) => ({
   studentInfo: null,
 
   selectedCourse: null,
@@ -96,10 +98,12 @@ export const useStudentStore = create<StudentStore>((set) => ({
       }),
     ),
 
-  setStudentInfo: (info: StudentInfo) => {
+  setStudentInfo: (info: StudentInfo | null) => {
     set(
       produce((state: StudentStore) => {
         state.studentInfo = info;
+
+        if (!info) return;
 
         if (
           info.currentPlan == null ||
@@ -116,7 +120,7 @@ export const useStudentStore = create<StudentStore>((set) => ({
         }
 
         const currentPlanInState =
-          state.studentInfo.plans[state.studentInfo.currentPlan];
+          state.studentInfo!.plans[state.studentInfo!.currentPlan];
         if (!currentPlanInState) {
           return;
         }
@@ -142,21 +146,30 @@ export const useStudentStore = create<StudentStore>((set) => ({
         updateView(allSemesters);
         currentPlanInState.semesters = allSemesters;
 
-        if (!state.studentInfo.plans || state.studentInfo.plans.length === 0) {
-          state.studentInfo.plans = [
+        if (!state.studentInfo!.plans || state.studentInfo!.plans.length === 0) {
+          state.studentInfo!.plans = [
             {
               id: "default_plan_id",
               name: "Default Plan",
               semesters: [...allSemesters],
             },
           ];
-          if (state.studentInfo.currentPlan >= state.studentInfo.plans.length) {
-            state.studentInfo.currentPlan = 0;
+          if (state.studentInfo!.currentPlan >= state.studentInfo!.plans.length) {
+            state.studentInfo!.currentPlan = 0;
           }
         }
       }),
     );
   },
+
+  reset: () => set({
+    studentInfo: null,
+    selectedCourse: null,
+    selectedStudentCourse: null,
+    selectedSchedule: null,
+    selectedStudentSchedule: null,
+    curriculumCache: {}
+  }),
 
   setInterestedDegrees: (degrees: string[]) =>
     set(
@@ -372,4 +385,12 @@ export const useStudentStore = create<StudentStore>((set) => ({
         state.selectedStudentSchedule = null;
       }),
     ),
-}));
+}),
+  {
+    name: "student-storage",
+    partialize: (state) => ({
+      studentInfo: state.studentInfo,
+      // We don't persist UI state like selections or cache
+    }),
+  }
+));

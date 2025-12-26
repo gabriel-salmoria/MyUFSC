@@ -21,6 +21,16 @@ export interface StudentCourse {
   status: CourseStatus;
   grade?: number;
   class?: string;
+  // Properties flattened/cached on StudentCourse for easier access/rendering
+  phase?: number;
+  id?: string;
+  name?: string;
+  credits?: number;
+  description?: string;
+  workload?: number;
+  prerequisites?: string[];
+  equivalents?: string[];
+  type?: string;
 }
 
 /**
@@ -36,6 +46,8 @@ export interface StudentSemester {
  * Represents the student's complete academic plan
  */
 export interface StudentPlan {
+  id?: string;
+  name?: string;
   semesters: StudentSemester[];
 }
 

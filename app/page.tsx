@@ -92,22 +92,76 @@ export default function Home() {
   ]);
 
   // Primary loading gate: Authentication check
+  // We now allow !isAuthenticated if we have studentInfo (anonymous user)
   if (!authCheckCompleted) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="mb-4">Carregando seu MyUFSC...</div>
           <div className="text-sm text-muted-foreground">
-            Checking authentication...
+            Verificando autenticação...
           </div>
         </div>
       </div>
     );
   }
 
-  // If authenticated, check for data loading states
-  if (isAuthenticated) {
-    // This combined loading check is for the UI message, individual hooks manage their own fetching logic.
+  // Determine if we should show the dashboard
+  // Show dashboard if:
+  // 1. Authenticated
+  // 2. OR Not Authenticated BUT has local studentInfo (Anonymous/Guest mode)
+  const canShowDashboard = isAuthenticated || !!studentInfo;
+
+  // New User / Welcome State
+  // If not authenticated AND no local data, show welcome/setup
+  if (!canShowDashboard && !isProfileLoading) {
+    // We can redirect to a setup page or render a simple setup here.
+    // For now, let's render a simple "Welcome" component to pick a degree.
+    // Effectively this is the "Register" usage but without password.
+    // But wait, we want them to pick a degree first.
+    // Let's redirect to /register for now as a "Start" or better, render the degree selector here.
+    // Since implementing a full selector here duplicates logic, redirecting to a new /setup page might be cleaner,
+    // but the plan said "Welcome/Setup view".
+    // Let's redirect to a new route /setup if we want to be clean, or render a button "Começar sem cadastro".
+
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+        <div className="max-w-md text-center space-y-6">
+          <h1 className="text-4xl font-bold">Bem-vindo ao MyUFSC</h1>
+          <p className="text-muted-foreground">
+            Planeje sua grade curricular, visualize dependências e organize seus semestres.
+          </p>
+          <div className="flex flex-col gap-4">
+            <button
+              onClick={() => router.push("/register")}
+              className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition font-medium"
+            >
+              Criar Conta ou Entrar
+            </button>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  Ou
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={() => router.push("/setup")}
+              className="px-6 py-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground rounded-lg transition font-medium"
+            >
+              Continuar sem conta
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If we can show dashboard, check for data loading states
+  if (canShowDashboard) {
     if (
       isProfileLoading ||
       (studentInfo && isCurriculumLoading) ||
@@ -117,56 +171,35 @@ export default function Home() {
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <div className="mb-4">Carregando seu MyUFSC...</div>
+            {/* ... existing loading text ... */}
             <div className="text-sm text-muted-foreground">
-              Auth checked ✓<br />
-              {isProfileLoading
-                ? "Carregando perfil..."
-                : studentInfo
-                  ? "Perfil carregado ✓"
-                  : "Perfil não disponível (autenticação OK)"}
-              <br />
-              {studentInfo && isCurriculumLoading
-                ? "Carregando currículo..."
-                : studentInfo && curriculumState.currentCurriculum
-                  ? "Currículo carregado ✓"
-                  : studentInfo
-                    ? "Currículo não disponível"
-                    : ""}
-              <br />
-              {studentInfo && isScheduleLoading
-                ? "Carregando cronograma..."
-                : studentInfo && scheduleState.scheduleData
-                  ? "Cronograma carregado ✓"
-                  : studentInfo
-                    ? "Cronograma não disponível"
-                    : ""}
+              {isAuthenticated ? "Autenticado" : "Modo Visitante"}
             </div>
           </div>
         </div>
       );
     }
 
-    if (authState.error) {
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center text-red-500">
-            Error: {authState.error}
-          </div>
-        </div>
-      );
+    if (isAuthenticated && authState.error) {
+      // Only show auth error if we expected to be logged in and failed
+      // For anonymous, we don't care about auth errors
     }
 
-    // If after all loading, authenticated but no studentInfo, show redirecting message
-    // The useEffect above will handle the actual redirection.
+    // Logic continues below...
+
     if (!studentInfo) {
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center text-muted-foreground">
-            Informações do estudante ausentes. Redirecionando para login...
+      if (isAuthenticated) {
+        return (
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="text-center text-muted-foreground">
+              Informações do estudante ausentes. Redirecionando para login...
+            </div>
           </div>
-        </div>
-      );
+        );
+      }
+      return null;
     }
+
 
     // ---- Main App Render for Authenticated User ----
     const getDegreeName = (degreeId: string) => {
@@ -184,6 +217,7 @@ export default function Home() {
             currentCurriculum={curriculumState.currentCurriculum}
             degreePrograms={curriculumState.degreePrograms}
             getDegreeName={getDegreeName}
+            isAuthenticated={isAuthenticated}
           />
           <Visualizations
             studentInfo={studentInfo}
