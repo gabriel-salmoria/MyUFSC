@@ -12,12 +12,8 @@ export async function GET(request: Request) {
     const currentDegree = url.searchParams.get("currentDegree");
     let semester = url.searchParams.get("semester");
 
-    if (!userId) {
-      return NextResponse.json(
-        { error: "User not authenticated" },
-        { status: 401 },
-      );
-    }
+    // Auth check removed to allow anonymous access
+    // if (!userId) { ... }
 
     if (!currentDegree) {
       return NextResponse.json(
