@@ -79,7 +79,7 @@ export default function Home() {
       !isScheduleLoading &&
       !studentInfo
     ) {
-      router.push("/login");
+      router.push("/");
     }
   }, [
     authCheckCompleted,
@@ -131,30 +131,36 @@ export default function Home() {
           <p className="text-muted-foreground">
             Planeje sua grade curricular, visualize dependências e organize seus semestres.
           </p>
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+            <button
+              onClick={() => router.push("/login")}
+              className="flex-1 px-6 py-3 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition font-medium"
+            >
+              Entrar
+            </button>
             <button
               onClick={() => router.push("/register")}
-              className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition font-medium"
+              className="flex-1 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition font-medium"
             >
-              Criar Conta ou Entrar
-            </button>
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  Ou
-                </span>
-              </div>
-            </div>
-            <button
-              onClick={() => router.push("/setup")}
-              className="px-6 py-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground rounded-lg transition font-medium"
-            >
-              Continuar sem conta
+              Criar Conta
             </button>
           </div>
+          <div className="relative my-2">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                Ou
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={() => router.push("/setup")}
+            className="px-6 py-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground rounded-lg transition font-medium"
+          >
+            Continuar sem conta
+          </button>
         </div>
       </div>
     );
