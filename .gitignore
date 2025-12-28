@@ -38,3 +38,4 @@ Cargo.lock
 *.PDF
 **/*.json
 !/*.json
+data/

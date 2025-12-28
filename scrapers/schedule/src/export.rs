@@ -108,7 +108,7 @@ pub fn to_matrufsc_json(
     semester: &str,
 ) -> Result<()> {
     // Create data directory if it doesn't exist
-    let data_dir = Path::new("matrufsc-scraper/data");
+    let data_dir = Path::new("../../data/schedule");
     if !data_dir.exists() {
         std::fs::create_dir_all(data_dir)?;
     }
@@ -131,7 +131,7 @@ pub fn to_matrufsc_json(
         };
         
         // Create the output file
-        let filename = format!("matrufsc-scraper/data/{}-{}.json", semester, campus);
+        let filename = format!("../../data/schedule/{}-{}.json", semester, campus);
         log::info!("Writing {}", filename);
         let output_file = File::create(filename)?;
         

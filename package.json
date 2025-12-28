@@ -1,5 +1,5 @@
 {
-  "name": "MyUFSC",
+  "name": "my_ufsc",
   "type": "module",
   "version": "1.0.0",
   "private": true,
@@ -10,7 +10,11 @@
     "lint": "next lint",
     "db:setup:programs": "python database/programs/setup.py",
     "db:setup:curriculum": "python database/curriculum/setup.py",
-    "db:setup:schedule": "python database/schedule/setup.py"
+    "db:setup:schedule": "python database/schedule/setup.py",
+    "orchestrate": "npx ts-node scripts/orchestrate.ts",
+    "curriculum:update": "npx ts-node scripts/update-curriculums.ts",
+    "scrape:schedule": "cd scrapers/schedule && cargo run --release",
+    "scrape:curriculum": "cd scrapers/curriculum && cargo run --release"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
