@@ -37,14 +37,12 @@ export function useCheckAuth(): UseCheckAuthResult {
         const response = await fetch("/api/user/auth/check", { cache: "no-store", credentials: "include" });
         const data = await response.json();
 
-        setAuthState((prev) => ({ ...prev, authChecked: true, error: "" }));
-
         if (data.authenticated && data.userId) {
           setIsAuthenticated(true);
           setUserId(data.userId); // Set userId
         } else {
           setIsAuthenticated(false);
-          router.push("/login");
+          // router.push("/login"); // Don't redirect, allow anonymous
         }
       } catch (err) {
         setIsAuthenticated(false);
@@ -53,7 +51,7 @@ export function useCheckAuth(): UseCheckAuthResult {
           authChecked: true, // Mark as checked even on error to prevent loops
           error: "Authentication check failed. Please try again later.",
         }));
-        router.push("/login"); // Redirect on error as well
+        // router.push("/login"); // Don't redirect on error as well
       } finally {
         setAuthCheckCompleted(true);
       }
