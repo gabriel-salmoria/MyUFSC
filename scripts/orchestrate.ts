@@ -14,7 +14,8 @@ const execAsync = promisify(exec);
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 const PROJECT_ROOT = path.resolve(__dirname, "..");
 const DATA_DIR = path.join(PROJECT_ROOT, "data");
-const GENERATED_DIR = path.join(DATA_DIR, "generated");
+// const GENERATED_DIR = path.join(DATA_DIR, "generated"); // Removed in favor of direct data subdirs
+const SCHEDULE_DIR = path.join(DATA_DIR, "schedule");
 const SCRAPERS_DIR = path.join(PROJECT_ROOT, "scrapers");
 
 
@@ -42,14 +43,14 @@ const CURRICULUM_PDF = customPdfPath
     ? path.resolve(process.cwd(), customPdfPath)
     : path.join(DATA_DIR, "curriculum.PDF");
 
-console.log(`Using Curriculum PDF: ${CURRICULUM_PDF}`);
+
 
 
 // Output Paths
-const SCHEDULE_JSON_OUTPUT = path.join(GENERATED_DIR, "schedule_raw.json");
-const CURRICULUM_JSON_OUTPUT = path.join(GENERATED_DIR, "curriculum.json");
-const CURRICULUM_FULL_JSON_OUTPUT = path.join(GENERATED_DIR, "curriculum_full.json");
-const CLASSES_JSON_OUTPUT = path.join(GENERATED_DIR, "classes.json");
+const SCHEDULE_JSON_OUTPUT = path.join(DATA_DIR, "schedule_raw.json"); // Provide a link or copy? Or just use one from schedule dir.
+const CURRICULUM_JSON_OUTPUT = path.join(DATA_DIR, "curriculum.json");
+const CURRICULUM_FULL_JSON_OUTPUT = path.join(DATA_DIR, "curriculum_full.json");
+const CLASSES_JSON_OUTPUT = path.join(DATA_DIR, "classes.json");
 
 // Scraper Paths
 const SCHEDULE_SCRAPER_DIR = path.join(SCRAPERS_DIR, "schedule");
@@ -60,16 +61,55 @@ const SEPARATOR_SCRIPT = path.join(SCRAPERS_DIR, "separator", "index.ts");
 const DB_CONNECTION_STRING = process.env.NEON_URL;
 
 // --- Helpers ---
-async function runCommand(command: string, cwd: string) {
-    console.log(`[EXEC] ${command} (in ${cwd})`);
-    const { stdout, stderr } = await execAsync(command, { cwd });
-    if (stderr) console.warn(`[STDERR] ${stderr}`);
-    return stdout;
+// --- Helpers ---
+
+const colors = {
+    reset: "\x1b[0m",
+    bright: "\x1b[1m",
+    dim: "\x1b[2m",
+    red: "\x1b[31m",
+    green: "\x1b[32m",
+    yellow: "\x1b[33m",
+    blue: "\x1b[34m",
+    magenta: "\x1b[35m",
+    cyan: "\x1b[36m",
+};
+
+const logger = {
+    info: (msg: string) => console.log(`${colors.blue}ℹ${colors.reset} ${msg}`),
+    success: (msg: string) => console.log(`${colors.green}✔${colors.reset} ${msg}`),
+    warn: (msg: string) => console.log(`${colors.yellow}⚠${colors.reset} ${msg}`),
+    error: (msg: string) => console.log(`${colors.red}✖${colors.reset} ${msg}`),
+    step: (step: number, title: string) => console.log(`\n${colors.bright}${colors.magenta}[Step ${step}]${colors.reset} ${title}`),
+    substep: (msg: string) => console.log(`  ${colors.dim}└─${colors.reset} ${msg}`),
+    header: (msg: string) => console.log(`\n${colors.bright}${colors.cyan}=== ${msg} ===${colors.reset}\n`),
+};
+
+async function runCommand(command: string, cwd: string, description?: string) {
+    if (description) {
+        logger.substep(`${description}...`);
+    } else {
+        // logger.substep(`Running: ${command}`);
+    }
+
+    try {
+        const { stdout, stderr } = await execAsync(command, { cwd });
+        // Only log stdout/stderr if there looks like a real error or if we want verbose logs.
+        // For now, let's keep it clean and only show stderr if it looks like a failure (which execAsync usually catches)
+        // or just rely on the fact that if it throws, we catch it.
+        // Some tools print warnings to stderr, we might want to suppress them or show them if relevant.
+        return stdout;
+    } catch (error: any) {
+        logger.error(`Command failed: ${command}`);
+        if (error.stderr) console.error(error.stderr);
+        throw error;
+    }
 }
 
 async function ensureDir(dir: string) {
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
+        logger.substep(`Created directory: ${path.relative(PROJECT_ROOT, dir)}`);
     }
 }
 
@@ -78,19 +118,22 @@ async function ensureDir(dir: string) {
 let SELECTED_SCHEDULE_FILE = "";
 let SELECTED_SEMESTER = "";
 
+
 async function scrapeSchedule() {
-    console.log("--- Step 1: Scraping Schedule (Rust) ---");
+    logger.step(1, "Scraping Schedule (Rust)");
 
-    // Clean previous runs (optional, maybe keep history? let's clean to avoid confusion)
-    const internalDataDir = path.join(SCHEDULE_SCRAPER_DIR, "matrufsc-scraper", "data");
-    if (fs.existsSync(internalDataDir)) {
-        fs.rmSync(internalDataDir, { recursive: true, force: true });
-    }
+    const force = args.includes("--force") || args.includes("-f");
+    const forceFlag = force ? "--force" : "";
 
-    await runCommand("cargo run --release", SCHEDULE_SCRAPER_DIR);
+    await runCommand(`cargo run --release -- ${forceFlag}`, SCHEDULE_SCRAPER_DIR, "Running Rust Scraper");
 
     // Find output file with Smart Selection
-    const files = fs.readdirSync(internalDataDir);
+    // Now searching in data/schedule
+    if (!fs.existsSync(SCHEDULE_DIR)) {
+        throw new Error(`Schedule directory not found at ${SCHEDULE_DIR}`);
+    }
+
+    const files = fs.readdirSync(SCHEDULE_DIR);
 
     // Regex to match "YYYYS-FLO.json" e.g. "20251-FLO.json"
     // We want to capture YYYY and S
@@ -117,34 +160,33 @@ async function scrapeSchedule() {
     });
 
     const latest = semesterFiles[0];
-    console.log(`Selected latest valid semester: ${latest.fullCode} (File: ${latest.filename})`);
+    logger.substep(`Selected latest semester: ${colors.bright}${latest.fullCode}${colors.reset}`);
 
     SELECTED_SEMESTER = latest.fullCode;
 
-    // Move it to generated
-    // We'll keep the original filename to preserve info
-    const sourcePath = path.join(internalDataDir, latest.filename);
-    const destPath = path.join(GENERATED_DIR, latest.filename);
+    // We just reference it directly now
+    SELECTED_SCHEDULE_FILE = path.join(SCHEDULE_DIR, latest.filename);
 
-    fs.copyFileSync(sourcePath, destPath);
-    SELECTED_SCHEDULE_FILE = destPath;
-
-    console.log(`Schedule saved to ${SELECTED_SCHEDULE_FILE}`);
+    logger.success(`Schedule ready: ${path.relative(DATA_DIR, SELECTED_SCHEDULE_FILE)}`);
 }
 
 async function parseCurriculum() {
-    console.log("--- Step 2: Parsing Curriculum (Gemini) ---");
+    logger.step(2, "Parsing Curriculum (Gemini)");
     if (!fs.existsSync(CURRICULUM_PDF)) {
         throw new Error(`Curriculum PDF not found at ${CURRICULUM_PDF}`);
     }
 
     // Usage: gemini.js <pdf> <compressed_out> <full_out>
-    await runCommand(`node ${GEMINI_SCRIPT} "${CURRICULUM_PDF}" "${CURRICULUM_JSON_OUTPUT}" "${CURRICULUM_FULL_JSON_OUTPUT}"`, SCRAPERS_DIR);
-    console.log(`Curriculum parsed to ${CURRICULUM_JSON_OUTPUT} (and full to ${CURRICULUM_FULL_JSON_OUTPUT})`);
+    await runCommand(
+        `node ${GEMINI_SCRIPT} "${CURRICULUM_PDF}" "${CURRICULUM_JSON_OUTPUT}" "${CURRICULUM_FULL_JSON_OUTPUT}"`,
+        SCRAPERS_DIR,
+        "Parsing PDF with Gemini script"
+    );
+    logger.success(`Curriculum parsed: ${path.relative(DATA_DIR, CURRICULUM_JSON_OUTPUT)}`);
 }
 
 async function separateData() {
-    console.log("--- Step 3: Separating Data ---");
+    logger.step(3, "Separating Data");
 
     if (!SELECTED_SCHEDULE_FILE) {
         throw new Error("Schedule file not selected. Did scrapers run?");
@@ -157,12 +199,12 @@ async function separateData() {
     // Command: ts-node <script> <curriculum_full> <schedule> <output>
     const command = `npx ts-node ${SEPARATOR_SCRIPT} "${CURRICULUM_FULL_JSON_OUTPUT}" "${SELECTED_SCHEDULE_FILE}" "${CLASSES_JSON_OUTPUT}"`;
 
-    await runCommand(command, PROJECT_ROOT);
-    console.log(`Classes separated to ${CLASSES_JSON_OUTPUT}`);
+    await runCommand(command, PROJECT_ROOT, "Running Separator");
+    logger.success(`Classes separated: ${path.relative(DATA_DIR, CLASSES_JSON_OUTPUT)}`);
 }
 
 async function updateDatabase() {
-    console.log("--- Step 4: Updating Database ---");
+    logger.step(4, "Updating Database");
 
     if (!DB_CONNECTION_STRING) {
         throw new Error("NEON_URL is not set.");
@@ -176,7 +218,7 @@ async function updateDatabase() {
         const curriculumData = JSON.parse(fs.readFileSync(CURRICULUM_JSON_OUTPUT, 'utf-8'));
         const programId = String(curriculumData.id);
 
-        console.log(`Upserting Curriculum for Program ID: ${programId}`);
+        logger.substep(`Upserting Curriculum (Program ID: ${programId})`);
         await client.query(`
             INSERT INTO curriculums ("programId", "curriculumJson")
             VALUES ($1, $2)
@@ -187,7 +229,7 @@ async function updateDatabase() {
         // 2. Update Schedule
         const classesData = JSON.parse(fs.readFileSync(CLASSES_JSON_OUTPUT, 'utf-8'));
 
-        console.log(`Upserting Schedule for Program ID: ${programId}, Semester: ${SELECTED_SEMESTER}`);
+        logger.substep(`Upserting Schedule (Sem: ${SELECTED_SEMESTER})`);
 
         await client.query(`
             INSERT INTO schedules ("programId", "semester", "scheduleJson")
@@ -196,7 +238,7 @@ async function updateDatabase() {
             DO UPDATE SET "scheduleJson" = $3;
         `, [programId, SELECTED_SEMESTER, classesData]);
 
-        console.log("Database update complete!");
+        logger.success("Database updated successfully");
 
     } finally {
         await client.end();
@@ -205,7 +247,12 @@ async function updateDatabase() {
 
 async function main() {
     try {
-        await ensureDir(GENERATED_DIR);
+        logger.header("MY-UFSC ORCHESTRATOR");
+
+        const relativePdf = path.relative(process.cwd(), CURRICULUM_PDF);
+        logger.info(`Target PDF: ${colors.bright}${relativePdf}${colors.reset}`);
+
+        await ensureDir(SCHEDULE_DIR);
 
         await Promise.all([
             scrapeSchedule(),
@@ -215,9 +262,12 @@ async function main() {
         await separateData();
         await updateDatabase();
 
-        console.log("=== \u2705 Orchestration Complete ===");
+        console.log("");
+        logger.success("Orchestration Complete!");
+        console.log("");
     } catch (error) {
-        console.error("=== \u274C Orchestration Failed ===");
+        console.log("");
+        logger.error("Orchestration Failed");
         console.error(error);
         process.exit(1);
     }
