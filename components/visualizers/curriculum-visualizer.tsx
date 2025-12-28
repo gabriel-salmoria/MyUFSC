@@ -118,7 +118,7 @@ export default function CurriculumVisualizer({
                 semesterNumber={semester.number}
                 // Filter curriculum courses for this phase and map to StudentCourse-like structure
                 studentCourses={curriculum.courses
-                  .filter((course) => course.phase === semester.number && course.type == "mandatory")
+                  .filter((course) => course.phase === semester.number)
                   .map((course) => ({
                     course, // Original Course object
                     id: course.id,
