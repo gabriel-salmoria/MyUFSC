@@ -14,6 +14,7 @@ interface HeaderProps {
   currentCurriculum: Curriculum | null;
   degreePrograms: DegreeProgram[];
   getDegreeName: (degreeId: string) => string;
+  isAuthenticated: boolean;
 }
 
 export default function Header({
@@ -21,6 +22,7 @@ export default function Header({
   currentCurriculum,
   degreePrograms,
   getDegreeName,
+  isAuthenticated,
 }: HeaderProps) {
   // Add state for save status
   const [isSaving, setIsSaving] = useState(false);
@@ -110,6 +112,17 @@ export default function Header({
   const handleLogout = async () => {
     try {
       await fetch("/api/user/auth/logout", { method: "POST" });
+
+      // Clear persistence and store
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("enc_pwd");
+        // We can also clear the persisted store key if we want a full reset
+        // localStorage.removeItem("student-storage"); 
+      }
+
+      // Reset the store state (which also updates the persisted value to null)
+      studentStore.reset();
+
       window.location.href = "/login";
     } catch (err) {
       window.location.href = "/login";
@@ -202,7 +215,7 @@ export default function Header({
     <>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <h1 className="text-3xl font-bold text-foreground">
-          Bem-vindo, {studentInfo.name}
+          {studentInfo.name ? `Bem-vindo, ${studentInfo.name}` : "Meu Planejamento"}
         </h1>
         <div className="flex flex-wrap items-center gap-4">
           {saveSuccess && (
@@ -213,21 +226,48 @@ export default function Header({
           {saveError && (
             <span className="text-red-500 text-sm">{saveError}</span>
           )}
-          <button
-            onClick={handleSaveData}
-            disabled={isSaving}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors"
-          >
-            <Save className="w-4 h-4" />
-            {isSaving ? "Salvando..." : "Salvar"}
-          </button>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 text-red-500 hover:text-red-700 transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            Sair
-          </button>
+
+          {/* We assume if we have authInfo, we are logged in. 
+              But Header doesn't take isAuthenticated prop. 
+              We can infer it from authInfo availability or check localStorage?
+              Actually useEncryptedData returns authInfo. 
+          */}
+          {/* Use the passed isAuthenticated prop to determine UI state */}
+          {isAuthenticated ? (
+            <>
+              <button
+                onClick={handleSaveData}
+                disabled={isSaving}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors"
+              >
+                <Save className="w-4 h-4" />
+                {isSaving ? "Salvando..." : "Salvar"}
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 text-red-500 hover:text-red-700 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                Sair
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => window.location.href = "/register"}
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+              >
+                <Save className="w-4 h-4" />
+                Salvar Progresso (Registrar)
+              </button>
+              <button
+                onClick={() => window.location.href = "/login"}
+                className="flex items-center gap-2 px-4 py-2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Entrar
+              </button>
+            </>
+          )}
         </div>
       </div>
 
