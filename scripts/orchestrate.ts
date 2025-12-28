@@ -17,8 +17,33 @@ const DATA_DIR = path.join(PROJECT_ROOT, "data");
 const GENERATED_DIR = path.join(DATA_DIR, "generated");
 const SCRAPERS_DIR = path.join(PROJECT_ROOT, "scrapers");
 
+
 // Input Paths
-const CURRICULUM_PDF = path.join(DATA_DIR, "curriculum.PDF");
+const args = process.argv.slice(2);
+function getArgValue(argName: string): string | null {
+    const index = args.findIndex(a => a === argName || a.startsWith(`${argName}=`));
+    if (index === -1) return null;
+
+    // Handle --flag=value
+    if (args[index].startsWith(`${argName}=`)) {
+        return args[index].split('=')[1];
+    }
+
+    // Handle --flag value
+    if (index + 1 < args.length) {
+        return args[index + 1];
+    }
+
+    return null;
+}
+
+const customPdfPath = getArgValue('--pdf') || getArgValue('--curriculum');
+const CURRICULUM_PDF = customPdfPath
+    ? path.resolve(process.cwd(), customPdfPath)
+    : path.join(DATA_DIR, "curriculum.PDF");
+
+console.log(`Using Curriculum PDF: ${CURRICULUM_PDF}`);
+
 
 // Output Paths
 const SCHEDULE_JSON_OUTPUT = path.join(GENERATED_DIR, "schedule_raw.json");

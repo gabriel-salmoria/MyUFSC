@@ -16,8 +16,12 @@ const model = genAI.getGenerativeModel({
   }
 });
 
-const prompt = 'Extract the data from the PDF file and return it in the JSON format provided in the schema. \
-                If a course doesnt have a code (As in, Optativa x), just use a mnemonic like (OPTx).';
+const prompt = '\
+Extract the data from the PDF file and return it in the JSON format provided in the schema. \
+If a course doesnt have a code (As in, Optativa x), just use a mnemonic like (OPTx). \
+The curriculum id has at most 3 numbers, but we never have something like 20121, the size is <= 3. \
+Recommended electives should be placed as normal electives. If there is a recommendation of "Recomendação de Optativas", \
+consider the courses as normal electives, and dont add a specified semester for them.';
 
 /**
  * Compresses the curriculum data by removing redundant information and using arrays
@@ -47,7 +51,7 @@ function compressCurriculumData(data) {
 
 async function generatePdfSummary(compress = true) {
   const args = process.argv.slice(2);
-  const inputPdfPath = args[0] || "./comp.PDF";
+  const inputPdfPath = args[0] || "./curriculum.PDF";
   const outputJsonPath = args[1] || "output.json";
   // If provided, write the uncompressed (full) JSON here.
   // If not provided, we won't write it (or could default, but let's be explicit).
