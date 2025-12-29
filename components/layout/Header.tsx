@@ -7,7 +7,10 @@ import { DegreeProgram } from "@/types/degree-program";
 import useEncryptedData from "@/hooks/setup/LoadUser";
 import { Curriculum } from "@/types/curriculum";
 import { useStudentStore } from "@/lib/student-store";
-import { DegreesOfInterestSelector } from "@/components/login/register-helpers";
+import {
+  DegreesOfInterestSelector,
+  DegreeProgramSelector
+} from "@/components/login/register-helpers";
 
 interface HeaderProps {
   studentInfo: StudentInfo;
@@ -33,6 +36,21 @@ export default function Header({
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
   const [passwordError, setPasswordError] = useState("");
+
+  // Name Editing State
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [tempName, setTempName] = useState(studentInfo.name || "");
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  // Degree Editing State
+  const [isEditingDegree, setIsEditingDegree] = useState(false);
+  const [degreeSearchTerm, setDegreeSearchTerm] = useState("");
+  const [isDegreeSelectorOpen, setIsDegreeSelectorOpen] = useState(false);
+  const [degreeFilteredPrograms, setDegreeFilteredPrograms] = useState<DegreeProgram[]>(degreePrograms);
+  const [degreeActiveIndex, setDegreeActiveIndex] = useState(0);
+
+  const degreeSelectorRef = useRef<HTMLDivElement>(null);
+  const degreeSearchInputRef = useRef<HTMLInputElement>(null);
 
   // Interest Editing State
   const [isEditingInterest, setIsEditingInterest] = useState(false);
@@ -129,13 +147,97 @@ export default function Header({
     }
   };
 
-  // --- Interest Editing Logic ---
+  // --- Name Editing Logic ---
+  const handleStartNameEdit = () => {
+    setTempName(studentInfo.name || "");
+    setIsEditingName(true);
+    // Focus after render
+    setTimeout(() => {
+      if (nameInputRef.current) nameInputRef.current.focus();
+    }, 10);
+  };
 
-  // Update filtered programs when degreePrograms changes
+  const handleCancelNameEdit = () => {
+    setIsEditingName(false);
+    setTempName(studentInfo.name || "");
+  };
+
+  const handleSaveName = () => {
+    studentStore.setStudentName(tempName);
+    setIsEditingName(false);
+  };
+
+  // --- Degree Editing Logic ---
+  const handleUpdateDegree = (newDegreeId: string) => {
+    if (newDegreeId === studentInfo.currentDegree) {
+      setIsEditingDegree(false);
+      return;
+    }
+
+    studentStore.setCurrentDegree(newDegreeId);
+    setIsEditingDegree(false);
+    setIsDegreeSelectorOpen(false);
+  };
+
+  // Update filtered programs when degreePrograms changes (for both selectors)
   useEffect(() => {
     setFilteredPrograms(degreePrograms);
+    setDegreeFilteredPrograms(degreePrograms);
   }, [degreePrograms]);
 
+  // Filter programs for degree selector
+  useEffect(() => {
+    if (!degreeSearchTerm.trim()) {
+      setDegreeFilteredPrograms(degreePrograms);
+      return;
+    }
+    const term = degreeSearchTerm.toLowerCase();
+    const filtered = degreePrograms.filter(
+      (program) =>
+        program.name.toLowerCase().includes(term) ||
+        program.id.toLowerCase().includes(term),
+    );
+    setDegreeFilteredPrograms(filtered);
+    setDegreeActiveIndex(0);
+  }, [degreeSearchTerm, degreePrograms]);
+
+
+  // Handle click outside for degree selector
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        isDegreeSelectorOpen &&
+        degreeSelectorRef.current &&
+        !degreeSelectorRef.current.contains(e.target as Node)
+      ) {
+        setIsDegreeSelectorOpen(false);
+        setDegreeSearchTerm("");
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isDegreeSelectorOpen]);
+
+  // Keyboard nav for degree selector
+  const handleDegreeKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      setIsDegreeSelectorOpen(false);
+      setDegreeSearchTerm("");
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setDegreeActiveIndex((prev) => Math.min(prev + 1, degreeFilteredPrograms.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setDegreeActiveIndex((prev) => Math.max(prev - 1, 0));
+    } else if (e.key === "Enter" && degreeFilteredPrograms.length > 0) {
+      e.preventDefault();
+      const selectedProgram = degreeFilteredPrograms[degreeActiveIndex];
+      handleUpdateDegree(selectedProgram.id);
+    }
+  };
+
+
+  // --- Interest Editing Logic ---
   // Filter programs when search term changes
   useEffect(() => {
     if (!searchTerm.trim()) {
@@ -214,9 +316,52 @@ export default function Header({
   return (
     <>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-        <h1 className="text-3xl font-bold text-foreground">
-          {studentInfo.name ? `Bem-vindo, ${studentInfo.name}` : "Meu Planejamento"}
-        </h1>
+        <div className="flex items-center gap-3">
+          {isEditingName ? (
+            <div className="flex items-center gap-2">
+              <input
+                ref={nameInputRef}
+                type="text"
+                value={tempName}
+                onChange={(e) => setTempName(e.target.value)}
+                className="text-3xl font-bold text-foreground bg-background border border-border rounded px-2 py-1 focus:ring-2 focus:ring-primary outline-none max-w-[300px]"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveName();
+                  if (e.key === 'Escape') handleCancelNameEdit();
+                }}
+              />
+              <button
+                onClick={handleSaveName}
+                className="p-1 rounded-full hover:bg-green-100 text-green-600 dark:hover:bg-green-900/30 dark:text-green-400"
+                title="Salvar Nome"
+              >
+                <Check className="w-5 h-5" />
+              </button>
+              <button
+                onClick={handleCancelNameEdit}
+                className="p-1 rounded-full hover:bg-red-100 text-red-600 dark:hover:bg-red-900/30 dark:text-red-400"
+                title="Cancelar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          ) : (
+            <div className="group flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-foreground">
+                {studentInfo.name ? `Bem-vindo, ${studentInfo.name}` : "Meu Planejamento"}
+              </h1>
+              <button
+                onClick={handleStartNameEdit}
+                className="opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground transition-all duration-200"
+                title="Editar Nome"
+                aria-label="Editar Nome"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
+
         <div className="flex flex-wrap items-center gap-4">
           {saveSuccess && (
             <span className="text-green-500 text-sm">
@@ -272,23 +417,73 @@ export default function Header({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-        <div className="bg-card p-6 rounded-lg shadow-lg">
-          <h2 className="text-xl font-semibold mb-4 text-foreground">
-            Curso Atual
-          </h2>
-          <p className="text-muted-foreground break-words">
-            {getDegreeName(studentInfo.currentDegree)}
-          </p>
-          {currentCurriculum && (
-            <div className="mt-4">
-              <h3 className="text-lg font-medium mb-2">Currículo</h3>
-              <p className="text-muted-foreground break-words">
-                {currentCurriculum.name}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Total de Fases: {currentCurriculum.totalPhases}
-              </p>
+        <div className="bg-card p-6 rounded-lg shadow-lg relative cursor-default">
+          <div className="flex justify-between items-start mb-4">
+            <h2 className="text-xl font-semibold text-foreground">
+              Curso Atual
+            </h2>
+            {!isEditingDegree && (
+              <button
+                onClick={() => {
+                  setIsEditingDegree(true);
+                  setIsDegreeSelectorOpen(true);
+                  setTimeout(() => degreeSearchInputRef.current?.focus(), 10);
+                }}
+                className="p-1 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                title="Alterar Curso"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {isEditingDegree ? (
+            <div className="animate-in fade-in zoom-in duration-200">
+              <DegreeProgramSelector
+                ref={degreeSelectorRef}
+                label=""
+                selectedDegree={studentInfo.currentDegree}
+                isOpen={isDegreeSelectorOpen}
+                searchTerm={degreeSearchTerm}
+                searchInputRef={degreeSearchInputRef}
+                activeIndex={degreeActiveIndex}
+                filteredPrograms={degreeFilteredPrograms}
+                onOpenDropdown={() => {
+                  setIsDegreeSelectorOpen(true);
+                  setDegreeSearchTerm("");
+                }}
+                onSearchChange={(e) => setDegreeSearchTerm(e.target.value)}
+                onKeyDown={handleDegreeKeyDown}
+                onSelectProgram={handleUpdateDegree}
+                onClearSelection={() => { }} // Can't clear current degree, must select one
+                getProgramName={getDegreeName}
+              />
+              <div className="mt-2 flex justify-end">
+                <button
+                  onClick={() => setIsEditingDegree(false)}
+                  className="text-sm text-red-500 hover:text-red-700 hover:underline"
+                >
+                  Cancelar
+                </button>
+              </div>
             </div>
+          ) : (
+            <>
+              <p className="text-muted-foreground break-words">
+                {getDegreeName(studentInfo.currentDegree)}
+              </p>
+              {currentCurriculum && (
+                <div className="mt-4">
+                  <h3 className="text-lg font-medium mb-2">Currículo</h3>
+                  <p className="text-muted-foreground break-words">
+                    {currentCurriculum.name}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Total de Fases: {currentCurriculum.totalPhases}
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </div>
 

@@ -41,6 +41,8 @@ export interface StudentStore {
 
   // Actions
   setStudentInfo: (info: StudentInfo | null) => void;
+  setStudentName: (name: string) => void;
+  setCurrentDegree: (degreeId: string) => void;
   setInterestedDegrees: (degrees: string[]) => void;
   forceUpdate: () => void;
   reset: () => void;
@@ -161,6 +163,24 @@ export const useStudentStore = create<StudentStore>()(persist((set) => ({
       }),
     );
   },
+
+  setStudentName: (name: string) =>
+    set(
+      produce((state: StudentStore) => {
+        if (state.studentInfo) {
+          state.studentInfo.name = name;
+        }
+      }),
+    ),
+
+  setCurrentDegree: (degreeId: string) =>
+    set(
+      produce((state: StudentStore) => {
+        if (state.studentInfo) {
+          state.studentInfo.currentDegree = degreeId;
+        }
+      }),
+    ),
 
   reset: () => set({
     studentInfo: null,

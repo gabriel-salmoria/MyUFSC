@@ -34,7 +34,7 @@ export default function ProfessorSelector({
   const { selectedStudentSchedule } = useStudentStore(); // Get selected course from store
 
   // If no course is selected in the store, don't render anything
-  if (!selectedStudentSchedule || !professors.length) return null;
+  if (!selectedStudentSchedule) return null;
 
   return (
     <div className={CSS_CLASSES.STATS_SECTION}>
@@ -51,54 +51,61 @@ export default function ProfessorSelector({
           </button>
         )}
       </div>
-      <div className="max-h-[450px] overflow-y-auto pr-2">
-        <div className={CSS_CLASSES.STATS_GRID}>
-          {professors.map((professor) => (
-            <div
-              key={professor.professorId}
-              className={cn(
-                CSS_CLASSES.STATS_PROFESSOR_CARD,
-                selectedProfessor === professor.professorId &&
-                CSS_CLASSES.STATS_PROFESSOR_ACTIVE,
-              )}
-              onClick={(e) => onProfessorSelect(professor.professorId, e)}
-            >
-              <div className="font-medium">{professor.name}</div>
-              <div className="text-sm text-muted-foreground">
-                {professor.classNumber}
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">
-                {professor.schedule}
-              </div>
 
-              {/* Enrollment Progress Bar */}
-              <div className="mt-2">
-                <div className="text-xs text-muted-foreground flex justify-between mb-1">
-                  <span>
-                    Vagas: {professor.enrolledStudents}/
-                    {professor.maxStudents}
-                  </span>
-                  <span>
-                    {Math.round(
-                      (professor.enrolledStudents / professor.maxStudents) *
-                      100,
-                    )}
-                    %
-                  </span>
+      {professors.length === 0 ? (
+        <div className="text-sm text-muted-foreground p-4 text-center">
+          Nenhuma turma encontrada.
+        </div>
+      ) : (
+        <div className="max-h-[450px] overflow-y-auto pr-2">
+          <div className={CSS_CLASSES.STATS_GRID}>
+            {professors.map((professor) => (
+              <div
+                key={professor.professorId}
+                className={cn(
+                  CSS_CLASSES.STATS_PROFESSOR_CARD,
+                  selectedProfessor === professor.professorId &&
+                  CSS_CLASSES.STATS_PROFESSOR_ACTIVE,
+                )}
+                onClick={(e) => onProfessorSelect(professor.professorId, e)}
+              >
+                <div className="font-medium">{professor.name}</div>
+                <div className="text-sm text-muted-foreground">
+                  {professor.classNumber}
                 </div>
-                <div className={CSS_CLASSES.STATS_ENROLLMENT_BAR}>
-                  <div
-                    className={CSS_CLASSES.STATS_ENROLLMENT_PROGRESS}
-                    style={{
-                      width: `${(professor.enrolledStudents / professor.maxStudents) * 100}%`,
-                    }}
-                  ></div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {professor.schedule}
+                </div>
+
+                {/* Enrollment Progress Bar */}
+                <div className="mt-2">
+                  <div className="text-xs text-muted-foreground flex justify-between mb-1">
+                    <span>
+                      Vagas: {professor.enrolledStudents}/
+                      {professor.maxStudents}
+                    </span>
+                    <span>
+                      {Math.round(
+                        (professor.enrolledStudents / professor.maxStudents) *
+                        100,
+                      )}
+                      %
+                    </span>
+                  </div>
+                  <div className={CSS_CLASSES.STATS_ENROLLMENT_BAR}>
+                    <div
+                      className={CSS_CLASSES.STATS_ENROLLMENT_PROGRESS}
+                      style={{
+                        width: `${(professor.enrolledStudents / professor.maxStudents) * 100}%`,
+                      }}
+                    ></div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
