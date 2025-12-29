@@ -23,7 +23,7 @@ interface CSCurriculum {
 
 interface ClassData {
   DATA: string;
-  FLO: [string, string, string, any[]][];
+  FLO: [string, string, any[]][];
 }
 
 async function main() {
@@ -57,7 +57,7 @@ async function main() {
     const courseIds = new Set(curriculumData.courses.map(course => course.id));
 
     // Filter FLO data to only include classes for CS courses
-    const filteredFLO: [string, string, string, any[]][] = [];
+    const filteredFLO: [string, string, any[]][] = [];
 
     // The scraper output has a top-level key for the degree usually, but here we assume we are getting
     // the raw JSON that might be inside a degree key OR just the raw structure we saw in the file.

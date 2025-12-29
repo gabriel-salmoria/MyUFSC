@@ -18,7 +18,6 @@ struct SingleCampusMatrufscJson {
 #[derive(Serialize_tuple)]
 struct Course {
     id: String,
-    title_upper: String,
     title: String,
     classes: Vec<Class>,
 }
@@ -95,7 +94,6 @@ fn group_classes_for_matrufsc(mut classes: Vec<parse::Class>) -> Vec<Course> {
 
             Course {
                 id: course.id,
-                title_upper: course.title.to_uppercase(),
                 title: course.title,
                 classes,
             }
