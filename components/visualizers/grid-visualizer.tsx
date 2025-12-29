@@ -50,7 +50,10 @@ export default function GridVisualizer({
     // Step 2: Get all 'optional' courses from the curriculum
     if (curriculum && curriculum.courses) {
       curriculum.courses.forEach((course) => {
-        if (course.type === "optional") {
+        // Filter out placeholders
+        const isPlaceholder = /^OPT\d{4}$/.test(course.id) || /^[-.]+$/.test(course.id);
+
+        if (course.type === "optional" && !isPlaceholder) {
           electiveCourses.push(course);
         }
       });

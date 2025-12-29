@@ -24,10 +24,13 @@ export function parseCourses(courses: any[]): Course[] {
       const coursePhase = courseData[8];
 
       // Normalize the course type
-      let normalizedType = "elective";
+      let normalizedType = "optional";
       if (courseType) {
         const typeStr = String(courseType).toLowerCase();
-        normalizedType = typeStr === "mandatory" ? "mandatory" : "optional";
+        // Check for common variations of mandatory
+        if (typeStr === "mandatory" || typeStr === "obrigatoria" || typeStr === "obrigatória" || typeStr === "1" || typeStr === "true") {
+          normalizedType = "mandatory";
+        }
       }
 
       return {
@@ -38,7 +41,7 @@ export function parseCourses(courses: any[]): Course[] {
         description: courseData[4] || "",
         prerequisites: Array.isArray(courseData[5]) ? courseData[5] : [],
         equivalents: Array.isArray(courseData[6]) ? courseData[6] : [],
-        type: normalizedType,
+        type: normalizedType as "mandatory" | "optional",
         phase: coursePhase != null ? Number(coursePhase) : 0,
       } as Course;
     }
@@ -85,8 +88,7 @@ export function generatePhases(curriculum: Curriculum): Phase[] {
       // The issue is that we're checking strictly for "mandatory" but it might be stored differently
       return (
         course.phase === i &&
-        (course.type === "mandatory" ||
-          String(course.type).toLowerCase() === "mandatory")
+        course.type === "mandatory"
       );
     });
 
