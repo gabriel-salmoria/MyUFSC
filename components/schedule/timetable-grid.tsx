@@ -48,7 +48,7 @@ export default function TimetableGrid({
           getCourseColor(courseData.course.course.id),
           // Compare with selectedStudentCourse from the store
           selectedStudentCourse?.course.id === courseData.course.course.id &&
-            CSS_CLASSES.COURSE_SELECTED,
+          CSS_CLASSES.COURSE_SELECTED,
         )}
         // Use the store action directly
         onClick={() => selectCourse(courseData.course)}
