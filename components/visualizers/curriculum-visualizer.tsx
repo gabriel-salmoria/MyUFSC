@@ -15,7 +15,7 @@ import Phase from "@/components/visualizers/phase";
 import { PHASE, COURSE_BOX } from "@/styles/visualization";
 
 // helper to generate phases - import directly from the file where it's defined
-import { generatePhases } from "@/parsers/curriculum-parser";
+import { generatePhases, generateEquivalenceMap } from "@/parsers/curriculum-parser";
 
 import { useStudentStore } from "@/lib/student-store";
 
@@ -38,6 +38,9 @@ export default function CurriculumVisualizer({
 
   // Generate phases from curriculum
   const phases = useMemo(() => generatePhases(curriculum), [curriculum]);
+
+  // Create equivalence map to handle equivalent courses
+  const equivalenceMap = useMemo(() => generateEquivalenceMap(curriculum.courses), [curriculum]);
 
   // Safeguard against rendering with invalid data
   if (!curriculum) {
@@ -119,27 +122,34 @@ export default function CurriculumVisualizer({
                 // Filter curriculum courses for this phase and map to StudentCourse-like structure
                 studentCourses={curriculum.courses
                   .filter((course) => course.phase === semester.number)
-                  .map((course) => ({
-                    course, // Original Course object
-                    id: course.id,
-                    name: course.name,
-                    credits: course.credits,
-                    description: course.description,
-                    workload: course.workload,
-                    prerequisites: course.prerequisites,
-                    equivalents: course.equivalents,
-                    type: course.type,
-                    status:
-                      studentPlan.semesters
-                        .flatMap((s) => s.courses)
-                        .find((sc) => sc.course.id === course.id)?.status ||
-                      CourseStatus.DEFAULT,
-                    grade:
-                      studentPlan.semesters
-                        .flatMap((s) => s.courses)
-                        .find((sc) => sc.course.id === course.id)?.grade || undefined,
-                    phase: semester.number,
-                  }))}
+                  .map((course) => {
+                    // Check for equivalence
+                    const equivalents = equivalenceMap.get(course.id);
+
+                    // Find matching course in student plan (exact match or equivalent)
+                    const matchingStudentCourse = studentPlan.semesters
+                      .flatMap((s) => s.courses)
+                      .find((sc) =>
+                        equivalents
+                          ? equivalents.has(sc.course.id)
+                          : sc.course.id === course.id
+                      );
+
+                    return {
+                      course, // Original Course object
+                      id: course.id,
+                      name: course.name,
+                      credits: course.credits,
+                      description: course.description,
+                      workload: course.workload,
+                      prerequisites: course.prerequisites,
+                      equivalents: course.equivalents,
+                      type: course.type,
+                      status: matchingStudentCourse?.status || CourseStatus.DEFAULT,
+                      grade: matchingStudentCourse?.grade || undefined,
+                      phase: semester.number,
+                    };
+                  })}
                 width={phaseWidth}
                 isFromCurriculum={true} // Mark as from curriculum
                 totalSlots={globalTotalSlots} // Pass uniform height

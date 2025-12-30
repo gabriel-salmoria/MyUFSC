@@ -101,6 +101,13 @@ export default function CourseStats({
     }, 0);
   }, [courses]);
 
+  // Calculate total workload (hours)
+  const totalWorkload = useMemo(() => {
+    return courses.reduce((total, course) => {
+      return total + (course.course.workload || 0);
+    }, 0);
+  }, [courses]);
+
   // Get the course color based on its ID
   const getCourseColor = (courseId: string) => {
     if (courseColors && coursesInTimetable.includes(courseId)) {
@@ -150,7 +157,7 @@ export default function CourseStats({
           <CourseList courses={courses} getCourseColor={getCourseColor} />
 
           {/* Credits Summary */}
-          <CreditsSummary totalCredits={weeklyHours} />
+          <CreditsSummary totalCredits={weeklyHours} totalWorkload={totalWorkload} />
 
           {/* Professor Selection */}
           {selectedSchedule && ( // Use selectedSchedule from the store
