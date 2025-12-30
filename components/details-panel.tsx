@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import type { Course } from "@/types/curriculum";
 import { type StudentCourse, CourseStatus } from "@/types/student-plan";
 import { Button } from "@/components/ui/button";
-import { X, Check, Clock, AlertTriangle, GitGraph, Save } from "lucide-react";
+import { X, GitGraph, Save } from "lucide-react";
 import { getCourseInfo } from "@/parsers/curriculum-parser";
-import { useStudentStore } from "@/lib/student-store"; // Changed from StudentStore to useStudentStore
-import { STATUS_CLASSES } from "@/styles/course-theme";
+import { useStudentStore } from "@/lib/student-store";
+import { cn } from "@/components/ui/utils";
 
 interface StudentCourseDetailsPanelProps {
   setDependencyState: React.Dispatch<
@@ -15,380 +15,233 @@ interface StudentCourseDetailsPanelProps {
       showDependencyTree: boolean;
       dependencyCourse: Course | null;
     }>
-  >; // ADDED - To control dependency tree visibility
+  >;
 }
 
-// painel de detalhes da disciplina, que aparece quando
-// clica no quadradinho da disciplina
 export default function StudentCourseDetailsPanel({
   setDependencyState,
 }: StudentCourseDetailsPanelProps) {
-  const studentStore = useStudentStore();
-
   const {
-    selectedCourse,
-    selectedStudentCourse,
+    selectedCourse: course,
+    selectedStudentCourse: studentCourse,
     clearSelection,
     setCourseGrade,
     changeCourseStatus,
-  } = studentStore;
+  } = useStudentStore();
 
-  const course = selectedCourse;
-  const studentCourse = selectedStudentCourse;
+  if (!course || !studentCourse) return null;
 
-  if (!course || !studentCourse) {
-    return null;
-  }
-
-  // State for grade input
-  const [gradeInput, setGradeInput] = useState<string>(
-    studentCourse?.grade !== undefined ? studentCourse.grade.toString() : "",
+  // Use a key to force re-mounting when the course changes, resetting state automatically
+  return (
+    <PanelContent
+      key={studentCourse.course.id} // key acts as the reset mechanism
+      course={course}
+      studentCourse={studentCourse}
+      onClose={clearSelection}
+      onSetGrade={setCourseGrade}
+      onChangeStatus={changeCourseStatus}
+      onViewDependencies={(c) => {
+        setDependencyState({ showDependencyTree: true, dependencyCourse: c });
+        clearSelection();
+      }}
+    />
   );
-  const [isEditingGrade, setIsEditingGrade] = useState<boolean>(false);
-  const [gradeError, setGradeError] = useState<string>("");
+}
 
-  useEffect(() => {
-    if (studentCourse?.grade !== undefined) {
-      setGradeInput(studentCourse.grade.toString());
-    } else {
-      setGradeInput("");
-    }
+// Inner component to hold state, isolated from the "switching" logic
+function PanelContent({
+  course,
+  studentCourse,
+  onClose,
+  onSetGrade,
+  onChangeStatus,
+  onViewDependencies
+}: {
+  course: Course;
+  studentCourse: StudentCourse;
+  onClose: () => void;
+  onSetGrade: (c: StudentCourse, g: number) => void;
+  onChangeStatus: (c: StudentCourse, s: CourseStatus) => void;
+  onViewDependencies: (c: Course) => void;
+}) {
+  const [gradeInput, setGradeInput] = useState(
+    studentCourse.grade !== undefined ? studentCourse.grade.toString() : ""
+  );
 
-    // Simplified logic: Editing is allowed only if status is COMPLETED and grade is undefined
-    setIsEditingGrade(
-      studentCourse?.status === CourseStatus.COMPLETED &&
-      studentCourse?.grade === undefined
-    );
-    setGradeError("");
-  }, [studentCourse]); // studentCourse from store is now the dependency
+  // Initialize editing only if we are completed but missing a grade (edge case)
+  const [isEditing, setIsEditing] = useState(
+    studentCourse.status === CourseStatus.COMPLETED && studentCourse.grade === undefined
+  );
 
-  // Handle saving the grade
-  const handleSaveGrade = () => {
-    if (!studentCourse) {
-      console.error("handleSaveGrade: studentCourse is undefined"); // Keep error logs
+  const [error, setError] = useState("");
+
+  const handleSave = () => {
+    const val = parseFloat(gradeInput);
+    if (isNaN(val) || val < 0 || val > 10) {
+      setError("Nota deve ser entre 0 e 10");
       return;
     }
-
-    const parseResult = parseFloat(gradeInput);
-    if (isNaN(parseResult) || parseResult < 0 || parseResult > 10) {
-      setGradeError("Grade must be between 0 and 10.");
-      return;
-    }
-    setGradeError("");
-    const grade = Math.round(parseResult * 2) / 2;
-
-    // Use setCourseGrade from the store
-    setCourseGrade(studentCourse, grade);
-    setIsEditingGrade(false);
+    setError("");
+    // Round to nearest 0.5
+    const grade = Math.round(val * 2) / 2;
+    onSetGrade(studentCourse, grade);
+    setIsEditing(false);
   };
 
-  const handleClose = () => {
-    clearSelection(); // Use clearSelection from the store
-  };
-
-  // Handle viewing dependencies
-  const handleViewDependenciesClick = () => {
-    if (course) {
-      setDependencyState({
-        showDependencyTree: true,
-        dependencyCourse: course,
-      });
-      studentStore.clearSelection(); // Clear main selection when viewing dependencies
-    }
-  };
+  const statusColor = studentCourse.grade !== undefined
+    ? studentCourse.grade >= 6 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+    : "";
 
   return (
     <>
-      <div
-        className="fixed inset-0 bg-black/20 dark:bg-black/50 z-40"
-        onClick={handleClose} // Use internal handleClose
-      />
-      <div
-        className="fixed right-0 top-0 h-full bg-background shadow-lg border-l border-border p-4 z-50 overflow-y-auto transform translate-x-0 transition-transform duration-200"
-        style={{ width: "480px" }}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-foreground">
-            {course?.id ?? "N/A"}
-          </h3>
-          <Button variant="ghost" size="icon" onClick={handleClose}>
-            {" "}
-            {/* Use internal handleClose */}
+      <div className="fixed inset-0 bg-black/20 dark:bg-black/50 z-40" onClick={onClose} />
+      <div className="fixed right-0 top-0 h-full w-[480px] bg-background shadow-lg border-l border-border p-4 z-50 overflow-y-auto animate-in slide-in-from-right duration-200">
+
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-bold">{course.id}</h3>
+          <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         </div>
 
-        <div className="space-y-4">
-          <div>
-            <h4 className="text-sm font-medium text-muted-foreground">
-              Nome da Disciplina
-            </h4>
-            <p className="text-foreground">{course?.name ?? "N/A"}</p>
-          </div>
+        <div className="space-y-6">
+          <DetailBlock label="Nome" value={course.name} />
+          <DetailBlock label="Créditos" value={course.credits} />
+          <DetailBlock label="Carga Horária" value={`${course.workload} horas`} />
+          <DetailBlock label="Fase Recomendada" value={course.phase} />
 
-          <div>
-            <h4 className="text-sm font-medium text-muted-foreground">
-              Créditos
-            </h4>
-            <p className="text-foreground">{course?.credits ?? "N/A"}</p>
-          </div>
-
-          <div>
-            <h4 className="text-sm font-medium text-muted-foreground">
-              Carga Horária
-            </h4>
-            <p className="text-foreground">
-              {course?.workload ? `${course.workload} horas` : "N/A"}
-            </p>
-          </div>
-
-          <div>
-            <h4 className="text-sm font-medium text-muted-foreground">
-              Fase Recomendada
-            </h4>
-            <p className="text-foreground">{course?.phase ?? "N/A"}</p>
-          </div>
-
-          {studentCourse?.grade !== undefined && !isEditingGrade && (
+          {/* Grade Display/Edit Section */}
+          {(studentCourse.status === CourseStatus.COMPLETED || studentCourse.status === CourseStatus.FAILED) && (
             <div>
-              <h4 className="text-sm font-medium text-muted-foreground">
-                Nota
-              </h4>
-              <div className="flex items-center gap-2">
-                <p
-                  className={
-                    studentCourse.grade >= 6.0
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-red-600 dark:text-red-400"
-                  }
-                >
-                  {studentCourse.grade.toFixed(1)}
-                </p>
-                {(studentCourse.status === CourseStatus.COMPLETED ||
-                  studentCourse.status === CourseStatus.FAILED) && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setIsEditingGrade(true)}
-                      className="h-6 px-2 text-xs"
-                    >
-                      Editar
-                    </Button>
-                  )}
-              </div>
-            </div>
-          )}
+              <h4 className="text-sm font-medium text-muted-foreground mb-1">Nota</h4>
 
-          {(isEditingGrade ||
-            (studentCourse?.status === CourseStatus.COMPLETED &&
-              studentCourse?.grade === undefined)) && (
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground">
-                  Nota
-                </h4>
-                <div className="flex flex-col gap-1 mt-1">
-                  <div className="flex items-center gap-2">
+              {!isEditing && studentCourse.grade !== undefined ? (
+                <div className="flex items-center gap-2">
+                  <span className={cn("text-lg font-bold", statusColor)}>
+                    {studentCourse.grade.toFixed(1)}
+                  </span>
+                  <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)} className="h-6 text-xs">
+                    Editar
+                  </Button>
+                </div>
+              ) : (
+                <div className="bg-muted/30 p-3 rounded-md border border-border space-y-2">
+                  <div className="flex gap-2">
                     <input
                       type="number"
-                      min="0"
-                      max="10"
-                      step="0.5"
+                      min="0" max="10" step="0.5"
                       value={gradeInput}
                       onChange={(e) => {
                         setGradeInput(e.target.value);
-                        setGradeError("");
+                        setError("");
                       }}
-                      onBlur={handleSaveGrade}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          handleSaveGrade();
-                          (e.target as HTMLInputElement).blur();
-                        }
-                      }}
-                      className={`border rounded px-2 py-1 w-20 text-sm bg-background text-foreground
-                      ${gradeError ? "border-red-500 dark:border-red-400 focus:border-red-500 focus:ring-red-500" : "border-input focus:border-blue-500 focus:ring-blue-500"}
-                      focus:outline-none focus:ring-1`}
-                      placeholder="0-10"
-                      disabled={!studentCourse}
-                    />
-                    <Button
-                      size="sm"
-                      onClick={handleSaveGrade}
-                      className="h-8 px-3"
-                      disabled={!studentCourse || gradeError !== ""}
-                    >
-                      <Save className="h-3 w-3 mr-1" />
-                      Salvar
-                    </Button>
-                  </div>
-                  {gradeError && (
-                    <p className="text-red-500 dark:text-red-400 text-xs mt-1">
-                      {gradeError}
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Insira uma nota entre 0-10 (arredondada para 0.5).
-                    {parseFloat(gradeInput) >= 0 &&
-                      !isNaN(parseFloat(gradeInput)) &&
-                      parseFloat(gradeInput) <= 10 && (
-                        <span className="font-medium">
-                          {" "}
-                          Valor será salvo como:{" "}
-                          {Math.round(parseFloat(gradeInput) * 2) / 2}
-                        </span>
+                      onKeyDown={(e) => e.key === "Enter" && handleSave()}
+                      className={cn(
+                        "flex h-9 w-24 rounded-md border bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+                        error ? "border-red-500 focus-visible:ring-red-500" : "border-input"
                       )}
-                  </p>
+                      placeholder="0.0"
+                    />
+                    <Button size="sm" onClick={handleSave}>Salvar</Button>
+                    <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>Cancelar</Button>
+                  </div>
+                  {error && <p className="text-xs text-red-500">{error}</p>}
                   <p className="text-xs text-muted-foreground">
-                    Notas ≥ 6.0 marcarão como{" "}
-                    <span className="text-green-600 dark:text-green-400 font-medium">
-                      Concluído
-                    </span>
-                    , notas &lt; 6.0 marcarão como{" "}
-                    <span className="text-red-600 dark:text-red-400 font-medium">
-                      Reprovado
-                    </span>
-                    .
+                    Nota será arredondada para 0.5. <br />
+                    ≥ 6.0: <span className="text-green-500 font-medium">Aprovado</span>,
+                    {" < "} 6.0: <span className="text-red-500 font-medium">Reprovado</span>.
                   </p>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+          )}
+
+          {/* Lists */}
+          <ListBlock title="Equivalências" items={course.equivalents} />
+          <ListBlock title="Pré-requisitos" items={course.prerequisites} />
 
           <div>
-            <h4 className="text-sm font-medium text-muted-foreground">
-              Equivalências
-            </h4>
-            {course?.equivalents && course.equivalents.length > 0 ? (
-              <ul className="list-disc pl-5 text-foreground">
-                {course.equivalents.map((eq) => {
-                  const equivalentCourse = getCourseInfo(eq);
-                  return (
-                    <li key={eq}>
-                      {eq}{" "}
-                      {equivalentCourse?.name
-                        ? `- ${equivalentCourse.name}`
-                        : ""}
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <p className="text-foreground">Sem equivalências</p>
-            )}
-          </div>
-
-          <div>
-            <h4 className="text-sm font-medium text-muted-foreground">
-              Pré-requisitos
-            </h4>
-            {course?.prerequisites && course.prerequisites.length > 0 ? (
-              <ul className="list-disc pl-5 text-foreground">
-                {course.prerequisites.map((prereq) => {
-                  const prerequisiteCourse = getCourseInfo(prereq);
-                  return (
-                    <li key={prereq}>
-                      {prereq}{" "}
-                      {prerequisiteCourse?.name
-                        ? `- ${prerequisiteCourse.name}`
-                        : ""}
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <p className="text-foreground">Sem pré-requisitos</p>
-            )}
-          </div>
-
-          <div>
-            <h4 className="text-sm font-medium text-muted-foreground">
-              Ementa
-            </h4>
-            <ul className="list-disc pl-5 text-foreground">
-              {course?.description ?? "Sem descrição"}
-            </ul>
+            <h4 className="text-sm font-medium text-muted-foreground mb-1">Ementa</h4>
+            <p className="text-sm text-foreground">{course.description || "Sem descrição"}</p>
           </div>
         </div>
 
-        <div className="mt-6 space-y-2">
-          {course?.prerequisites && course.prerequisites.length > 0 && (
-            <Button
-              variant="secondary"
-              className="w-full flex items-center justify-center gap-2"
-              onClick={handleViewDependenciesClick} // Use the new internal handler
-            >
-              <GitGraph className="h-4 w-4" />
-              Ver Árvore de Dependências
+        {/* Actions */}
+        <div className="mt-8 space-y-2 pt-4 border-t border-border/50">
+          {(course.prerequisites?.length ?? 0) > 0 && (
+            <Button variant="secondary" className="w-full gap-2" onClick={() => onViewDependencies(course)}>
+              <GitGraph className="h-4 w-4" /> Ver Árvore de Dependências
             </Button>
           )}
 
-          <Button
-            className="w-full"
-            variant={
-              studentCourse?.status === CourseStatus.IN_PROGRESS
-                ? "default"
-                : "outline"
-            }
-            onClick={() =>
-              changeCourseStatus(
-                // Use changeCourseStatus from the store
-                studentCourse!,
-                CourseStatus.IN_PROGRESS,
-              )
-            }
-            disabled={!studentCourse}
-          >
-            Marcar como Cursando
-          </Button>
+          <ActionButton
+            active={studentCourse.status === CourseStatus.IN_PROGRESS}
+            label="Marcar como Cursando"
+            onClick={() => onChangeStatus(studentCourse, CourseStatus.IN_PROGRESS)}
+          />
 
-          <Button
-            variant={
-              studentCourse?.status === CourseStatus.COMPLETED
-                ? "default"
-                : "outline"
-            }
-            className="w-full"
+          <ActionButton
+            active={studentCourse.status === CourseStatus.COMPLETED}
+            label="Marcar como Concluído"
             onClick={() => {
-              // Toggle editing grade if already completed with a grade
-              if (
-                studentCourse?.status === CourseStatus.COMPLETED &&
-                studentCourse?.grade !== undefined
-              ) {
-                setIsEditingGrade(!isEditingGrade);
-              } else {
-                // If changing status to COMPLETED, or if grade is undefined, enable editing
-                setIsEditingGrade(true);
-                // Set input value based on potential existing grade
-                setGradeInput(
-                  studentCourse?.grade !== undefined
-                    ? studentCourse.grade.toString()
-                    : "",
-                );
+              onChangeStatus(studentCourse, CourseStatus.COMPLETED);
+              if (studentCourse.status !== CourseStatus.COMPLETED) {
+                setIsEditing(true); // Auto-open edit if newly completed
               }
             }}
-            disabled={!studentCourse}
-          >
-            Marcar como Concluído
-          </Button>
+          />
 
-          <Button
-            variant={
-              studentCourse?.status === CourseStatus.PLANNED
-                ? "default"
-                : "outline"
-            }
-            className="w-full"
+          <ActionButton
+            active={studentCourse.status === CourseStatus.PLANNED}
+            label="Marcar como Planejado"
             onClick={() => {
-              if (!studentCourse) return;
-              changeCourseStatus(studentCourse, CourseStatus.PLANNED); // Use changeCourseStatus from the store
+              onChangeStatus(studentCourse, CourseStatus.PLANNED);
               setGradeInput("");
-              setIsEditingGrade(false);
+              setIsEditing(false);
             }}
-            disabled={!studentCourse}
-          >
-            Marcar como Planejado
-          </Button>
+          />
         </div>
+
       </div>
     </>
   );
+}
+
+// Simple Helper Components for cleaner JSX
+function DetailBlock({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div>
+      <h4 className="text-sm font-medium text-muted-foreground">{label}</h4>
+      <p className="text-foreground font-medium">{value || "N/A"}</p>
+    </div>
+  )
+}
+
+function ListBlock({ title, items }: { title: string, items?: string[] }) {
+  return (
+    <div>
+      <h4 className="text-sm font-medium text-muted-foreground mb-1">{title}</h4>
+      {items && items.length > 0 ? (
+        <ul className="list-disc pl-5 text-sm space-y-0.5">
+          {items.map(item => {
+            const info = getCourseInfo(item);
+            return <li key={item}>{item} {info?.name && `- ${info.name}`}</li>
+          })}
+        </ul>
+      ) : <p className="text-sm text-muted-foreground italic">Nenhum</p>}
+    </div>
+  )
+}
+
+function ActionButton({ label, active, onClick }: { label: string, active: boolean, onClick: () => void }) {
+  return (
+    <Button
+      className="w-full"
+      variant={active ? "default" : "outline"}
+      onClick={onClick}
+    >
+      {label}
+    </Button>
+  )
 }

@@ -312,9 +312,12 @@ export const useStudentStore = create<StudentStore>()(persist((set) => ({
           );
           if (courseInStore) {
             courseInStore.status = status;
-          } else {
+
+            // Update selectedStudentCourse if it matches
+            if (state.selectedStudentCourse && state.selectedStudentCourse.id === studentCourse.id) {
+              state.selectedStudentCourse = courseInStore;
+            }
           }
-        } else {
         }
       }),
     ),
@@ -329,13 +332,12 @@ export const useStudentStore = create<StudentStore>()(persist((set) => ({
 
         // Find the semester containing the course
         let courseInStore: StudentCourse | undefined;
-        let semesterIndex = -1;
 
-        for (let i = 0; i < plan.semesters.length; i++) {
-          const found = plan.semesters[i].courses.find(c => c.course.id === studentCourse.course.id);
+        // Robust search
+        for (const semester of plan.semesters) {
+          const found = semester.courses.find(c => c.id === studentCourse.id);
           if (found) {
             courseInStore = found;
-            semesterIndex = i;
             break;
           }
         }
@@ -346,6 +348,11 @@ export const useStudentStore = create<StudentStore>()(persist((set) => ({
             roundedGrade >= 6.0
               ? CourseStatus.COMPLETED
               : CourseStatus.FAILED;
+
+          // Update selectedStudentCourse if it matches
+          if (state.selectedStudentCourse && state.selectedStudentCourse.id === studentCourse.id) {
+            state.selectedStudentCourse = courseInStore;
+          }
         }
       }),
     ),
