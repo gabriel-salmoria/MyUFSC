@@ -42,6 +42,96 @@ export default function CurriculumVisualizer({
   // Create equivalence map to handle equivalent courses
   const equivalenceMap = useMemo(() => generateEquivalenceMap(curriculum.courses), [curriculum]);
 
+  // Create mapped course statuses and handle optional course hours accumulation mapped greedily against curriculum blocks
+  const mappedCurriculumCourses = useMemo(() => {
+    const optionalPools = {
+      [CourseStatus.COMPLETED]: 0,
+      [CourseStatus.IN_PROGRESS]: 0,
+      [CourseStatus.PLANNED]: 0,
+    };
+
+    const allStudentCourses = studentPlan.semesters.flatMap((s) => s.courses);
+
+    // Helper to safely determine if a course definition is optional
+    const isDefOptional = (def: Course) =>
+      def.type === "optional" || (def as any).type === false || String((def as any).type).toLowerCase() === "false";
+
+    // Helper to determine if a course is a generic generic placeholder (optativa) in the curriculum
+    const isGenericPlaceholder = (def: Course) => {
+      // It must be an elective
+      if (!isDefOptional(def)) return false;
+      // It's a placeholder if its ID contains "OPT" or its name is literally "Optativa..."
+      const hasOptInId = /OPT/i.test(def.id);
+      const hasOptInName = /optativa/i.test(def.name || "");
+      // Or if it simply has a designated phase (valid real electives from UFSC usually have phase 0 or null)
+      const hasPhase = def.phase && def.phase > 0;
+
+      return hasOptInId || hasOptInName;
+    };
+
+    // Sum up optional hours from the student's progress strictly based on the current curriculum's rules
+    allStudentCourses.forEach((sc) => {
+      // Lookup how THIS specific curriculum classifies the course the student took
+      const curriculumDef = curriculum.courses.find(c => c.id === sc.course.id);
+
+      // A course is a valid elective (Optativa) if it exists in the curriculum as 'optional' 
+      // and is NOT a generic placeholder itself
+      if (curriculumDef && isDefOptional(curriculumDef) && !isGenericPlaceholder(curriculumDef)) {
+        // UFSC usually counts 18h per credit
+        const hours = curriculumDef.workload || (curriculumDef.credits ? curriculumDef.credits * 18 : 0);
+
+        if (sc.status === CourseStatus.COMPLETED || sc.status === CourseStatus.EXEMPTED) {
+          optionalPools[CourseStatus.COMPLETED] += hours;
+        } else if (sc.status === CourseStatus.IN_PROGRESS) {
+          optionalPools[CourseStatus.IN_PROGRESS] += hours;
+        } else if (sc.status === CourseStatus.PLANNED) {
+          optionalPools[CourseStatus.PLANNED] += hours;
+        }
+      }
+    });
+
+    const statusMap = new Map<string, { status: CourseStatus; grade?: number }>();
+    const sortedCurriculumCourses = [...curriculum.courses].sort((a, b) => a.phase - b.phase);
+
+    sortedCurriculumCourses.forEach((course) => {
+      let status = CourseStatus.DEFAULT;
+      let grade: number | undefined = undefined;
+
+      const equivalents = equivalenceMap.get(course.id);
+
+      // Generic curriculum placeholders (like "Optativa I" or "OPT0004") 
+      if (isGenericPlaceholder(course)) {
+        // Optional courses map strictly greedily via their explicit workload limits, left-to-right (1st semester -> nth semester)
+        const courseHours = course.workload || (course.credits ? course.credits * 18 : 72);
+
+        if (optionalPools[CourseStatus.COMPLETED] >= courseHours) {
+          optionalPools[CourseStatus.COMPLETED] -= courseHours;
+          status = CourseStatus.COMPLETED;
+        } else if (optionalPools[CourseStatus.IN_PROGRESS] >= courseHours) {
+          optionalPools[CourseStatus.IN_PROGRESS] -= courseHours;
+          status = CourseStatus.IN_PROGRESS;
+        } else if (optionalPools[CourseStatus.PLANNED] >= courseHours) {
+          optionalPools[CourseStatus.PLANNED] -= courseHours;
+          status = CourseStatus.PLANNED;
+        }
+      } else {
+        // Standard courses check via exact Match or Equivalence rules
+        const matchingStudentCourse = allStudentCourses.find((sc) =>
+          equivalents ? equivalents.has(sc.course.id) : sc.course.id === course.id
+        );
+
+        if (matchingStudentCourse) {
+          status = matchingStudentCourse.status;
+          grade = matchingStudentCourse.grade;
+        }
+      }
+
+      statusMap.set(course.id, { status, grade });
+    });
+
+    return statusMap;
+  }, [curriculum.courses, studentPlan.semesters, equivalenceMap]);
+
   // Safeguard against rendering with invalid data
   if (!curriculum) {
     return (
@@ -123,17 +213,7 @@ export default function CurriculumVisualizer({
                 studentCourses={curriculum.courses
                   .filter((course) => course.phase === semester.number)
                   .map((course) => {
-                    // Check for equivalence
-                    const equivalents = equivalenceMap.get(course.id);
-
-                    // Find matching course in student plan (exact match or equivalent)
-                    const matchingStudentCourse = studentPlan.semesters
-                      .flatMap((s) => s.courses)
-                      .find((sc) =>
-                        equivalents
-                          ? equivalents.has(sc.course.id)
-                          : sc.course.id === course.id
-                      );
+                    const mappedInfo = mappedCurriculumCourses.get(course.id);
 
                     return {
                       course, // Original Course object
@@ -145,8 +225,8 @@ export default function CurriculumVisualizer({
                       prerequisites: course.prerequisites,
                       equivalents: course.equivalents,
                       type: course.type,
-                      status: matchingStudentCourse?.status || CourseStatus.DEFAULT,
-                      grade: matchingStudentCourse?.grade || undefined,
+                      status: mappedInfo?.status || CourseStatus.DEFAULT,
+                      grade: mappedInfo?.grade,
                       phase: semester.number,
                     };
                   })}
