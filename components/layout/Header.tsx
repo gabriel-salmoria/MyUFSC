@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { LogOut, Save, Edit2, X, Check } from "lucide-react";
 import { StudentInfo } from "@/types/student-plan";
 import { DegreeProgram } from "@/types/degree-program";
@@ -39,6 +39,54 @@ export default function Header({
   const [isEditingInterest, setIsEditingInterest] = useState(false);
 
   const studentStore = useStudentStore();
+
+  // Encryption Bubble Animation State
+  const [encryptedExample, setEncryptedExample] = useState({
+    username: "2432622431302430...",
+    password: "$2b$12$RM0Sa3cMj...",
+    iv: "622f9e316471595b...",
+    data: "U2FsdGVkX19aqDBz..."
+  });
+  const [isHoveringSave, setIsHoveringSave] = useState(false);
+
+  useEffect(() => {
+    if (!isHoveringSave) return;
+
+    const generateRandomHex = (length = 24) => {
+      const chars = '0123456789abcdef';
+      let result = '';
+      for (let i = 0; i < length; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+      return result;
+    };
+
+    const generateRandomBcrypt = () => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789./';
+      let result = '$2b$12$';
+      for (let i = 0; i < 22; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+      return result;
+    };
+
+    const generateRandomAES = (length = 24) => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+      let result = 'U2FsdGVkX';
+      for (let i = 0; i < length; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+      return result + '==';
+    };
+
+    // Update immediately on hover, then every 1.5 seconds
+    const updateKeys = () => {
+      setEncryptedExample({
+        username: generateRandomHex(32),
+        password: generateRandomBcrypt(),
+        iv: generateRandomHex(24),
+        data: generateRandomAES(32)
+      });
+    };
+
+    updateKeys();
+    const interval = setInterval(updateKeys, 1500);
+    return () => clearInterval(interval);
+  }, [isHoveringSave]);
 
   // Use the encrypted data hook for saving
   const { saveData, authInfo, initializeAuthInfo } = useEncryptedData({
@@ -194,14 +242,51 @@ export default function Header({
 
           {isAuthenticated ? (
             <>
-              <button
-                onClick={handleSaveData}
-                disabled={isSaving}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors"
-              >
-                <Save className="w-4 h-4" />
-                {isSaving ? "Salvando..." : "Salvar"}
-              </button>
+              <div className="relative group/save">
+                <button
+                  onClick={handleSaveData}
+                  disabled={isSaving}
+                  onMouseEnter={() => setIsHoveringSave(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors relative z-10"
+                >
+                  <Save className="w-4 h-4" />
+                  {isSaving ? "Salvando..." : "Salvar"}
+                </button>
+
+                {/* Save Encryption Tooltip Bubble */}
+                <div
+                  className="absolute right-0 top-full mt-2 w-[340px] p-4 bg-popover text-popover-foreground text-xs rounded-lg shadow-xl border border-border opacity-0 invisible group-hover/save:opacity-100 group-hover/save:visible transition-all duration-300 z-50 origin-top-right transform group-hover/save:scale-100 scale-95"
+                  onMouseEnter={() => setIsHoveringSave(true)}
+                  onMouseLeave={() => setIsHoveringSave(false)}
+                >
+                  <div className="absolute -top-2 right-6 w-4 h-4 bg-popover border-t border-l border-border transform rotate-45"></div>
+                  <strong className="flex items-center gap-1.5 mb-2 text-sm text-green-600 dark:text-green-500">
+                    <Check className="w-4 h-4" /> Dados 100% Criptografados!
+                  </strong>
+                  <p className="text-muted-foreground mb-3 leading-relaxed">
+                    Eu não tenho nenhum acesso aos seus dados pessoais, todos eles são criptografados no seu computador antes de serem enviados ao servidor. No banco de dados, eles estão dessa forma:
+                  </p>
+
+                  <div className="space-y-2 bg-muted/40 p-2.5 rounded-md border border-border/50 font-mono text-[10px] sm:text-xs">
+                    <div className="grid grid-cols-[105px_1fr] gap-2 items-center">
+                      <span className="text-muted-foreground/80 break-keep">hashedUsername:</span>
+                      <span className="text-primary truncate transition-all duration-300">{encryptedExample.username}</span>
+                    </div>
+                    <div className="grid grid-cols-[105px_1fr] gap-2 items-center">
+                      <span className="text-muted-foreground/80 break-keep">hashedPassword:</span>
+                      <span className="text-primary truncate transition-all duration-300">{encryptedExample.password}</span>
+                    </div>
+                    <div className="grid grid-cols-[105px_1fr] gap-2 items-center">
+                      <span className="text-muted-foreground/80 break-keep">iv:</span>
+                      <span className="text-primary truncate transition-all duration-300">{encryptedExample.iv}</span>
+                    </div>
+                    <div className="grid grid-cols-[105px_1fr] gap-2 items-center">
+                      <span className="text-muted-foreground/80 break-keep">encryptedData:</span>
+                      <span className="text-primary truncate transition-all duration-300">{encryptedExample.data}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-2 px-4 py-2 text-red-500 hover:text-red-700 transition-colors"
@@ -291,9 +376,14 @@ export default function Header({
         {/* Interests Card */}
         <div className="bg-card p-6 rounded-lg shadow-lg relative">
           <div className="flex justify-between items-start mb-4">
-            <h2 className="text-xl font-semibold text-foreground">
-              Cursos de Interesse
-            </h2>
+            <div>
+              <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+                Cursos de Interesse
+              </h2>
+              <p className="text-xs text-muted-foreground mt-1 pr-4">
+                Disciplinas do seu curso atual e destes adicionais serão exibidas na montagem de horários.
+              </p>
+            </div>
             <button
               onClick={() => {
                 if (isEditingInterest) setIsEditingInterest(false);
