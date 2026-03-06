@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage } from "zustand/middleware";
 import { produce } from "immer";
 import type {
   StudentInfo,
@@ -47,6 +47,13 @@ export interface StudentStore {
   forceUpdate: () => void;
   reset: () => void;
 
+  // Auth State
+  isAuthenticated: boolean;
+  userId: string | null;
+  authCheckCompleted: boolean;
+  setAuthStatus: (isAuthenticated: boolean, userId: string | null) => void;
+  setAuthCheckCompleted: (completed: boolean) => void;
+
   // Course operations
   addCourseToSemester: (course: Course, targetSemester: number) => void;
   moveCourse: (course: StudentCourse, targetSemester: number) => void;
@@ -81,6 +88,16 @@ export const useStudentStore = create<StudentStore>()(persist((set) => ({
 
   selectedSchedule: null,
   selectedStudentSchedule: null,
+
+  isAuthenticated: false,
+  userId: null,
+  authCheckCompleted: false,
+
+  setAuthStatus: (isAuthenticated: boolean, userId: string | null) =>
+    set({ isAuthenticated, userId }),
+
+  setAuthCheckCompleted: (completed: boolean) =>
+    set({ authCheckCompleted: completed }),
 
   curriculumCache: {},
   cacheCurriculum: (degreeId: string, courses: Course[]) =>
@@ -188,7 +205,10 @@ export const useStudentStore = create<StudentStore>()(persist((set) => ({
     selectedStudentCourse: null,
     selectedSchedule: null,
     selectedStudentSchedule: null,
-    curriculumCache: {}
+    curriculumCache: {},
+    isAuthenticated: false,
+    userId: null,
+    authCheckCompleted: false,
   }),
 
   setInterestedDegrees: (degrees: string[]) =>
@@ -415,9 +435,31 @@ export const useStudentStore = create<StudentStore>()(persist((set) => ({
 }),
   {
     name: "student-storage",
+    storage: createJSONStorage(() => {
+      if (typeof window !== "undefined") {
+        return window.localStorage;
+      }
+      return {
+        getItem: () => null,
+        setItem: () => { },
+        removeItem: () => { },
+      };
+    }),
     partialize: (state) => ({
       studentInfo: state.studentInfo,
-      // We don't persist UI state like selections or cache
+    }),
+    merge: (persistedState: any, currentState) => ({
+      ...currentState,
+      ...(persistedState as object),
+      // Ensure transient states are NEVER hydrated from old sessions
+      isAuthenticated: currentState.isAuthenticated,
+      userId: currentState.userId,
+      authCheckCompleted: currentState.authCheckCompleted,
+      selectedCourse: null,
+      selectedStudentCourse: null,
+      selectedSchedule: null,
+      selectedStudentSchedule: null,
+      curriculumCache: {},
     }),
   }
 ));

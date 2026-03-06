@@ -42,6 +42,8 @@ export default function LoginPage() {
 
       // Set the decrypted data in the global store
       studentStore.setStudentInfo(result.data as StudentInfo);
+      studentStore.setAuthStatus(true, result.hashedUsername);
+      studentStore.setAuthCheckCompleted(true);
 
       // Navigate to home page
       router.push("/");

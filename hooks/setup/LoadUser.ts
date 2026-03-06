@@ -105,7 +105,7 @@ export default function useEncryptedData({
             localStorage.setItem("enc_pwd", password);
           }
 
-          return { success: true, data: decrypted };
+          return { success: true, data: decrypted, hashedUsername: data.hashedUsername };
         }
 
         return { success: true, data: null };

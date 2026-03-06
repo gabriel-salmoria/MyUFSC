@@ -1,6 +1,7 @@
 // MyUFSC/hooks/CheckAuth.ts
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation"; // Import NextRouter for type
+import { useRouter } from "next/navigation";
+import { useStudentStore } from "@/lib/student-store";
 
 export interface AuthState {
   error: string;
@@ -11,7 +12,7 @@ export interface UseCheckAuthResult {
   authState: AuthState;
   setAuthState: React.Dispatch<React.SetStateAction<AuthState>>;
   isAuthenticated: boolean;
-  authCheckCompleted: boolean; // To signal when the check is done
+  authCheckCompleted: boolean;
   userId: string | null;
 }
 
@@ -21,14 +22,13 @@ export function useCheckAuth(): UseCheckAuthResult {
     error: "",
     authChecked: false,
   });
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [authCheckCompleted, setAuthCheckCompleted] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
+
+  const { isAuthenticated, authCheckCompleted, userId, setAuthStatus, setAuthCheckCompleted } = useStudentStore();
 
   useEffect(() => {
-    // Prevent multiple auth checks if already checked
-    if (authState.authChecked) {
-      setAuthCheckCompleted(true); // Ensure this is set if already checked
+    // Prevent multiple auth checks if already checked, or if store says it's already completed
+    if (authState.authChecked || authCheckCompleted) {
+      if (!authCheckCompleted) setAuthCheckCompleted(true);
       return;
     }
 
@@ -38,27 +38,31 @@ export function useCheckAuth(): UseCheckAuthResult {
         const data = await response.json();
 
         if (data.authenticated && data.userId) {
-          setIsAuthenticated(true);
-          setUserId(data.userId); // Set userId
+          setAuthStatus(true, data.userId);
         } else {
-          setIsAuthenticated(false);
-          // router.push("/login"); // Don't redirect, allow anonymous
+          setAuthStatus(false, null);
+
+          // If they were previously logged in, their session just expired. Clean it up.
+          if (typeof window !== "undefined" && localStorage.getItem("enc_pwd")) {
+            localStorage.removeItem("enc_pwd");
+            useStudentStore.getState().reset();
+            router.push("/login");
+          }
         }
       } catch (err) {
-        setIsAuthenticated(false);
+        setAuthStatus(false, null);
         setAuthState((prev) => ({
           ...prev,
           authChecked: true, // Mark as checked even on error to prevent loops
           error: "Authentication check failed. Please try again later.",
         }));
-        // router.push("/login"); // Don't redirect on error as well
       } finally {
         setAuthCheckCompleted(true);
       }
     };
 
     performCheck();
-  }, [router, authState.authChecked]); // Dependency on authState.authChecked to prevent re-runs
+  }, [router, authState.authChecked, authCheckCompleted, setAuthStatus, setAuthCheckCompleted]);
 
   return { authState, setAuthState, isAuthenticated, authCheckCompleted, userId };
 }

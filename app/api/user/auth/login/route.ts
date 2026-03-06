@@ -45,34 +45,22 @@ export async function POST(request: Request) {
       );
     }
 
-    // Set session cookie
-    const cookieStore = await cookies();
-    cookieStore.set("session", "authenticated", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
-
     // Set user ID cookie - using hashed username not plaintext
-    cookieStore.set("userId", hashedUsername, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
-
-    // Return encrypted data to client
-    // The client will decrypt it with the key derived from the password
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       hashedUsername: userData.hashedUsername,
       hashedPassword: userData.hashedPassword,
       iv: userData.iv,
       encryptedData: userData.encryptedData,
     });
+
+    const isProd = process.env.NODE_ENV === "production";
+    const secureFlag = isProd ? "Secure;" : "";
+
+    response.headers.append("Set-Cookie", `session=authenticated; Path=/; Max-Age=604800; HttpOnly; SameSite=Lax; ${secureFlag}`);
+    response.headers.append("Set-Cookie", `userId=${userData.hashedUsername}; Path=/; Max-Age=604800; HttpOnly; SameSite=Lax; ${secureFlag}`);
+
+    return response;
   } catch (error) {
     console.error(error);
     return NextResponse.json(

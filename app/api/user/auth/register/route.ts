@@ -41,26 +41,15 @@ export async function POST(request: Request) {
       encryptedData,
     });
 
-    // Set session cookie
-    const cookieStore = await cookies();
-    cookieStore.set("session", "authenticated", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
+    const response = NextResponse.json({ success: true, hashedUsername });
 
-    // Set hashed user ID cookie - no plaintext username in cookies
-    cookieStore.set("userId", hashedUsername, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
+    const isProd = process.env.NODE_ENV === "production";
+    const secureFlag = isProd ? "Secure;" : "";
 
-    return NextResponse.json({ success: true });
+    response.headers.append("Set-Cookie", `session=authenticated; Path=/; Max-Age=604800; HttpOnly; SameSite=Lax; ${secureFlag}`);
+    response.headers.append("Set-Cookie", `userId=${hashedUsername}; Path=/; Max-Age=604800; HttpOnly; SameSite=Lax; ${secureFlag}`);
+
+    return response;
   } catch (error) {
     console.error(error);
     return NextResponse.json(

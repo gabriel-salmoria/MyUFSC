@@ -140,9 +140,9 @@ export default function RegisterPage() {
         }),
       });
 
+      const responseData = await response.json();
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Falha no registro");
+        throw new Error(responseData.error || "Falha no registro");
       }
 
       // Update store with new password implicitly (handled by login usually, but here we might need to login)
@@ -153,10 +153,11 @@ export default function RegisterPage() {
         localStorage.setItem("enc_pwd", formData.password);
       }
 
-      // Update store auth info so UI reflects logged in state immediately?
-      // Or just reload page. Reload is safer.
-      window.location.href = "/";
+      // Sync to the global store immediately
+      studentStore.setAuthStatus(true, responseData.hashedUsername);
+      studentStore.setAuthCheckCompleted(true);
 
+      router.push("/");
     } catch (err) {
       setError(
         err instanceof Error
