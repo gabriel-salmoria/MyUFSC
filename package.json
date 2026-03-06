@@ -11,8 +11,8 @@
     "db:setup:programs": "python database/programs/setup.py",
     "db:setup:curriculum": "python database/curriculum/setup.py",
     "db:setup:schedule": "python database/schedule/setup.py",
-    "orchestrate": "npx ts-node scripts/orchestrate.ts",
-    "curriculum:update": "npx ts-node scripts/update-curriculums.ts",
+    "orchestrate": "npx tsx scripts/orchestrate.ts",
+    "curriculum:update": "npx tsx scripts/update-curriculums.ts",
     "scrape:schedule": "cd scrapers/schedule && cargo run --release",
     "scrape:curriculum": "cd scrapers/curriculum && cargo run --release"
   },
@@ -87,6 +87,7 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.18",
     "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
   "overrides": {
