@@ -11,16 +11,41 @@ import { CourseStatus } from "@/types/student-plan";
 import type { Course } from "@/types/curriculum";
 import { PHASE_DIMENSIONS } from "@/styles/course-theme";
 
-// Helper function to ensure we have exactly one empty semester at the end
+// Helper function to ensure we always have at least TOTAL_SEMESTERS,
+// and exactly one empty semester at the end to allow for dropping new items.
 const updateView = (semesters: StudentSemester[]) => {
-  if (!semesters || semesters.length === 0) return;
+  if (!semesters) return;
 
-  for (let i = semesters.length - 2; i >= 0; i--) {
-    if (
-      semesters[i].courses.length === 0 &&
-      i > PHASE_DIMENSIONS.TOTAL_SEMESTERS
-    ) {
+  // 1. Pad to minimum TOTAL_SEMESTERS (12)
+  while (semesters.length < PHASE_DIMENSIONS.TOTAL_SEMESTERS) {
+    semesters.push({
+      number: semesters.length + 1,
+      courses: [],
+      totalCredits: 0,
+    });
+  }
+
+  // 2. Ensure the very last semester is empty (if the current last one has courses, add a new empty one)
+  const lastSemester = semesters[semesters.length - 1];
+  if (lastSemester && lastSemester.courses.length > 0) {
+    semesters.push({
+      number: semesters.length + 1,
+      courses: [],
+      totalCredits: 0,
+    });
+  }
+
+  // 3. Trim excess empty semesters from the end, but never drop below TOTAL_SEMESTERS
+  // and always keep at least one empty terminator at the very end.
+  while (semesters.length > PHASE_DIMENSIONS.TOTAL_SEMESTERS) {
+    const last = semesters[semesters.length - 1];
+    const secondToLast = semesters[semesters.length - 2];
+
+    // If BOTH the last and second-to-last are empty, we can safely pop the last one
+    if (last.courses.length === 0 && secondToLast.courses.length === 0) {
       semesters.pop();
+    } else {
+      break;
     }
   }
 };

@@ -136,9 +136,14 @@ export default function Visualizations({
       </div>
 
       <div>
-        <h2 className="text-xl font-semibold mb-2 text-foreground">
-          Meu Progresso
-        </h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-2">
+          <h2 className="text-xl font-semibold text-foreground m-0">
+            Meu Progresso
+          </h2>
+          <p className="text-sm text-muted-foreground italic">
+            Dica: arraste disciplinas para o último semestre para adicionar novos semestres, ou empilhe-as para expandir um semestre.
+          </p>
+        </div>
         <div
           className="border border-border rounded-lg overflow-hidden shadow-md bg-card"
         // Removed fixed height style

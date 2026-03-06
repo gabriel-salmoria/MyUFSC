@@ -39,25 +39,12 @@ export default function ProgressVisualizer({
 
     const semesters = [...studentPlan.semesters];
 
-    // Find index of the last semester that actually has courses
-    // Note: use findLastIndex if available or reverse look up
-    let lastNonEmptyIndex = -1;
-    for (let i = semesters.length - 1; i >= 0; i--) {
-      if (semesters[i].courses && semesters[i].courses.length > 0) {
-        lastNonEmptyIndex = i;
-        break;
-      }
-    }
+    // The store natively pads to a minimum of 12 and ensures a trailing empty semester.
+    // Curriculum might have more phases than 12. We should never trim the store's array, 
+    // but we can pad it visually if the curriculum is larger.
+    const targetLength = Math.max(totalPhases, semesters.length);
 
-    // Determine target length using MAX of (default phases) OR (last used phase + 2 for expansion)
-    // +2 because: if last used is 7 (8th phase), we want 8th (index 7) AND 9th (index 8) to be visible.
-    // So index 7 + 2 = 9. Length 9 means indices 0..8.
-    const targetLength = Math.max(totalPhases, lastNonEmptyIndex + 2);
-
-    // If we have fewer semesters than target, fill with ghosts
-    // If we have more semesters than target (and they are empty), trim them
     const resultSemesters = [];
-
     for (let i = 0; i < targetLength; i++) {
       if (i < semesters.length) {
         resultSemesters.push(semesters[i]);

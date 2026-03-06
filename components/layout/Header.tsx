@@ -108,9 +108,9 @@ export default function Header({
         localStorage.removeItem("enc_pwd");
       }
       studentStore.reset();
-      window.location.href = "/login";
+      window.location.href = "/";
     } catch (err) {
-      window.location.href = "/login";
+      window.location.href = "/";
     }
   };
 
