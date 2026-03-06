@@ -9,8 +9,8 @@ export function generateSalt(): string {
   return CryptoJS.lib.WordArray.random(16).toString();
 }
 
-// New function to hash usernames with bcrypt
-export function hashUsername(username: string): string {
+// The legacy function that created the original DB hashes
+function legacyHashUsername(username: string): string {
   // First hash with SHA-256 to normalize the input
   const sha256Hash = CryptoJS.SHA256(username).toString();
 
@@ -22,6 +22,21 @@ export function hashUsername(username: string): string {
   const hash = bcrypt.hashSync(sha256Hash, fixedSalt);
 
   return Buffer.from(hash).toString("hex");
+}
+
+// New enhanced hash with 10k PBKDF2 rounds total (1 legacy + 9999 new)
+export function hashUsername(username: string): string {
+  const legacyHash = legacyHashUsername(username);
+
+  // Apply 9,999 rounds of PBKDF2 over the existing bcrypt hash
+  // This ensures perfect compatibility with offline DB migration
+  const enhancedHash = CryptoJS.PBKDF2(legacyHash, "MyUFSC_V2_PEPPER", {
+    keySize: 256 / 32,
+    iterations: 9999,
+    hasher: CryptoJS.algo.SHA256
+  }).toString(CryptoJS.enc.Hex);
+
+  return enhancedHash;
 }
 
 // ****************************************************

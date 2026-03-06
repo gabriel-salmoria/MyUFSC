@@ -264,7 +264,7 @@ export default function Header({
                     <Check className="w-4 h-4" /> Dados 100% Criptografados!
                   </strong>
                   <p className="text-muted-foreground mb-3 leading-relaxed">
-                    Eu não tenho nenhum acesso aos seus dados pessoais, todos eles são criptografados no seu computador antes de serem enviados ao servidor. No banco de dados, eles estão dessa forma:
+                    Eu não tenho nenhum acesso aos seus dados pessoais, todos eles são criptografados no seu computador antes de serem enviados ao servidor. No banco de dados, eles estão, por exemplo, dessa forma:
                   </p>
 
                   <div className="space-y-2 bg-muted/40 p-2.5 rounded-md border border-border/50 font-mono text-[10px] sm:text-xs">
