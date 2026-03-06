@@ -46,7 +46,7 @@ export function useCheckAuth(): UseCheckAuthResult {
           if (typeof window !== "undefined" && localStorage.getItem("enc_pwd")) {
             localStorage.removeItem("enc_pwd");
             useStudentStore.getState().reset();
-            router.push("/login");
+            // Don't redirect, simply let the UI fall back to the welcome screen
           }
         }
       } catch (err) {
