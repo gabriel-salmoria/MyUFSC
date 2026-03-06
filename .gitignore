@@ -32,10 +32,9 @@ next-env.d.ts
 **/target/
 **/*.rs.bk
 *.pdb
-Cargo.lock
+# Cargo.lock is intentionally committed for binary crates (scrapers)
+# to ensure reproducible builds on CI
 
 *.pdf
 *.PDF
-**/*.json
-!/*.json
 data/

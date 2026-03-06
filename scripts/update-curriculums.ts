@@ -189,13 +189,13 @@ async function main() {
 
       if (!filteredSchedule || filteredSchedule.FLO.length === 0) {
         console.warn(
-          `  - Warning: No matching classes found in master schedule for this curriculum.`,
+          `  - Skipping ${programId}: no matching classes found in master schedule.` +
+            ` Existing DB record preserved.`,
         );
-        // We typically still want to update it (to empty) or maybe skip?
-        // Let's update it so it reflects reality (no classes).
-      } else {
-        console.log(`  - Matched ${filteredSchedule.FLO.length} classes.`);
+        continue;
       }
+
+      console.log(`  - Matched ${filteredSchedule.FLO.length} classes.`);
 
       // Upsert Schedule
       await client.query(

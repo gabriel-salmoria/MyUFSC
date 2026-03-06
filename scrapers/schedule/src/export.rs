@@ -1,6 +1,6 @@
 use crate::{parse, scrape::Campus};
 
-use std::{collections::HashMap, fs::File, path::Path};
+use std::{collections::HashMap, fs::File, path::PathBuf};
 
 use anyhow::Result;
 use chrono::{FixedOffset, Utc, Weekday};
@@ -101,41 +101,36 @@ fn group_classes_for_matrufsc(mut classes: Vec<parse::Class>) -> Vec<Course> {
         .collect()
 }
 
+fn data_dir() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/schedule")
+}
+
 pub fn to_matrufsc_json(
     campus_classes_pairs: Vec<(Campus, Vec<parse::Class>)>,
     semester: &str,
 ) -> Result<()> {
-    // Create data directory if it doesn't exist
-    let data_dir = Path::new("../../data/schedule");
-    if !data_dir.exists() {
-        std::fs::create_dir_all(data_dir)?;
-    }
-    
+    let data_dir = data_dir();
+    std::fs::create_dir_all(&data_dir)?;
+
     let timestamp = formatted_timestamp();
-    
-    // For each campus, create a separate file
+
     for (campus, classes) in campus_classes_pairs {
-        // Convert classes to matrufsc format
         let courses = group_classes_for_matrufsc(classes);
-        
-        // Create a HashMap with just this campus
+
         let mut data = HashMap::new();
         data.insert(campus, courses);
-        
-        // Create the JSON structure
+
         let json = SingleCampusMatrufscJson {
             timestamp: timestamp.clone(),
             data,
         };
-        
-        // Create the output file
-        let filename = format!("../../data/schedule/{}-{}.json", semester, campus);
-        log::info!("Writing {}", filename);
-        let output_file = File::create(filename)?;
-        
-        // Write the JSON to the file
+
+        let file_path = data_dir.join(format!("{}-{}.json", semester, campus));
+        log::info!("Writing {}", file_path.display());
+        let output_file = File::create(&file_path)?;
+
         serde_json::to_writer(output_file, &json)?;
     }
-    
+
     Ok(())
 }

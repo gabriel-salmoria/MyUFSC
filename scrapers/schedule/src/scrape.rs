@@ -130,9 +130,8 @@ impl Scraper {
                 break;
             }
 
-            let parsed = crate::parse::classes_from_html(&contents).with_context(|| {
-                format!("Parsing page {page_index} for {campus} on {semester}")
-            })?;
+            let parsed = crate::parse::classes_from_html(&contents)
+                .with_context(|| format!("Parsing page {page_index} for {campus} on {semester}"))?;
             entries.extend(parsed);
 
             previous.replace(contents.clone());
@@ -170,32 +169,28 @@ async fn scrape_semester(
     join_all(tasks).await
 }
 
+fn cache_file_path(semester: &Semester) -> std::path::PathBuf {
+    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../data/schedule")
+        .join(format!("{}-FLO.json", semester))
+}
 
 fn is_cache_valid(semester: &Semester, _campi: &[Campus]) -> bool {
-    // Check if any file for this semester exists and is recent (< 3 days)
-    // We check for at least ONE campus file.
-    // Ideally we should check for all requested campi, but simple check is:
-    // if {semester}-FLO.json exists and is recent, we assume it's valid.
-    
-    let path_str = format!("../../data/schedule/{}-FLO.json", semester);
-    let path = std::path::Path::new(&path_str);
-    
+    let path = cache_file_path(semester);
+
     if !path.exists() {
         return false;
     }
-    
-    if let Ok(metadata) = std::fs::metadata(path) {
-        if let Ok(modified) = metadata.modified() {
-            if let Ok(duration) = std::time::SystemTime::now().duration_since(modified) {
-                // 3 days = 3 * 24 * 60 * 60 seconds
-                if duration.as_secs() < 3 * 24 * 60 * 60 {
-                    return true;
-                }
-            }
-        }
+
+    let age = std::fs::metadata(&path)
+        .ok()
+        .and_then(|m| m.modified().ok())
+        .and_then(|modified| std::time::SystemTime::now().duration_since(modified).ok());
+
+    match age {
+        Some(duration) => duration.as_secs() < 2 * 24 * 60 * 60, // 48 hours, matching update schedule
+        None => false,
     }
-    
-    false
 }
 
 pub async fn scrape_last_n_semesters(
@@ -216,7 +211,7 @@ pub async fn scrape_last_n_semesters(
                 // Return empty list to signal skipped/cached
                 return (semester, vec![]);
             }
-            
+
             let campus_classes = scrape_semester(semester.clone(), &campi).await;
             (semester, campus_classes)
         }

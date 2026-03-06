@@ -1,22 +1,33 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import * as fs from 'fs';
-import * as dotenv from 'dotenv';
+import * as fs from "fs";
+import * as path from "path";
+import { fileURLToPath } from "url";
+import * as dotenv from "dotenv";
 import { Schema } from "./schema.js";
 
-dotenv.config({ path: '../../variables.env' });
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PROJECT_ROOT = path.resolve(__dirname, "../../");
+
+dotenv.config({ path: path.join(PROJECT_ROOT, ".env") });
+
 const GEMINI_KEY = process.env.GEMINI_KEY;
+if (!GEMINI_KEY) {
+  console.error("Error: GEMINI_KEY is not set in your .env file.");
+  process.exit(1);
+}
 
 const genAI = new GoogleGenerativeAI(GEMINI_KEY);
 
 const model = genAI.getGenerativeModel({
-  model: 'gemini-3-pro-preview',
+  model: "gemini-3-pro-preview",
   generationConfig: {
-    responseMimeType: 'application/json',
+    responseMimeType: "application/json",
     responseSchema: Schema,
-  }
+  },
 });
 
-const prompt = '\
+const prompt =
+  '\
 Extract the data from the PDF file and return it in the JSON format provided in the schema. \
 If a course doesnt have a code (As in, Optativa x), just use a mnemonic like (OPTx). \
 The curriculum id has at most 3 numbers, but we never have something like 20121, the size is <= 3. \
@@ -34,17 +45,17 @@ function compressCurriculumData(data) {
     id: data.id,
     totalPhases: data.totalPhases,
     department: data.department,
-    courses: data.courses.map(course => [
-      course.id,                    // 0: id
-      course.name,                  // 1: name
-      course.credits,               // 2: credits
-      course.workload,              // 3: workload
-      course.description,           // 4: description
-      course.prerequisites || [],   // 5: prerequisites
-      course.equivalents || [],     // 6: equivalents
-      course.type,                  // 7: type
-      course.phase                  // 8: phase
-    ])
+    courses: data.courses.map((course) => [
+      course.id, // 0: id
+      course.name, // 1: name
+      course.credits, // 2: credits
+      course.workload, // 3: workload
+      course.description, // 4: description
+      course.prerequisites || [], // 5: prerequisites
+      course.equivalents || [], // 6: equivalents
+      course.type, // 7: type
+      course.phase, // 8: phase
+    ]),
   };
   return compressed;
 }
@@ -64,7 +75,7 @@ async function generatePdfSummary(compress = true) {
         mimeType: "application/pdf",
       },
     },
-    prompt
+    prompt,
   ]);
 
   const jsonText = result.response.text();
@@ -85,7 +96,7 @@ async function generatePdfSummary(compress = true) {
   console.log(`JSON data extracted and saved to ${outputJsonPath}`);
 }
 
-generatePdfSummary().catch(err => {
+generatePdfSummary().catch((err) => {
   console.error(err);
   process.exit(1);
 });
