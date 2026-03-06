@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { LogOut, Save, Edit2, X, Check } from "lucide-react";
+import { LogOut, Save, Edit2, X, Check, Github } from "lucide-react";
 import { StudentInfo } from "@/types/student-plan";
 import { DegreeProgram } from "@/types/degree-program";
 import useEncryptedData from "@/hooks/setup/LoadUser";
