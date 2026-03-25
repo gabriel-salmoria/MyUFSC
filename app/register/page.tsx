@@ -308,7 +308,11 @@ export default function RegisterPage() {
               onSearchChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={(e) => handleKeyDown(e, true)}
               onSelectProgram={(programId) => {
-                setFormData((prev) => ({ ...prev, currentDegree: programId }));
+                setFormData((prev) => ({
+                  ...prev,
+                  currentDegree: programId,
+                  interestedDegrees: prev.interestedDegrees.filter(id => id !== programId),
+                }));
                 setIsCurrentDegreeOpen(false);
                 setSearchTerm("");
               }}
@@ -327,7 +331,7 @@ export default function RegisterPage() {
               searchTerm={searchTerm}
               searchInputRef={searchInputRef}
               activeIndex={activeIndex}
-              filteredPrograms={filteredPrograms}
+              filteredPrograms={filteredPrograms.filter(p => p.id !== formData.currentDegree)}
               onOpenDropdown={() => {
                 setIsInterestedDegreesOpen(true);
                 setIsCurrentDegreeOpen(false);

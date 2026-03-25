@@ -115,24 +115,35 @@ export function DegreeProgramSelector({
         </div>
       )}
 
-      <div
-        className="mt-1 flex w-full items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-sm cursor-pointer"
-        onClick={onOpenDropdown}
-      >
-        <span style={{ color: "#888888" }}>
-          {selectedDegree
-            ? "Alterar curso"
-            : "Buscar cursos..."}
-        </span>
-        <SearchIcon className="h-4 w-4 opacity-50" />
-      </div>
+      {!isOpen ? (
+        <div
+          className="mt-1 flex w-full items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-sm cursor-pointer"
+          onClick={onOpenDropdown}
+        >
+          <span style={{ color: "#888888" }}>
+            {selectedDegree
+              ? "Alterar curso"
+              : "Buscar cursos..."}
+          </span>
+          <SearchIcon className="h-4 w-4 opacity-50" />
+        </div>
+      ) : (
+        <div className="mt-1 relative">
+          <SearchIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder="Buscar programas..."
+            className="w-full py-2 pl-8 pr-4 text-sm border border-border rounded-md bg-background"
+            value={searchTerm}
+            onChange={onSearchChange}
+            onKeyDown={onKeyDown}
+          />
+        </div>
+      )}
 
       {isOpen && (
         <SearchDropdown
-          searchInputRef={searchInputRef}
-          searchTerm={searchTerm}
-          onSearchChange={onSearchChange}
-          onKeyDown={onKeyDown}
           activeIndex={activeIndex}
           filteredPrograms={filteredPrograms}
           onSelectItem={(programId) => onSelectProgram(programId)}
@@ -204,20 +215,31 @@ export function DegreesOfInterestSelector({
         </div>
       )}
 
-      <div
-        className="mt-1 flex w-full items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-sm cursor-pointer"
-        onClick={onOpenDropdown}
-      >
-        <span style={{ color: "#888888" }}>Buscar cursos...</span>
-        <SearchIcon className="h-4 w-4 opacity-50" />
-      </div>
+      {!isOpen ? (
+        <div
+          className="mt-1 flex w-full items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-sm cursor-pointer"
+          onClick={onOpenDropdown}
+        >
+          <span style={{ color: "#888888" }}>Buscar cursos...</span>
+          <SearchIcon className="h-4 w-4 opacity-50" />
+        </div>
+      ) : (
+        <div className="mt-1 relative">
+          <SearchIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder="Buscar programas..."
+            className="w-full py-2 pl-8 pr-4 text-sm border border-border rounded-md bg-background"
+            value={searchTerm}
+            onChange={onSearchChange}
+            onKeyDown={onKeyDown}
+          />
+        </div>
+      )}
 
       {isOpen && (
         <SearchDropdown
-          searchInputRef={searchInputRef}
-          searchTerm={searchTerm}
-          onSearchChange={onSearchChange}
-          onKeyDown={onKeyDown}
           activeIndex={activeIndex}
           filteredPrograms={filteredPrograms}
           onSelectItem={onToggleProgram}
@@ -229,19 +251,11 @@ export function DegreesOfInterestSelector({
 }
 
 export function SearchDropdown({
-  searchInputRef,
-  searchTerm,
-  onSearchChange,
-  onKeyDown,
   activeIndex,
   filteredPrograms,
   onSelectItem,
   selectedIds,
 }: {
-  searchInputRef: React.RefObject<HTMLInputElement | null>;
-  searchTerm: string;
-  onSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onKeyDown: (e: React.KeyboardEvent) => void;
   activeIndex: number;
   filteredPrograms: Array<{ id: string; name: string }>;
   onSelectItem: (id: string) => void;
@@ -249,20 +263,6 @@ export function SearchDropdown({
 }) {
   return (
     <div className="absolute z-10 mt-1 w-full bg-card rounded-md shadow-lg border border-border overflow-auto max-h-60">
-      <div className="sticky top-0 bg-background-secondary border-b border-border p-2">
-        <div className="relative">
-          <SearchIcon className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <input
-            ref={searchInputRef}
-            type="text"
-            placeholder="Buscar programas..."
-            className="w-full py-2 pl-8 pr-4 text-sm border border-border rounded-md bg-background"
-            value={searchTerm}
-            onChange={onSearchChange}
-            onKeyDown={onKeyDown}
-          />
-        </div>
-      </div>
       <ul className="py-1">
         {filteredPrograms.length === 0 ? (
           <li className="px-4 py-2 text-sm text-muted-foreground">
