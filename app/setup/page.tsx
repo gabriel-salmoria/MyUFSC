@@ -10,6 +10,9 @@ import {
 } from "@/components/login/register-helpers";
 import { StudentPlan } from "@/types/student-plan";
 import { useStudentStore } from "@/lib/student-store";
+import { TranscriptUploader } from "@/components/transcript/transcript-uploader";
+import type { TranscriptData } from "@/parsers/transcript-parser";
+import { buildStudentInfoFromTranscript } from "@/parsers/transcript-integration";
 
 export default function SetupPage() {
     const router = useRouter();
@@ -18,6 +21,7 @@ export default function SetupPage() {
     const [degreePrograms, setDegreePrograms] = useState<DegreeProgram[]>([]);
     const [currentDegree, setCurrentDegree] = useState("");
     const [interestedDegrees, setInterestedDegrees] = useState<string[]>([]);
+    const [transcriptData, setTranscriptData] = useState<TranscriptData | null>(null);
 
     // Search state
     const [searchTerm, setSearchTerm] = useState("");
@@ -134,23 +138,48 @@ export default function SetupPage() {
         });
     };
 
-    const handleStart = () => {
+    const handleStart = async () => {
         if (!currentDegree) return;
 
-        let plan: StudentPlan = {
-            semesters: [],
-        };
+        if (transcriptData) {
+            // Fetch curriculum courses to match transcript data
+            try {
+                const res = await fetch(`/api/curriculum/${currentDegree}`);
+                const curriculumJson = await res.json();
+                const { parseCourses } = await import("@/parsers/curriculum-parser");
+                const courses = parseCourses(curriculumJson.courses ?? []);
 
-        let studentData = {
-            currentDegree: currentDegree,
-            interestedDegrees: interestedDegrees,
-            name: "Visitante",
-            currentPlan: 0,
-            currentSemester: "1",
-            plans: [plan],
-        };
+                const studentData = buildStudentInfoFromTranscript(
+                    transcriptData,
+                    courses,
+                    currentDegree,
+                );
+                studentData.interestedDegrees = interestedDegrees;
+                studentStore.setStudentInfo(studentData);
+            } catch {
+                // Fallback to empty plan if curriculum fetch fails
+                const plan: StudentPlan = { semesters: [] };
+                studentStore.setStudentInfo({
+                    currentDegree,
+                    interestedDegrees,
+                    name: transcriptData.studentName ?? "Visitante",
+                    currentPlan: 0,
+                    currentSemester: "1",
+                    plans: [plan],
+                });
+            }
+        } else {
+            const plan: StudentPlan = { semesters: [] };
+            studentStore.setStudentInfo({
+                currentDegree,
+                interestedDegrees,
+                name: "Visitante",
+                currentPlan: 0,
+                currentSemester: "1",
+                plans: [plan],
+            });
+        }
 
-        studentStore.setStudentInfo(studentData);
         router.push("/");
     };
 
@@ -213,12 +242,14 @@ export default function SetupPage() {
                         getProgramName={getProgramName}
                     />
 
+                    <TranscriptUploader onParsed={setTranscriptData} />
+
                     <button
                         onClick={handleStart}
                         disabled={!currentDegree}
                         className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition disabled:opacity-50"
                     >
-                        Começar
+                        {transcriptData ? "Importar e Começar" : "Começar"}
                     </button>
                 </div>
             </div>
