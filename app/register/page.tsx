@@ -17,6 +17,9 @@ import {
   encryptStudentData,
 } from "@/crypto/client/crypto";
 import { StudentPlan } from "@/types/student-plan";
+import { TranscriptUploader } from "@/components/transcript/transcript-uploader";
+import type { TranscriptData } from "@/parsers/transcript-parser";
+import { buildStudentInfoFromTranscript } from "@/parsers/transcript-integration";
 
 import { useStudentStore } from "@/lib/student-store"; // Import store
 
@@ -25,6 +28,9 @@ export default function RegisterPage() {
   const studentStore = useStudentStore(); // Use store
 
   const [degreePrograms, setDegreePrograms] = useState<DegreeProgram[]>([]);
+  const [transcriptData, setTranscriptData] = useState<TranscriptData | null>(
+    null,
+  );
 
   // Initialize form with store data if available
   const [formData, setFormData] = useState({
@@ -33,7 +39,8 @@ export default function RegisterPage() {
     confirmPassword: "",
     name: studentStore.studentInfo?.name || "",
     currentDegree: studentStore.studentInfo?.currentDegree || "",
-    interestedDegrees: studentStore.studentInfo?.interestedDegrees || [] as string[],
+    interestedDegrees:
+      studentStore.studentInfo?.interestedDegrees || ([] as string[]),
   });
   const [error, setError] = useState("");
 
@@ -78,11 +85,15 @@ export default function RegisterPage() {
   // Update formData if store loads late or was already loaded
   useEffect(() => {
     if (studentStore.studentInfo) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         name: prev.name || studentStore.studentInfo?.name || "",
-        currentDegree: prev.currentDegree || studentStore.studentInfo?.currentDegree || "",
-        interestedDegrees: prev.interestedDegrees.length > 0 ? prev.interestedDegrees : studentStore.studentInfo?.interestedDegrees || []
+        currentDegree:
+          prev.currentDegree || studentStore.studentInfo?.currentDegree || "",
+        interestedDegrees:
+          prev.interestedDegrees.length > 0
+            ? prev.interestedDegrees
+            : studentStore.studentInfo?.interestedDegrees || [],
       }));
     }
   }, [studentStore.studentInfo]);
@@ -103,27 +114,48 @@ export default function RegisterPage() {
     // Use existing info from store or create new
     let studentData;
 
-    if (studentStore.studentInfo) {
+    if (studentStore.studentInfo && !transcriptData) {
       // Use existing data but update name/degrees if changed in form
       studentData = {
         ...studentStore.studentInfo,
         name: formData.name,
         currentDegree: formData.currentDegree,
-        interestedDegrees: formData.interestedDegrees
+        interestedDegrees: formData.interestedDegrees,
         // Preserve plans and other data
       };
     } else {
-      let plan: StudentPlan = {
-        semesters: [],
-      };
+      let studentPlans: StudentPlan[] = [{ semesters: [] }];
+
+      if (transcriptData && formData.currentDegree) {
+        try {
+          const res = await fetch(`/api/curriculum/${formData.currentDegree}`);
+          if (res.ok) {
+            const curriculumJson = await res.json();
+            const { parseCourses } = await import(
+              "@/parsers/curriculum-parser"
+            );
+            const courses = parseCourses(curriculumJson.courses ?? []);
+            const parsedStudentInfo = buildStudentInfoFromTranscript(
+              transcriptData,
+              courses,
+              formData.currentDegree,
+            );
+            studentPlans = parsedStudentInfo.plans;
+          }
+        } catch (e) {
+          console.error("Failed to parse transcript for registration", e);
+        }
+      } else if (studentStore.studentInfo?.plans) {
+        studentPlans = studentStore.studentInfo.plans;
+      }
 
       studentData = {
         currentDegree: formData.currentDegree,
         interestedDegrees: formData.interestedDegrees ?? [],
-        name: formData.name ?? "Student",
+        name: formData.name || "Student",
         currentPlan: 0,
         currentSemester: "1",
-        plans: [plan],
+        plans: studentPlans,
       };
     }
 
@@ -278,6 +310,17 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Student Information Section */}
           <FormSection title="Informações do Estudante">
+            <TranscriptUploader
+              onParsed={(data) => {
+                setTranscriptData(data);
+                setFormData((prev) => ({
+                  ...prev,
+                  name: data.studentName || prev.name,
+                  currentDegree: data.courseCode || prev.currentDegree,
+                }));
+              }}
+            />
+
             <FormField
               label="Nome Completo"
               optional={true}
@@ -311,7 +354,9 @@ export default function RegisterPage() {
                 setFormData((prev) => ({
                   ...prev,
                   currentDegree: programId,
-                  interestedDegrees: prev.interestedDegrees.filter(id => id !== programId),
+                  interestedDegrees: prev.interestedDegrees.filter(
+                    (id) => id !== programId,
+                  ),
                 }));
                 setIsCurrentDegreeOpen(false);
                 setSearchTerm("");
@@ -331,7 +376,9 @@ export default function RegisterPage() {
               searchTerm={searchTerm}
               searchInputRef={searchInputRef}
               activeIndex={activeIndex}
-              filteredPrograms={filteredPrograms.filter(p => p.id !== formData.currentDegree)}
+              filteredPrograms={filteredPrograms.filter(
+                (p) => p.id !== formData.currentDegree,
+              )}
               onOpenDropdown={() => {
                 setIsInterestedDegreesOpen(true);
                 setIsCurrentDegreeOpen(false);

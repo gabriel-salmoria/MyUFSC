@@ -1,5 +1,6 @@
 import type { TranscriptData, ParsedCourse } from "./transcript-parser";
 import type { Course } from "@/types/curriculum";
+import { generateEquivalenceMap } from "@/parsers/curriculum-parser";
 import type {
   StudentInfo,
   StudentPlan,
@@ -50,35 +51,99 @@ export function buildStudentInfoFromTranscript(
     courseIndex.set(c.id, c);
   }
 
+  const equivalenceMap = generateEquivalenceMap(curriculumCourses);
+
   // Resolve a parsed course to a curriculum Course (or build a stub)
-  const resolve = (pc: ParsedCourse): Course =>
-    courseIndex.get(pc.code) ?? {
+  const resolve = (pc: ParsedCourse): Course => {
+    let exactMatch = courseIndex.get(pc.code);
+    let matchedCourse: Course | undefined = exactMatch;
+
+    // Check for equivalencies in the curriculum
+    for (const c of curriculumCourses) {
+      const equivalents = equivalenceMap.get(c.id);
+      const isEquivalent =
+        c.id === pc.code ||
+        (equivalents &&
+          Array.from(equivalents).some(
+            (eq) => eq === pc.code || eq.replace(/[-\s]/g, "") === pc.code,
+          )) ||
+        c.equivalents?.some(
+          (eq) => eq === pc.code || eq.replace(/[-\s]/g, "") === pc.code,
+        );
+
+      if (isEquivalent) {
+        if (c.type === "mandatory") {
+          return c;
+        }
+        if (!matchedCourse) {
+          matchedCourse = c;
+        }
+      }
+    }
+
+    if (matchedCourse) {
+      return matchedCourse;
+    }
+
+    return {
       id: pc.code,
       name: pc.code,
       credits: 0,
       phase: 0,
       type: pc.type === "mandatory" ? "mandatory" : "optional",
     };
+  };
+
+  const allSemesters = new Set<string>();
+  const addSem = (pc: ParsedCourse) => {
+    if (pc.semester) allSemesters.add(pc.semester);
+  };
+  transcript.completed.forEach(addSem);
+  transcript.inProgress.forEach(addSem);
+  transcript.exempted.forEach(addSem);
+
+  const sortedSemesters = Array.from(allSemesters).sort();
+  const semesterToIndex = new Map<string, number>();
+  sortedSemesters.forEach((sem, idx) => semesterToIndex.set(sem, idx + 1));
 
   // Build student courses grouped by phase
   const phaseMap = new Map<number, StudentCourse[]>();
+  const addedCourseIds = new Set<string>();
 
-  const addToPhase = (sc: StudentCourse) => {
-    const phase = sc.phase ?? 0;
+  const addToPhase = (sc: StudentCourse, semesterStr?: string) => {
+    if (addedCourseIds.has(sc.course.id)) return;
+    addedCourseIds.add(sc.course.id);
+
+    let phase = sc.phase ?? 0;
+    if (semesterStr && semesterToIndex.has(semesterStr)) {
+      phase = semesterToIndex.get(semesterStr)!;
+    }
+
+    if (phase < 1) phase = 1;
+
     if (!phaseMap.has(phase)) phaseMap.set(phase, []);
     phaseMap.get(phase)!.push(sc);
   };
 
   for (const pc of transcript.completed) {
-    addToPhase(toStudentCourse(resolve(pc), CourseStatus.COMPLETED, pc.grade));
+    addToPhase(
+      toStudentCourse(resolve(pc), CourseStatus.COMPLETED, pc.grade),
+      pc.semester,
+    );
   }
 
   for (const pc of transcript.inProgress) {
-    addToPhase(toStudentCourse(resolve(pc), CourseStatus.IN_PROGRESS));
+    addToPhase(
+      toStudentCourse(resolve(pc), CourseStatus.IN_PROGRESS),
+      pc.semester,
+    );
   }
 
   for (const pc of transcript.exempted) {
-    addToPhase(toStudentCourse(resolve(pc), CourseStatus.EXEMPTED));
+    addToPhase(
+      toStudentCourse(resolve(pc), CourseStatus.EXEMPTED),
+      pc.semester,
+    );
   }
 
   // Build semesters array (at least 12)

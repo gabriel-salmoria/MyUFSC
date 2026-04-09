@@ -22,9 +22,9 @@ export default function CourseList({
     <div className={CSS_CLASSES.STATS_SECTION}>
       <h3 className="text-sm font-medium mb-2">Disciplinas Atuais</h3>
       <div className={CSS_CLASSES.STATS_GRID}>
-        {courses.map((course) => (
+        {courses.map((course, idx) => (
           <div
-            key={course.course.id} // Changed key to use course.course.id
+            key={`${course.course.id}-${idx}`}
             className={cn(
               CSS_CLASSES.STATS_COURSE_CARD,
               getCourseColor(course.course.id),
