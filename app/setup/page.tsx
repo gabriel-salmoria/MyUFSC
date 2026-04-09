@@ -147,7 +147,9 @@ export default function SetupPage() {
       // Fetch curriculum courses to match transcript data
       try {
         const res = await fetch(`/api/curriculum/${currentDegree}`);
-        const curriculumJson = await res.json();
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        const responseText = await res.text();
+        const curriculumJson = responseText ? JSON.parse(responseText) : {};
         const { parseCourses } = await import("@/parsers/curriculum-parser");
         const courses = parseCourses(curriculumJson.courses ?? []);
 

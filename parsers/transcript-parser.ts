@@ -1,5 +1,3 @@
-import { PDFParse } from "pdf-parse";
-
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -259,6 +257,7 @@ function extractControleCurricularFormat(
 export async function parseTranscriptPdf(
   pdfBuffer: Buffer | Uint8Array,
 ): Promise<TranscriptData> {
+  const { PDFParse } = require("pdf-parse");
   const parser = new PDFParse({ data: new Uint8Array(pdfBuffer) });
   const result = await parser.getText();
   await parser.destroy();

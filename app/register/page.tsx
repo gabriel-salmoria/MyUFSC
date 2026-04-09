@@ -130,7 +130,8 @@ export default function RegisterPage() {
         try {
           const res = await fetch(`/api/curriculum/${formData.currentDegree}`);
           if (res.ok) {
-            const curriculumJson = await res.json();
+            const responseText = await res.text();
+            const curriculumJson = responseText ? JSON.parse(responseText) : {};
             const { parseCourses } = await import(
               "@/parsers/curriculum-parser"
             );

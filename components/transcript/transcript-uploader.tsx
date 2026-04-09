@@ -32,7 +32,16 @@ export function TranscriptUploader({ onParsed }: TranscriptUploaderProps) {
         body: form,
       });
 
-      const json = await res.json();
+      let json;
+      const responseText = await res.text();
+      try {
+        json = JSON.parse(responseText);
+      } catch (parseError) {
+        throw new Error(
+          `Erro no servidor (Status ${res.status}): A resposta não é um JSON válido. ` +
+            `Isso pode ocorrer se a rota falhou internamente. Detalhes: ${responseText.slice(0, 100)}...`,
+        );
+      }
 
       if (!res.ok) {
         throw new Error(json.error || "Erro ao processar PDF");
@@ -46,9 +55,7 @@ export function TranscriptUploader({ onParsed }: TranscriptUploaderProps) {
       onParsed(data);
     } catch (err: unknown) {
       setStatus("error");
-      setErrorMsg(
-        err instanceof Error ? err.message : "Erro desconhecido",
-      );
+      setErrorMsg(err instanceof Error ? err.message : "Erro desconhecido");
     }
   };
 
@@ -64,7 +71,8 @@ export function TranscriptUploader({ onParsed }: TranscriptUploaderProps) {
       <label className="block text-sm font-medium text-foreground">
         Importar Histórico (PDF)
         <span className="block text-xs text-muted-foreground mt-0.5">
-          Faça upload do seu Controle Curricular (PDF) para importar automaticamente suas disciplinas cursadas.
+          Faça upload do seu Controle Curricular (PDF) para importar
+          automaticamente suas disciplinas cursadas.
         </span>
       </label>
 
@@ -106,9 +114,7 @@ export function TranscriptUploader({ onParsed }: TranscriptUploaderProps) {
       )}
 
       {status === "error" && (
-        <p className="text-sm text-red-600 dark:text-red-400">
-          {errorMsg}
-        </p>
+        <p className="text-sm text-red-600 dark:text-red-400">{errorMsg}</p>
       )}
     </div>
   );
