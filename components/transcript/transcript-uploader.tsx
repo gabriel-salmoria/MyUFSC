@@ -5,9 +5,15 @@ import type { TranscriptData } from "@/parsers/transcript-parser";
 
 interface TranscriptUploaderProps {
   onParsed: (data: TranscriptData) => void;
+  optional?: boolean;
+  bordered?: boolean;
 }
 
-export function TranscriptUploader({ onParsed }: TranscriptUploaderProps) {
+export function TranscriptUploader({
+  onParsed,
+  optional = false,
+  bordered = false,
+}: TranscriptUploaderProps) {
   const [status, setStatus] = useState<
     "idle" | "loading" | "success" | "error"
   >("idle");
@@ -67,12 +73,21 @@ export function TranscriptUploader({ onParsed }: TranscriptUploaderProps) {
   };
 
   return (
-    <div className="space-y-3">
+    <div
+      className={`space-y-3 ${bordered ? "p-4 border border-border rounded-md" : ""}`}
+    >
       <label className="block text-sm font-medium text-foreground">
-        Importar Histórico (PDF)
+        Importar Histórico (PDF){" "}
+        {optional && (
+          <span className="text-sm font-medium text-blue-500">(opcional)</span>
+        )}
         <span className="block text-xs text-muted-foreground mt-0.5">
-          Faça upload do seu Controle Curricular (PDF) para importar
+          Faça upload do seu Histórico Síntese (PDF) para importar
           automaticamente suas disciplinas cursadas.
+          <br />
+          <span className="inline-block mt-1 font-medium text-foreground/70">
+            Como encontrar: CAGR &rarr; Histórico Síntese &rarr; Gerar Histórico
+          </span>
         </span>
       </label>
 

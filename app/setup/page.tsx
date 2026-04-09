@@ -248,6 +248,8 @@ export default function SetupPage() {
           />
 
           <TranscriptUploader
+            optional
+            bordered
             onParsed={(data) => {
               setTranscriptData(data);
               if (data.courseCode) {

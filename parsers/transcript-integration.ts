@@ -45,6 +45,7 @@ export function buildStudentInfoFromTranscript(
   transcript: TranscriptData,
   curriculumCourses: Course[],
   degreeId: string,
+  existingInfo?: StudentInfo,
 ): StudentInfo {
   const courseIndex = new Map<string, Course>();
   for (const c of curriculumCourses) {
@@ -148,6 +149,60 @@ export function buildStudentInfoFromTranscript(
 
   // Build semesters array (at least 12)
   const maxPhase = Math.max(12, ...Array.from(phaseMap.keys()));
+
+  if (existingInfo && existingInfo.plans.length > 0) {
+    const existingPlan =
+      existingInfo.plans[existingInfo.currentPlan || 0] ||
+      existingInfo.plans[0];
+    const maxTranscriptSemester = Math.max(0, ...Array.from(phaseMap.keys()));
+    const totalSemesters = Math.max(maxPhase, existingPlan.semesters.length);
+
+    const mergedSemesters: StudentSemester[] = [];
+
+    for (let i = 1; i <= totalSemesters; i++) {
+      if (i <= maxTranscriptSemester) {
+        // Overwrite past/present semesters with transcript data
+        const courses = phaseMap.get(i) ?? [];
+        const totalCredits = courses.reduce(
+          (sum, c) => sum + (c.credits ?? 0),
+          0,
+        );
+        mergedSemesters.push({ number: i, courses, totalCredits });
+      } else {
+        // Keep future semesters from existing plan, removing courses already added
+        const existingSemester = existingPlan.semesters.find(
+          (s) => s.number === i,
+        );
+        if (existingSemester) {
+          const filteredCourses = existingSemester.courses.filter(
+            (sc) => !addedCourseIds.has(sc.course.id),
+          );
+          const totalCredits = filteredCourses.reduce(
+            (sum, c) => sum + (c.credits ?? 0),
+            0,
+          );
+          mergedSemesters.push({
+            ...existingSemester,
+            courses: filteredCourses,
+            totalCredits,
+          });
+        } else {
+          mergedSemesters.push({ number: i, courses: [], totalCredits: 0 });
+        }
+      }
+    }
+
+    const mergedPlan = { ...existingPlan, semesters: mergedSemesters };
+    const newPlans = [...existingInfo.plans];
+    newPlans[existingInfo.currentPlan || 0] = mergedPlan;
+
+    return {
+      ...existingInfo,
+      name: transcript.studentName || existingInfo.name,
+      plans: newPlans,
+    };
+  }
+
   const semesters: StudentSemester[] = [];
 
   for (let i = 1; i <= maxPhase; i++) {
@@ -161,7 +216,7 @@ export function buildStudentInfoFromTranscript(
   return {
     name: transcript.studentName ?? "Estudante",
     currentDegree: degreeId,
-    interestedDegrees: [],
+    interestedDegrees: existingInfo?.interestedDegrees || [],
     currentPlan: 0,
     currentSemester: "1",
     plans: [plan],

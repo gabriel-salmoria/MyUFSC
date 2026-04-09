@@ -312,6 +312,8 @@ export default function RegisterPage() {
           {/* Student Information Section */}
           <FormSection title="Informações do Estudante">
             <TranscriptUploader
+              optional
+              bordered
               onParsed={(data) => {
                 setTranscriptData(data);
                 setFormData((prev) => ({

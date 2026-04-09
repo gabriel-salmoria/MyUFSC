@@ -1,13 +1,19 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { LogOut, Save, Edit2, X, Check, Github } from "lucide-react";
+import { LogOut, Save, Edit2, X, Check, Github, Upload } from "lucide-react";
 import { StudentInfo } from "@/types/student-plan";
 import { DegreeProgram } from "@/types/degree-program";
 import useEncryptedData from "@/hooks/setup/LoadUser";
 import { Curriculum } from "@/types/curriculum";
 import { useStudentStore } from "@/lib/student-store";
-import { DegreeSelector, DegreeMultiSelector } from "@/components/selector/degree-selector";
+import {
+  DegreeSelector,
+  DegreeMultiSelector,
+} from "@/components/selector/degree-selector";
+import { TranscriptUploader } from "@/components/transcript/transcript-uploader";
+import { buildStudentInfoFromTranscript } from "@/parsers/transcript-integration";
+import { parseCourses } from "@/parsers/curriculum-parser";
 
 interface HeaderProps {
   studentInfo: StudentInfo;
@@ -37,6 +43,7 @@ export default function Header({
   // Layout State
   const [isEditingDegree, setIsEditingDegree] = useState(false);
   const [isEditingInterest, setIsEditingInterest] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
   const studentStore = useStudentStore();
 
@@ -45,7 +52,7 @@ export default function Header({
     username: "2432622431302430...",
     password: "$2b$12$RM0Sa3cMj...",
     iv: "622f9e316471595b...",
-    data: "U2FsdGVkX19aqDBz..."
+    data: "U2FsdGVkX19aqDBz...",
   });
   const [isHoveringSave, setIsHoveringSave] = useState(false);
 
@@ -53,24 +60,29 @@ export default function Header({
     if (!isHoveringSave) return;
 
     const generateRandomHex = (length = 24) => {
-      const chars = '0123456789abcdef';
-      let result = '';
-      for (let i = 0; i < length; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+      const chars = "0123456789abcdef";
+      let result = "";
+      for (let i = 0; i < length; i++)
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
       return result;
     };
 
     const generateRandomBcrypt = () => {
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789./';
-      let result = '$2b$12$';
-      for (let i = 0; i < 22; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+      const chars =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789./";
+      let result = "$2b$12$";
+      for (let i = 0; i < 22; i++)
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
       return result;
     };
 
     const generateRandomAES = (length = 24) => {
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-      let result = 'U2FsdGVkX';
-      for (let i = 0; i < length; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
-      return result + '==';
+      const chars =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+      let result = "U2FsdGVkX";
+      for (let i = 0; i < length; i++)
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+      return result + "==";
     };
 
     // Update immediately on hover, then every 1.5 seconds
@@ -79,7 +91,7 @@ export default function Header({
         username: generateRandomHex(32),
         password: generateRandomBcrypt(),
         iv: generateRandomHex(24),
-        data: generateRandomAES(32)
+        data: generateRandomAES(32),
       });
     };
 
@@ -194,8 +206,8 @@ export default function Header({
                 onChange={(e) => setTempName(e.target.value)}
                 className="text-3xl font-bold text-foreground bg-background border border-border rounded px-2 py-1 focus:ring-2 focus:ring-primary outline-none max-w-[300px]"
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSaveName();
-                  if (e.key === 'Escape') handleCancelNameEdit();
+                  if (e.key === "Enter") handleSaveName();
+                  if (e.key === "Escape") handleCancelNameEdit();
                 }}
               />
               <button
@@ -216,7 +228,9 @@ export default function Header({
           ) : (
             <div className="group flex items-center gap-3">
               <h1 className="text-3xl font-bold text-foreground">
-                {studentInfo.name ? `Bem-vindo, ${studentInfo.name}` : "Meu Planejamento"}
+                {studentInfo.name
+                  ? `Bem-vindo, ${studentInfo.name}`
+                  : "Meu Planejamento"}
               </h1>
               <button
                 onClick={handleStartNameEdit}
@@ -264,29 +278,55 @@ export default function Header({
                     <Check className="w-4 h-4" /> Dados 100% Criptografados!
                   </strong>
                   <p className="text-muted-foreground mb-3 leading-relaxed">
-                    Eu não tenho nenhum acesso aos seus dados pessoais, todos eles são criptografados no seu computador antes de serem enviados ao servidor. No banco de dados, eles estão, por exemplo, dessa forma:
+                    Eu não tenho nenhum acesso aos seus dados pessoais, todos
+                    eles são criptografados no seu computador antes de serem
+                    enviados ao servidor. No banco de dados, eles estão, por
+                    exemplo, dessa forma:
                   </p>
 
                   <div className="space-y-2 bg-muted/40 p-2.5 rounded-md border border-border/50 font-mono text-[10px] sm:text-xs">
                     <div className="grid grid-cols-[105px_1fr] gap-2 items-center">
-                      <span className="text-muted-foreground/80 break-keep">hashedUsername:</span>
-                      <span className="text-primary truncate transition-all duration-300">{encryptedExample.username}</span>
+                      <span className="text-muted-foreground/80 break-keep">
+                        hashedUsername:
+                      </span>
+                      <span className="text-primary truncate transition-all duration-300">
+                        {encryptedExample.username}
+                      </span>
                     </div>
                     <div className="grid grid-cols-[105px_1fr] gap-2 items-center">
-                      <span className="text-muted-foreground/80 break-keep">hashedPassword:</span>
-                      <span className="text-primary truncate transition-all duration-300">{encryptedExample.password}</span>
+                      <span className="text-muted-foreground/80 break-keep">
+                        hashedPassword:
+                      </span>
+                      <span className="text-primary truncate transition-all duration-300">
+                        {encryptedExample.password}
+                      </span>
                     </div>
                     <div className="grid grid-cols-[105px_1fr] gap-2 items-center">
-                      <span className="text-muted-foreground/80 break-keep">iv:</span>
-                      <span className="text-primary truncate transition-all duration-300">{encryptedExample.iv}</span>
+                      <span className="text-muted-foreground/80 break-keep">
+                        iv:
+                      </span>
+                      <span className="text-primary truncate transition-all duration-300">
+                        {encryptedExample.iv}
+                      </span>
                     </div>
                     <div className="grid grid-cols-[105px_1fr] gap-2 items-center">
-                      <span className="text-muted-foreground/80 break-keep">encryptedData:</span>
-                      <span className="text-primary truncate transition-all duration-300">{encryptedExample.data}</span>
+                      <span className="text-muted-foreground/80 break-keep">
+                        encryptedData:
+                      </span>
+                      <span className="text-primary truncate transition-all duration-300">
+                        {encryptedExample.data}
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
+              <button
+                onClick={() => setIsImporting(true)}
+                className="flex items-center gap-2 px-4 py-2 border border-border bg-background hover:bg-accent text-foreground rounded-md transition-colors"
+              >
+                <Upload className="w-4 h-4" />
+                Importar Histórico
+              </button>
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-2 px-4 py-2 text-red-500 hover:text-red-700 transition-colors"
@@ -298,14 +338,21 @@ export default function Header({
           ) : (
             <>
               <button
-                onClick={() => window.location.href = "/register"}
+                onClick={() => (window.location.href = "/register")}
                 className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
               >
                 <Save className="w-4 h-4" />
                 Salvar Progresso (Registrar)
               </button>
               <button
-                onClick={() => window.location.href = "/login"}
+                onClick={() => setIsImporting(true)}
+                className="flex items-center gap-2 px-4 py-2 border border-border bg-background hover:bg-accent text-foreground rounded-md transition-colors"
+              >
+                <Upload className="w-4 h-4" />
+                Importar Histórico
+              </button>
+              <button
+                onClick={() => (window.location.href = "/login")}
                 className="flex items-center gap-2 px-4 py-2 text-muted-foreground hover:text-foreground transition-colors"
               >
                 Entrar
@@ -314,6 +361,44 @@ export default function Header({
           )}
         </div>
       </div>
+
+      {isImporting && (
+        <div className="bg-card p-6 rounded-lg shadow-lg border border-border mb-8 relative">
+          <button
+            onClick={() => setIsImporting(false)}
+            className="absolute top-4 right-4 p-1 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <h2 className="text-lg font-medium mb-4">Importar Histórico</h2>
+          <TranscriptUploader
+            onParsed={async (data) => {
+              try {
+                const res = await fetch(
+                  `/api/curriculum/${studentInfo.currentDegree}`,
+                );
+                const responseText = await res.text();
+                const curriculumJson = responseText
+                  ? JSON.parse(responseText)
+                  : {};
+                const courses = parseCourses(curriculumJson.courses ?? []);
+
+                const updatedInfo = buildStudentInfoFromTranscript(
+                  data,
+                  courses,
+                  studentInfo.currentDegree,
+                  studentInfo,
+                );
+
+                studentStore.setStudentInfo(updatedInfo);
+                setIsImporting(false);
+              } catch (e) {
+                console.error("Failed to import transcript", e);
+              }
+            }}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
         {/* Current Degree Card */}
@@ -381,7 +466,8 @@ export default function Header({
                 Cursos de Interesse
               </h2>
               <p className="text-xs text-muted-foreground mt-1 pr-4">
-                Disciplinas do seu curso atual e destes adicionais serão exibidas na montagem de horários.
+                Disciplinas do seu curso atual e destes adicionais serão
+                exibidas na montagem de horários.
               </p>
             </div>
             <button
@@ -421,7 +507,7 @@ export default function Header({
           ) : (
             <ul className="space-y-2">
               {studentInfo.interestedDegrees &&
-                studentInfo.interestedDegrees.length > 0 ? (
+              studentInfo.interestedDegrees.length > 0 ? (
                 studentInfo.interestedDegrees.map((degree, index) => (
                   <li key={index} className="text-muted-foreground break-words">
                     {getDegreeName(degree)}
