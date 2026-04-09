@@ -128,8 +128,8 @@ function extractSinteseFormat(
 ) {
   // Match: <grade> <freq> <type> <code>
   // e.g. "9.5 FS Ob\tEEL5105" or "10.0 FS Ob INE5401"
-  const coursePattern = /(\d+\.\d)\s+(FS|FI)\s+(Ob|Op|Ex)\s+([A-Z]{2,4}\d{4})/g;
-  const semesterPattern = /Semestre\s+(\d{4}\/\d)/gi;
+  const coursePattern = /(\d+\.\d)\s*(FS|FI)\s*(Ob|Op|Ex)\s*([A-Z]{2,4}\d{4})/g;
+  const semesterPattern = /Semestre\s*(\d{4}\/\d)/gi;
 
   // Build a map of positions -> semester
   const semesterPositions: { pos: number; semester: string }[] = [];
@@ -172,7 +172,7 @@ function extractSinteseFormat(
   }
 
   // Also look for "Cursando" entries (in-progress courses)
-  const cursandoPattern = /Cursando\s+(Ob|Op|Ex)\s+([A-Z]{2,4}\d{4})/g;
+  const cursandoPattern = /Cursando\s*(Ob|Op|Ex)\s*([A-Z]{2,4}\d{4})/g;
   while ((match = cursandoPattern.exec(text)) !== null) {
     const code = match[2];
     if (seen.has(code)) continue;
@@ -183,7 +183,7 @@ function extractSinteseFormat(
 
   // Look for equivalence / exemption entries
   const eqvPattern =
-    /(?:Eqv|Equival[eê]ncia|Dispensad[ao])\s+(Ob|Op|Ex)\s+([A-Z]{2,4}\d{4})/gi;
+    /(?:Eqv|Equival[eê]ncia|Dispensad[ao])\s*(Ob|Op|Ex)\s*([A-Z]{2,4}\d{4})/gi;
   while ((match = eqvPattern.exec(text)) !== null) {
     const code = match[2];
     if (seen.has(code)) continue;
@@ -207,7 +207,7 @@ function extractControleCurricularFormat(
 ) {
   // group 1 = full block, group 2 = code, group 3 = Ob|Op|Ex
   const coursePattern = /(([A-Z]{2,4}\d{4}).*?(Ob|Op|Ex)\b)/g;
-  const gradePattern = /(\d{4}\/\d)\s+(\d+\.\d)/;
+  const gradePattern = /(\d{4}\/\d)\s*(\d+\.\d)/;
 
   let match: RegExpExecArray | null;
   for (const line of text.split("\n")) {
@@ -257,10 +257,8 @@ function extractControleCurricularFormat(
 export async function parseTranscriptPdf(
   pdfBuffer: Buffer | Uint8Array,
 ): Promise<TranscriptData> {
-  const { PDFParse } = require("pdf-parse");
-  const parser = new PDFParse({ data: new Uint8Array(pdfBuffer) });
-  const result = await parser.getText();
-  await parser.destroy();
+  const pdfParse = require("pdf-parse");
+  const result = await pdfParse(Buffer.from(pdfBuffer));
 
   const metadata = extractMetadata(result.text);
   const courses = extractCourses(result.text);
