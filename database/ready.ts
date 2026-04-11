@@ -43,11 +43,11 @@ async function buildAdapter(): Promise<DbAdapter> {
   }
 
   // ── Local: in-process PGlite (no server, no URL) ───────────────────────────
-  const { PGlite } = await import("@electric-sql/pglite");
+  const { PGlite } = await import(/* turbopackIgnore: true */ "@electric-sql/pglite" as any);
   const db = new PGlite("./.dev-db");
   await db.waitReady;
 
-  const { ensureLocalSchema } = await import("@/database/local-setup");
+  const { ensureLocalSchema } = await import(/* turbopackIgnore: true */ "@/database/local-setup" as any);
   await ensureLocalSchema(db);
 
   console.log("[db] local PGlite (.dev-db/) ready");
@@ -105,10 +105,10 @@ export const executeTransaction = async (
     }
   } else {
     await getAdapter();
-    const { PGlite } = await import("@electric-sql/pglite");
+    const { PGlite } = await import(/* turbopackIgnore: true */ "@electric-sql/pglite" as any);
     const db = new PGlite("./.dev-db");
     await db.waitReady;
-    await db.transaction(async (tx) => {
+    await db.transaction(async (tx: any) => {
       for (const step of steps) {
         await tx.query(step.sql, step.params ?? []);
       }
