@@ -11,7 +11,7 @@ try {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ["pdf-parse", "pdfjs-dist", "pg", "@electric-sql/pglite"],
+  serverExternalPackages: ["pdf-parse", "pdfjs-dist", "pg"],
 
   typescript: {
     ignoreBuildErrors: true,
