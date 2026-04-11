@@ -1,5 +1,4 @@
 import { executeQuery } from "@/database/ready";
-import curriculumData from "@/data/courses/course.json";
 
 /**
  * Sets up the curriculums table in the database.

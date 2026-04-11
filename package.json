@@ -14,10 +14,12 @@
     "db:setup:schedule": "python database/schedule/setup.py",
     "orchestrate": "npx tsx scripts/orchestrate.ts",
     "curriculum:update": "npx tsx scripts/update-curriculums.ts",
+    "db:migrate:curriculum-ids": "npx tsx scripts/migrate-curriculum-ids.ts",
     "scrape:schedule": "cd scrapers/schedule && cargo run --release",
     "scrape:curriculum": "cd scrapers/curriculum && cargo run --release"
   },
   "dependencies": {
+    "@electric-sql/pglite": "^0.4.4",
     "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",

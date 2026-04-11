@@ -38,3 +38,6 @@ next-env.d.ts
 *.pdf
 *.PDF
 data/
+
+# Local PGlite database (in-process dev DB, no server needed)
+.dev-db/

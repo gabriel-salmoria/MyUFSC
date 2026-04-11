@@ -223,7 +223,8 @@ async function updateDatabase() {
   logger.step(4, "Updating Database");
 
   if (!DB_CONNECTION_STRING) {
-    throw new Error("NEON_URL is not set.");
+    logger.warn("NEON_URL not set — skipping cloud DB update (local mode).");
+    return;
   }
 
   const client = new Client(DB_CONNECTION_STRING);
