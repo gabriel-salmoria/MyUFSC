@@ -1,18 +1,4 @@
-import * as fs from "fs";
-import * as path from "path";
 import type { PGlite } from "@electric-sql/pglite";
-
-const projectRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
-
-function tryReadJson(relPath: string): any {
-  const full = path.join(projectRoot, relPath);
-  if (!fs.existsSync(full)) return null;
-  try {
-    return JSON.parse(fs.readFileSync(full, "utf-8"));
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Idempotent: creates all tables and seeds initial data into a PGlite instance.
