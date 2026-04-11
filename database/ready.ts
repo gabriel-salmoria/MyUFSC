@@ -1,5 +1,31 @@
 import "dotenv/config";
 import { QueryResult } from "pg";
+import * as fs from "fs";
+import * as path from "path";
+
+// ── Config ────────────────────────────────────────────────────────────────────
+// Read myufsc.config.local.json (gitignored, dev override) first,
+// then fall back to myufsc.config.json (committed, production default).
+function readDbProvider(): "neon" | "local" {
+  const root = path.resolve(process.cwd());
+  const files = [
+    path.join(root, "myufsc.config.local.json"),
+    path.join(root, "myufsc.config.json"),
+  ];
+  for (const file of files) {
+    if (fs.existsSync(file)) {
+      try {
+        const cfg = JSON.parse(fs.readFileSync(file, "utf-8"));
+        const provider = cfg?.database?.provider;
+        if (provider === "local" || provider === "neon") return provider;
+      } catch {}
+    }
+  }
+  // Hard fallback: if no config found, require explicit NEON_URL.
+  return "neon";
+}
+
+const DB_PROVIDER = readDbProvider();
 
 // ── Shared adapter interface ──────────────────────────────────────────────────
 interface DbAdapter {
@@ -10,8 +36,14 @@ let _adapter: DbAdapter | null = null;
 let _initPromise: Promise<DbAdapter> | null = null;
 
 async function buildAdapter(): Promise<DbAdapter> {
-  if (process.env.NEON_URL) {
-    // ── Remote path: Neon / any Postgres URL ─────────────────────────────────
+  if (DB_PROVIDER === "neon") {
+    // ── Remote: Neon / any Postgres URL ──────────────────────────────────────
+    if (!process.env.NEON_URL) {
+      throw new Error(
+        'Database provider is "neon" but NEON_URL is not set. ' +
+        'Check your .env file or set provider to "local" in myufsc.config.local.json.',
+      );
+    }
     const { Client } = await import("pg");
     return {
       async query(sql, params = []) {
@@ -26,7 +58,7 @@ async function buildAdapter(): Promise<DbAdapter> {
     };
   }
 
-  // ── Local path: in-process PGlite (no server, no URL) ──────────────────────
+  // ── Local: in-process PGlite (no server, no URL) ───────────────────────────
   const { PGlite } = await import("@electric-sql/pglite");
   const db = new PGlite("./.dev-db"); // file-backed; persists across restarts
   await db.waitReady;
@@ -38,7 +70,6 @@ async function buildAdapter(): Promise<DbAdapter> {
 
   return {
     async query(sql, params = []) {
-      // PGlite returns the same shape as pg.QueryResult
       return db.query(sql, params) as unknown as QueryResult;
     },
   };
@@ -83,7 +114,7 @@ export const executeQuery = async (
 export const executeTransaction = async (
   steps: Array<{ sql: string; params?: any[] }>,
 ): Promise<void> => {
-  if (process.env.NEON_URL) {
+  if (DB_PROVIDER === "neon") {
     // ── Remote: one pg.Client for the whole transaction ──────────────────────
     const { Client } = await import("pg");
     const client = new Client(process.env.NEON_URL!);

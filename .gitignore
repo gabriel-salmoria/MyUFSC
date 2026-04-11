@@ -41,3 +41,6 @@ data/
 
 # Local PGlite database (in-process dev DB, no server needed)
 .dev-db/
+
+# Local project config override (use myufsc.config.json for committed defaults)
+myufsc.config.local.json
