@@ -16,11 +16,6 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  experimental: {
-    webpackBuildWorker: true,
-    parallelServerBuildTraces: true,
-    parallelServerCompiles: true,
-  },
   turbopack: {
     // Pin the workspace root so Next.js doesn't pick up the stray
     // package-lock.json at /home/gabs/ and resolve modules from there.

@@ -71,8 +71,8 @@ export default function RegisterPage() {
       try {
         const response = await fetch("/api/degree-programs");
         const data = await response.json();
-        setDegreePrograms(data.programs);
-        setFilteredPrograms(data.programs);
+        setDegreePrograms(data.programs || []);
+        setFilteredPrograms(data.programs || []);
       } catch (err) {
         setDegreePrograms([]);
         setFilteredPrograms([]);
