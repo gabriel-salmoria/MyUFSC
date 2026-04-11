@@ -46,44 +46,50 @@ export async function ensureLocalSchema(db: PGlite): Promise<void> {
     );
   `);
 
-  // 2. Seed — only when data files are available AND the table is still empty
+  // 2. Auto-seed local database from production if it is empty
+  const hasPrograms = (await db.query("SELECT 1 FROM programs LIMIT 1")).rows.length > 0;
+  const hasCurriculums = (await db.query(`SELECT 1 FROM curriculums LIMIT 1`)).rows.length > 0;
+  const hasSchedules = (await db.query(`SELECT 1 FROM schedules LIMIT 1`)).rows.length > 0;
 
-  const programsData = tryReadJson("data/degree-programs.json");
-  if (programsData?.programs?.length) {
-    const { rows } = await db.query("SELECT 1 FROM programs LIMIT 1");
-    if (rows.length === 0) {
-      console.log("[db] Seeding programs…");
-      for (const p of programsData.programs) {
-        await db.query(
-          `INSERT INTO programs (id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-          [p.id, p.name],
-        );
+  if (!hasPrograms || !hasCurriculums || !hasSchedules) {
+    console.log("[db] Local database is empty. Fetching initial seed data from production...");
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      const res = await fetch("https://myufsc.vercel.app/api/public/seed", {
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const data = await res.json();
+        
+        if (!hasPrograms && data.programs) {
+          console.log(`[db] Seeding ${data.programs.length} programs`);
+          for (const p of data.programs) {
+            await db.query(`INSERT INTO programs (id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [p.id, p.name]);
+          }
+        }
+        
+        if (!hasCurriculums && data.curriculums) {
+          console.log(`[db] Seeding ${data.curriculums.length} curriculums`);
+          for (const c of data.curriculums) {
+            await db.query(`INSERT INTO curriculums ("programId", "curriculumJson") VALUES ($1, $2) ON CONFLICT DO NOTHING`, [c.programId, c.curriculumJson]);
+          }
+        }
+
+        if (!hasSchedules && data.schedules) {
+          console.log(`[db] Seeding ${data.schedules.length} schedules`);
+          for (const s of data.schedules) {
+            await db.query(`INSERT INTO schedules ("programId", semester, "scheduleJson") VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`, [s.programId, s.semester, s.scheduleJson]);
+          }
+        }
+        console.log("[db] Local database successfully seeded from production.");
+      } else {
+        console.warn(`[db] Failed to fetch seed data. Status: ${res.status}`);
       }
-    }
-  }
-
-  const curriculumData = tryReadJson("data/courses/curriculum.json");
-  if (curriculumData) {
-    const { rows } = await db.query(`SELECT 1 FROM curriculums LIMIT 1`);
-    if (rows.length === 0) {
-      console.log("[db] Seeding curriculums…");
-      const programId = String(curriculumData.id ?? "208");
-      await db.query(
-        `INSERT INTO curriculums ("programId", "curriculumJson") VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-        [programId, curriculumData],
-      );
-    }
-  }
-
-  const scheduleData = tryReadJson("data/courses/curriculum-schedule.json");
-  if (scheduleData) {
-    const { rows } = await db.query(`SELECT 1 FROM schedules LIMIT 1`);
-    if (rows.length === 0) {
-      console.log("[db] Seeding schedules…");
-      await db.query(
-        `INSERT INTO schedules ("programId", semester, "scheduleJson") VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
-        ["208", "20251", scheduleData],
-      );
+    } catch (err: any) {
+      console.warn(`[db] Could not reach production seed API: ${err.message}. Local dev database will start fully empty.`);
     }
   }
 

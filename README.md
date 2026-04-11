@@ -39,13 +39,17 @@ Want to run this locally? Awesome!
     ```bash
     pnpm run dev
     ```
-4.  **Database Setup**:
-    To populate the database with programs and curriculum data, you'll need to run the Python scripts in the `database/` folder:
+4.  **Configuration**:
+    The project uses an in-process, zero-config local database (PGlite) by default, meaning you do not need to install Postgres or run a server!
+    
+    If you want to use a remote Neon database instead (like in production), you can set the `DB_PROVIDER` and `NEON_URL` in your `.env`:
     ```bash
-    pnpm db:setup:programs
-    pnpm db:setup:curriculum
-    pnpm db:setup:schedule
+    DB_PROVIDER=neon
+    NEON_URL=postgresql://user:pass@host/neondb?sslmode=require
     ```
+
+5.  **Database Auto-Seeding**:
+    When you start the server (`pnpm run dev`), if your local database is completely empty, it will automatically connect to `https://myufsc.vercel.app` to download the latest curriculum, schedules, and degrees. You don't need to manually run any setup scripts!
 
 ## 📄 License
 
