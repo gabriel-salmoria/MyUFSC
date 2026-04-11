@@ -1,3 +1,7 @@
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 let userConfig = undefined;
 try {
   userConfig = await import("./v0-user-next.config");
@@ -7,7 +11,7 @@ try {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ["pdf-parse", "pdfjs-dist"],
+  serverExternalPackages: ["pdf-parse", "pdfjs-dist", "pg", "@electric-sql/pglite"],
 
   typescript: {
     ignoreBuildErrors: true,
@@ -16,6 +20,11 @@ const nextConfig = {
     webpackBuildWorker: true,
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
+  },
+  turbopack: {
+    // Pin the workspace root so Next.js doesn't pick up the stray
+    // package-lock.json at /home/gabs/ and resolve modules from there.
+    root: __dirname,
   },
 };
 
