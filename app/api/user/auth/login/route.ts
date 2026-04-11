@@ -15,18 +15,22 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { hUsername, hPassword } = body;
 
+    console.log("[login] hashing username…");
     const hashedUsername = hashUsername(hUsername);
+    console.log("[login] looking up user:", hashedUsername.slice(0, 12) + "…");
 
     // Validate input
     if (!hashedUsername || !hPassword) {
+      console.log("[login] missing fields");
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 },
       );
     }
 
-    // Get user from database instead of file
+    // Get user from database
     const userData = await getUserByHashedUsername(hashedUsername);
+    console.log("[login] user found:", !!userData);
 
     if (!userData) {
       return NextResponse.json(
@@ -62,9 +66,10 @@ export async function POST(request: Request) {
 
     return response;
   } catch (error) {
-    console.error(error);
+    console.error("[login] error:", error);
+    const isDev = process.env.NODE_ENV !== "production";
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: isDev ? String(error) : "Internal server error" },
       { status: 500 },
     );
   }

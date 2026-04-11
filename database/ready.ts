@@ -26,6 +26,7 @@ function readDbProvider(): "neon" | "local" {
 }
 
 const DB_PROVIDER = readDbProvider();
+console.log(`[db] provider: ${DB_PROVIDER} (loaded from myufsc.config.local.json or myufsc.config.json)`);
 
 // ── Shared adapter interface ──────────────────────────────────────────────────
 interface DbAdapter {
@@ -66,7 +67,7 @@ async function buildAdapter(): Promise<DbAdapter> {
   const { ensureLocalSchema } = await import("@/database/local-setup");
   await ensureLocalSchema(db);
 
-  console.log("[db] Using local PGlite (./.dev-db)");
+  console.log("[db] Using local PGlite (./.dev-db) — register a new account if logging in for the first time locally");
 
   return {
     async query(sql, params = []) {
