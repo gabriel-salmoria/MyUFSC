@@ -34,7 +34,7 @@ function parseType(raw: string): "mandatory" | "optional" {
 function extractMetadata(text: string): Partial<TranscriptData> {
   const meta: Partial<TranscriptData> = {};
 
-  // Student name — "Aluno: Name" or "Nome: Name"
+  // Student name
   const nameMatch =
     text.match(/Nome(?:\s+do\s+Aluno)?:\s*(.+)/i) ??
     text.match(/Aluno:\s*(.+)/i);
@@ -49,9 +49,7 @@ function extractMetadata(text: string): Partial<TranscriptData> {
     }
   }
 
-  // Course code — may be on same line as "Curso:" or on a nearby line.
-  // Try inline first ("Curso: 208"), then look for a standalone 3-digit
-  // number in the first 600 chars of the header.
+  // Course code
   const courseInline = text.match(/Curso:\s*(\d{3})(?:\s+(.+))?/);
   if (courseInline) {
     meta.courseCode = courseInline[1];
@@ -68,7 +66,7 @@ function extractMetadata(text: string): Partial<TranscriptData> {
     }
   }
 
-  // Curriculum id — may be inline ("Curriculo: 2007/1") or on nearby line.
+  // Curriculum id
   const currInline = text.match(/Curr[ií]culo:\s*(\d{4}\/\d)/i);
   if (currInline) {
     meta.curriculumId = currInline[1].replace("/", "");
@@ -95,8 +93,6 @@ function extractCourses(text: string): {
   const exempted: ParsedCourse[] = [];
   const seen = new Set<string>();
 
-  // Detect format: "Historico Sintese" has "Semestre YYYY/N" headers;
-  // "Controle Curricular" has course codes BEFORE Ob/Op.
   const isSintese = /Semestre\s+\d{4}\/\d/i.test(text);
 
   if (isSintese) {
@@ -115,9 +111,7 @@ function extractCourses(text: string): {
 }
 
 /**
- * "Historico Sintese" format — courses appear as:
- *   <Name> <H/A>\t<Grade> <FreqStatus> <Type>\t<Code>
- * grouped under "Semestre YYYY/N" headers.
+ * "Historico Sintese" format
  */
 function extractSinteseFormat(
   text: string,
@@ -126,12 +120,9 @@ function extractSinteseFormat(
   exempted: ParsedCourse[],
   seen: Set<string>,
 ) {
-  // Match: <grade> <freq> <type> <code>
-  // e.g. "9.5 FS Ob\tEEL5105" or "10.0 FS Ob INE5401"
-  const coursePattern = /(\d+\.\d)\s*(FS|FI)\s*(Ob|Op|Ex)\s*([A-Z]{2,4}\d{4})/g;
+
   const semesterPattern = /Semestre\s*(\d{4}\/\d)/gi;
 
-  // Build a map of positions -> semester
   const semesterPositions: { pos: number; semester: string }[] = [];
   let sm: RegExpExecArray | null;
   while ((sm = semesterPattern.exec(text)) !== null) {
@@ -147,9 +138,41 @@ function extractSinteseFormat(
     return current;
   };
 
+  // 1) Primary Pattern: Matches the visual order of "Historico Sintese"
+  // e.g. "MTM3131 Equacoes Diferenciais Ordinarias 8.5 72 FS Ob"
+  // This is much safer as it anchors from the Course Code and reads forward.
+  const linePattern = /([A-Z]{2,4}\d{4}).*?(10\.0|[0-9]\.[0-9]{1,2})\s*(?:\d+\s+)?(FS|FI)\s*(Ob|Op|Ex)/gi;
   let match: RegExpExecArray | null;
+  while ((match = linePattern.exec(text)) !== null) {
+    const code = match[1].toUpperCase();
+    if (seen.has(code)) continue;
+    
+    const gradeMatch = match[2];
+    let grade = parseFloat(gradeMatch);
+    if (grade > 10) grade = 10;
+    
+    const freq = match[3];
+    const tipo = match[4];
+    seen.add(code);
+
+    const type = parseType(tipo);
+    const semester = getSemester(match.index);
+
+    if (freq === "FI") continue;
+
+    if (grade >= 6.0) {
+      completed.push({ code, type, grade, semester });
+    }
+  }
+
+  // 2) Fallback Pattern: Matches pdf-parse anomalies where the order is inverted or concatenated
+  // e.g. "8.5 72 FS Ob MTM3131"
+  const coursePattern = /(10\.0|[0-9]\.[0-9]{1,2})\s*(?:\d+\s+)?(FS|FI)\s*(Ob|Op|Ex)\s*([A-Z]{2,4}\d{4})/g;
   while ((match = coursePattern.exec(text)) !== null) {
-    const grade = parseFloat(match[1]);
+    const gradeMatch = match[1];
+    let grade = parseFloat(gradeMatch);
+    if(grade > 10) grade = 10; // Failsafe
+    
     const freq = match[2];
     const tipo = match[3];
     const code = match[4];
@@ -160,18 +183,13 @@ function extractSinteseFormat(
     const type = parseType(tipo);
     const semester = getSemester(match.index);
 
-    // FI = failed (frequencia insuficiente)
     if (freq === "FI") continue;
 
     if (grade >= 6.0) {
       completed.push({ code, type, grade, semester });
-    } else {
-      // grade < 6 means failed even with FS
-      continue;
     }
   }
 
-  // Also look for "Cursando" entries (in-progress courses)
   const cursandoPattern = /Cursando\s*(Ob|Op|Ex)\s*([A-Z]{2,4}\d{4})/g;
   while ((match = cursandoPattern.exec(text)) !== null) {
     const code = match[2];
@@ -181,7 +199,6 @@ function extractSinteseFormat(
     inProgress.push({ code, type: parseType(match[1]), semester });
   }
 
-  // Look for equivalence / exemption entries
   const eqvPattern =
     /(?:Eqv|Equival[eê]ncia|Dispensad[ao])\s*(Ob|Op|Ex)\s*([A-Z]{2,4}\d{4})/gi;
   while ((match = eqvPattern.exec(text)) !== null) {
@@ -194,9 +211,7 @@ function extractSinteseFormat(
 }
 
 /**
- * "Controle Curricular" format — courses appear as:
- *   <Code> <Name…> <semester> <grade> <Ob|Op>
- * This is the format used by CAGR's "Controle Curricular" PDF.
+ * "Controle Curricular" format
  */
 function extractControleCurricularFormat(
   text: string,
@@ -205,9 +220,8 @@ function extractControleCurricularFormat(
   exempted: ParsedCourse[],
   seen: Set<string>,
 ) {
-  // group 1 = full block, group 2 = code, group 3 = Ob|Op|Ex
   const coursePattern = /(([A-Z]{2,4}\d{4}).*?(Ob|Op|Ex)\b)/g;
-  const gradePattern = /(\d{4}\/\d)\s*(\d+\.\d)/;
+  const gradePattern = /(\d{4}\/\d)\s*(10\.0|[0-9]\.[0-9]{1,2})/;
 
   let match: RegExpExecArray | null;
   for (const line of text.split("\n")) {
@@ -235,11 +249,13 @@ function extractControleCurricularFormat(
       } else {
         const gradeMatch = gradePattern.exec(block);
         if (gradeMatch) {
+          let grade = parseFloat(gradeMatch[2]);
+          if(grade > 10) grade = 10;
           completed.push({
             code,
             type,
             semester: gradeMatch[1],
-            grade: parseFloat(gradeMatch[2]),
+            grade,
           });
         }
       }
@@ -251,9 +267,6 @@ function extractControleCurricularFormat(
 // Public API
 // ---------------------------------------------------------------------------
 
-/**
- * Parse a UFSC student transcript PDF and return structured data.
- */
 export async function parseTranscriptPdf(
   pdfBuffer: Buffer | Uint8Array,
 ): Promise<TranscriptData> {
