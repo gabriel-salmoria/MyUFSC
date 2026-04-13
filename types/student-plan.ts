@@ -62,3 +62,21 @@ export interface StudentInfo {
   currentSemester: string;
   plans: StudentPlan[];
 }
+
+/**
+ * Represents a user-defined event on the timetable (e.g. gym, work).
+ * Stored independently of the semester/plan structure.
+ * recurring=true  → shows in every phase view
+ * recurring=false → only shows in the phase it was created in (scopedToPhase)
+ */
+export interface CustomScheduleEntry {
+  id: string;
+  title: string;
+  subtitle?: string; // optional secondary label rendered below the title
+  day: number;       // 0=Mon … 5=Sat
+  startTime: string; // "HH:MM"
+  endTime: string;   // "HH:MM"
+  color: string;     // one of the TIMETABLE_COLOR_CLASSES values
+  recurring: boolean;
+  scopedToPhase?: number; // only set when recurring=false
+}

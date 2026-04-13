@@ -1,6 +1,7 @@
 "use client"
 
 import React from 'react'
+import { CalendarDays } from 'lucide-react'
 
 interface TimetableHeaderProps {
   selectedCampus: string
@@ -11,6 +12,7 @@ interface TimetableHeaderProps {
   onSemesterChange: (semester: string) => void
   onPhaseChange: (phase: number) => void
   availablePhases: number[]
+  onExportCalendar?: () => void
 }
 
 export default function TimetableHeader({
@@ -21,7 +23,8 @@ export default function TimetableHeader({
   onCampusChange,
   onSemesterChange,
   onPhaseChange,
-  availablePhases
+  availablePhases,
+  onExportCalendar
 }: TimetableHeaderProps) {
   // Generate dynamic semester options (Current Year +/- 1)
   const currentYear = new Date().getFullYear();
@@ -78,6 +81,16 @@ export default function TimetableHeader({
             </option>
           ))}
         </select>
+        {onExportCalendar && (
+          <button
+            onClick={onExportCalendar}
+            className="flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors"
+            title="Exportar para Calendário (.ics)"
+          >
+            <CalendarDays className="w-4 h-4" />
+            <span className="hidden sm:inline">Exportar</span>
+          </button>
+        )}
       </div>
     </div>
   )
