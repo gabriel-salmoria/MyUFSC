@@ -190,6 +190,8 @@ export default function CourseBox({
         CSS_CLASSES.COURSE_BOX,
         getStatusClass(),
         isDraggable && !isEmpty && CSS_CLASSES.DRAGGABLE,
+        studentCourse?._isHighlighted && "ring-2 ring-primary ring-offset-1 ring-offset-background scale-[1.03] z-10 shadow-lg shadow-primary/20",
+        studentCourse?._unavailableDimm && "opacity-30 saturate-50 pointer-events-none"
       )}
       style={{
         left: `${position.x}px`,

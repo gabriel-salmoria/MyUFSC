@@ -28,6 +28,10 @@ export interface StudentCourse {
   credits?: number;
   description?: string;
   workload?: number;
+
+  // Visual UI states exclusively for rendering (not stored on backend)
+  _isHighlighted?: boolean;
+  _unavailableDimm?: boolean;
   prerequisites?: string[];
   equivalents?: string[];
   type?: string;

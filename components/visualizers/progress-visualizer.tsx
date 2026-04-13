@@ -9,6 +9,7 @@ import type { StudentPlan, StudentCourse } from "@/types/student-plan";
 
 // componentes visuais da ui
 import Phase from "@/components/visualizers/phase";
+import AvailableCoursesModal from "@/components/schedule/available-courses-modal";
 
 // config
 import { PHASE } from "@/styles/visualization";
@@ -19,6 +20,7 @@ interface ProgressVisualizerProps {
   studentPlan: StudentPlan;
   totalPhases: number; // Added totalPhases
   height?: number;
+  onPhaseClick?: (phase: number) => void;
 }
 
 // visualizador de progresso, que mostra as disciplinas ja cursadas e as que faltam
@@ -26,12 +28,17 @@ export default function ProgressVisualizer({
   studentPlan,
   totalPhases, // Added to destructuring
   height,
+  onPhaseClick,
 }: ProgressVisualizerProps) {
   const studentStore = useStudentStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [phaseWidth, setPhaseWidth] = useState<number>(PHASE.MIN_WIDTH);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+  
+  // Modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedModalPhase, setSelectedModalPhase] = useState(1);
 
   // Calculate dynamic displayed semesters
   const displayedSemesters = useMemo(() => {
@@ -151,11 +158,19 @@ export default function ProgressVisualizer({
                 width={phaseWidth}
                 isFromCurriculum={false} // Mark as not from curriculum (it's student progress)
                 totalSlots={globalTotalSlots} // Pass uniform height
+                onHeaderClick={() => onPhaseClick && onPhaseClick(semester.number)}
               />
             ))}
           </div>
         </div>
       </div>
+      
+      {/* Search Available Courses modal */}
+      <AvailableCoursesModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        targetPhase={selectedModalPhase}
+      />
     </div>
   );
 }

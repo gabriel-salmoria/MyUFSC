@@ -11,20 +11,28 @@ import { CourseStatus } from "@/types/student-plan"; // Added CourseStatus for d
 // components
 import CourseBox from "@/components/visualizers/course-box";
 
+// prereq helpers
+import { useStudentStore } from "@/lib/student-store";
+import { checkPrerequisites } from "@/lib/prerequisites";
+import { generateEquivalenceMap } from "@/parsers/curriculum-parser";
+
 // config
 import { COURSE_BOX, GRID } from "@/styles/visualization";
 
 interface GridVisualizerProps {
   studentInfo: StudentInfo;
   curriculum: Curriculum | null; // Added curriculum prop
+  highlightAvailableForPhase?: number | null;
   height?: number;
 }
 
 export default function GridVisualizer({
   studentInfo,
   curriculum, // Added curriculum prop
+  highlightAvailableForPhase,
   height = 500,
 }: GridVisualizerProps) {
+  const studentStore = useStudentStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [containerWidth, setContainerWidth] = useState(800);
@@ -153,6 +161,11 @@ export default function GridVisualizer({
             height: `${calculatedGridHeight}px`,
           }}
         >
+          {/* Highlight Overlay */}
+          {highlightAvailableForPhase !== undefined && highlightAvailableForPhase !== null && (
+            <div className="absolute inset-0 bg-background/80 z-[5] transition-opacity duration-300 pointer-events-none backdrop-blur-[1px]" />
+          )}
+
           {/* Grid of courses */}
           {positions.map((position) => {
             // Find the original curriculum course for this position
@@ -166,9 +179,31 @@ export default function GridVisualizer({
               electiveCourse.id,
             );
 
+            let _isHighlighted = false;
+            let _unavailableDimm = false;
+
+            if (highlightAvailableForPhase !== undefined && highlightAvailableForPhase !== null) {
+              const isAlreadyDoneOrPlanned = studentCourseFromPlan && studentCourseFromPlan.status !== CourseStatus.DEFAULT;
+              if (isAlreadyDoneOrPlanned) {
+                _unavailableDimm = true;
+              } else {
+                const equivalenceMap = generateEquivalenceMap(curriculum?.courses || []);
+                const { satisfied } = checkPrerequisites(electiveCourse, highlightAvailableForPhase, studentStore.studentInfo, equivalenceMap);
+                _isHighlighted = satisfied;
+                _unavailableDimm = !satisfied;
+              }
+            }
+
             const studentCourse: StudentCourse = studentCourseFromPlan || {
               course: electiveCourse,
               status: CourseStatus.DEFAULT,
+            };
+
+            // inject visual props that won't go to backend
+            const propsInjectedStudentCourse = {
+               ...studentCourse,
+               _isHighlighted,
+               _unavailableDimm
             };
 
             return (
@@ -176,7 +211,7 @@ export default function GridVisualizer({
                 key={`${electiveCourse.id}-${position.x}-${position.y}`}
                 position={position}
                 isFromCurriculum={true}
-                studentCourse={studentCourse} // Pass the full StudentCourse object
+                studentCourse={propsInjectedStudentCourse} // Pass the full StudentCourse object
                 isEmpty={false} // This box represents a course, not an empty slot
                 isDraggable={true} // Allow dragging these courses
               />

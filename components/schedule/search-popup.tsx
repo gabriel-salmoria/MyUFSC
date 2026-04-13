@@ -6,6 +6,7 @@ import type { Course, Curriculum } from "@/types/curriculum";
 import type { StudentCourse } from "@/types/student-plan";
 import { courseMap, parseCourses } from "@/parsers/curriculum-parser";
 import { useStudentStore } from "@/lib/student-store";
+import { useAddCoursePrereq } from "@/components/course/use-add-course-prereq";
 
 interface SearchPopupProps {
   searchTerm: string;
@@ -37,6 +38,7 @@ export default function SearchPopup({
   const curriculumCache = useStudentStore((state) => state.curriculumCache);
   const selectCourse = useStudentStore((state) => state.selectCourse);
   const addCourseToSemester = useStudentStore((state) => state.addCourseToSemester);
+  const { handleAddWithCheck, PrereqDialog } = useAddCoursePrereq();
 
   // Derive available courses from the global cache
   // This avoids double-rendering (flash) and state duplication
@@ -90,10 +92,7 @@ export default function SearchPopup({
         if (result.isCurrentCourse) {
           selectCourse(result.originalCourse as StudentCourse);
         } else {
-          addCourseToSemester(
-            result.originalCourse as Course,
-            selectedPhase, // Use the selectedPhase
-          );
+          handleAddWithCheck(result.originalCourse as Course, selectedPhase);
         }
         onClose();
       }
@@ -104,7 +103,7 @@ export default function SearchPopup({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onClose, searchResults, activeIndex, selectCourse, addCourseToSemester, selectedPhase]);
+  }, [onClose, searchResults, activeIndex, selectCourse, handleAddWithCheck, selectedPhase]);
 
   // Extract current courses from the student info
   const currentCourses = useMemo(() => {
@@ -236,10 +235,7 @@ export default function SearchPopup({
     if (result.isCurrentCourse) {
       selectCourse(result.originalCourse as StudentCourse);
     } else {
-      addCourseToSemester(
-        result.originalCourse as Course,
-        selectedPhase, // Use the selectedPhase
-      );
+      handleAddWithCheck(result.originalCourse as Course, selectedPhase);
     }
     onClose();
   };
@@ -330,6 +326,7 @@ export default function SearchPopup({
           </div>
         </div>
       </div>
+      <PrereqDialog />
     </>
   );
 }

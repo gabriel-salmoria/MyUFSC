@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { StudentInfo, StudentCourse } from "@/types/student-plan";
 import { Course } from "@/types/curriculum";
 import { Curriculum } from "@/types/curriculum";
@@ -9,6 +9,7 @@ import CurriculumVisualizer from "@/components/visualizers/curriculum-visualizer
 import ProgressVisualizer from "@/components/visualizers/progress-visualizer";
 import GridVisualizer from "@/components/visualizers/grid-visualizer";
 import { useStudentStore } from "@/lib/student-store";
+import { useAddCoursePrereq } from "@/components/course/use-add-course-prereq";
 import type { DegreeProgram } from "@/types/degree-program";
 
 export enum ViewMode {
@@ -32,9 +33,22 @@ export default function Visualizations({
   degreePrograms = [],
 }: VisualizationsProps) {
   const studentStore = useStudentStore();
+  const { handleAddWithCheck, handleMoveWithCheck, PrereqDialog } = useAddCoursePrereq();
+
+  useEffect(() => {
+    const handleDropReq = (e: any) => {
+      if (e.detail.type === 'add') handleAddWithCheck(e.detail.course, e.detail.phase);
+      else handleMoveWithCheck(e.detail.studentCourse, e.detail.phase);
+    };
+    window.addEventListener('request-course-drop', handleDropReq);
+    return () => window.removeEventListener('request-course-drop', handleDropReq);
+  }, [handleAddWithCheck, handleMoveWithCheck]);
 
   // Toggle view mode between curriculum and electives
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.CURRICULUM);
+  
+  // Highlight Phase Selection
+  const [highlightAvailableForPhase, setHighlightAvailableForPhase] = useState<number | null>(null);
 
   const toggleView = () => {
     setViewMode(
@@ -53,7 +67,10 @@ export default function Visualizations({
   const containerHeight = 500; // Using fixed height for simplicity
 
   return (
-    <div className="flex-1 space-y-6">
+    <div 
+      className="flex-1 space-y-6"
+      onClick={() => setHighlightAvailableForPhase(null)}
+    >
       <div>
         <div className="flex justify-between items-center mb-2">
           {viewMode === ViewMode.CURRICULUM ? (
@@ -113,6 +130,7 @@ export default function Visualizations({
               <CurriculumVisualizer
                 curriculum={curriculum}
                 studentPlan={studentInfo.plans[studentInfo.currentPlan]!}
+                highlightAvailableForPhase={highlightAvailableForPhase}
               // Removed fixed height prop
               />
             ) : (
@@ -129,6 +147,7 @@ export default function Visualizations({
             <GridVisualizer
               studentInfo={studentInfo}
               curriculum={curriculum}
+              highlightAvailableForPhase={highlightAvailableForPhase}
               height={500} // Keep fixed height for grid visualizer as it's a different view type
             />
           )}
@@ -141,7 +160,7 @@ export default function Visualizations({
             Meu Progresso
           </h2>
           <p className="text-sm text-muted-foreground italic">
-            Dica: arraste disciplinas para o último semestre para adicionar novos semestres, ou empilhe-as para expandir um semestre.
+            Dica: arraste disciplinas para o último semestre para expandir seu curso. <strong>Clique no cabeçalho de uma Fase</strong> para destacar quais disciplinas você já pode adicionar lá.
           </p>
         </div>
         <div
@@ -151,13 +170,16 @@ export default function Visualizations({
           <ProgressVisualizer
             studentPlan={studentInfo.plans[studentInfo.currentPlan]!}
             totalPhases={curriculum?.totalPhases || 8}
-            height={500} // Keeps a default reasonable height for progress, or better yet, make it dynamic too later if needed?
-            // For now, user specifically asked about Curriculum Visualizer unused space.
-            // But let's keep it consistent.
+            height={500} // Keeps a default reasonable height for progress
+            onPhaseClick={(phase: number) => {
+              if (highlightAvailableForPhase === phase) setHighlightAvailableForPhase(null);
+              else setHighlightAvailableForPhase(phase);
+            }}
             key={`progress-${studentInfo.currentPlan || "default"}`}
           />
         </div>
       </div>
+      <PrereqDialog />
     </div>
   );
 }

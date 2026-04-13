@@ -44,11 +44,16 @@ export default function GhostCourseBox({
       console.log("GhostCourseBox drop data:", data);
 
       if (data.sourceVisualizer == "progress") {
-        studentStore.moveCourse(data.studentCourse, semesterNumber);
+        window.dispatchEvent(
+          new CustomEvent("request-course-drop", {
+            detail: { type: "move", studentCourse: data.studentCourse, phase: semesterNumber },
+          })
+        );
       } else {
-        studentStore.addCourseToSemester(
-          data.studentCourse.course,
-          semesterNumber,
+        window.dispatchEvent(
+          new CustomEvent("request-course-drop", {
+            detail: { type: "add", course: data.studentCourse.course, phase: semesterNumber },
+          })
         );
       }
     } catch (error) {

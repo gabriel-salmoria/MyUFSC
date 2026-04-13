@@ -22,6 +22,7 @@ import { useStudentStore } from "@/lib/student-store";
 interface CurriculumVisualizerProps {
   curriculum: Curriculum;
   studentPlan: StudentPlan;
+  highlightAvailableForPhase?: number | null;
   height?: number;
 }
 
@@ -29,6 +30,7 @@ interface CurriculumVisualizerProps {
 export default function CurriculumVisualizer({
   curriculum,
   studentPlan,
+  highlightAvailableForPhase,
   height = 500,
 }: CurriculumVisualizerProps) {
   const studentStore = useStudentStore();
@@ -41,6 +43,9 @@ export default function CurriculumVisualizer({
 
   // Create equivalence map to handle equivalent courses
   const equivalenceMap = useMemo(() => generateEquivalenceMap(curriculum.courses), [curriculum]);
+
+  // Use prereq check for highlighted state
+  const { checkPrerequisites } = require('@/lib/prerequisites');
 
   // Create mapped course statuses and handle optional course hours accumulation mapped greedily against curriculum blocks
   const mappedCurriculumCourses = useMemo(() => {
@@ -203,6 +208,11 @@ export default function CurriculumVisualizer({
             height: `${containerHeight}px`,
           }}
         >
+          {/* Highlight Overlay */}
+          {highlightAvailableForPhase !== undefined && highlightAvailableForPhase !== null && (
+            <div className="absolute inset-0 bg-background/80 z-[5] transition-opacity duration-300 pointer-events-none backdrop-blur-[1px]" />
+          )}
+
           {/* Phase components that handle course positioning internally */}
           <div className="flex" style={{ height: `${containerHeight}px` }}>
             {phases.map((semester, index) => (
@@ -214,6 +224,20 @@ export default function CurriculumVisualizer({
                   .filter((course) => course.phase === semester.number)
                   .map((course) => {
                     const mappedInfo = mappedCurriculumCourses.get(course.id);
+                    const isAlreadyDoneOrPlanned = mappedInfo?.status && mappedInfo.status !== CourseStatus.DEFAULT;
+                    
+                    let _isHighlighted = false;
+                    let _unavailableDimm = false;
+
+                    if (highlightAvailableForPhase !== undefined && highlightAvailableForPhase !== null) {
+                       if (isAlreadyDoneOrPlanned) {
+                         _unavailableDimm = true;
+                       } else {
+                         const { satisfied } = checkPrerequisites(course, highlightAvailableForPhase, studentStore.studentInfo, equivalenceMap);
+                         _isHighlighted = satisfied;
+                         _unavailableDimm = !satisfied;
+                       }
+                    }
 
                     return {
                       course, // Original Course object
@@ -228,6 +252,8 @@ export default function CurriculumVisualizer({
                       status: mappedInfo?.status || CourseStatus.DEFAULT,
                       grade: mappedInfo?.grade,
                       phase: semester.number,
+                      _isHighlighted,
+                      _unavailableDimm,
                     };
                   })}
                 width={phaseWidth}

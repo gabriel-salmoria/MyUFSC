@@ -2,6 +2,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { MousePointerClick } from "lucide-react";
 import type { Course } from "@/types/curriculum";
 import type { StudentCourse } from "@/types/student-plan";
 import { COURSE_BOX, PHASE } from "@/styles/visualization";
@@ -9,21 +10,24 @@ import CourseBox from "@/components/visualizers/course-box";
 import GhostCourseBox from "@/components/visualizers/ghost-box";
 import { StudentStore } from "@/lib/student-store";
 import { useStudentStore } from "@/lib/student-store";
+import { cn } from "@/components/ui/utils";
 
 interface PhaseProps {
-  semesterNumber: number; // Added
-  studentCourses: StudentCourse[]; // Added
-  width: number;
-  isFromCurriculum?: boolean; // Renamed from isActualSemester
-  totalSlots?: number; // Added
+  semesterNumber: number;
+  studentCourses: StudentCourse[];
+  width?: number;
+  isFromCurriculum?: boolean;
+  totalSlots?: number;
+  onHeaderClick?: () => void;
 }
 
 export default function Phase({
   semesterNumber,
   studentCourses,
-  width,
-  isFromCurriculum,
+  width = PHASE.MIN_WIDTH,
+  isFromCurriculum = true,
   totalSlots: explicitTotalSlots,
+  onHeaderClick,
 }: PhaseProps) {
   const studentStore = useStudentStore();
   const boxWidth = useMemo(() => {
@@ -58,8 +62,21 @@ export default function Phase({
       style={{ width: `${width}px`, height: `${phaseHeight}px` }}
     >
       {/* Phase header */}
-      <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-sm px-2 py-3 text-center font-medium border-b border-border">
-        Fase {semesterNumber}
+      <div 
+        className={cn(
+          "sticky top-0 z-10 bg-background/90 backdrop-blur-sm px-2 py-3 border-b border-border transition-all flex items-center justify-center gap-1 group",
+          onHeaderClick ? "cursor-pointer hover:bg-primary/5 hover:text-primary hover:border-primary/30" : ""
+        )}
+        onClick={(e) => {
+          e.stopPropagation();
+          onHeaderClick?.();
+        }}
+        title={onHeaderClick ? "Clique para ver dependências" : undefined}
+      >
+        <span className="font-medium">Fase {semesterNumber}</span>
+        {onHeaderClick && (
+          <MousePointerClick className="w-3.5 h-3.5 opacity-40 group-hover:opacity-100 transition-opacity" />
+        )}
       </div>
 
       {/* Course boxes - positioned dynamically within the phase */}
