@@ -61,6 +61,7 @@ export interface StudentInfo {
   currentPlan: number;
   currentSemester: string;
   plans: StudentPlan[];
+  customScheduleEntries?: CustomScheduleEntry[];
 }
 
 /**

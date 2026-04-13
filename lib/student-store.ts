@@ -89,7 +89,6 @@ export interface StudentStore {
   setCourseClass: (course: StudentCourse, classId: string) => void;
 
   // Custom schedule entries (calendar-style, stored globally, not per-semester)
-  customScheduleEntries: CustomScheduleEntry[];
   addCustomScheduleEntry: (entry: CustomScheduleEntry) => void;
   removeCustomScheduleEntry: (id: string) => void;
   updateCustomScheduleEntry: (entry: CustomScheduleEntry) => void;
@@ -114,7 +113,6 @@ const CheckStudentInfo = (info: StudentInfo | null): StudentPlan | null => {
 
 export const useStudentStore = create<StudentStore>()(persist((set) => ({
   studentInfo: null,
-  customScheduleEntries: [],
 
   selectedCourse: null,
   selectedStudentCourse: null,
@@ -234,7 +232,6 @@ export const useStudentStore = create<StudentStore>()(persist((set) => ({
 
   reset: () => set({
     studentInfo: null,
-    customScheduleEntries: [],
     selectedCourse: null,
     selectedStudentCourse: null,
     selectedSchedule: null,
@@ -470,14 +467,19 @@ export const useStudentStore = create<StudentStore>()(persist((set) => ({
   addCustomScheduleEntry: (entry: CustomScheduleEntry) =>
     set(
       produce((state: StudentStore) => {
-        state.customScheduleEntries.push(entry);
+        if (!state.studentInfo) return;
+        if (!state.studentInfo.customScheduleEntries) {
+          state.studentInfo.customScheduleEntries = [];
+        }
+        state.studentInfo.customScheduleEntries.push(entry);
       }),
     ),
 
   removeCustomScheduleEntry: (id: string) =>
     set(
       produce((state: StudentStore) => {
-        state.customScheduleEntries = state.customScheduleEntries.filter(
+        if (!state.studentInfo?.customScheduleEntries) return;
+        state.studentInfo.customScheduleEntries = state.studentInfo.customScheduleEntries.filter(
           (e) => e.id !== id,
         );
       }),
@@ -486,8 +488,9 @@ export const useStudentStore = create<StudentStore>()(persist((set) => ({
   updateCustomScheduleEntry: (entry: CustomScheduleEntry) =>
     set(
       produce((state: StudentStore) => {
-        const idx = state.customScheduleEntries.findIndex((e) => e.id === entry.id);
-        if (idx !== -1) state.customScheduleEntries[idx] = entry;
+        if (!state.studentInfo?.customScheduleEntries) return;
+        const idx = state.studentInfo.customScheduleEntries.findIndex((e) => e.id === entry.id);
+        if (idx !== -1) state.studentInfo.customScheduleEntries[idx] = entry;
       }),
     ),
 }),
@@ -505,7 +508,6 @@ export const useStudentStore = create<StudentStore>()(persist((set) => ({
     }),
     partialize: (state) => ({
       studentInfo: state.studentInfo,
-      customScheduleEntries: state.customScheduleEntries,
     }),
     merge: (persistedState: any, currentState) => ({
       ...currentState,

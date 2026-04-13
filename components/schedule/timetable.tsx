@@ -88,11 +88,12 @@ export default function Timetable({
 
   const studentStore = useStudentStore();
   const {
-    customScheduleEntries,
     addCustomScheduleEntry,
     removeCustomScheduleEntry,
     updateCustomScheduleEntry,
   } = studentStore;
+
+  const customScheduleEntries = studentInfo?.customScheduleEntries || [];
 
   const {
     scheduleData,
