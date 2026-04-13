@@ -249,10 +249,10 @@ export default function SearchPopup({
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/20 dark:bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center pt-[10vh]">
+      <div className="fixed inset-0 bg-black/20 dark:bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center pt-[10vh] animate-in fade-in-0 duration-200">
         <div
           ref={popupRef}
-          className="bg-background border border-border rounded-lg shadow-xl w-full max-w-md overflow-hidden transition-all"
+          className="bg-background border border-border rounded-lg shadow-xl w-full max-w-md overflow-hidden transition-all animate-in zoom-in-95 duration-200"
           style={{ maxHeight: "60vh" }}
         >
           <div className="p-3 bg-background-secondary border-b border-border">

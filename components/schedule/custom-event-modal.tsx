@@ -4,8 +4,6 @@ import { useEffect, useState } from "react";
 import { TIMETABLE } from "@/styles/visualization";
 import { TIMETABLE_COLOR_CLASSES } from "@/styles/course-theme";
 import type { CustomScheduleEntry } from "@/types/student-plan";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { DialogPortal, DialogOverlay } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -112,44 +110,47 @@ export default function CustomEventModal({
 
   const isEditing = !!initialEntry?.id;
 
-  return (
-    <DialogPrimitive.Root open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogPortal>
-        <DialogOverlay />
-        {/*
-          Use DialogPrimitive.Content directly so we control the animation classes.
-          We use ONLY zoom-in (scale from center) — no slide-from-corner classes.
-        */}
-        <DialogPrimitive.Content
-          className="
-            fixed left-[50%] top-[50%] z-50
-            grid w-full max-w-md
-            -translate-x-1/2 -translate-y-1/2
-            gap-4 border bg-background p-6 shadow-lg sm:rounded-lg
-            duration-350
-            data-[state=open]:animate-in
-            data-[state=open]:fade-in-0
-            data-[state=open]:zoom-in-75
-            data-[state=closed]:animate-out
-            data-[state=closed]:fade-out-0
-            data-[state=closed]:zoom-out-95
-          "
-        >
-          {/* Close button */}
-          <DialogPrimitive.Close
-            onClick={onClose}
-            className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-          >
-            <X className="h-4 w-4" />
-            <span className="sr-only">Fechar</span>
-          </DialogPrimitive.Close>
+  // Listen for Escape key
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && open) {
+        onClose();
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
 
-          {/* Title */}
-          <div className="flex flex-col space-y-1.5">
-            <DialogPrimitive.Title className="text-lg font-semibold leading-none tracking-tight">
-              {isEditing ? "Editar Evento" : "Novo Evento"}
-            </DialogPrimitive.Title>
-          </div>
+  if (!open) return null;
+
+  return (
+    <div 
+      className="fixed inset-0 bg-black/20 dark:bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center animate-in fade-in-0 duration-200"
+      onClick={onClose}
+    >
+      <div
+        className="bg-background border border-border sm:rounded-lg shadow-xl w-full max-w-md p-6 relative transition-all animate-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close button */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+        >
+          <X className="h-4 w-4" />
+          <span className="sr-only">Fechar</span>
+        </button>
+
+        {/* Title */}
+        <div className="flex flex-col space-y-1.5 mb-4">
+          <h2 className="text-lg font-semibold leading-none tracking-tight">
+            {isEditing ? "Editar Evento" : "Novo Evento"}
+          </h2>
+          <p className="sr-only">
+            Formulário para adicionar ou editar um evento customizado no seu cronograma.
+          </p>
+        </div>
 
           <div className="grid gap-4 py-2">
             {/* Nome */}
@@ -311,8 +312,7 @@ export default function CustomEventModal({
               </Button>
             </div>
           </div>
-        </DialogPrimitive.Content>
-      </DialogPortal>
-    </DialogPrimitive.Root>
+      </div>
+    </div>
   );
 }

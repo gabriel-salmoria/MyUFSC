@@ -423,29 +423,48 @@ export default function Timetable({
 
   const handleExportCalendar = () => {
     let icsContent = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//MyUFSC//Schedule//EN\r\nCALSCALE:GREGORIAN\r\n";
-    
-    // Pick reference week: e.g., March 4 2024 (Monday)
-    const baseDateMs = new Date("2024-03-04T00:00:00Z").getTime();
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const augFirst = new Date(currentYear, 7, 1);
+    const isBeforeAug = now < augFirst;
+    const untilDate = isBeforeAug ? new Date(currentYear, 7, 1, 23, 59, 59) : new Date(currentYear, 11, 25, 23, 59, 59);
+    const untilStr = untilDate.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+
+    const dayOfWeek = now.getDay();
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const currentMonday = new Date(now);
+    currentMonday.setDate(now.getDate() + diffToMonday);
+    currentMonday.setHours(0, 0, 0, 0);
+
     const dayMap = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
     const cryptoCounter = Math.floor(Math.random() * 1000000);
     let eventCounter = 0;
-    
+
     const addEvent = (title: string, desc: string, dayIdx: number, startTime: string, endTime: string, location: string) => {
-       const eventDate = new Date(baseDateMs + dayIdx * 86400000);
-       const dateStr = eventDate.toISOString().split("T")[0].replace(/-/g, ""); // e.g. 20240304
-       const startStr = dateStr + "T" + startTime.replace(":", "") + "00";
-       const endStr = dateStr + "T" + endTime.replace(":", "") + "00";
-       
-       icsContent += "BEGIN:VEVENT\r\n";
-       icsContent += `UID:event-${cryptoCounter}-${eventCounter++}@myufsc\r\n`;
-       icsContent += `SUMMARY:${title}\r\n`;
-       if (desc) icsContent += `DESCRIPTION:${desc.replace(/\n/g, '\\n')}\r\n`;
-       if (location) icsContent += `LOCATION:${location}\r\n`;
-       
-       icsContent += `DTSTART;TZID=America/Sao_Paulo:${startStr}\r\n`;
-       icsContent += `DTEND;TZID=America/Sao_Paulo:${endStr}\r\n`;
-       icsContent += `RRULE:FREQ=WEEKLY;BYDAY=${dayMap[dayIdx]}\r\n`;
-       icsContent += "END:VEVENT\r\n";
+      const eventDate = new Date(currentMonday);
+      eventDate.setDate(currentMonday.getDate() + dayIdx);
+
+      const toUTCStr = (timeStr: string) => {
+        const [h, m] = timeStr.split(":").map(Number);
+        const d = new Date(eventDate);
+        d.setHours(h, m, 0, 0);
+        return d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+      };
+
+      const startStr = toUTCStr(startTime);
+      const endStr = toUTCStr(endTime);
+
+      icsContent += "BEGIN:VEVENT\r\n";
+      icsContent += `UID:event-${cryptoCounter}-${eventCounter++}@myufsc\r\n`;
+      icsContent += `SUMMARY:${title}\r\n`;
+      if (desc) icsContent += `DESCRIPTION:${desc.replace(/\n/g, '\\n')}\r\n`;
+      if (location) icsContent += `LOCATION:${location}\r\n`;
+
+      icsContent += `DTSTART:${startStr}\r\n`;
+      icsContent += `DTEND:${endStr}\r\n`;
+      icsContent += `RRULE:FREQ=WEEKLY;BYDAY=${dayMap[dayIdx]};UNTIL=${untilStr}\r\n`;
+      icsContent += "END:VEVENT\r\n";
     };
 
     // Export selected courses
@@ -464,7 +483,7 @@ export default function Timetable({
     visibleCustomEntries.forEach(entry => {
       addEvent(entry.title, entry.subtitle || "", entry.day, entry.startTime, entry.endTime, "");
     });
-    
+
     icsContent += "END:VCALENDAR\r\n";
 
     const blob = new Blob([icsContent], { type: "text/calendar" });
@@ -497,9 +516,8 @@ export default function Timetable({
           <div className="mb-1 flex items-start gap-1.5 text-xs text-muted-foreground px-1">
             <CalendarPlus2 className="h-3.5 w-3.5 mt-0.5 shrink-0 opacity-70" />
             <span>
-              Clique em qualquer célula vazia para adicionar um evento pessoal (academia, trabalho, etc.).
+              Clique em qualquer célula vazia para adicionar um evento pessoal.
               Eventos podem repetir em todas as fases ou ser exclusivos de uma fase específica.
-              Clique em um evento existente para editá-lo ou removê-lo.
             </span>
           </div>
 
