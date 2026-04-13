@@ -99,6 +99,7 @@ export default function Timetable({
     scheduleData,
     selectedCampus,
     selectedSemester,
+    availableSemesters,
     isLoading: isLoadingscheduleData,
     setScheduleState,
   } = scheduleState;
@@ -504,6 +505,7 @@ export default function Timetable({
           <TimetableHeader
             selectedCampus={selectedCampus}
             selectedSemester={selectedSemester}
+            availableSemesters={availableSemesters || []}
             selectedPhase={selectedPhase}
             isLoadingData={isLoadingscheduleData}
             onCampusChange={onCampusChange}

@@ -6,6 +6,7 @@ import { CalendarDays } from 'lucide-react'
 interface TimetableHeaderProps {
   selectedCampus: string
   selectedSemester: string
+  availableSemesters: string[]
   selectedPhase: number
   isLoadingData: boolean
   onCampusChange: (campus: string) => void
@@ -18,6 +19,7 @@ interface TimetableHeaderProps {
 export default function TimetableHeader({
   selectedCampus,
   selectedSemester,
+  availableSemesters,
   selectedPhase,
   isLoadingData,
   onCampusChange,
@@ -26,14 +28,11 @@ export default function TimetableHeader({
   availablePhases,
   onExportCalendar
 }: TimetableHeaderProps) {
-  // Generate dynamic semester options (Current Year +/- 1)
-  const currentYear = new Date().getFullYear();
-  // Include next year to ensure upcoming semester (e.g. 2026.1) is available
-  const years = [currentYear + 1, currentYear, currentYear - 1];
-  const semesterOptions = years.flatMap((year) => [
-    { value: `${year}2`, label: `${year}.2` },
-    { value: `${year}1`, label: `${year}.1` },
-  ]);
+
+  const formatSemester = (sem: string) => {
+    if (!sem || sem.length !== 5) return sem;
+    return `${sem.substring(0, 4)}.${sem.substring(4)}`;
+  };
 
   return (
     <div className="flex items-center justify-between mb-6">
@@ -41,26 +40,21 @@ export default function TimetableHeader({
         <h2 className="text-xl font-semibold text-foreground">Cronograma Semanal</h2>
         <div className="flex items-center gap-2">
           <select
-            value={selectedCampus}
-            onChange={(e) => onCampusChange(e.target.value)}
-            className="bg-background border border-border rounded px-3 py-1 text-sm text-foreground"
-          >
-            <option value="FLO">Florianópolis</option>
-            <option value="BLN">Blumenau</option>
-            <option value="JOI">Joinville</option>
-            <option value="CBS">Curitibanos</option>
-            <option value="ARA">Araranguá</option>
-          </select>
-          <select
             value={selectedSemester}
             onChange={(e) => onSemesterChange(e.target.value)}
             className="bg-background border border-border rounded px-3 py-1 text-sm text-foreground"
           >
-            {semesterOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
+            {availableSemesters && availableSemesters.length > 0 ? (
+              availableSemesters.map((sem) => (
+                <option key={sem} value={sem}>
+                  {formatSemester(sem)}
+                </option>
+              ))
+            ) : (
+              <option value={selectedSemester}>
+                {formatSemester(selectedSemester)}
               </option>
-            ))}
+            )}
           </select>
           {isLoadingData && <span className="text-sm text-muted-foreground">(Carregando...)</span>}
         </div>
@@ -73,7 +67,7 @@ export default function TimetableHeader({
           id="phase-select"
           value={selectedPhase}
           onChange={(e) => onPhaseChange(Number(e.target.value))}
-          className="block w-24 rounded-md border border-border bg-background text-foreground shadow-sm focus:border-primary focus:ring-primary sm:text-sm pl-2"
+          className="bg-background border border-border rounded px-3 py-1 text-sm text-foreground"
         >
           {availablePhases.map((phase) => (
             <option key={phase} value={phase}>
@@ -94,4 +88,4 @@ export default function TimetableHeader({
       </div>
     </div>
   )
-} 
+}

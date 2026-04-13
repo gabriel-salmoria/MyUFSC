@@ -53,7 +53,7 @@ export default function Home() {
   });
 
   // Schedule Hook
-  const { scheduleState, isScheduleLoading } = useSchedule({
+  const { scheduleState, setScheduleState, isScheduleLoading } = useSchedule({
     studentInfo, // Pass studentInfo from useStudentProfile directly
     isProfileLoading,
     isCurriculumLoading,
@@ -231,12 +231,12 @@ export default function Home() {
             viewingDegreeId={curriculumState.viewingDegreeId}
             setViewingDegreeId={setViewingDegreeId}
             degreePrograms={curriculumState.degreePrograms}
-            scheduleState={scheduleState}
+            scheduleState={{ ...scheduleState, setScheduleState }}
           />
           <div className="mt-8">
             <Timetable
               studentInfo={studentInfo}
-              scheduleState={scheduleState}
+              scheduleState={{ ...scheduleState, setScheduleState }}
             />
           </div>
           {(selectedCourse || selectedStudentCourse) && (

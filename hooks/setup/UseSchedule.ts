@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import type { StudentInfo } from "@/types/student-plan";
 import { fetchClassSchedule } from "@/app/api/schedule/client";
-import type { AuthState } from "./CheckAuth"; // For setAuthState prop type
+import type { AuthState } from "./CheckAuth";
 
 export interface ScheduleHookState {
   scheduleData: any;
-  isLoading: boolean; // Internal loading for the fetch operation itself
+  isLoading: boolean;
   selectedCampus: string;
   selectedSemester: string;
+  availableSemesters: string[];
 }
 
 export interface UseScheduleResult {
@@ -33,52 +34,52 @@ export function useSchedule({
     scheduleData: null,
     isLoading: false,
     selectedCampus: "FLO",
-    selectedSemester: `${new Date().getFullYear() + 1}1`,
+    selectedSemester: "",
+    availableSemesters: [], // Will be auto-selected from latest available or user choice
   });
   const [isScheduleLoading, setIsScheduleLoading] = useState(true);
-  const fetchedForDegreeRef_Schedule = useRef<string | null | undefined>(null); // Tracks degree for schedule fetch
+  const fetchedForDegreeRef_Schedule = useRef<string | null | undefined>(null);
 
   useEffect(() => {
     if (isProfileLoading || isCurriculumLoading) {
-      setIsScheduleLoading(true); // Stay loading if prerequisites are loading
-      fetchedForDegreeRef_Schedule.current = null; // Reset fetched marker
+      setIsScheduleLoading(true);
+      fetchedForDegreeRef_Schedule.current = null;
       return;
     }
 
     if (!studentInfo || !studentInfo.currentDegree) {
-      setIsScheduleLoading(false); // Not loading if no student info or no current degree
+      setIsScheduleLoading(false);
       setScheduleState((prev) => ({ ...prev, scheduleData: null }));
-      fetchedForDegreeRef_Schedule.current = null; // Reset
+      fetchedForDegreeRef_Schedule.current = null;
       return;
     }
 
-    // Collect all degrees to fetch (current + interested)
     const distinctDegrees = new Set<string>([studentInfo.currentDegree]);
     if (studentInfo.interestedDegrees) {
       studentInfo.interestedDegrees.forEach((d) => distinctDegrees.add(d));
     }
     const degreesToFetch = Array.from(distinctDegrees).sort();
-    const degreesSignature = degreesToFetch.join(",");
+    
+    // We add selectedSemester to the signature to force re-fetch when user changes it
+    const degreesSignature = degreesToFetch.join(",") + "_" + (scheduleState.selectedSemester || "LATEST");
 
-    // Only fetch if degrees signature has changed since last schedule fetch OR if scheduleData is null
     if (degreesSignature !== fetchedForDegreeRef_Schedule.current || scheduleState.scheduleData === null) {
       let active = true;
       const fetchScheduleData = async () => {
         const isInitialLoad = !fetchedForDegreeRef_Schedule.current;
         if (isInitialLoad) {
-          setIsScheduleLoading(true); // Set loading true ONLY on initial load
+          setIsScheduleLoading(true);
         }
 
         setScheduleState((prev) => ({ ...prev, isLoading: true }));
-        fetchedForDegreeRef_Schedule.current = degreesSignature; // Mark fetching for this combination
+        fetchedForDegreeRef_Schedule.current = degreesSignature;
+        
         try {
-          // Fetch all schedules in parallel
           const results = await Promise.all(
-            degreesToFetch.map(degree => fetchClassSchedule(degree))
+            degreesToFetch.map(degree => fetchClassSchedule(degree, scheduleState.selectedSemester || undefined))
           );
 
           if (active) {
-            // Check if all failed
             const successfulResults = results.filter(r => r !== null);
 
             if (successfulResults.length === 0) {
@@ -90,39 +91,29 @@ export function useSchedule({
                 }));
               }
             } else {
-              // Merge logic: Merge the raw degree objects. 
-              // unique keys (degree codes) will just coexist in the merged object.
               const mergedData: any = {};
               let fetchedSemester = "";
-
-              // If we are doing a background update, we should start with existing data?
-              // The logic below creates 'mergedData' from 'successfulResults'.
-              // successfulResults contains ALL requested degrees, because degreesToFetch includes current + interested.
-              // So we are re-fetching EVERYTHING.
-              // This is fine for correctness, and since it is background, user won't notice.
-              // But we can optimize by only fetching missing?
-              // For now, let's keep re-fetching all to ensure freshness, as schedule can change. 
-              // But we must ensure we don't clear data if we are just updating.
-
-              // Wait, 'mergedData' is built FRESH from 'successfulResults'.
-              // Since 'degreesToFetch' has ALL keys, 'mergedData' will have ALL keys.
-              // So replacing 'scheduleData' with 'mergedData' is correct.
+              let availableSemesters: string[] = [];
 
               successfulResults.forEach(data => {
                 if (data) {
                   Object.assign(mergedData, data);
-                  // Check for metadata "fetchedSemester"
                   if (data.fetchedSemester) {
                     fetchedSemester = data.fetchedSemester;
+                  }
+                  if (data.availableSemesters && data.availableSemesters.length > availableSemesters.length) {
+                    availableSemesters = data.availableSemesters;
                   }
                 }
               });
 
               setScheduleState((prev) => {
                 const newState = { ...prev, scheduleData: mergedData };
-                // If the server told us which semester it fetched, update our selection to match
                 if (fetchedSemester && fetchedSemester !== prev.selectedSemester) {
                   newState.selectedSemester = fetchedSemester;
+                }
+                if (availableSemesters.length > 0) {
+                  newState.availableSemesters = availableSemesters;
                 }
                 return newState;
               });
@@ -147,8 +138,6 @@ export function useSchedule({
       fetchScheduleData();
       return () => { active = false; };
     } else {
-      // Data already loaded for currentDegree, or no degree to load for.
-      // Ensure loading is false if it wasn't already.
       if (isScheduleLoading) setIsScheduleLoading(false);
     }
   }, [
@@ -156,7 +145,8 @@ export function useSchedule({
     isProfileLoading,
     isCurriculumLoading,
     setAuthState,
-    scheduleState.scheduleData // Added to re-evaluate if data gets nulled externally but conditions for fetch are met
+    scheduleState.selectedSemester,
+    scheduleState.scheduleData
   ]);
 
   return { scheduleState, setScheduleState, isScheduleLoading };

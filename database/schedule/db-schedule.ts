@@ -54,3 +54,57 @@ export async function getLatestSemester(
   if (result.rows.length === 0) return null;
   return result.rows[0].semester;
 }
+
+/**
+ * Get all available semesters for a program.
+ * 
+ * @param programId - The program ID (exact or base).
+ * @returns Array of available semester codes, sorted descending.
+ */
+export async function getAvailableSemesters(
+  programId: string,
+): Promise<string[]> {
+  const result: QueryResult = await executeQuery(
+    `SELECT DISTINCT s.semester
+     FROM schedules s
+     WHERE s."programId" = $1
+        OR s."programId" LIKE ($1 || '\\_%') ESCAPE '\\'
+     ORDER BY s.semester DESC`,
+    [programId],
+  );
+
+  return result.rows.map(row => row.semester);
+}
+export function getCurrentSemesters() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1; // 1-12
+    const day = now.getDate();
+
+    let currentSem: string;
+    let prevSem: string;
+    let oldSem: string;
+
+    // Thresholds:
+    // Aug 1st (month 8, day 1) -> Start of semester 2
+    // Dec 25th (month 12, day 25) -> Start of next year's semester 1
+
+    if (month > 12 || (month === 12 && day >= 25)) {
+        // After Dec 25, current is NEXT_YEAR.1
+        currentSem = `${year + 1}1`;
+        prevSem = `${year}2`;
+        oldSem = `${year}1`;
+    } else if (month > 8 || (month === 8 && day >= 1)) {
+        // After Aug 1, current is YEAR.2
+        currentSem = `${year}2`;
+        prevSem = `${year}1`;
+        oldSem = `${year - 1}2`;
+    } else {
+        // Before Aug 1, current is YEAR.1
+        currentSem = `${year}1`;
+        prevSem = `${year - 1}2`;
+        oldSem = `${year - 1}1`;
+    }
+
+    return [currentSem, prevSem, oldSem];
+}

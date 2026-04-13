@@ -1,77 +1,53 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { getScheduleByProgramAndSemester, getLatestSemester } from "@/database/schedule/db-schedule"; // Import the new DB function
+import { getScheduleByProgramAndSemester, getLatestSemester, getAvailableSemesters } from "@/database/schedule/db-schedule";
 
 // Server-side route handler
 export async function GET(request: Request) {
   try {
-    const cookieStore = await cookies(); // Awaited!
+    const cookieStore = await cookies();
     const userId = cookieStore.get("userId")?.value;
-    // Accept currentDegree as a query parameter
     const url = new URL(request.url);
     const currentDegree = url.searchParams.get("currentDegree");
     let semester = url.searchParams.get("semester");
 
-    // Auth check removed to allow anonymous access
-    // if (!userId) { ... }
-
     if (!currentDegree) {
       return NextResponse.json(
-        { error: "Missing degree ID" }, // Changed from programId to degree ID for clarity with endpoint usage
+        { error: "Missing degree ID" },
         { status: 400 },
       );
     }
 
-    // Determine semester: Use provided, or fetch latest, or fallback
     if (!semester) {
       const latest = await getLatestSemester(currentDegree);
-      semester = latest || "20261"; // Fallback if DB empty
+      semester = latest || "20261"; 
     }
 
-    // Fetch schedule from the database
-    const schedule = await getScheduleByProgramAndSemester(
-      currentDegree,
-      semester,
-    );
+    const [schedule, availableSemesters] = await Promise.all([
+      getScheduleByProgramAndSemester(currentDegree, semester),
+      getAvailableSemesters(currentDegree)
+    ]);
 
     if (!schedule || schedule.length === 0) {
       return NextResponse.json(
-        { error: `No schedule found for degree ${currentDegree} in semester ${semester}` }, // Added semester to error message
+        { error: `No schedule found for degree ${currentDegree} in semester ${semester}` },
         { status: 404 },
       );
     }
 
-    // Structure the response properly
     const response = {
-      DATA: new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', ' -'), // Match original DATA format
-      fetchedSemester: semester, // Return the semester we actually fetched
+      DATA: new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', ' -'), 
+      fetchedSemester: semester,
+      availableSemesters: availableSemesters.length > 0 ? availableSemesters : [semester],
       [currentDegree]: schedule,
     };
 
     return NextResponse.json(response);
   } catch (error) {
-    console.error("Error fetching schedule:", error); // Log the actual error on the server
+    console.error("Error fetching schedule:", error); 
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },
     );
   }
 }
-
-// Client-side function to fetch class schedule (updated to potentially include semester parameter)
-// export async function fetchClassSchedule(currentDegree: string, semester: string = '20251'): Promise<Record<string, any> | null> {
-//   try {
-//     const response = await fetch(`/api/schedule?currentDegree=${encodeURIComponent(currentDegree)}&semester=${encodeURIComponent(semester)})`) // Added semester parameter
-
-//     if (!response.ok) {
-//       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-//       return null
-//     }
-
-//     const data = await response.json() as Record<string, any>
-
-//     return data
-//   } catch (error) {
-//     return null
-//   }
-// }
