@@ -231,6 +231,7 @@ export default function Home() {
             viewingDegreeId={curriculumState.viewingDegreeId}
             setViewingDegreeId={setViewingDegreeId}
             degreePrograms={curriculumState.degreePrograms}
+            scheduleState={scheduleState}
           />
           <div className="mt-8">
             <Timetable

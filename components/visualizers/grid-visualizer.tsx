@@ -15,6 +15,7 @@ import CourseBox from "@/components/visualizers/course-box";
 import { useStudentStore } from "@/lib/student-store";
 import { checkPrerequisites } from "@/lib/prerequisites";
 import { generateEquivalenceMap } from "@/parsers/curriculum-parser";
+import { parsescheduleData } from "@/parsers/class-parser";
 
 // config
 import { COURSE_BOX, GRID } from "@/styles/visualization";
@@ -24,6 +25,8 @@ interface GridVisualizerProps {
   curriculum: Curriculum | null; // Added curriculum prop
   highlightAvailableForPhase?: number | null;
   height?: number;
+  filterOffered?: boolean;
+  scheduleData?: any;
 }
 
 export default function GridVisualizer({
@@ -31,11 +34,20 @@ export default function GridVisualizer({
   curriculum, // Added curriculum prop
   highlightAvailableForPhase,
   height = 500,
+  filterOffered,
+  scheduleData,
 }: GridVisualizerProps) {
   const studentStore = useStudentStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [containerWidth, setContainerWidth] = useState(800);
+
+  const parsedSchedule = useMemo(() => {
+    if (scheduleData) {
+      return parsescheduleData(scheduleData);
+    }
+    return null;
+  }, [scheduleData]);
 
   // Calculate the courses and map from student info and potentially curriculum
   const { curriculumElectiveCourses, studentPlanCourseMap } = useMemo(() => {
@@ -61,7 +73,14 @@ export default function GridVisualizer({
         // Filter out placeholders
         const isPlaceholder = /^OPT\d{4}$/.test(course.id) || /^[-.]+$/.test(course.id);
 
-        if (course.type === "optional" && !isPlaceholder) {
+        let isOffered = true;
+        if (filterOffered && parsedSchedule) {
+          if (!parsedSchedule.professors[course.id]) {
+            isOffered = false;
+          }
+        }
+
+        if (course.type === "optional" && !isPlaceholder && isOffered) {
           electiveCourses.push(course);
         }
       });
@@ -72,7 +91,7 @@ export default function GridVisualizer({
       curriculumElectiveCourses: electiveCourses, // Source now includes curriculum
       studentPlanCourseMap: map,
     };
-  }, [curriculum, studentInfo]); // Dependencies include both sources
+  }, [curriculum, studentInfo, filterOffered, parsedSchedule]); // Dependencies include both sources
 
   // Detect container width
   useEffect(() => {

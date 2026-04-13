@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { StudentInfo, StudentCourse } from "@/types/student-plan";
 import { Course } from "@/types/curriculum";
 import { Curriculum } from "@/types/curriculum";
+import { Switch } from "@/components/ui/switch";
 
 import CurriculumVisualizer from "@/components/visualizers/curriculum-visualizer";
 import ProgressVisualizer from "@/components/visualizers/progress-visualizer";
@@ -23,6 +24,7 @@ interface VisualizationsProps {
   viewingDegreeId?: string | null;
   setViewingDegreeId?: (id: string) => void;
   degreePrograms?: DegreeProgram[];
+  scheduleState?: any;
 }
 
 export default function Visualizations({
@@ -31,6 +33,7 @@ export default function Visualizations({
   viewingDegreeId,
   setViewingDegreeId,
   degreePrograms = [],
+  scheduleState,
 }: VisualizationsProps) {
   const studentStore = useStudentStore();
   const { handleAddWithCheck, handleMoveWithCheck, PrereqDialog } = useAddCoursePrereq();
@@ -46,9 +49,12 @@ export default function Visualizations({
 
   // Toggle view mode between curriculum and electives
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.CURRICULUM);
-  
+
   // Highlight Phase Selection
   const [highlightAvailableForPhase, setHighlightAvailableForPhase] = useState<number | null>(null);
+
+  // Filter offered electives
+  const [filterOffered, setFilterOffered] = useState(false);
 
   const toggleView = () => {
     setViewMode(
@@ -67,7 +73,7 @@ export default function Visualizations({
   const containerHeight = 500; // Using fixed height for simplicity
 
   return (
-    <div 
+    <div
       className="flex-1 space-y-6"
       onClick={() => setHighlightAvailableForPhase(null)}
     >
@@ -113,12 +119,20 @@ export default function Visualizations({
               Disciplinas Optativas
             </h2>
           )}
-          <button
-            onClick={toggleView}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition"
-          >
-            Mostrar {viewMode === ViewMode.CURRICULUM ? "Optativas" : "Currículo"}
-          </button>
+          <div className="flex items-center gap-4">
+            {viewMode === ViewMode.ELECTIVES && scheduleState?.scheduleData && (
+              <label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
+                <Switch checked={filterOffered} onCheckedChange={setFilterOffered} />
+                Filtrar atualmente sendo ofertadas
+              </label>
+            )}
+            <button
+              onClick={toggleView}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition"
+            >
+              Mostrar {viewMode === ViewMode.CURRICULUM ? "Optativas" : "Currículo"}
+            </button>
+          </div>
         </div>
 
         <div
@@ -149,6 +163,8 @@ export default function Visualizations({
               curriculum={curriculum}
               highlightAvailableForPhase={highlightAvailableForPhase}
               height={500} // Keep fixed height for grid visualizer as it's a different view type
+              filterOffered={filterOffered}
+              scheduleData={scheduleState?.scheduleData}
             />
           )}
         </div>
