@@ -15,6 +15,80 @@ import { TranscriptUploader } from "@/components/transcript/transcript-uploader"
 import { buildStudentInfoFromTranscript } from "@/parsers/transcript-integration";
 import { parseCourses } from "@/parsers/curriculum-parser";
 
+interface ImportHistoryPopoverProps {
+  studentInfo: StudentInfo;
+  studentStore: any;
+}
+
+function ImportHistoryPopover({ studentInfo, studentStore }: ImportHistoryPopoverProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 px-4 py-2 border border-border bg-background hover:bg-accent text-foreground rounded-md transition-colors"
+      >
+        <Upload className="w-4 h-4" />
+        Importar Histórico
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-2 w-[340px] sm:w-[400px] p-6 bg-card text-card-foreground rounded-lg shadow-xl border border-border z-50 origin-top-right animate-in fade-in zoom-in duration-200">
+          <button
+            onClick={() => setIsOpen(false)}
+            className="absolute top-4 right-4 p-1 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <h2 className="text-lg font-medium mb-4">Importar Histórico</h2>
+          <TranscriptUploader
+            onParsed={async (data) => {
+              try {
+                const res = await fetch(
+                  `/api/curriculum/${studentInfo.currentDegree}`,
+                );
+                const responseText = await res.text();
+                const curriculumJson = responseText
+                  ? JSON.parse(responseText)
+                  : {};
+                const courses = parseCourses(curriculumJson.courses ?? []);
+
+                const updatedInfo = buildStudentInfoFromTranscript(
+                  data,
+                  courses,
+                  studentInfo.currentDegree,
+                  studentInfo,
+                );
+
+                studentStore.setStudentInfo(updatedInfo);
+                setIsOpen(false);
+              } catch (e) {
+                console.error("Failed to import transcript", e);
+              }
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface HeaderProps {
   studentInfo: StudentInfo;
   currentCurriculum: Curriculum | null;
@@ -43,7 +117,6 @@ export default function Header({
   // Layout State
   const [isEditingDegree, setIsEditingDegree] = useState(false);
   const [isEditingInterest, setIsEditingInterest] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
 
   const studentStore = useStudentStore();
 
@@ -320,13 +393,7 @@ export default function Header({
                   </div>
                 </div>
               </div>
-              <button
-                onClick={() => setIsImporting(true)}
-                className="flex items-center gap-2 px-4 py-2 border border-border bg-background hover:bg-accent text-foreground rounded-md transition-colors"
-              >
-                <Upload className="w-4 h-4" />
-                Importar Histórico
-              </button>
+              <ImportHistoryPopover studentInfo={studentInfo} studentStore={studentStore} />
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-2 px-4 py-2 text-red-500 hover:text-red-700 transition-colors"
@@ -344,13 +411,7 @@ export default function Header({
                 <Save className="w-4 h-4" />
                 Salvar Progresso (Registrar)
               </button>
-              <button
-                onClick={() => setIsImporting(true)}
-                className="flex items-center gap-2 px-4 py-2 border border-border bg-background hover:bg-accent text-foreground rounded-md transition-colors"
-              >
-                <Upload className="w-4 h-4" />
-                Importar Histórico
-              </button>
+              <ImportHistoryPopover studentInfo={studentInfo} studentStore={studentStore} />
               <button
                 onClick={() => (window.location.href = "/login")}
                 className="flex items-center gap-2 px-4 py-2 text-muted-foreground hover:text-foreground transition-colors"
@@ -362,43 +423,6 @@ export default function Header({
         </div>
       </div>
 
-      {isImporting && (
-        <div className="bg-card p-6 rounded-lg shadow-lg border border-border mb-8 relative">
-          <button
-            onClick={() => setIsImporting(false)}
-            className="absolute top-4 right-4 p-1 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-          <h2 className="text-lg font-medium mb-4">Importar Histórico</h2>
-          <TranscriptUploader
-            onParsed={async (data) => {
-              try {
-                const res = await fetch(
-                  `/api/curriculum/${studentInfo.currentDegree}`,
-                );
-                const responseText = await res.text();
-                const curriculumJson = responseText
-                  ? JSON.parse(responseText)
-                  : {};
-                const courses = parseCourses(curriculumJson.courses ?? []);
-
-                const updatedInfo = buildStudentInfoFromTranscript(
-                  data,
-                  courses,
-                  studentInfo.currentDegree,
-                  studentInfo,
-                );
-
-                studentStore.setStudentInfo(updatedInfo);
-                setIsImporting(false);
-              } catch (e) {
-                console.error("Failed to import transcript", e);
-              }
-            }}
-          />
-        </div>
-      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
         {/* Current Degree Card */}
