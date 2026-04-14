@@ -1,5 +1,5 @@
-import fs from 'fs';
-import path from 'path';
+import fs from "fs";
+import path from "path";
 
 // Define types
 interface CSCourse {
@@ -18,7 +18,7 @@ interface CSCurriculum {
   name: string;
   id: number;
   totalPhases: number;
-  courses: CSCourse[];
+  courses: any[];
 }
 
 interface ClassData {
@@ -37,7 +37,9 @@ async function main() {
     // 2: Output Classes JSON (e.g., generated/cs-classes-2025.json)
 
     if (args.length < 3) {
-      console.error("Usage: ts-node index.ts <curriculumJsonPath> <scheduleJsonPath> <outputJsonPath>");
+      console.error(
+        "Usage: ts-node index.ts <curriculumJsonPath> <scheduleJsonPath> <outputJsonPath>",
+      );
       process.exit(1);
     }
 
@@ -46,15 +48,19 @@ async function main() {
     const outputPath = path.resolve(args[2]);
 
     console.log(`Reading curriculum from: ${curriculumPath}`);
-    const curriculumDataRaw = fs.readFileSync(curriculumPath, 'utf8');
+    const curriculumDataRaw = fs.readFileSync(curriculumPath, "utf8");
     const curriculumData: CSCurriculum = JSON.parse(curriculumDataRaw);
 
     console.log(`Reading schedule from: ${schedulePath}`);
-    const scheduleDataRaw = fs.readFileSync(schedulePath, 'utf8');
+    const scheduleDataRaw = fs.readFileSync(schedulePath, "utf8");
     const scheduleData: ClassData = JSON.parse(scheduleDataRaw);
 
     // Create a set of CS course IDs for quick lookup
-    const courseIds = new Set(curriculumData.courses.map(course => course.id));
+    const courseIds = new Set(
+      curriculumData.courses.map((course: any) =>
+        Array.isArray(course) ? course[0] : course.id,
+      ),
+    );
 
     // Filter FLO data to only include classes for CS courses
     const filteredFLO: [string, string, any[]][] = [];
@@ -65,7 +71,9 @@ async function main() {
     // and `floData.FLO`.
 
     if (!scheduleData.FLO) {
-      console.error("Error: Input schedule JSON does not contain 'FLO' property.");
+      console.error(
+        "Error: Input schedule JSON does not contain 'FLO' property.",
+      );
       process.exit(1);
     }
 
@@ -80,17 +88,19 @@ async function main() {
 
     const filteredData = {
       DATA: scheduleData.DATA,
-      FLO: filteredFLO
+      FLO: filteredFLO,
     };
 
     fs.writeFileSync(outputPath, JSON.stringify(filteredData));
 
     console.log(`Data processing complete. Output saved to ${outputPath}`);
-    console.log(`Extracted information for ${filteredFLO.length} courses found in curriculum.`);
+    console.log(
+      `Extracted information for ${filteredFLO.length} courses found in curriculum.`,
+    );
   } catch (error) {
-    console.error('Error processing data:', error);
+    console.error("Error processing data:", error);
     process.exit(1);
   }
 }
 
-main(); 
+main();
