@@ -20,6 +20,11 @@ export const Schema = {
       description: "Curriculum ID (e.g., 203)",
       nullable: false,
     },
+    version: {
+      type: SchemaType.STRING,
+      description: "Curriculum version or semester code, usually a year and semester digit (e.g. 20071, 20241, 19911)",
+      nullable: true,
+    },
     totalPhases: {
       type: SchemaType.INTEGER,
       description: "Total number of phases, semesters, or years in the curriculum",
@@ -100,5 +105,5 @@ export const Schema = {
       },
     },
   },
-  required: ["name", "id", "department", "totalPhases", "courses"],
+  required: ["name", "id", "version", "department", "totalPhases", "courses"],
 };

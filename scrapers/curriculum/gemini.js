@@ -43,6 +43,7 @@ function compressCurriculumData(data) {
   const compressed = {
     name: data.name,
     id: data.id,
+    version: data.version,
     totalPhases: data.totalPhases,
     department: data.department,
     courses: data.courses.map((course) => [

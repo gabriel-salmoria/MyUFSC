@@ -235,13 +235,62 @@ async function updateDatabase() {
     const curriculumData = JSON.parse(
       fs.readFileSync(CURRICULUM_JSON_OUTPUT, "utf-8"),
     );
-    const programId = String(curriculumData.id);
+    let programId = path.basename(CURRICULUM_PDF, path.extname(CURRICULUM_PDF));
+    const parts = programId.split("_");
+    if (parts.length > 1) {
+      curriculumData.id = parts[0];
+      curriculumData.version = parts[1];
+    } else {
+      programId = String(curriculumData.id);
+      if (curriculumData.version) {
+        programId = `${curriculumData.id}_${curriculumData.version}`;
+      }
+    }
+
+    let pName = curriculumData.name || "";
+    const match = pName.match(/^\d+\s*-\s*(.+)$/);
+    if (match) pName = match[1];
+
+    const titleCase = (str: string) => {
+      const exceptions = ["e", "em", "da", "do", "de", "das", "dos"];
+      return str
+        .toLowerCase()
+        .split(" ")
+        .map((word: string, i: number) => {
+          if (i !== 0 && exceptions.includes(word)) return word;
+          if (word.startsWith("("))
+            return "(" + word.charAt(1).toUpperCase() + word.slice(2);
+          return word.charAt(0).toUpperCase() + word.slice(1);
+        })
+        .join(" ");
+    };
+
+    pName = titleCase(pName);
+    if (curriculumData.version) {
+      const semStr = String(curriculumData.version);
+      if (semStr.length === 5) {
+        pName = `${pName} (${semStr.substring(0, 4)}.${semStr.substring(4)})`;
+      }
+    }
+
+    logger.substep(
+      `Upserting Program (Program ID: ${programId}, Name: ${pName})`,
+    );
+    await client.query(
+      `
+            INSERT INTO programs ("id", "name")
+            VALUES ($1, $2)
+            ON CONFLICT ("id")
+            DO UPDATE SET "name" = $2;
+        `,
+      [programId, pName],
+    );
 
     logger.substep(`Upserting Curriculum (Program ID: ${programId})`);
     await client.query(
       `
-            INSERT INTO curriculums ("programId", "curriculumJson")
-            VALUES ($1, $2)
+            INSERT INTO curriculums ("programId", "curriculumJson", "testing")
+            VALUES ($1, $2, true)
             ON CONFLICT ("programId")
             DO UPDATE SET "curriculumJson" = $2;
         `,
