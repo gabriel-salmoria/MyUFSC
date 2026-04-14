@@ -40,7 +40,9 @@ async function fetchDegreePrograms(): Promise<DegreeProgram[]> {
   }
 }
 
-async function fetchCurriculumData(programId: string): Promise<Curriculum | null> {
+async function fetchCurriculumData(
+  programId: string,
+): Promise<Curriculum | null> {
   try {
     const response = await fetch(`/api/curriculum/${programId}`);
     if (!response.ok) {
@@ -70,13 +72,18 @@ export function useCurriculum({
 
   // Exposed setter that updates state
   const setViewingDegreeId = (id: string) => {
-    setCurriculumState(prev => {
+    setCurriculumState((prev) => {
       // If we have it in cache, use it immediately
       const cached = prev.curriculumsCache[id];
       return {
         ...prev,
         viewingDegreeId: id,
-        curriculum: cached ? { ...cached, courses: Array.isArray(cached.courses) ? cached.courses : [] } : prev.curriculum
+        curriculum: cached
+          ? {
+              ...cached,
+              courses: Array.isArray(cached.courses) ? cached.courses : [],
+            }
+          : prev.curriculum,
       };
     });
   };
@@ -95,7 +102,7 @@ export function useCurriculum({
         currentCurriculum: null,
         degreePrograms: [],
         viewingDegreeId: null,
-        curriculumsCache: {}
+        curriculumsCache: {},
       });
       fetchedForDegreeRef.current = null;
       return;
@@ -114,10 +121,14 @@ export function useCurriculum({
 
         const migrate = (id: string) => {
           if (!id) return id;
-          if (programs.some(p => p.id === id)) return id; // Already valid
-          // Find one that starts with id + "_"
-          const match = programs.find(p => p.id.startsWith(id + "_"));
-          return match ? match.id : id;
+          if (programs.some((p) => p.id === id)) return id; // Already valid
+          // Find all that start with id + "_" and pick the one with the highest id
+          const matches = programs.filter((p) => p.id.startsWith(id + "_"));
+          if (matches.length > 0) {
+            matches.sort((a, b) => b.id.localeCompare(a.id));
+            return matches[0].id;
+          }
+          return id;
         };
 
         const migratedCurrent = migrate(currentDegree);
@@ -137,29 +148,29 @@ export function useCurriculum({
           setStudentInfo({
             ...studentInfo,
             currentDegree,
-            interestedDegrees
+            interestedDegrees,
           });
           // Wait for the hook to re-run with the updated store data
           // But we can also set the program list so it's cached
-          setCurriculumState(prev => ({ ...prev, degreePrograms: programs }));
+          setCurriculumState((prev) => ({ ...prev, degreePrograms: programs }));
           return;
         }
 
         // Determine all degrees to fetch
         const distinctDegrees = new Set<string>([currentDegree]);
-        interestedDegrees.forEach(d => distinctDegrees.add(d));
+        interestedDegrees.forEach((d) => distinctDegrees.add(d));
         const degreesToFetch = Array.from(distinctDegrees).sort();
         const degreesSignature = degreesToFetch.join(",");
 
         // Check if we need to fetch (signature changed)
         if (degreesSignature === fetchedForDegreeRef.current) {
-            setIsCurriculumLoading(false);
-            setCurriculumState(prev => ({ ...prev, degreePrograms: programs }));
-            return;
+          setIsCurriculumLoading(false);
+          setCurriculumState((prev) => ({ ...prev, degreePrograms: programs }));
+          return;
         }
 
         // Set cookie for server-side prefetching
-        if (typeof document !== 'undefined') {
+        if (typeof document !== "undefined") {
           document.cookie = `ufsc_prefetch_degrees=${degreesSignature}; path=/; max-age=31536000; SameSite=Lax`;
         }
 
@@ -167,7 +178,7 @@ export function useCurriculum({
         if (isInitialLoad) {
           setIsCurriculumLoading(true);
         }
-        
+
         fetchedForDegreeRef.current = degreesSignature;
 
         // Fetch all curriculums in parallel
@@ -181,7 +192,7 @@ export function useCurriculum({
             }
             const curr = await fetchCurriculumData(degreeId);
             return { degreeId, curr };
-          })
+          }),
         );
 
         const newCache: Record<string, Curriculum> = {};
@@ -190,21 +201,24 @@ export function useCurriculum({
         curriculumsResults.forEach((result) => {
           const { degreeId } = result;
 
-          if ('cachedCourses' in result && result.cachedCourses) {
-            const maxPhase = result.cachedCourses.reduce((max, c) => Math.max(max, c.phase || 0), 0);
+          if ("cachedCourses" in result && result.cachedCourses) {
+            const maxPhase = result.cachedCourses.reduce(
+              (max, c) => Math.max(max, c.phase || 0),
+              0,
+            );
             const reconstructed: Curriculum = {
               id: degreeId,
-              name: "", 
-              department: "", 
-              totalPhases: maxPhase || 8, 
-              courses: result.cachedCourses as any 
+              name: "",
+              department: "",
+              totalPhases: maxPhase || 8,
+              courses: result.cachedCourses as any,
             };
             newCache[degreeId] = reconstructed;
 
             if (degreeId === currentDegree) {
               currentCurrParsed = reconstructed;
             }
-          } else if ('curr' in result && result.curr) {
+          } else if ("curr" in result && result.curr) {
             const curr = result.curr;
             newCache[degreeId] = curr;
             if (curr.courses) {
@@ -226,18 +240,31 @@ export function useCurriculum({
 
         const viewingCurr = newCache[targetDegree] || null;
 
-        const processedViewing = viewingCurr ? { ...viewingCurr, courses: Array.isArray(viewingCurr.courses) ? viewingCurr.courses : [] } : null;
-        const processedCurrent = currentCurrParsed ? { ...currentCurrParsed, courses: Array.isArray(currentCurrParsed.courses) ? currentCurrParsed.courses : [] } : null;
+        const processedViewing = viewingCurr
+          ? {
+              ...viewingCurr,
+              courses: Array.isArray(viewingCurr.courses)
+                ? viewingCurr.courses
+                : [],
+            }
+          : null;
+        const processedCurrent = currentCurrParsed
+          ? {
+              ...currentCurrParsed,
+              courses: Array.isArray(currentCurrParsed.courses)
+                ? currentCurrParsed.courses
+                : [],
+            }
+          : null;
 
-        setCurriculumState(prev => ({
+        setCurriculumState((prev) => ({
           ...prev,
           degreePrograms: programs,
           curriculumsCache: { ...prev.curriculumsCache, ...newCache },
           currentCurriculum: processedCurrent || prev.currentCurriculum,
           curriculum: processedViewing || prev.curriculum,
-          viewingDegreeId: targetDegree
+          viewingDegreeId: targetDegree,
         }));
-
       } catch (err) {
         console.error("Failed to load data", err);
       } finally {
@@ -246,8 +273,15 @@ export function useCurriculum({
     };
 
     loadData();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [studentInfo, isProfileLoading]);
 
-  return { curriculumState, setCurriculumState, isCurriculumLoading, setViewingDegreeId };
+  return {
+    curriculumState,
+    setCurriculumState,
+    isCurriculumLoading,
+    setViewingDegreeId,
+  };
 }

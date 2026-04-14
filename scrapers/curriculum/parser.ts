@@ -31,9 +31,9 @@ export function parsePDF(pdfPath: string) {
   let currentPhase: number | null = 0;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    const phaseMatch = line.match(/Fase\s+(\d+)/i);
+    const phaseMatch = line.match(/Fase\s+(\d+)|(\d+)[ªaºo]?\s*Fase/i);
     if (phaseMatch) {
-      currentPhase = parseInt(phaseMatch[1]);
+      currentPhase = parseInt(phaseMatch[1] || phaseMatch[2]);
       if (currentPhase > result.totalPhases) {
         result.totalPhases = currentPhase;
       }
@@ -48,9 +48,14 @@ export function parsePDF(pdfPath: string) {
       // Avoid matching random things that look like Op
       if (courseStartMatch[3].includes("Total")) continue;
 
+      let phase = currentPhase;
+      if (courseStartMatch[4] === "Op") {
+        phase = null;
+      }
+
       courseLines.push({
         index: i,
-        phase: currentPhase,
+        phase: phase,
         id: courseStartMatch[2],
         nameStr: courseStartMatch[3].trim(),
         type: courseStartMatch[4],
@@ -75,7 +80,7 @@ export function parsePDF(pdfPath: string) {
       const nextLine = lines[k];
       if (
         nextLine.trim() === "" ||
-        nextLine.match(/Fase\s+\d+/) ||
+        nextLine.match(/Fase\s+\d+|(\d+)[ªaºo]?\s*Fase/i) ||
         nextLine.includes("Disciplina")
       ) {
         break; // Stop at empty lines or section headers
@@ -139,7 +144,7 @@ export function parsePDF(pdfPath: string) {
       // Ignoring all noise from headers, footers, pagination, and tables
       if (
         !line ||
-        line.match(/Fase\s+\d+/) ||
+        line.match(/Fase\s+\d+|(\d+)[ªaºo]?\s*Fase/i) ||
         (line.includes("Disciplina") && line.includes("Tipo")) ||
         lower.includes("página:") ||
         lower.includes("currículo do curso") ||
@@ -183,6 +188,13 @@ export function parsePDF(pdfPath: string) {
       course.phase,
     ]);
   }
+
+  // Fix Ob courses appearing after Op courses by stable sorting
+  result.courses.sort((a, b) => {
+    if (a.isMandatory && !b.isMandatory) return -1;
+    if (!a.isMandatory && b.isMandatory) return 1;
+    return 0;
+  });
 
   return result;
 }
