@@ -1,4 +1,4 @@
-import { parsePDF } from "../scrapers/curriculum/parser.js";
+import { parsePDF } from "../../scrapers/curriculum/parser.js";
 const res = parsePDF("data/pdfs/done/208_19961.pdf");
 const coursesInPhase8 = res.courses.filter(c => c[8] === 8);
 console.log(`Courses in phase 8: ${coursesInPhase8.length}`);

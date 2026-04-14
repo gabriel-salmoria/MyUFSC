@@ -86,11 +86,15 @@ export function buildStudentInfoFromTranscript(
       return matchedCourse;
     }
 
+    const missingInfo = transcript.missingCourseInfo?.[pc.code];
+
     return {
       id: pc.code,
-      name: pc.code,
-      credits: 0,
-      phase: 0,
+      name: missingInfo?.name || pc.code,
+      credits: missingInfo?.credits || 0,
+      workload: missingInfo?.workload || 0,
+      description: missingInfo?.description || "",
+      phase: missingInfo?.phase || 0,
       type: pc.type === "mandatory" ? "mandatory" : "optional",
     };
   };
@@ -199,6 +203,12 @@ export function buildStudentInfoFromTranscript(
     return {
       ...existingInfo,
       name: transcript.studentName || existingInfo.name,
+      interestedDegrees: Array.from(
+        new Set([
+          ...(existingInfo.interestedDegrees || []),
+          ...(transcript.interestedDegrees || []),
+        ]),
+      ),
       plans: newPlans,
     };
   }
@@ -216,7 +226,12 @@ export function buildStudentInfoFromTranscript(
   return {
     name: transcript.studentName ?? "Estudante",
     currentDegree: degreeId,
-    interestedDegrees: existingInfo?.interestedDegrees || [],
+    interestedDegrees: Array.from(
+      new Set([
+        ...(existingInfo?.interestedDegrees || []),
+        ...(transcript.interestedDegrees || []),
+      ]),
+    ),
     currentPlan: 0,
     currentSemester: "1",
     plans: [plan],

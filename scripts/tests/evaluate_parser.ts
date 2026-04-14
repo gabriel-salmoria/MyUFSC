@@ -1,4 +1,4 @@
-import { parsePDF } from "../scrapers/curriculum/parser.js";
+import { parsePDF } from "../../scrapers/curriculum/parser.js";
 import fs from "fs";
 import path from "path";
 

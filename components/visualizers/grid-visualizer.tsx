@@ -71,7 +71,8 @@ export default function GridVisualizer({
     if (curriculum && curriculum.courses) {
       curriculum.courses.forEach((course) => {
         // Filter out placeholders
-        const isPlaceholder = /^OPT\d{4}$/.test(course.id) || /^[-.]+$/.test(course.id);
+        const isPlaceholder =
+          /^OPT\d{4}$/.test(course.id) || /^[-.]+$/.test(course.id);
 
         let isOffered = true;
         if (filterOffered && parsedSchedule) {
@@ -114,7 +115,7 @@ export default function GridVisualizer({
   const { boxWidth, columns } = useMemo(() => {
     const maxPossibleColumns = Math.floor(
       (containerWidth - GRID.PADDING * 2) /
-      (COURSE_BOX.MIN_WIDTH + COURSE_BOX.MARGIN),
+        (COURSE_BOX.MIN_WIDTH + COURSE_BOX.MARGIN),
     );
     const optimalColumns = Math.max(
       GRID.MIN_COLUMNS,
@@ -164,10 +165,7 @@ export default function GridVisualizer({
   }, [totalRows, columns]); // Added columns to dependencies as totalRows depends on it
 
   return (
-    <div
-      className="flex flex-col w-full"
-      style={{ height: `${height}px` }}
-    >
+    <div className="flex flex-col w-full" style={{ height: `${height}px` }}>
       <div
         className="relative flex-1 overflow-auto bg-background"
         ref={containerRef}
@@ -181,9 +179,10 @@ export default function GridVisualizer({
           }}
         >
           {/* Highlight Overlay */}
-          {highlightAvailableForPhase !== undefined && highlightAvailableForPhase !== null && (
-            <div className="absolute inset-0 bg-background/80 z-[5] transition-opacity duration-300 pointer-events-none backdrop-blur-[1px]" />
-          )}
+          {highlightAvailableForPhase !== undefined &&
+            highlightAvailableForPhase !== null && (
+              <div className="absolute inset-0 bg-background/80 z-[5] transition-opacity duration-300 pointer-events-none backdrop-blur-[1px]" />
+            )}
 
           {/* Grid of courses */}
           {positions.map((position) => {
@@ -201,28 +200,45 @@ export default function GridVisualizer({
             let _isHighlighted = false;
             let _unavailableDimm = false;
 
-            if (highlightAvailableForPhase !== undefined && highlightAvailableForPhase !== null) {
-              const isAlreadyDoneOrPlanned = studentCourseFromPlan && studentCourseFromPlan.status !== CourseStatus.DEFAULT;
+            if (
+              highlightAvailableForPhase !== undefined &&
+              highlightAvailableForPhase !== null
+            ) {
+              const isAlreadyDoneOrPlanned =
+                studentCourseFromPlan &&
+                studentCourseFromPlan.status !== CourseStatus.DEFAULT;
               if (isAlreadyDoneOrPlanned) {
                 _unavailableDimm = true;
               } else {
-                const equivalenceMap = generateEquivalenceMap(curriculum?.courses || []);
-                const { satisfied } = checkPrerequisites(electiveCourse, highlightAvailableForPhase, studentStore.studentInfo, equivalenceMap);
+                const equivalenceMap = generateEquivalenceMap(
+                  curriculum?.courses || [],
+                );
+                const { satisfied } = checkPrerequisites(
+                  electiveCourse,
+                  highlightAvailableForPhase,
+                  studentStore.studentInfo,
+                  equivalenceMap,
+                );
                 _isHighlighted = satisfied;
                 _unavailableDimm = !satisfied;
               }
             }
 
-            const studentCourse: StudentCourse = studentCourseFromPlan || {
-              course: electiveCourse,
-              status: CourseStatus.DEFAULT,
-            };
+            const studentCourse: StudentCourse = studentCourseFromPlan
+              ? {
+                  ...studentCourseFromPlan,
+                  course: electiveCourse,
+                }
+              : {
+                  course: electiveCourse,
+                  status: CourseStatus.DEFAULT,
+                };
 
             // inject visual props that won't go to backend
             const propsInjectedStudentCourse = {
-               ...studentCourse,
-               _isHighlighted,
-               _unavailableDimm
+              ...studentCourse,
+              _isHighlighted,
+              _unavailableDimm,
             };
 
             return (

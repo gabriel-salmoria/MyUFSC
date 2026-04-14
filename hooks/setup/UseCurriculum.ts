@@ -196,7 +196,6 @@ export function useCurriculum({
         );
 
         const newCache: Record<string, Curriculum> = {};
-        let currentCurrParsed: Curriculum | null = null;
 
         curriculumsResults.forEach((result) => {
           const { degreeId } = result;
@@ -214,20 +213,12 @@ export function useCurriculum({
               courses: result.cachedCourses as any,
             };
             newCache[degreeId] = reconstructed;
-
-            if (degreeId === currentDegree) {
-              currentCurrParsed = reconstructed;
-            }
           } else if ("curr" in result && result.curr) {
             const curr = result.curr;
             newCache[degreeId] = curr;
             if (curr.courses) {
               const parsed = parseCourses(curr.courses);
               cacheCurriculum(degreeId, parsed);
-            }
-
-            if (degreeId === currentDegree) {
-              currentCurrParsed = curr;
             }
           }
         });
@@ -239,6 +230,7 @@ export function useCurriculum({
         }
 
         const viewingCurr = newCache[targetDegree] || null;
+        const currentCurr = newCache[currentDegree] || null;
 
         const processedViewing = viewingCurr
           ? {
@@ -248,11 +240,11 @@ export function useCurriculum({
                 : [],
             }
           : null;
-        const processedCurrent = currentCurrParsed
+        const processedCurrent = currentCurr
           ? {
-              ...currentCurrParsed,
-              courses: Array.isArray(currentCurrParsed.courses)
-                ? currentCurrParsed.courses
+              ...currentCurr,
+              courses: Array.isArray(currentCurr.courses)
+                ? currentCurr.courses
                 : [],
             }
           : null;

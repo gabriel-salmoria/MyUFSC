@@ -11,10 +11,22 @@ export interface ParsedCourse {
 
 export interface TranscriptData {
   studentName?: string;
-  courseCode?: string; // degree program code (e.g. "208")
-  courseName?: string; // degree program name (e.g. "CIÊNCIAS DA COMPUTAÇÃO")
+  courseCode?: string;
+  courseName?: string; // degree program code (e.g. "208")
   curriculumId?: string; // curriculum id (e.g. "20071")
-  completed: ParsedCourse[]; // cursadas
+  interestedDegrees?: string[]; // additional degrees mapped from taken courses
+  missingCourseInfo?: Record<
+    string,
+    {
+      name: string;
+      credits: number;
+      workload?: number;
+      description?: string;
+      phase?: number;
+    }
+  >;
+
+  completed: ParsedCourse[];
   inProgress: ParsedCourse[]; // andamento
   exempted: ParsedCourse[]; // dispensadas / equivalencias
 }
@@ -120,7 +132,6 @@ function extractSinteseFormat(
   exempted: ParsedCourse[],
   seen: Set<string>,
 ) {
-
   const semesterPattern = /Semestre\s*(\d{4}\/\d)/gi;
 
   const semesterPositions: { pos: number; semester: string }[] = [];
@@ -141,16 +152,17 @@ function extractSinteseFormat(
   // 1) Primary Pattern: Matches the visual order of "Historico Sintese"
   // e.g. "MTM3131 Equacoes Diferenciais Ordinarias 8.5 72 FS Ob"
   // This is much safer as it anchors from the Course Code and reads forward.
-  const linePattern = /([A-Z]{2,4}\d{4}).*?(10\.0|[0-9]\.[0-9]{1,2})\s*(?:\d+\s+)?(FS|FI)\s*(Ob|Op|Ex)/gi;
+  const linePattern =
+    /([A-Z]{2,4}\d{4}).*?(10\.0|[0-9]\.[0-9]{1,2})\s*(?:\d+\s+)?(FS|FI)\s*(Ob|Op|Ex)/gi;
   let match: RegExpExecArray | null;
   while ((match = linePattern.exec(text)) !== null) {
     const code = match[1].toUpperCase();
     if (seen.has(code)) continue;
-    
+
     const gradeMatch = match[2];
     let grade = parseFloat(gradeMatch);
     if (grade > 10) grade = 10;
-    
+
     const freq = match[3];
     const tipo = match[4];
     seen.add(code);
@@ -167,12 +179,13 @@ function extractSinteseFormat(
 
   // 2) Fallback Pattern: Matches pdf-parse anomalies where the order is inverted or concatenated
   // e.g. "8.5 72 FS Ob MTM3131"
-  const coursePattern = /(10\.0|[0-9]\.[0-9]{1,2})\s*(?:\d+\s+)?(FS|FI)\s*(Ob|Op|Ex)\s*([A-Z]{2,4}\d{4})/g;
+  const coursePattern =
+    /(10\.0|[0-9]\.[0-9]{1,2})\s*(?:\d+\s+)?(FS|FI)\s*(Ob|Op|Ex)\s*([A-Z]{2,4}\d{4})/g;
   while ((match = coursePattern.exec(text)) !== null) {
     const gradeMatch = match[1];
     let grade = parseFloat(gradeMatch);
-    if(grade > 10) grade = 10; // Failsafe
-    
+    if (grade > 10) grade = 10; // Failsafe
+
     const freq = match[2];
     const tipo = match[3];
     const code = match[4];
@@ -250,7 +263,7 @@ function extractControleCurricularFormat(
         const gradeMatch = gradePattern.exec(block);
         if (gradeMatch) {
           let grade = parseFloat(gradeMatch[2]);
-          if(grade > 10) grade = 10;
+          if (grade > 10) grade = 10;
           completed.push({
             code,
             type,

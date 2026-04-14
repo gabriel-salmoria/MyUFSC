@@ -132,9 +132,8 @@ export default function RegisterPage() {
           if (res.ok) {
             const responseText = await res.text();
             const curriculumJson = responseText ? JSON.parse(responseText) : {};
-            const { parseCourses } = await import(
-              "@/parsers/curriculum-parser"
-            );
+            const { parseCourses } =
+              await import("@/parsers/curriculum-parser");
             const courses = parseCourses(curriculumJson.courses ?? []);
             const parsedStudentInfo = buildStudentInfoFromTranscript(
               transcriptData,
@@ -311,18 +310,48 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Student Information Section */}
           <FormSection title="Informações do Estudante">
-            <TranscriptUploader
-              optional
-              bordered
-              onParsed={(data) => {
-                setTranscriptData(data);
-                setFormData((prev) => ({
-                  ...prev,
-                  name: data.studentName || prev.name,
-                  currentDegree: data.courseCode || prev.currentDegree,
-                }));
-              }}
-            />
+            {studentStore.studentInfo?.plans?.some((plan) =>
+              plan.semesters?.some(
+                (sem) => sem.courses && sem.courses.length > 0,
+              ),
+            ) ? (
+              <div className="mb-6 p-4 border border-green-500/20 bg-green-500/10 rounded-lg flex items-center gap-3 text-green-600 dark:text-green-400">
+                <div className="bg-green-500/20 p-2 rounded-full">
+                  <CheckIcon className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Histórico Importado</p>
+                  <p className="text-xs opacity-80">
+                    Seu progresso atual será salvo nesta conta.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <TranscriptUploader
+                optional
+                bordered
+                onParsed={(data) => {
+                  setTranscriptData(data);
+                  setFormData((prev) => ({
+                    ...prev,
+                    name: data.studentName || prev.name,
+                    currentDegree: data.courseCode
+                      ? data.curriculumId
+                        ? `${data.courseCode}_${data.curriculumId}`
+                        : data.courseCode
+                      : prev.currentDegree,
+                    interestedDegrees: data.interestedDegrees
+                      ? Array.from(
+                          new Set([
+                            ...(prev.interestedDegrees || []),
+                            ...data.interestedDegrees,
+                          ]),
+                        )
+                      : prev.interestedDegrees || [],
+                  }));
+                }}
+              />
+            )}
 
             <FormField
               label="Nome Completo"

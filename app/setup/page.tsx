@@ -253,7 +253,16 @@ export default function SetupPage() {
             onParsed={(data) => {
               setTranscriptData(data);
               if (data.courseCode) {
-                setCurrentDegree(data.courseCode);
+                setCurrentDegree(
+                  data.curriculumId
+                    ? `${data.courseCode}_${data.curriculumId}`
+                    : data.courseCode,
+                );
+              }
+              if (data.interestedDegrees && data.interestedDegrees.length > 0) {
+                setInterestedDegrees((prev) =>
+                  Array.from(new Set([...prev, ...data.interestedDegrees!])),
+                );
               }
             }}
           />
@@ -261,6 +270,7 @@ export default function SetupPage() {
           <button
             onClick={handleStart}
             disabled={!currentDegree}
+            suppressHydrationWarning
             className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition disabled:opacity-50"
           >
             {transcriptData ? "Importar e Começar" : "Começar"}
