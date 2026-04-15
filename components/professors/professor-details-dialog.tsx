@@ -16,6 +16,7 @@ import {
   submitVote,
   updateReview,
   deleteReview,
+  updateReply,
 } from "@/lib/professors-client";
 import { getAnonymousUserId } from "@/lib/user-identity";
 import {
@@ -24,18 +25,32 @@ import {
   Star,
   Reply,
   BookOpen,
-  Activity,
+  Brain,
   ThumbsUp,
   ThumbsDown,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface ProfessorDetailsDialogProps {
   taughtCourses?: string[];
   professorId: string | null;
   onClose: () => void;
   onWriteReview?: (professorId: string, courseId: string) => void;
+  onReviewChanged?: () => void;
 }
 
 interface Review {
@@ -166,12 +181,19 @@ function CommentCard({
   onReply,
   onEdit,
   onDelete,
+  isEditing,
+  editValue,
+  onEditChange,
+  onEditSave,
+  onEditCancel,
   isReplyOpen,
   replyText,
   onReplyTextChange,
   onReplySubmit,
   onReplyCancel,
   isAuthenticated,
+  isCollapsed,
+  onToggleCollapse,
 }: {
   id: string;
   pseudonym?: string;
@@ -187,6 +209,11 @@ function CommentCard({
   onReply: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  isEditing?: boolean;
+  editValue?: string;
+  onEditChange?: (v: string) => void;
+  onEditSave?: () => void;
+  onEditCancel?: () => void;
   isReplyOpen: boolean;
   replyText: string;
   onReplyTextChange: (v: string) => void;
@@ -194,27 +221,46 @@ function CommentCard({
   onReplyCancel: () => void;
   isAuthenticated: boolean;
   updatedAt?: string;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }) {
+  const isDeleted = text === "[removido]";
   return (
     <div
       className={`border rounded-xl ${isMe ? "bg-primary/5 border-primary/30" : "bg-card"}`}
     >
       <div className="flex gap-3 p-4">
         {/* Vote sidebar */}
-        <VoteSidebar
-          id={id}
-          upvotes={upvotes}
-          downvotes={downvotes}
-          voteState={voteState}
-          onVote={onVote}
-          disabled={false}
-        />
+        {!isDeleted ? (
+          <VoteSidebar
+            upvotes={upvotes}
+            downvotes={downvotes}
+            voteState={voteState}
+            onVote={onVote}
+            disabled={false}
+          />
+        ) : (
+          <div className="w-[32px]" />
+        )}
 
         {/* Content */}
         <div className="flex-1 min-w-0">
           {/* Row 1: name + date */}
           <div className="flex items-center justify-between gap-2 w-full mb-1">
             <div className="flex items-center gap-1.5 min-w-0">
+              {onToggleCollapse && (
+                <button
+                  type="button"
+                  onClick={onToggleCollapse}
+                  className="p-0.5 hover:bg-muted rounded text-muted-foreground mr-0.5"
+                >
+                  {isCollapsed ? (
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              )}
               <span className="text-base shrink-0">
                 {getEmojiForPseudonym(pseudonym)}
               </span>
@@ -228,7 +274,7 @@ function CommentCard({
               )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              {onEdit && (
+              {!isDeleted && onEdit && (
                 <button
                   type="button"
                   className="text-xs text-muted-foreground hover:text-foreground underline"
@@ -237,85 +283,140 @@ function CommentCard({
                   editar
                 </button>
               )}
-              {onDelete && (
-                <button
-                  type="button"
-                  className="text-xs text-red-500/70 hover:text-red-500 underline ml-1"
-                  onClick={onDelete}
-                >
-                  excluir
-                </button>
+              {!isDeleted && onDelete && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button
+                      type="button"
+                      className="text-xs text-red-500/70 hover:text-red-500 underline ml-1"
+                    >
+                      excluir
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        Tem certeza que deseja excluir?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Esta ação não pode ser desfeita.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={onDelete}
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                      >
+                        Excluir
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               )}
               <span className="text-[10px] text-muted-foreground/70 text-right">
-                {updatedAt
+                {updatedAt && !isDeleted
                   ? `Editado em ${new Date(updatedAt).toLocaleDateString("pt-BR")}`
                   : new Date(date).toLocaleDateString("pt-BR")}
               </span>
             </div>
           </div>
 
-          {/* Row 2: course badge + scores (optional) */}
-          {(courseName || scores) && (
-            <div className="flex items-center gap-2 mb-2 flex-wrap">
-              {courseName && (
-                <Badge
-                  variant="outline"
-                  className="text-[10px] px-1.5 py-0 h-4"
+          {!isCollapsed && (
+            <>
+              {/* Row 2: course badge + scores (optional) */}
+              {(courseName || scores) && (
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  {courseName && (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] px-1.5 py-0 h-4"
+                    >
+                      {courseName}
+                    </Badge>
+                  )}
+                  {scores && (
+                    <div className="flex gap-2 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-0.5 text-yellow-600 font-medium">
+                        <Star className="w-2.5 h-2.5 fill-current" />{" "}
+                        {scores.overall}
+                      </span>
+                      <span className="flex items-center gap-0.5">
+                        <Brain className="w-2.5 h-2.5 text-red-400" />{" "}
+                        {scores.difficulty}
+                      </span>
+                      <span className="flex items-center gap-0.5">
+                        <BookOpen className="w-2.5 h-2.5 text-blue-400" />{" "}
+                        {scores.didactics}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {isEditing ? (
+                <div className="mt-2 space-y-2">
+                  <Textarea
+                    value={editValue}
+                    onChange={(e) => onEditChange?.(e.target.value)}
+                    className="text-sm min-h-[60px] bg-background resize-none w-full"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button size="sm" variant="ghost" onClick={onEditCancel}>
+                      Cancelar
+                    </Button>
+                    <Button size="sm" onClick={onEditSave}>
+                      Salvar
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p
+                  className={`text-sm leading-relaxed ${isDeleted ? "text-muted-foreground italic" : "text-card-foreground"}`}
                 >
-                  {courseName}
-                </Badge>
+                  {text}
+                </p>
               )}
-              {scores && (
-                <div className="flex gap-2 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-0.5 text-yellow-600 font-medium">
-                    <Star className="w-2.5 h-2.5 fill-current" />{" "}
-                    {scores.overall}
-                  </span>
-                  <span>⚡ {scores.difficulty}</span>
-                  <span>📖 {scores.didactics}</span>
-                </div>
+
+              {!isDeleted && !isEditing && (
+                <button
+                  type="button"
+                  onClick={onReply}
+                  className="mt-2 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                >
+                  <Reply className="w-3 h-3" /> Responder
+                </button>
               )}
-            </div>
+
+              {/* Inline reply form */}
+              <AnimatePresence>
+                {isReplyOpen && (
+                  <motion.div
+                    key="reply-form"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    <Textarea
+                      placeholder="Escreva sua resposta..."
+                      value={replyText}
+                      onChange={(e) => onReplyTextChange(e.target.value)}
+                      className="text-sm min-h-[60px] bg-background resize-none w-full"
+                    />
+                    <div className="mt-2 flex justify-end gap-2">
+                      <Button size="sm" variant="ghost" onClick={onReplyCancel}>
+                        Cancelar
+                      </Button>
+                      <Button size="sm" onClick={onReplySubmit}>
+                        Responder
+                      </Button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </>
           )}
-
-          <p className="text-sm text-card-foreground leading-relaxed">{text}</p>
-
-          <button
-            type="button"
-            onClick={onReply}
-            className="mt-2 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
-          >
-            <Reply className="w-3 h-3" /> Responder
-          </button>
-
-          {/* Inline reply form */}
-          <AnimatePresence>
-            {isReplyOpen && (
-              <motion.div
-                key="reply-form"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="mt-3 space-y-2"
-              >
-                <Textarea
-                  placeholder="Escreva sua resposta..."
-                  value={replyText}
-                  onChange={(e) => onReplyTextChange(e.target.value)}
-                  className="text-sm min-h-[60px] bg-background resize-none w-full"
-                />
-                <div className="flex justify-end gap-2">
-                  <Button size="sm" variant="ghost" onClick={onReplyCancel}>
-                    Cancelar
-                  </Button>
-                  <Button size="sm" onClick={onReplySubmit}>
-                    Responder
-                  </Button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
       </div>
     </div>
@@ -379,6 +480,13 @@ function ReplyThread({
   setReplyText,
   handleReplySubmit,
   handleDelete,
+  editingReply,
+  setEditingReply,
+  editReplyText,
+  setEditReplyText,
+  handleEditReplySubmit,
+  collapsedThreads,
+  toggleCollapse,
   depth = 0,
   isAuthenticated,
 }: {
@@ -393,6 +501,13 @@ function ReplyThread({
   setReplyText: (text: string) => void;
   handleReplySubmit: (id: string) => void;
   handleDelete: (id: string) => void;
+  editingReply: string | null;
+  setEditingReply: (id: string | null) => void;
+  editReplyText: string;
+  setEditReplyText: (text: string) => void;
+  handleEditReplySubmit: (id: string) => void;
+  collapsedThreads: Set<string>;
+  toggleCollapse: (id: string) => void;
   depth?: number;
   isAuthenticated: boolean;
 }) {
@@ -418,6 +533,8 @@ function ReplyThread({
               id={reply.id}
               pseudonym={reply.pseudonym}
               isMe={reply.authorHash === myHash}
+              isCollapsed={collapsedThreads.has(reply.id)}
+              onToggleCollapse={() => toggleCollapse(reply.id)}
               date={reply.createdAt}
               updatedAt={reply.updatedAt}
               text={reply.text}
@@ -442,22 +559,44 @@ function ReplyThread({
                   ? () => handleDelete(reply.id)
                   : undefined
               }
+              onEdit={
+                reply.authorHash === myHash
+                  ? () => {
+                      setEditingReply(reply.id);
+                      setEditReplyText(reply.text);
+                    }
+                  : undefined
+              }
+              isEditing={editingReply === reply.id}
+              editValue={editReplyText}
+              onEditChange={setEditReplyText}
+              onEditSave={() => handleEditReplySubmit(reply.id)}
+              onEditCancel={() => setEditingReply(null)}
             />
-            <ReplyThread
-              replies={replies}
-              parentId={reply.id}
-              myHash={myHash}
-              voteState={voteState}
-              handleVote={handleVote}
-              replyingTo={replyingTo}
-              setReplyingTo={setReplyingTo}
-              replyText={replyText}
-              setReplyText={setReplyText}
-              handleReplySubmit={handleReplySubmit}
-              handleDelete={handleDelete}
-              depth={depth + 1}
-              isAuthenticated={isAuthenticated}
-            />
+            {!collapsedThreads.has(reply.id) && (
+              <ReplyThread
+                replies={replies}
+                parentId={reply.id}
+                myHash={myHash}
+                voteState={voteState}
+                handleVote={handleVote}
+                replyingTo={replyingTo}
+                setReplyingTo={setReplyingTo}
+                replyText={replyText}
+                setReplyText={setReplyText}
+                handleReplySubmit={handleReplySubmit}
+                handleDelete={handleDelete}
+                editingReply={editingReply}
+                setEditingReply={setEditingReply}
+                editReplyText={editReplyText}
+                setEditReplyText={setEditReplyText}
+                handleEditReplySubmit={handleEditReplySubmit}
+                collapsedThreads={collapsedThreads}
+                toggleCollapse={toggleCollapse}
+                depth={depth + 1}
+                isAuthenticated={isAuthenticated}
+              />
+            )}
           </motion.div>
         ))}
       </AnimatePresence>
@@ -469,10 +608,12 @@ function ProfessorDetailsSection({
   professorId,
   taughtCourses,
   onWriteReview,
+  onReviewChanged,
 }: {
   professorId: string;
   taughtCourses?: string[];
   onWriteReview?: (professorId: string, courseId: string) => void;
+  onReviewChanged?: () => void;
 }) {
   const { userId, isAuthenticated } = useStudentStore();
   const [loading, setLoading] = useState(false);
@@ -496,6 +637,19 @@ function ProfessorDetailsSection({
 
   const [replyText, setReplyText] = useState("");
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [editingReply, setEditingReply] = useState<string | null>(null);
+  const [editReplyText, setEditReplyText] = useState("");
+  const [collapsedThreads, setCollapsedThreads] = useState<Set<string>>(
+    new Set(),
+  );
+  const toggleCollapse = useCallback((id: string) => {
+    setCollapsedThreads((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
   // Local vote overrides: reviewId → { upvotes, downvotes, myVote }
   const [voteState, setVoteState] = useState<
     Record<string, { upvotes: number; downvotes: number; myVote: 1 | -1 | 0 }>
@@ -639,15 +793,33 @@ function ProfessorDetailsSection({
   }, [professorId, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDeleteReview = async (reviewId: string) => {
-    if (!confirm("Tem certeza que deseja excluir esta avaliação?")) return;
     try {
       const myHash = getAnonymousUserId(userId);
       await deleteReview(reviewId, myHash);
       toast({ title: "Avaliação excluída" });
       setRefreshKey((k) => k + 1);
+      onReviewChanged?.();
     } catch (err: any) {
       toast({
         title: "Erro ao excluir",
+        description: err.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditReplySubmit = async (replyId: string) => {
+    if (!editReplyText.trim()) return;
+    try {
+      const authorHash = getAnonymousUserId(userId);
+      await updateReply(replyId, authorHash, editReplyText);
+      setEditingReply(null);
+      setEditReplyText("");
+      toast({ title: "Resposta atualizada" });
+      setRefreshKey((k) => k + 1);
+    } catch (err: any) {
+      toast({
+        title: "Erro ao atualizar resposta",
         description: err.message,
         variant: "destructive",
       });
@@ -733,6 +905,7 @@ function ProfessorDetailsSection({
       setDidactics(0);
       // Re-fetch data to reflect the new review in the UI
       setRefreshKey((k) => k + 1);
+      onReviewChanged?.();
     } catch (err: any) {
       toast({
         title: "Erro ao enviar",
@@ -779,16 +952,16 @@ function ProfessorDetailsSection({
             className="flex items-center gap-1 text-sm py-0.5"
           >
             <Star className="w-3.5 h-3.5 text-yellow-500 fill-current" />
+            <span className="text-muted-foreground font-normal">Geral</span>
             <span className="font-semibold">
               {overallStats ? overallStats.overall.toFixed(1) : "—"}
             </span>
-            <span className="text-muted-foreground font-normal">Geral</span>
           </Badge>
           <Badge
             variant="outline"
             className="flex items-center gap-1 text-sm py-0.5"
           >
-            <Activity className="w-3.5 h-3.5 text-red-400" />
+            <Brain className="w-3.5 h-3.5 text-red-400" />
             <span className="text-muted-foreground">Dificuldade</span>
             <span className="font-semibold">
               {overallStats ? overallStats.difficulty.toFixed(1) : "—"}
@@ -875,8 +1048,14 @@ function ProfessorDetailsSection({
                               <Star className="w-2.5 h-2.5 text-yellow-500 fill-current" />
                               {s.overall?.toFixed(1)}
                             </span>
-                            <span>⚡ {s.difficulty?.toFixed(1)}</span>
-                            <span>📖 {s.didactics?.toFixed(1)}</span>
+                            <span className="flex items-center gap-0.5">
+                              <Brain className="w-2.5 h-2.5 text-red-400" />
+                              {s.difficulty?.toFixed(1)}
+                            </span>
+                            <span className="flex items-center gap-0.5">
+                              <BookOpen className="w-2.5 h-2.5 text-blue-400" />
+                              {s.didactics?.toFixed(1)}
+                            </span>
                           </div>
                         ) : (
                           <div className="text-xs text-muted-foreground mt-0.5">
@@ -966,19 +1145,23 @@ function ProfessorDetailsSection({
                           </div>
                           <div className="flex gap-4 shrink-0 px-2 items-center">
                             <StarColumn
-                              icon="⭐"
+                              icon={
+                                <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                              }
                               label="Geral"
                               value={overall}
                               onChange={setOverall}
                             />
                             <StarColumn
-                              icon="⚡"
+                              icon={<Brain className="w-4 h-4 text-red-400" />}
                               label="Dificuldade"
                               value={difficulty}
                               onChange={setDifficulty}
                             />
                             <StarColumn
-                              icon="📖"
+                              icon={
+                                <BookOpen className="w-4 h-4 text-blue-400" />
+                              }
                               label="Didática"
                               value={didactics}
                               onChange={setDidactics}
@@ -1063,6 +1246,10 @@ function ProfessorDetailsSection({
                                   id={review.id}
                                   pseudonym={review.pseudonym}
                                   isMe={isMyReview}
+                                  isCollapsed={collapsedThreads.has(review.id)}
+                                  onToggleCollapse={() =>
+                                    toggleCollapse(review.id)
+                                  }
                                   date={review.createdAt}
                                   updatedAt={review.updatedAt}
                                   text={review.text}
@@ -1103,20 +1290,31 @@ function ProfessorDetailsSection({
                                   isAuthenticated={isAuthenticated}
                                 />
                                 {/* Nested replies thread */}
-                                <ReplyThread
-                                  replies={replies}
-                                  parentId={review.id}
-                                  myHash={myHash}
-                                  voteState={voteState}
-                                  handleVote={handleVote}
-                                  replyingTo={replyingTo}
-                                  setReplyingTo={setReplyingTo}
-                                  replyText={replyText}
-                                  setReplyText={setReplyText}
-                                  handleReplySubmit={handleReplySubmit}
-                                  handleDelete={handleDeleteReview}
-                                  isAuthenticated={isAuthenticated}
-                                />
+                                {!collapsedThreads.has(review.id) && (
+                                  <ReplyThread
+                                    replies={replies}
+                                    parentId={review.id}
+                                    myHash={myHash}
+                                    voteState={voteState}
+                                    handleVote={handleVote}
+                                    replyingTo={replyingTo}
+                                    setReplyingTo={setReplyingTo}
+                                    replyText={replyText}
+                                    setReplyText={setReplyText}
+                                    handleReplySubmit={handleReplySubmit}
+                                    handleDelete={handleDeleteReview}
+                                    editingReply={editingReply}
+                                    setEditingReply={setEditingReply}
+                                    editReplyText={editReplyText}
+                                    setEditReplyText={setEditReplyText}
+                                    handleEditReplySubmit={
+                                      handleEditReplySubmit
+                                    }
+                                    collapsedThreads={collapsedThreads}
+                                    toggleCollapse={toggleCollapse}
+                                    isAuthenticated={isAuthenticated}
+                                  />
+                                )}
                               </motion.div>
                             );
                           })}
@@ -1139,6 +1337,7 @@ export function ProfessorDetailsDialog({
   professorId,
   onClose,
   onWriteReview,
+  onReviewChanged,
 }: ProfessorDetailsDialogProps) {
   if (!professorId) return null;
 
@@ -1160,6 +1359,7 @@ export function ProfessorDetailsDialog({
                 professorId={prof}
                 taughtCourses={taughtCourses}
                 onWriteReview={onWriteReview}
+                onReviewChanged={onReviewChanged}
               />
               {index < professors.length - 1 && <Separator className="my-8" />}
             </div>

@@ -6,7 +6,8 @@ const ANON_ID_KEY = "myufsc-anon-id";
  * This ensures the unique-review constraint works correctly and users
  * see consistent pseudonyms across sessions on the same device.
  */
-export function getAnonymousUserId(): string {
+export function getAnonymousUserId(userId?: string | null): string {
+  if (userId) return userId;
   if (typeof window === "undefined") return "anon-server";
   let id = localStorage.getItem(ANON_ID_KEY);
   if (!id) {

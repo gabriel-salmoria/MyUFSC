@@ -29,17 +29,17 @@ const ANIMALS = [
  * Generates a consistent pseudonym for a user in a specific thread.
  *
  * @param authorHash - The unique hash of the user/author.
- * @param threadId - The ID of the parent thread (top-level review).
+ * @param professorId - The ID of the parent thread (top-level review).
  * @returns A pseudonym like "Capivara042".
  */
 export function generatePseudonym(
   authorHash: string,
-  threadId: string,
+  professorId: string,
 ): string {
   // Create a deterministic hash from the combination of user and thread
   const hash = crypto
     .createHash("sha256")
-    .update(authorHash + threadId)
+    .update(authorHash + professorId)
     .digest("hex");
 
   // Take a portion of the hash to determine the animal and number

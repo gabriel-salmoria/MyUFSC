@@ -126,3 +126,19 @@ export async function deleteReview(reviewId: string, authorHash: string) {
   }
   return res.json();
 }
+export async function updateReply(
+  replyId: string,
+  authorHash: string,
+  text: string,
+) {
+  const res = await fetch(`/api/reviews/${replyId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ authorHash, text }),
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || "Failed to update reply");
+  }
+  return res.json();
+}

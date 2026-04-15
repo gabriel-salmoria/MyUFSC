@@ -209,6 +209,8 @@ export default function Timetable({
     });
   }, [selectedPhaseCourses, professorOverrides]);
 
+  const [aggregatesRefreshKey, setAggregatesRefreshKey] = useState(0);
+
   useEffect(() => {
     const courseIds = scheduledCourses.map((c) => c.course.id);
     if (courseIds.length > 0) {
@@ -216,7 +218,7 @@ export default function Timetable({
         .then((data) => setProfessorAggregates(data))
         .catch(console.error);
     }
-  }, [scheduledCourses]);
+  }, [scheduledCourses, aggregatesRefreshKey]);
 
   const handleProfessorClick = (professorName: string) => {
     setDetailsProfessorId(professorName);
@@ -225,15 +227,25 @@ export default function Timetable({
   const knownTaughtCourses = useMemo(() => {
     if (!detailsProfessorId || !timetableData?.professors) return [];
     const norm = (s: string) =>
-      s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
+      s
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toUpperCase()
+        .replace(/\s+/g, " ")
+        .trim();
     const targetNorm = norm(detailsProfessorId);
     const courses = [];
     for (const [courseId, profs] of Object.entries(timetableData.professors)) {
-      if (Array.isArray(profs) && profs.some((p: any) => {
-        // p.name may be "Prof A, Prof B" for multi-teacher classes
-        const names = p.name.split(",").map((n: string) => n.trim());
-        return names.some((n: string) => n === detailsProfessorId || norm(n) === targetNorm);
-      })) {
+      if (
+        Array.isArray(profs) &&
+        profs.some((p: any) => {
+          // p.name may be "Prof A, Prof B" for multi-teacher classes
+          const names = p.name.split(",").map((n: string) => n.trim());
+          return names.some(
+            (n: string) => n === detailsProfessorId || norm(n) === targetNorm,
+          );
+        })
+      ) {
         courses.push(courseId);
       }
     }
@@ -651,6 +663,7 @@ export default function Timetable({
         onWriteReview={(professorId, courseId) =>
           setReviewModalState({ isOpen: true, professorId, courseId })
         }
+        onReviewChanged={() => setAggregatesRefreshKey((k) => k + 1)}
       />
 
       <WriteReviewDialog

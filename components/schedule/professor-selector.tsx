@@ -133,7 +133,11 @@ export default function ProfessorSelector({
                       {professor.classNumber}
                     </span>
                     {individualNames.map((indivName, idx) => {
-                      const rating = getRating(indivName, courseId, professorAggregates);
+                      const rating = getRating(
+                        indivName,
+                        courseId,
+                        professorAggregates,
+                      );
                       if (!rating) return null;
                       return (
                         <span
@@ -161,11 +165,13 @@ export default function ProfessorSelector({
                   <div className="mt-2">
                     <div className="text-xs text-muted-foreground flex justify-between mb-1">
                       <span>
-                        Vagas: {professor.enrolledStudents}/{professor.maxStudents}
+                        Vagas: {professor.enrolledStudents}/
+                        {professor.maxStudents}
                       </span>
                       <span>
                         {Math.round(
-                          (professor.enrolledStudents / professor.maxStudents) * 100,
+                          (professor.enrolledStudents / professor.maxStudents) *
+                            100,
                         )}
                         %
                       </span>
@@ -174,7 +180,7 @@ export default function ProfessorSelector({
                       <div
                         className={CSS_CLASSES.STATS_ENROLLMENT_PROGRESS}
                         style={{
-                          width: `${(professor.enrolledStudents / professor.maxStudents) * 100}%`,
+                          width: `${Math.min(100, (professor.enrolledStudents / professor.maxStudents) * 100)}%`,
                         }}
                       />
                     </div>
