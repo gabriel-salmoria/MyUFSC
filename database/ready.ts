@@ -28,8 +28,13 @@ interface DbAdapter {
   query(sql: string, params?: any[]): Promise<QueryResult>;
 }
 
-let _adapter: DbAdapter | null = null;
-let _initPromise: Promise<DbAdapter> | null = null;
+// Store on global so HMR module resets don't trigger re-initialization
+function getGlobal<T>(key: string): T | null {
+  return (global as any)[key] ?? null;
+}
+function setGlobal<T>(key: string, val: T): void {
+  (global as any)[key] = val;
+}
 
 async function buildAdapter(): Promise<DbAdapter> {
   if (PROVIDER === "neon") {
@@ -64,10 +69,18 @@ async function buildAdapter(): Promise<DbAdapter> {
 }
 
 async function getAdapter(): Promise<DbAdapter> {
-  if (_adapter) return _adapter;
-  if (!_initPromise) _initPromise = buildAdapter();
-  _adapter = await _initPromise;
-  return _adapter;
+  const cached = getGlobal<DbAdapter>("_dbAdapter");
+  if (cached) return cached;
+
+  let initPromise = getGlobal<Promise<DbAdapter>>("_dbAdapterPromise");
+  if (!initPromise) {
+    initPromise = buildAdapter();
+    setGlobal("_dbAdapterPromise", initPromise);
+  }
+
+  const adapter = await initPromise;
+  setGlobal("_dbAdapter", adapter);
+  return adapter;
 }
 
 /**

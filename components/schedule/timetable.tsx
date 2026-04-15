@@ -224,9 +224,16 @@ export default function Timetable({
 
   const knownTaughtCourses = useMemo(() => {
     if (!detailsProfessorId || !timetableData?.professors) return [];
+    const norm = (s: string) =>
+      s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
+    const targetNorm = norm(detailsProfessorId);
     const courses = [];
     for (const [courseId, profs] of Object.entries(timetableData.professors)) {
-      if (Array.isArray(profs) && profs.some(p => p.name === detailsProfessorId || p.professorId === detailsProfessorId)) {
+      if (Array.isArray(profs) && profs.some((p: any) => {
+        // p.name may be "Prof A, Prof B" for multi-teacher classes
+        const names = p.name.split(",").map((n: string) => n.trim());
+        return names.some((n: string) => n === detailsProfessorId || norm(n) === targetNorm);
+      })) {
         courses.push(courseId);
       }
     }

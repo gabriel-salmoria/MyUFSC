@@ -15,6 +15,13 @@ export async function GET(
       );
     }
     const decodedId = decodeURIComponent(id);
+    // Normalize to match what update-professors.ts stored (UPPERCASE, no accents)
+    const normalizedId = decodedId
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase()
+      .replace(/\s+/g, " ")
+      .trim();
 
     // 1. Get aggregate stats per course taught by the professor
     const aggregateQuery = `
@@ -47,9 +54,9 @@ export async function GET(
     `;
 
     const [aggResult, coursesResult, reviewsResult] = await Promise.all([
-      executeQuery(aggregateQuery, [decodedId]),
-      executeQuery(coursesQuery, [decodedId]),
-      executeQuery(reviewsQuery, [decodedId]),
+      executeQuery(aggregateQuery, [normalizedId]),
+      executeQuery(coursesQuery, [normalizedId]),
+      executeQuery(reviewsQuery, [normalizedId]),
     ]);
 
     const statsPerCourse: Record<string, any> = {};

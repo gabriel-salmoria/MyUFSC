@@ -28,6 +28,7 @@ export function ProfessorSearch({ onSelect, className }: ProfessorSearchProps) {
 
   const popupRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const isSelectingRef = useRef(false);
 
   // Debounced search
   useEffect(() => {
@@ -72,9 +73,14 @@ export function ProfessorSearch({ onSelect, className }: ProfessorSearchProps) {
         e.preventDefault();
         setActiveIndex((prev) => Math.max(prev - 1, 0));
       } else if (e.key === "Enter" && results.length > 0) {
-        onSelect(results[activeIndex].name);
+        const name = results[activeIndex].name;
+        isSelectingRef.current = true;
         setIsOpen(false);
         setQuery("");
+        setTimeout(() => {
+          onSelect(name);
+          isSelectingRef.current = false;
+        }, 50);
       }
     };
 
@@ -109,9 +115,11 @@ export function ProfessorSearch({ onSelect, className }: ProfessorSearchProps) {
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
-            setIsOpen(true);
+            if (!isSelectingRef.current) setIsOpen(true);
           }}
-          onFocus={() => setIsOpen(true)}
+          onFocus={() => {
+            if (!isSelectingRef.current) setIsOpen(true);
+          }}
           className="pl-9 w-full bg-background"
         />
       </div>
@@ -174,9 +182,16 @@ export function ProfessorSearch({ onSelect, className }: ProfessorSearchProps) {
                           "bg-primary/10 hover:bg-primary/10",
                       )}
                       onClick={() => {
-                        onSelect(prof.name);
+                        const name = prof.name;
+                        isSelectingRef.current = true;
                         setIsOpen(false);
                         setQuery("");
+                        // Defer until the search overlay has fully unmounted so
+                        // Radix Dialog can open without focus-management conflicts.
+                        setTimeout(() => {
+                          onSelect(name);
+                          isSelectingRef.current = false;
+                        }, 50);
                       }}
                     >
                       <div className="flex flex-col overflow-hidden mr-2">

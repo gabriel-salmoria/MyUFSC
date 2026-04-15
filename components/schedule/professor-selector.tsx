@@ -74,7 +74,7 @@ export default function ProfessorSelector({
                 )}
                 onClick={(e) => onProfessorSelect(professor.professorId, e)}
               >
-                <div className="font-medium flex flex-wrap items-center mb-1">
+                <div className="font-medium flex flex-wrap items-center gap-1">
                   {professor.name
                     .split(",")
                     .map((p) => p.trim())
@@ -88,14 +88,14 @@ export default function ProfessorSelector({
                           if (onProfessorClick)
                             onProfessorClick(individualProf);
                         }}
-                        className="text-left text-sm font-semibold px-2 py-1 -ml-2 mt-1 rounded-md border border-border bg-card hover:bg-accent hover:text-accent-foreground transition-all mr-2 truncate shadow-sm"
+                        className="text-left text-sm font-semibold px-2 py-0.5 rounded-md border border-border bg-card hover:bg-accent hover:text-accent-foreground transition-all truncate shadow-sm"
                         title={`Ver avaliações de ${individualProf}`}
                       >
                         {individualProf}
                       </button>
                     ))}
                 </div>
-                <div className="flex items-center gap-3 mt-1.5 mb-1 text-sm text-muted-foreground">
+                <div className="flex items-center gap-3 mt-0.5 text-sm text-muted-foreground">
                   <span className="font-medium text-foreground">
                     {professor.classNumber}
                   </span>

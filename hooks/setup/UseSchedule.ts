@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import type { StudentInfo } from "@/types/student-plan";
-import { fetchClassSchedule } from "@/app/api/schedule/client";
+import { fetchClassSchedule, primeScheduleCache } from "@/app/api/schedule/client";
 import type { AuthState } from "./CheckAuth";
 
 export interface ScheduleHookState {
@@ -106,6 +106,20 @@ export function useSchedule({
                   }
                 }
               });
+
+              // If the server resolved "latest" to a concrete semester, pre-empt
+              // the next effect run so we don't fetch again with the explicit semester.
+              if (fetchedSemester && fetchedSemester !== (scheduleState.selectedSemester || "")) {
+                const nextSignature = degreesToFetch.join(",") + "_" + fetchedSemester;
+                fetchedForDegreeRef_Schedule.current = nextSignature;
+
+                // Also prime the client cache for the semester-specific key so
+                // future explicit-semester requests are served from memory.
+                degreesToFetch.forEach((degree, i) => {
+                  const r = results[i];
+                  if (r) primeScheduleCache(degree, fetchedSemester, r);
+                });
+              }
 
               setScheduleState((prev) => {
                 const newState = { ...prev, scheduleData: mergedData };
