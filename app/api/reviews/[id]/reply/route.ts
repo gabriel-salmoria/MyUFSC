@@ -53,9 +53,6 @@ export async function POST(
 
     const parent = parentResult.rows[0];
 
-    // If replying to a reply, attach to the root thread instead
-    const rootParentId = parent.parentId ?? parentId;
-
     const insertQuery = `
       INSERT INTO reviews ("professorId", "courseId", "authorHash", "parentId", text)
       VALUES ($1, $2, $3, $4, $5)
@@ -66,7 +63,7 @@ export async function POST(
       parent.professorId,
       parent.courseId,
       authorHash,
-      rootParentId,
+      parentId,
       text,
     ]);
 
