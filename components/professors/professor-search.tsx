@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { searchProfessors } from "@/lib/professors-client";
 import { ProfessorRatingBadge } from "./ProfessorRatingBadge";
 import { cn } from "@/components/ui/utils";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ProfessorSearchResult {
   name: string;
@@ -125,11 +126,23 @@ export function ProfessorSearch({ onSelect, className }: ProfessorSearchProps) {
       </div>
 
       {/* Full Screen Popup (matches SearchPopup style) */}
-      {isOpen && (
-        <div className="fixed inset-0 bg-black/20 dark:bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center pt-[10vh] animate-in fade-in-0 duration-200">
-          <div
+      <AnimatePresence>
+        {isOpen && (
+        <motion.div
+          key="search-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 bg-black/20 dark:bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center pt-[10vh]"
+        >
+          <motion.div
             ref={popupRef}
-            className="bg-background border border-border rounded-lg shadow-xl w-full max-w-md overflow-hidden transition-all animate-in zoom-in-95 duration-200"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="bg-background border border-border rounded-lg shadow-xl w-full max-w-md overflow-hidden"
             style={{ maxHeight: "60vh" }}
           >
             {/* Header / Input Area */}
@@ -228,9 +241,10 @@ export function ProfessorSearch({ onSelect, className }: ProfessorSearchProps) {
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

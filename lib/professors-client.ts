@@ -26,6 +26,28 @@ export async function submitReply(
   return res.json();
 }
 
+export async function updateReview(
+  professorId: string,
+  courseId: string,
+  authorHash: string,
+  text: string,
+  scores: { overall: number; difficulty: number; didactics: number },
+) {
+  const res = await fetch(
+    `/api/professors/${encodeURIComponent(professorId)}/reviews`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ courseId, authorHash, text, scores }),
+    },
+  );
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || "Failed to update review");
+  }
+  return res.json();
+}
+
 export async function submitReview(
   professorId: string,
   courseId: string,
@@ -61,6 +83,23 @@ export async function fetchProfessorAggregates(courseIds: string[]) {
   }
   const data = await res.json();
   return data.aggregates;
+}
+
+export async function submitVote(
+  reviewId: string,
+  voterHash: string,
+  value: 1 | -1,
+) {
+  const res = await fetch(`/api/reviews/${reviewId}/vote`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ voterHash, value }),
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || "Failed to submit vote");
+  }
+  return res.json(); // { upvotes, downvotes }
 }
 
 export async function searchProfessors(query: string) {

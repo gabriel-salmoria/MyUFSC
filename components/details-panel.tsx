@@ -95,7 +95,7 @@ function PanelContent({
   return (
     <>
       <div className="fixed inset-0 bg-black/20 dark:bg-black/50 z-40" onClick={onClose} />
-      <div className="fixed right-0 top-0 h-full w-[480px] bg-background shadow-lg border-l border-border p-4 z-50 overflow-y-auto animate-in slide-in-from-right duration-200">
+      <div className="fixed right-0 top-0 h-full w-[480px] bg-background shadow-lg border-l border-border p-4 z-50 overflow-y-auto animate-in fade-in-0 duration-200">
 
         {/* Header */}
         <div className="flex items-center justify-between mb-6">

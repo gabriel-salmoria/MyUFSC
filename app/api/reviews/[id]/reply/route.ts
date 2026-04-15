@@ -53,13 +53,8 @@ export async function POST(
 
     const parent = parentResult.rows[0];
 
-    // Ensure we don't reply to a reply (single-level threading)
-    if (parent.parentId !== null) {
-      return NextResponse.json(
-        { error: "Cannot reply to a reply" },
-        { status: 400 },
-      );
-    }
+    // If replying to a reply, attach to the root thread instead
+    const rootParentId = parent.parentId ?? parentId;
 
     const insertQuery = `
       INSERT INTO reviews ("professorId", "courseId", "authorHash", "parentId", text)
@@ -71,7 +66,7 @@ export async function POST(
       parent.professorId,
       parent.courseId,
       authorHash,
-      parentId,
+      rootParentId,
       text,
     ]);
 

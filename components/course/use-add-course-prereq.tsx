@@ -95,7 +95,7 @@ export function useAddCoursePrereq() {
   const PrereqDialog = () => {
     if (!pendingAction) return null;
     return (
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-popover border border-border shadow-2xl rounded-xl p-4 min-w-[350px] w-auto max-w-[90%] flex flex-col justify-between animate-in slide-in-from-bottom-5 fade-in duration-300">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-popover border border-border shadow-2xl rounded-xl p-4 min-w-[350px] w-auto max-w-[90%] flex flex-col justify-between animate-in fade-in-0 duration-200">
         <div className="flex gap-4 items-start relative">
           <div className="mt-1 bg-destructive/10 p-2 rounded-full min-w-max">
             <AlertTriangle className="w-5 h-5 text-destructive" />

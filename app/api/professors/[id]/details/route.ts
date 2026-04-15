@@ -43,10 +43,9 @@ export async function GET(
       WHERE "professorId" = $1
     `;
 
-    // 2. Get top-level reviews (we can paginate later)
+    // 2. Get top-level reviews
     const reviewsQuery = `
-      SELECT
-        id, "courseId", "authorHash", text, scores, "createdAt"
+      SELECT id, "courseId", "authorHash", text, scores, "createdAt"
       FROM reviews
       WHERE "professorId" = $1 AND "parentId" IS NULL
       ORDER BY "createdAt" DESC
@@ -77,14 +76,44 @@ export async function GET(
       };
     }
 
-    const reviews = reviewsResult.rows.map((r: any) => ({
+    const baseReviews = reviewsResult.rows.map((r: any) => ({
       id: r.id,
       courseId: r.courseId,
       authorHash: r.authorHash,
-      pseudonym: "Autor da Avaliação",
+      pseudonym: generatePseudonym(r.authorHash, normalizedId),
       text: r.text,
       scores: r.scores,
       createdAt: r.createdAt,
+      upvotes: 0,
+      downvotes: 0,
+    }));
+
+    // Fetch vote counts separately — gracefully skip if table doesn't exist yet
+    let voteCounts: Record<string, { upvotes: number; downvotes: number }> = {};
+    if (baseReviews.length > 0) {
+      try {
+        const reviewIds = baseReviews.map((r) => r.id);
+        const votesResult = await executeQuery(
+          `SELECT "reviewId",
+             COALESCE(SUM(CASE WHEN value = 1 THEN 1 ELSE 0 END), 0) AS upvotes,
+             COALESCE(SUM(CASE WHEN value = -1 THEN 1 ELSE 0 END), 0) AS downvotes
+           FROM review_votes WHERE "reviewId" = ANY($1) GROUP BY "reviewId"`,
+          [reviewIds],
+        );
+        for (const row of votesResult.rows) {
+          voteCounts[row.reviewId] = {
+            upvotes: parseInt(row.upvotes, 10),
+            downvotes: parseInt(row.downvotes, 10),
+          };
+        }
+      } catch {
+        // review_votes table not yet created — votes default to 0
+      }
+    }
+
+    const reviews = baseReviews.map((r) => ({
+      ...r,
+      ...(voteCounts[r.id] ?? { upvotes: 0, downvotes: 0 }),
     }));
 
     // 3. For the fetched reviews, get their replies
@@ -99,21 +128,44 @@ export async function GET(
         ORDER BY "createdAt" ASC
       `;
       const repliesResult = await executeQuery(repliesQuery, [reviewIds]);
-      replies = repliesResult.rows.map((r: any) => {
-        const parentReview = reviews.find((pr: any) => pr.id === r.parentId);
-        const isAuthor =
-          parentReview && parentReview.authorHash === r.authorHash;
-        return {
-          id: r.id,
-          parentId: r.parentId,
-          authorHash: r.authorHash,
-          pseudonym: isAuthor
-            ? "Autor da Avaliação"
-            : generatePseudonym(r.authorHash, r.parentId),
-          text: r.text,
-          createdAt: r.createdAt,
-        };
-      });
+      const baseReplies = repliesResult.rows.map((r: any) => ({
+        id: r.id,
+        parentId: r.parentId,
+        authorHash: r.authorHash,
+        pseudonym: generatePseudonym(r.authorHash, normalizedId),
+        text: r.text,
+        createdAt: r.createdAt,
+        upvotes: 0,
+        downvotes: 0,
+      }));
+
+      // Fetch vote counts for replies too
+      let replyVoteCounts: Record<string, { upvotes: number; downvotes: number }> = {};
+      if (baseReplies.length > 0) {
+        try {
+          const replyIds = baseReplies.map((r) => r.id);
+          const replyVotesResult = await executeQuery(
+            `SELECT "reviewId",
+               COALESCE(SUM(CASE WHEN value = 1 THEN 1 ELSE 0 END), 0) AS upvotes,
+               COALESCE(SUM(CASE WHEN value = -1 THEN 1 ELSE 0 END), 0) AS downvotes
+             FROM review_votes WHERE "reviewId" = ANY($1) GROUP BY "reviewId"`,
+            [replyIds],
+          );
+          for (const row of replyVotesResult.rows) {
+            replyVoteCounts[row.reviewId] = {
+              upvotes: parseInt(row.upvotes, 10),
+              downvotes: parseInt(row.downvotes, 10),
+            };
+          }
+        } catch {
+          // review_votes table not yet created
+        }
+      }
+
+      replies = baseReplies.map((r) => ({
+        ...r,
+        ...(replyVoteCounts[r.id] ?? { upvotes: 0, downvotes: 0 }),
+      }));
     }
 
     return NextResponse.json({

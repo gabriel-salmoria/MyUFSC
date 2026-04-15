@@ -52,6 +52,13 @@ export async function ensureLocalSchema(db: PGlite): Promise<void> {
     CREATE UNIQUE INDEX IF NOT EXISTS unique_top_level_review
     ON reviews ("authorHash", "professorId", "courseId")
     WHERE "parentId" IS NULL;
+
+    CREATE TABLE IF NOT EXISTS review_votes (
+      "reviewId" UUID NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,
+      "voterHash" VARCHAR(255) NOT NULL,
+      value SMALLINT NOT NULL CHECK (value IN (1, -1)),
+      PRIMARY KEY ("reviewId", "voterHash")
+    );
   `);
 
   // 2. Auto-seed local database from production if it is empty

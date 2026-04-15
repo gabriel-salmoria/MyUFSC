@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { submitReview } from "@/lib/professors-client";
+import { getAnonymousUserId } from "@/lib/user-identity";
 import { Star, Loader2 } from "lucide-react";
 
 interface WriteReviewDialogProps {
@@ -77,10 +78,8 @@ export function WriteReviewDialog({ isOpen, onClose, professorId, courseId }: Wr
 
     setLoading(true);
     try {
-      // Fake author hash for now
-      const fakeAuthorHash = "user-" + Math.floor(Math.random() * 1000000);
-
-      await submitReview(professorId, courseId, fakeAuthorHash, text, {
+      const authorHash = getAnonymousUserId();
+      await submitReview(professorId, courseId, authorHash, text, {
         overall,
         difficulty,
         didactics,
