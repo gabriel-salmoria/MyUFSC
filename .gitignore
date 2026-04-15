@@ -44,3 +44,4 @@ data/
 
 # Local project config override (use myufsc.config.json for committed defaults)
 myufsc.config.local.json
+.pglite

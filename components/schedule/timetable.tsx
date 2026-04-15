@@ -19,6 +19,9 @@ import { useStudentStore } from "@/lib/student-store";
 import TimetableHeader from "./timetable-header";
 import TimetableGrid from "./timetable-grid";
 import CustomEventModal from "./custom-event-modal";
+import { ProfessorDetailsDialog } from "@/components/professors/professor-details-dialog";
+import { WriteReviewDialog } from "@/components/professors/write-review-dialog";
+import { fetchProfessorAggregates } from "@/lib/professors-client";
 import { CalendarPlus2 } from "lucide-react";
 
 const TIMETABLE_COLORS = TIMETABLE_COLOR_CLASSES;
@@ -119,9 +122,22 @@ export default function Timetable({
     new Map(),
   );
 
+  const [professorAggregates, setProfessorAggregates] = useState<
+    Record<string, any>
+  >({});
+  const [detailsProfessorId, setDetailsProfessorId] = useState<string | null>(
+    null,
+  );
+  const [reviewModalState, setReviewModalState] = useState<{
+    isOpen: boolean;
+    professorId: string | null;
+    courseId: string | null;
+  }>({ isOpen: false, professorId: null, courseId: null });
+
   // ─── Modal state ───────────────────────────────────────────────────────────
   const [modalState, setModalState] = useState<ModalState>(closedModal);
-  const [lastEntry, setLastEntry] = useState<Partial<CustomScheduleEntry> | null>(null);
+  const [lastEntry, setLastEntry] =
+    useState<Partial<CustomScheduleEntry> | null>(null);
 
   const openNewEntry = (day: number, slotId: string) =>
     setModalState({
@@ -193,12 +209,39 @@ export default function Timetable({
     });
   }, [selectedPhaseCourses, professorOverrides]);
 
+  useEffect(() => {
+    const courseIds = scheduledCourses.map((c) => c.course.id);
+    if (courseIds.length > 0) {
+      fetchProfessorAggregates(courseIds)
+        .then((data) => setProfessorAggregates(data))
+        .catch(console.error);
+    }
+  }, [scheduledCourses]);
+
+  const handleProfessorClick = (professorName: string) => {
+    setDetailsProfessorId(professorName);
+  };
+
+  const knownTaughtCourses = useMemo(() => {
+    if (!detailsProfessorId || !timetableData?.professors) return [];
+    const courses = [];
+    for (const [courseId, profs] of Object.entries(timetableData.professors)) {
+      if (Array.isArray(profs) && profs.some(p => p.name === detailsProfessorId || p.professorId === detailsProfessorId)) {
+        courses.push(courseId);
+      }
+    }
+    return courses;
+  }, [detailsProfessorId, timetableData]);
+
   const timeToMinutes = (time: string): number => {
     const [hours, minutes] = time.split(":").map(Number);
     return hours * 60 + minutes;
   };
 
-  const parseScheduleForProfessor = (professorData: Professor, course: StudentCourse): ProfessorOverride | null => {
+  const parseScheduleForProfessor = (
+    professorData: Professor,
+    course: StudentCourse,
+  ): ProfessorOverride | null => {
     const scheduleText = professorData.schedule;
     const scheduleEntries: ScheduleEntry[] = [];
     const courseId = course.course ? course.course.id : (course as any).id;
@@ -218,7 +261,7 @@ export default function Timetable({
           days.forEach((dayName) => {
             const dayIndex =
               TIMETABLE.DAYS_MAP[
-              dayName.trim() as keyof typeof TIMETABLE.DAYS_MAP
+                dayName.trim() as keyof typeof TIMETABLE.DAYS_MAP
               ];
             if (dayIndex === undefined || !startTime || !endTime) return;
             scheduleEntries.push({
@@ -247,7 +290,9 @@ export default function Timetable({
 
     selectedPhaseCourses.forEach((studentCourse) => {
       const classId = (studentCourse as any).class;
-      const courseId = studentCourse.course ? studentCourse.course.id : (studentCourse as any).id;
+      const courseId = studentCourse.course
+        ? studentCourse.course.id
+        : (studentCourse as any).id;
       if (classId) {
         const profs = timetableData.professors[courseId];
         if (profs) {
@@ -294,10 +339,15 @@ export default function Timetable({
     setConflicts(newConflicts);
   }, [selectedPhaseCourses, timetableData]);
 
-  const handleProfessorSelect = (course: StudentCourse, professorId: string) => {
+  const handleProfessorSelect = (
+    course: StudentCourse,
+    professorId: string,
+  ) => {
     const courseId = course.course ? course.course.id : (course as any).id;
     const professorsForCourse = timetableData.professors[courseId];
-    const professorData = professorsForCourse?.find((p) => p.professorId === professorId);
+    const professorData = professorsForCourse?.find(
+      (p) => p.professorId === professorId,
+    );
     if (professorData) {
       studentStore.setCourseClass(course, professorData.classNumber);
     }
@@ -424,14 +474,18 @@ export default function Timetable({
   }, [studentInfo]);
 
   const handleExportCalendar = () => {
-    let icsContent = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//MyUFSC//Schedule//EN\r\nCALSCALE:GREGORIAN\r\n";
+    let icsContent =
+      "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//MyUFSC//Schedule//EN\r\nCALSCALE:GREGORIAN\r\n";
 
     const now = new Date();
     const currentYear = now.getFullYear();
     const augFirst = new Date(currentYear, 7, 1);
     const isBeforeAug = now < augFirst;
-    const untilDate = isBeforeAug ? new Date(currentYear, 7, 1, 23, 59, 59) : new Date(currentYear, 11, 25, 23, 59, 59);
-    const untilStr = untilDate.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+    const untilDate = isBeforeAug
+      ? new Date(currentYear, 7, 1, 23, 59, 59)
+      : new Date(currentYear, 11, 25, 23, 59, 59);
+    const untilStr =
+      untilDate.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
 
     const dayOfWeek = now.getDay();
     const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
@@ -443,7 +497,14 @@ export default function Timetable({
     const cryptoCounter = Math.floor(Math.random() * 1000000);
     let eventCounter = 0;
 
-    const addEvent = (title: string, desc: string, dayIdx: number, startTime: string, endTime: string, location: string) => {
+    const addEvent = (
+      title: string,
+      desc: string,
+      dayIdx: number,
+      startTime: string,
+      endTime: string,
+      location: string,
+    ) => {
       const eventDate = new Date(currentMonday);
       eventDate.setDate(currentMonday.getDate() + dayIdx);
 
@@ -460,7 +521,7 @@ export default function Timetable({
       icsContent += "BEGIN:VEVENT\r\n";
       icsContent += `UID:event-${cryptoCounter}-${eventCounter++}@myufsc\r\n`;
       icsContent += `SUMMARY:${title}\r\n`;
-      if (desc) icsContent += `DESCRIPTION:${desc.replace(/\n/g, '\\n')}\r\n`;
+      if (desc) icsContent += `DESCRIPTION:${desc.replace(/\n/g, "\\n")}\r\n`;
       if (location) icsContent += `LOCATION:${location}\r\n`;
 
       icsContent += `DTSTART:${startStr}\r\n`;
@@ -470,20 +531,36 @@ export default function Timetable({
     };
 
     // Export selected courses
-    professorOverrides.forEach(override => {
-      const course = selectedPhaseCourses.find(c => c.course.id === override.courseId);
+    professorOverrides.forEach((override) => {
+      const course = selectedPhaseCourses.find(
+        (c) => c.course.id === override.courseId,
+      );
       if (!course) return;
       const title = course.course.name;
       const desc = `Turma: ${override.classNumber}\\nProfessor: ${override.professorId}`;
-      override.schedule.forEach(entry => {
+      override.schedule.forEach((entry) => {
         if (!entry.endTime) return;
-        addEvent(title, desc, entry.day, entry.startTime, entry.endTime, entry.location || "");
+        addEvent(
+          title,
+          desc,
+          entry.day,
+          entry.startTime,
+          entry.endTime,
+          entry.location || "",
+        );
       });
     });
 
     // Export custom entries
-    visibleCustomEntries.forEach(entry => {
-      addEvent(entry.title, entry.subtitle || "", entry.day, entry.startTime, entry.endTime, "");
+    visibleCustomEntries.forEach((entry) => {
+      addEvent(
+        entry.title,
+        entry.subtitle || "",
+        entry.day,
+        entry.startTime,
+        entry.endTime,
+        "",
+      );
     });
 
     icsContent += "END:VCALENDAR\r\n";
@@ -520,7 +597,8 @@ export default function Timetable({
             <CalendarPlus2 className="h-3.5 w-3.5 mt-0.5 shrink-0 opacity-70" />
             <span>
               Clique em qualquer célula vazia para adicionar um evento pessoal.
-              Eventos podem repetir em todas as fases ou ser exclusivos de uma fase específica.
+              Eventos podem repetir em todas as fases ou ser exclusivos de uma
+              fase específica.
             </span>
           </div>
 
@@ -542,6 +620,8 @@ export default function Timetable({
             coursesInTimetable={professorOverrides.map((o) => o.courseId)}
             courseColors={courseColors}
             onRemoveCourse={handleRemoveCourse}
+            professorAggregates={professorAggregates}
+            onProfessorClick={handleProfessorClick}
           />
         </div>
       </div>
@@ -555,6 +635,24 @@ export default function Timetable({
         currentPhase={selectedPhase}
         onSave={handleSave}
         onDelete={removeCustomScheduleEntry}
+      />
+
+      <ProfessorDetailsDialog
+        professorId={detailsProfessorId}
+        taughtCourses={knownTaughtCourses}
+        onClose={() => setDetailsProfessorId(null)}
+        onWriteReview={(professorId, courseId) =>
+          setReviewModalState({ isOpen: true, professorId, courseId })
+        }
+      />
+
+      <WriteReviewDialog
+        isOpen={reviewModalState.isOpen}
+        onClose={() =>
+          setReviewModalState((prev) => ({ ...prev, isOpen: false }))
+        }
+        professorId={reviewModalState.professorId}
+        courseId={reviewModalState.courseId}
       />
     </>
   );

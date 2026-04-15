@@ -31,6 +31,27 @@ export async function ensureLocalSchema(db: PGlite): Promise<void> {
       iv VARCHAR(255) NOT NULL,
       "encryptedData" TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS professor_courses (
+      "professorId" VARCHAR(255) NOT NULL,
+      "courseId" VARCHAR(255) NOT NULL,
+      PRIMARY KEY ("professorId", "courseId")
+    );
+
+    CREATE TABLE IF NOT EXISTS reviews (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      "professorId" VARCHAR(255) NOT NULL,
+      "courseId" VARCHAR(255) NOT NULL,
+      "authorHash" VARCHAR(255) NOT NULL,
+      "parentId" UUID REFERENCES reviews(id) ON DELETE CASCADE,
+      text VARCHAR(500) NOT NULL,
+      scores JSONB,
+      "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS unique_top_level_review
+    ON reviews ("authorHash", "professorId", "courseId")
+    WHERE "parentId" IS NULL;
   `);
 
   // 2. Auto-seed local database from production if it is empty

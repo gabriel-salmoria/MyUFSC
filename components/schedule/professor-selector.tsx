@@ -5,6 +5,7 @@ import { cn } from "@/components/ui/utils";
 import { CSS_CLASSES } from "@/styles/course-theme";
 import type { StudentCourse } from "@/types/student-plan";
 import { useStudentStore } from "@/lib/student-store"; // Import the store
+import { Star, Activity, BookOpen } from "lucide-react";
 
 // Type for professor data
 type ProfessorData = {
@@ -22,6 +23,8 @@ interface ProfessorSelectorProps {
   onProfessorSelect: (professorId: string, event: React.MouseEvent) => void;
   onRemoveCourse?: (courseId: string) => void;
   isInTimetable: boolean;
+  professorAggregates?: Record<string, any>;
+  onProfessorClick?: (professorName: string) => void;
 }
 
 export default function ProfessorSelector({
@@ -30,6 +33,8 @@ export default function ProfessorSelector({
   onProfessorSelect,
   onRemoveCourse,
   isInTimetable,
+  professorAggregates,
+  onProfessorClick,
 }: ProfessorSelectorProps) {
   const { selectedStudentSchedule } = useStudentStore(); // Get selected course from store
 
@@ -65,16 +70,56 @@ export default function ProfessorSelector({
                 className={cn(
                   CSS_CLASSES.STATS_PROFESSOR_CARD,
                   selectedProfessor === professor.professorId &&
-                  CSS_CLASSES.STATS_PROFESSOR_ACTIVE,
+                    CSS_CLASSES.STATS_PROFESSOR_ACTIVE,
                 )}
                 onClick={(e) => onProfessorSelect(professor.professorId, e)}
               >
-                <div className="font-medium">{professor.name}</div>
-                <div className="text-sm text-muted-foreground">
-                  {professor.classNumber}
+                <div className="font-medium flex flex-wrap items-center mb-1">
+                  {professor.name
+                    .split(",")
+                    .map((p) => p.trim())
+                    .filter(Boolean)
+                    .map((individualProf, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onProfessorClick)
+                            onProfessorClick(individualProf);
+                        }}
+                        className="text-left text-sm font-semibold px-2 py-1 -ml-2 mt-1 rounded-md border border-border bg-card hover:bg-accent hover:text-accent-foreground transition-all mr-2 truncate shadow-sm"
+                        title={`Ver avaliações de ${individualProf}`}
+                      >
+                        {individualProf}
+                      </button>
+                    ))}
                 </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {professor.schedule}
+                <div className="flex items-center gap-3 mt-1.5 mb-1 text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground">
+                    {professor.classNumber}
+                  </span>
+                  {professorAggregates?.[professor.name] &&
+                  professorAggregates[professor.name].overall !== null ? (
+                    <div className="flex items-center gap-2.5 text-xs font-medium">
+                      <span className="flex items-center gap-0.5 text-yellow-600">
+                        <Star className="w-3 h-3 fill-current" />
+                        {professorAggregates[professor.name].overall.toFixed(1)}
+                      </span>
+                      <span className="flex items-center gap-0.5">
+                        <Activity className="w-3 h-3 text-red-500" />
+                        {professorAggregates[professor.name].difficulty.toFixed(
+                          1,
+                        )}
+                      </span>
+                      <span className="flex items-center gap-0.5">
+                        <BookOpen className="w-3 h-3 text-blue-500" />
+                        {professorAggregates[professor.name].didactics.toFixed(
+                          1,
+                        )}
+                      </span>
+                    </div>
+                  ) : null}
                 </div>
 
                 {/* Enrollment Progress Bar */}
@@ -87,7 +132,7 @@ export default function ProfessorSelector({
                     <span>
                       {Math.round(
                         (professor.enrolledStudents / professor.maxStudents) *
-                        100,
+                          100,
                       )}
                       %
                     </span>

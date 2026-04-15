@@ -1,5 +1,14 @@
 import "dotenv/config";
-import { Client, QueryResult } from "pg";
+import { Pool, QueryResult } from "pg";
+
+function getPool(): Pool {
+  if (!(global as any)._sharedPool) {
+    (global as any)._sharedPool = new Pool({
+      connectionString: process.env.NEON_URL!,
+    });
+  }
+  return (global as any)._sharedPool;
+}
 
 // ── Provider detection ────────────────────────────────────────────────────────
 // Priority:
@@ -31,13 +40,8 @@ async function buildAdapter(): Promise<DbAdapter> {
     }
     return {
       async query(sql, params = []) {
-        const client = new Client(process.env.NEON_URL!);
-        await client.connect();
-        try {
-          return await client.query(sql, params);
-        } finally {
-          await client.end();
-        }
+        const pool = getPool();
+        return await pool.query(sql, params);
       },
     };
   }
@@ -89,8 +93,8 @@ export const executeTransaction = async (
   steps: Array<{ sql: string; params?: any[] }>,
 ): Promise<void> => {
   if (PROVIDER === "neon") {
-    const client = new Client(process.env.NEON_URL!);
-    await client.connect();
+    const pool = getPool();
+    const client = await pool.connect();
     try {
       await client.query("BEGIN");
       for (const step of steps) {
@@ -101,7 +105,7 @@ export const executeTransaction = async (
       await client.query("ROLLBACK");
       throw err;
     } finally {
-      await client.end();
+      client.release();
     }
   } else {
     await getAdapter();

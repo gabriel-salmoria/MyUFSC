@@ -13,6 +13,7 @@ import CourseList from "./course-list";
 import CreditsSummary from "./credits-summary";
 import ProfessorSelector from "./professor-selector";
 import SearchPopup from "./search-popup";
+import { ProfessorSearch } from "@/components/professors/professor-search";
 
 // Default empty schedule data
 const emptyScheduleData = {
@@ -27,6 +28,8 @@ interface CourseStatsProps {
   coursesInTimetable?: string[]; // New prop with IDs of courses in timetable
   courseColors?: Map<string, string>; // Color map from timetable component
   onRemoveCourse?: (courseId: string) => void; // New prop for removing a course
+  professorAggregates?: Record<string, any>;
+  onProfessorClick?: (professorName: string) => void;
 }
 
 // Type for professor data
@@ -47,6 +50,8 @@ export default function CourseStats({
   coursesInTimetable = [],
   courseColors,
   onRemoveCourse,
+  professorAggregates,
+  onProfessorClick,
 }: CourseStatsProps) {
   const [selectedProfessor, setSelectedProfessor] = useState<string | null>(
     null,
@@ -157,7 +162,12 @@ export default function CourseStats({
           <CourseList courses={courses} getCourseColor={getCourseColor} />
 
           {/* Credits Summary */}
-          <CreditsSummary totalCredits={weeklyHours} totalWorkload={totalWorkload} />
+          <CreditsSummary
+            totalCredits={weeklyHours}
+            totalWorkload={totalWorkload}
+          />
+
+          {onProfessorClick && <ProfessorSearch onSelect={onProfessorClick} />}
 
           {/* Professor Selection */}
           {selectedSchedule && ( // Use selectedSchedule from the store
@@ -169,6 +179,8 @@ export default function CourseStats({
               isInTimetable={coursesInTimetable.includes(
                 selectedSchedule.id, // Use selectedSchedule
               )}
+              professorAggregates={professorAggregates}
+              onProfessorClick={onProfessorClick}
             />
           )}
         </div>{" "}

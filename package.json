@@ -49,6 +49,7 @@
     "@radix-ui/react-toggle": "^1.1.10",
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.8",
+    "@radix-ui/react-visually-hidden": "^1.2.4",
     "@types/bcrypt": "^6.0.0",
     "@types/crypto-js": "^4.2.2",
     "@types/pg": "^8.20.0",
