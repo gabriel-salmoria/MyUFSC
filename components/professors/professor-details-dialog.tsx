@@ -15,6 +15,7 @@ import {
   submitReview,
   submitVote,
   updateReview,
+  deleteReview,
 } from "@/lib/professors-client";
 import { getAnonymousUserId } from "@/lib/user-identity";
 import {
@@ -164,6 +165,7 @@ function CommentCard({
   onVote,
   onReply,
   onEdit,
+  onDelete,
   isReplyOpen,
   replyText,
   onReplyTextChange,
@@ -184,6 +186,7 @@ function CommentCard({
   onVote: (v: 1 | -1) => void;
   onReply: () => void;
   onEdit?: () => void;
+  onDelete?: () => void;
   isReplyOpen: boolean;
   replyText: string;
   onReplyTextChange: (v: string) => void;
@@ -232,6 +235,15 @@ function CommentCard({
                   onClick={onEdit}
                 >
                   editar
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  type="button"
+                  className="text-xs text-red-500/70 hover:text-red-500 underline ml-1"
+                  onClick={onDelete}
+                >
+                  excluir
                 </button>
               )}
               <span className="text-[10px] text-muted-foreground/70 text-right">
@@ -366,6 +378,7 @@ function ReplyThread({
   replyText,
   setReplyText,
   handleReplySubmit,
+  handleDelete,
   depth = 0,
   isAuthenticated,
 }: {
@@ -379,6 +392,7 @@ function ReplyThread({
   replyText: string;
   setReplyText: (text: string) => void;
   handleReplySubmit: (id: string) => void;
+  handleDelete: (id: string) => void;
   depth?: number;
   isAuthenticated: boolean;
 }) {
@@ -423,6 +437,11 @@ function ReplyThread({
               onReplySubmit={() => handleReplySubmit(reply.id)}
               onReplyCancel={() => setReplyingTo(null)}
               isAuthenticated={isAuthenticated}
+              onDelete={
+                reply.authorHash === myHash
+                  ? () => handleDelete(reply.id)
+                  : undefined
+              }
             />
             <ReplyThread
               replies={replies}
@@ -435,6 +454,7 @@ function ReplyThread({
               replyText={replyText}
               setReplyText={setReplyText}
               handleReplySubmit={handleReplySubmit}
+              handleDelete={handleDelete}
               depth={depth + 1}
               isAuthenticated={isAuthenticated}
             />
@@ -617,6 +637,22 @@ function ProfessorDetailsSection({
       mounted = false;
     };
   }, [professorId, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleDeleteReview = async (reviewId: string) => {
+    if (!confirm("Tem certeza que deseja excluir esta avaliação?")) return;
+    try {
+      const myHash = getAnonymousUserId(userId);
+      await deleteReview(reviewId, myHash);
+      toast({ title: "Avaliação excluída" });
+      setRefreshKey((k) => k + 1);
+    } catch (err: any) {
+      toast({
+        title: "Erro ao excluir",
+        description: err.message,
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleReplySubmit = async (parentId: string) => {
     if (!replyText.trim()) return;
@@ -1052,6 +1088,11 @@ function ProfessorDetailsSection({
                                       ? () => startEditing(review.courseId)
                                       : undefined
                                   }
+                                  onDelete={
+                                    isMyReview
+                                      ? () => handleDeleteReview(review.id)
+                                      : undefined
+                                  }
                                   isReplyOpen={replyingTo === review.id}
                                   replyText={replyText}
                                   onReplyTextChange={setReplyText}
@@ -1073,6 +1114,7 @@ function ProfessorDetailsSection({
                                   replyText={replyText}
                                   setReplyText={setReplyText}
                                   handleReplySubmit={handleReplySubmit}
+                                  handleDelete={handleDeleteReview}
                                   isAuthenticated={isAuthenticated}
                                 />
                               </motion.div>

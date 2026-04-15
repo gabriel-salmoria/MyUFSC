@@ -113,3 +113,16 @@ export async function searchProfessors(query: string) {
   const data = await res.json();
   return data.professors || [];
 }
+
+export async function deleteReview(reviewId: string, authorHash: string) {
+  const res = await fetch(`/api/reviews/${reviewId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ authorHash }),
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || "Failed to delete review");
+  }
+  return res.json();
+}
