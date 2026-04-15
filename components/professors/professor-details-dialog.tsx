@@ -49,6 +49,7 @@ interface Review {
     didactics: number;
   };
   createdAt: string;
+  updatedAt?: string;
   upvotes: number;
   downvotes: number;
 }
@@ -60,6 +61,7 @@ interface ReplyObj {
   pseudonym?: string;
   text: string;
   createdAt: string;
+  updatedAt?: string;
   upvotes: number;
   downvotes: number;
 }
@@ -130,7 +132,9 @@ function VoteSidebar({
       >
         <ThumbsUp className="w-4 h-4" />
       </button>
-      <span className={`text-xs font-semibold tabular-nums ${score > 0 ? "text-green-600" : score < 0 ? "text-red-500" : "text-muted-foreground"}`}>
+      <span
+        className={`text-xs font-semibold tabular-nums ${score > 0 ? "text-green-600" : score < 0 ? "text-red-500" : "text-muted-foreground"}`}
+      >
         {score}
       </span>
       <button
@@ -150,6 +154,7 @@ function CommentCard({
   pseudonym,
   isMe,
   date,
+  updatedAt,
   text,
   scores,
   courseName,
@@ -185,30 +190,54 @@ function CommentCard({
   onReplySubmit: () => void;
   onReplyCancel: () => void;
   isAuthenticated: boolean;
+  updatedAt?: string;
 }) {
   return (
-    <div className={`border rounded-xl ${isMe ? "bg-primary/5 border-primary/30" : "bg-card"}`}>
+    <div
+      className={`border rounded-xl ${isMe ? "bg-primary/5 border-primary/30" : "bg-card"}`}
+    >
       <div className="flex gap-3 p-4">
         {/* Vote sidebar */}
-        <VoteSidebar id={id} upvotes={upvotes} downvotes={downvotes} voteState={voteState} onVote={isAuthenticated ? onVote : () => {}} disabled={!isAuthenticated} />
+        <VoteSidebar
+          id={id}
+          upvotes={upvotes}
+          downvotes={downvotes}
+          voteState={voteState}
+          onVote={onVote}
+          disabled={false}
+        />
 
         {/* Content */}
         <div className="flex-1 min-w-0">
           {/* Row 1: name + date */}
           <div className="flex items-center justify-between gap-2 w-full mb-1">
             <div className="flex items-center gap-1.5 min-w-0">
-              <span className="text-base shrink-0">{getEmojiForPseudonym(pseudonym)}</span>
-              <span className="text-sm font-semibold truncate">{pseudonym || "Anônimo"}</span>
-              {isMe && <span className="text-[10px] text-primary font-semibold shrink-0">você</span>}
+              <span className="text-base shrink-0">
+                {getEmojiForPseudonym(pseudonym)}
+              </span>
+              <span className="text-sm font-semibold truncate">
+                {pseudonym || "Anônimo"}
+              </span>
+              {isMe && (
+                <span className="text-[10px] text-primary font-semibold shrink-0">
+                  você
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
               {onEdit && (
-                <button type="button" className="text-xs text-muted-foreground hover:text-foreground underline" onClick={onEdit}>
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:text-foreground underline"
+                  onClick={onEdit}
+                >
                   editar
                 </button>
               )}
-              <span className="text-xs text-muted-foreground/60">
-                {new Date(date).toLocaleDateString("pt-BR")}
+              <span className="text-[10px] text-muted-foreground/70 text-right">
+                {updatedAt
+                  ? `Editado em ${new Date(updatedAt).toLocaleDateString("pt-BR")}`
+                  : new Date(date).toLocaleDateString("pt-BR")}
               </span>
             </div>
           </div>
@@ -217,12 +246,18 @@ function CommentCard({
           {(courseName || scores) && (
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               {courseName && (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">{courseName}</Badge>
+                <Badge
+                  variant="outline"
+                  className="text-[10px] px-1.5 py-0 h-4"
+                >
+                  {courseName}
+                </Badge>
               )}
               {scores && (
                 <div className="flex gap-2 text-xs text-muted-foreground">
                   <span className="flex items-center gap-0.5 text-yellow-600 font-medium">
-                    <Star className="w-2.5 h-2.5 fill-current" /> {scores.overall}
+                    <Star className="w-2.5 h-2.5 fill-current" />{" "}
+                    {scores.overall}
                   </span>
                   <span>⚡ {scores.difficulty}</span>
                   <span>📖 {scores.didactics}</span>
@@ -233,17 +268,13 @@ function CommentCard({
 
           <p className="text-sm text-card-foreground leading-relaxed">{text}</p>
 
-          {isAuthenticated ? (
-            <button
-              type="button"
-              onClick={onReply}
-              className="mt-2 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
-            >
-              <Reply className="w-3 h-3" /> Responder
-            </button>
-          ) : (
-            <p className="mt-2 text-xs text-muted-foreground/60 italic">Faça login para responder</p>
-          )}
+          <button
+            type="button"
+            onClick={onReply}
+            className="mt-2 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+          >
+            <Reply className="w-3 h-3" /> Responder
+          </button>
 
           {/* Inline reply form */}
           <AnimatePresence>
@@ -263,8 +294,12 @@ function CommentCard({
                   className="text-sm min-h-[60px] bg-background resize-none w-full"
                 />
                 <div className="flex justify-end gap-2">
-                  <Button size="sm" variant="ghost" onClick={onReplyCancel}>Cancelar</Button>
-                  <Button size="sm" onClick={onReplySubmit}>Responder</Button>
+                  <Button size="sm" variant="ghost" onClick={onReplyCancel}>
+                    Cancelar
+                  </Button>
+                  <Button size="sm" onClick={onReplySubmit}>
+                    Responder
+                  </Button>
                 </div>
               </motion.div>
             )}
@@ -312,8 +347,100 @@ function StarColumn({
       ))}
       <div className="mt-1.5 flex flex-col items-center gap-0.5">
         <span className="text-base leading-none">{icon}</span>
-        <span className="text-[10px] font-medium text-muted-foreground">{label}</span>
+        <span className="text-[10px] font-medium text-muted-foreground">
+          {label}
+        </span>
       </div>
+    </div>
+  );
+}
+
+function ReplyThread({
+  replies,
+  parentId,
+  myHash,
+  voteState,
+  handleVote,
+  replyingTo,
+  setReplyingTo,
+  replyText,
+  setReplyText,
+  handleReplySubmit,
+  depth = 0,
+  isAuthenticated,
+}: {
+  replies: ReplyObj[];
+  parentId: string;
+  myHash: string;
+  voteState: Record<string, any>;
+  handleVote: (id: string, v: 1 | -1, curr: any) => void;
+  replyingTo: string | null;
+  setReplyingTo: (id: string | null) => void;
+  replyText: string;
+  setReplyText: (text: string) => void;
+  handleReplySubmit: (id: string) => void;
+  depth?: number;
+  isAuthenticated: boolean;
+}) {
+  const children = replies.filter((r) => r.parentId === parentId);
+  if (children.length === 0) return null;
+
+  return (
+    <div
+      className={`mt-2 flex flex-col gap-2 ${
+        depth > 0 ? "ml-8 border-l pl-4 border-border/50" : "ml-8"
+      }`}
+    >
+      <AnimatePresence initial={false}>
+        {children.map((reply) => (
+          <motion.div
+            key={reply.id}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+          >
+            <CommentCard
+              id={reply.id}
+              pseudonym={reply.pseudonym}
+              isMe={reply.authorHash === myHash}
+              date={reply.createdAt}
+              updatedAt={reply.updatedAt}
+              text={reply.text}
+              upvotes={reply.upvotes ?? 0}
+              downvotes={reply.downvotes ?? 0}
+              voteState={voteState[reply.id]}
+              onVote={(v) =>
+                handleVote(reply.id, v, {
+                  upvotes: reply.upvotes ?? 0,
+                  downvotes: reply.downvotes ?? 0,
+                })
+              }
+              onReply={() => setReplyingTo(reply.id)}
+              isReplyOpen={replyingTo === reply.id}
+              replyText={replyText}
+              onReplyTextChange={setReplyText}
+              onReplySubmit={() => handleReplySubmit(reply.id)}
+              onReplyCancel={() => setReplyingTo(null)}
+              isAuthenticated={isAuthenticated}
+            />
+            <ReplyThread
+              replies={replies}
+              parentId={reply.id}
+              myHash={myHash}
+              voteState={voteState}
+              handleVote={handleVote}
+              replyingTo={replyingTo}
+              setReplyingTo={setReplyingTo}
+              replyText={replyText}
+              setReplyText={setReplyText}
+              handleReplySubmit={handleReplySubmit}
+              depth={depth + 1}
+              isAuthenticated={isAuthenticated}
+            />
+          </motion.div>
+        ))}
+      </AnimatePresence>
     </div>
   );
 }
@@ -321,11 +448,13 @@ function StarColumn({
 function ProfessorDetailsSection({
   professorId,
   taughtCourses,
+  onWriteReview,
 }: {
   professorId: string;
   taughtCourses?: string[];
   onWriteReview?: (professorId: string, courseId: string) => void;
 }) {
+  const { userId, isAuthenticated } = useStudentStore();
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<Record<string, Stats>>({});
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -348,10 +477,16 @@ function ProfessorDetailsSection({
   const [replyText, setReplyText] = useState("");
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   // Local vote overrides: reviewId → { upvotes, downvotes, myVote }
-  const [voteState, setVoteState] = useState<Record<string, { upvotes: number; downvotes: number; myVote: 1 | -1 | 0 }>>({});
+  const [voteState, setVoteState] = useState<
+    Record<string, { upvotes: number; downvotes: number; myVote: 1 | -1 | 0 }>
+  >({});
 
-  const handleVote = async (reviewId: string, value: 1 | -1, current: { upvotes: number; downvotes: number }) => {
-    const myHash = getAnonymousUserId();
+  const handleVote = async (
+    reviewId: string,
+    value: 1 | -1,
+    current: { upvotes: number; downvotes: number },
+  ) => {
+    const myHash = getAnonymousUserId(userId);
     const existing = voteState[reviewId]?.myVote ?? 0;
     const newVote: 0 | 1 | -1 = existing === value ? 0 : value;
     // Optimistic update: recalculate from current counts
@@ -361,12 +496,29 @@ function ProfessorDetailsSection({
     if (existing === -1) down--;
     if (newVote === 1) up++;
     if (newVote === -1) down++;
-    setVoteState((s) => ({ ...s, [reviewId]: { upvotes: up, downvotes: down, myVote: newVote } }));
+    setVoteState((s) => ({
+      ...s,
+      [reviewId]: { upvotes: up, downvotes: down, myVote: newVote },
+    }));
     try {
       const result = await submitVote(reviewId, myHash, value);
-      setVoteState((s) => ({ ...s, [reviewId]: { upvotes: result.upvotes, downvotes: result.downvotes, myVote: newVote } }));
+      setVoteState((s) => ({
+        ...s,
+        [reviewId]: {
+          upvotes: result.upvotes,
+          downvotes: result.downvotes,
+          myVote: newVote,
+        },
+      }));
     } catch {
-      setVoteState((s) => ({ ...s, [reviewId]: { upvotes: current.upvotes, downvotes: current.downvotes, myVote: existing as 0 | 1 | -1 } }));
+      setVoteState((s) => ({
+        ...s,
+        [reviewId]: {
+          upvotes: current.upvotes,
+          downvotes: current.downvotes,
+          myVote: existing as 0 | 1 | -1,
+        },
+      }));
     }
   };
 
@@ -376,9 +528,10 @@ function ProfessorDetailsSection({
   const [difficulty, setDifficulty] = useState(0);
   const [didactics, setDidactics] = useState(0);
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [isEditingForm, setIsEditingForm] = useState(false);
 
   const myReviewByCourse = useMemo(() => {
-    const myHash = getAnonymousUserId();
+    const myHash = getAnonymousUserId(userId);
     const map: Record<string, Review> = {};
     for (const r of reviews) {
       if (r.authorHash === myHash) map[r.courseId] = r;
@@ -391,6 +544,7 @@ function ProfessorDetailsSection({
     setOverall(0);
     setDifficulty(0);
     setDidactics(0);
+    setIsEditingForm(false);
     setSelectedCourse(courseId);
   }
 
@@ -402,6 +556,7 @@ function ProfessorDetailsSection({
       setDifficulty(existing.scores.difficulty);
       setDidactics(existing.scores.didactics);
     }
+    setIsEditingForm(true);
     setSelectedCourse(courseId);
   }
 
@@ -411,15 +566,14 @@ function ProfessorDetailsSection({
     setOverall(0);
     setDifficulty(0);
     setDidactics(0);
+    setIsEditingForm(false);
   }
 
   // Set of courseIds this user has already reviewed (matched by stored authorHash)
   const alreadyReviewedCourses = useMemo(() => {
-    const myHash = getAnonymousUserId();
+    const myHash = getAnonymousUserId(userId);
     return new Set(
-      reviews
-        .filter((r) => r.authorHash === myHash)
-        .map((r) => r.courseId),
+      reviews.filter((r) => r.authorHash === myHash).map((r) => r.courseId),
     );
   }, [reviews]);
 
@@ -467,7 +621,7 @@ function ProfessorDetailsSection({
   const handleReplySubmit = async (parentId: string) => {
     if (!replyText.trim()) return;
     try {
-      const authorHash = getAnonymousUserId();
+      const authorHash = getAnonymousUserId(userId);
       await submitReply(parentId, authorHash, replyText);
       setReplyingTo(null);
       setReplyText("");
@@ -485,7 +639,8 @@ function ProfessorDetailsSection({
 
   const handleReviewSubmit = async () => {
     if (!selectedCourse) return;
-    const isEditing = alreadyReviewedCourses.has(selectedCourse);
+    const isEditing =
+      alreadyReviewedCourses.has(selectedCourse) && isEditingForm;
 
     if (overall === 0 || difficulty === 0 || didactics === 0) {
       toast({
@@ -506,20 +661,32 @@ function ProfessorDetailsSection({
 
     setSubmittingReview(true);
     try {
-      const authorHash = getAnonymousUserId();
+      const authorHash = getAnonymousUserId(userId);
       if (isEditing) {
-        await updateReview(professorId, selectedCourse, authorHash, reviewText, {
-          overall,
-          difficulty,
-          didactics,
-        });
+        await updateReview(
+          professorId,
+          selectedCourse,
+          authorHash,
+          reviewText,
+          {
+            overall,
+            difficulty,
+            didactics,
+          },
+        );
         toast({ title: "Avaliação atualizada!" });
       } else {
-        await submitReview(professorId, selectedCourse, authorHash, reviewText, {
-          overall,
-          difficulty,
-          didactics,
-        });
+        await submitReview(
+          professorId,
+          selectedCourse,
+          authorHash,
+          reviewText,
+          {
+            overall,
+            difficulty,
+            didactics,
+          },
+        );
         toast({ title: "Avaliação enviada!" });
       }
       // Reset form
@@ -603,7 +770,9 @@ function ProfessorDetailsSection({
           </Badge>
           <span className="text-xs text-muted-foreground ml-auto">
             {overallStats?.totalReviews ?? 0}{" "}
-            {(overallStats?.totalReviews ?? 0) === 1 ? "avaliação" : "avaliações"}
+            {(overallStats?.totalReviews ?? 0) === 1
+              ? "avaliação"
+              : "avaliações"}
           </span>
         </div>
       </div>
@@ -719,7 +888,9 @@ function ProfessorDetailsSection({
 
               {/* Review compose box — only shown when a course is selected */}
               <AnimatePresence mode="wait">
-                {selectedCourse ? (
+                {selectedCourse &&
+                (!alreadyReviewedCourses.has(selectedCourse) ||
+                  isEditingForm) ? (
                   <motion.div
                     key="compose"
                     initial={{ opacity: 0, y: -8, scale: 0.98 }}
@@ -805,7 +976,7 @@ function ProfessorDetailsSection({
 
               {/* Existing reviews — filtered by selected course when one is active */}
               {(() => {
-                const myHash = getAnonymousUserId();
+                const myHash = getAnonymousUserId(userId);
                 const baseReviews = selectedCourse
                   ? reviews.filter((r) => r.courseId === selectedCourse)
                   : reviews;
@@ -839,7 +1010,6 @@ function ProfessorDetailsSection({
                       <div className="flex flex-col gap-4">
                         <AnimatePresence initial={false}>
                           {visibleReviews.map((review, i) => {
-                            const reviewReplies = replies.filter((r) => r.parentId === review.id);
                             const isMyReview = review.authorHash === myHash;
                             return (
                               <motion.div
@@ -847,62 +1017,64 @@ function ProfessorDetailsSection({
                                 initial={{ opacity: 0, y: 12 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -8, scale: 0.97 }}
-                                transition={{ duration: 0.22, ease: "easeOut", delay: i * 0.04 }}
+                                transition={{
+                                  duration: 0.22,
+                                  ease: "easeOut",
+                                  delay: i * 0.04,
+                                }}
                               >
                                 <CommentCard
                                   id={review.id}
                                   pseudonym={review.pseudonym}
                                   isMe={isMyReview}
                                   date={review.createdAt}
+                                  updatedAt={review.updatedAt}
                                   text={review.text}
                                   scores={review.scores}
-                                  courseName={!selectedCourse ? (courseNameMap[review.courseId] || review.courseId) : undefined}
+                                  courseName={
+                                    !selectedCourse
+                                      ? courseNameMap[review.courseId] ||
+                                        review.courseId
+                                      : undefined
+                                  }
                                   upvotes={review.upvotes ?? 0}
                                   downvotes={review.downvotes ?? 0}
                                   voteState={voteState[review.id]}
-                                  onVote={(v) => handleVote(review.id, v, { upvotes: review.upvotes ?? 0, downvotes: review.downvotes ?? 0 })}
+                                  onVote={(v) =>
+                                    handleVote(review.id, v, {
+                                      upvotes: review.upvotes ?? 0,
+                                      downvotes: review.downvotes ?? 0,
+                                    })
+                                  }
                                   onReply={() => setReplyingTo(review.id)}
-                                  onEdit={isMyReview ? () => startEditing(review.courseId) : undefined}
+                                  onEdit={
+                                    isMyReview
+                                      ? () => startEditing(review.courseId)
+                                      : undefined
+                                  }
                                   isReplyOpen={replyingTo === review.id}
                                   replyText={replyText}
                                   onReplyTextChange={setReplyText}
-                                  onReplySubmit={() => handleReplySubmit(review.id)}
+                                  onReplySubmit={() =>
+                                    handleReplySubmit(review.id)
+                                  }
                                   onReplyCancel={() => setReplyingTo(null)}
+                                  isAuthenticated={isAuthenticated}
                                 />
-                                {/* Replies as full cards, indented */}
-                                {(reviewReplies.length > 0 || replyingTo === review.id) && (
-                                  <div className="ml-8 mt-2 flex flex-col gap-2">
-                                    <AnimatePresence initial={false}>
-                                      {reviewReplies.map((reply) => (
-                                        <motion.div
-                                          key={reply.id}
-                                          initial={{ opacity: 0, y: 8 }}
-                                          animate={{ opacity: 1, y: 0 }}
-                                          exit={{ opacity: 0 }}
-                                          transition={{ duration: 0.18 }}
-                                        >
-                                          <CommentCard
-                                            id={reply.id}
-                                            pseudonym={reply.pseudonym}
-                                            isMe={reply.authorHash === myHash}
-                                            date={reply.createdAt}
-                                            text={reply.text}
-                                            upvotes={reply.upvotes ?? 0}
-                                            downvotes={reply.downvotes ?? 0}
-                                            voteState={voteState[reply.id]}
-                                            onVote={(v) => handleVote(reply.id, v, { upvotes: reply.upvotes ?? 0, downvotes: reply.downvotes ?? 0 })}
-                                            onReply={() => setReplyingTo(review.id)}
-                                            isReplyOpen={false}
-                                            replyText=""
-                                            onReplyTextChange={() => {}}
-                                            onReplySubmit={() => {}}
-                                            onReplyCancel={() => {}}
-                                          />
-                                        </motion.div>
-                                      ))}
-                                    </AnimatePresence>
-                                  </div>
-                                )}
+                                {/* Nested replies thread */}
+                                <ReplyThread
+                                  replies={replies}
+                                  parentId={review.id}
+                                  myHash={myHash}
+                                  voteState={voteState}
+                                  handleVote={handleVote}
+                                  replyingTo={replyingTo}
+                                  setReplyingTo={setReplyingTo}
+                                  replyText={replyText}
+                                  setReplyText={setReplyText}
+                                  handleReplySubmit={handleReplySubmit}
+                                  isAuthenticated={isAuthenticated}
+                                />
                               </motion.div>
                             );
                           })}

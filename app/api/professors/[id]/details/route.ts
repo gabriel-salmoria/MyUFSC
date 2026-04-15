@@ -45,7 +45,7 @@ export async function GET(
 
     // 2. Get top-level reviews
     const reviewsQuery = `
-      SELECT id, "courseId", "authorHash", text, scores, "createdAt"
+      SELECT id, "courseId", "authorHash", text, scores, "createdAt", "updatedAt"
       FROM reviews
       WHERE "professorId" = $1 AND "parentId" IS NULL
       ORDER BY "createdAt" DESC
@@ -84,6 +84,7 @@ export async function GET(
       text: r.text,
       scores: r.scores,
       createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
       upvotes: 0,
       downvotes: 0,
     }));
@@ -121,10 +122,18 @@ export async function GET(
     if (reviews.length > 0) {
       const reviewIds = reviews.map((r: any) => r.id);
       const repliesQuery = `
-        SELECT
-          id, "parentId", "authorHash", text, "createdAt"
-        FROM reviews
-        WHERE "parentId" = ANY($1)
+        WITH RECURSIVE reply_tree AS (
+          SELECT id, "parentId", "authorHash", text, "createdAt", "updatedAt"
+          FROM reviews
+          WHERE "parentId" = ANY($1)
+
+          UNION ALL
+
+          SELECT r.id, r."parentId", r."authorHash", r.text, r."createdAt", r."updatedAt"
+          FROM reviews r
+          INNER JOIN reply_tree rt ON r."parentId" = rt.id
+        )
+        SELECT * FROM reply_tree
         ORDER BY "createdAt" ASC
       `;
       const repliesResult = await executeQuery(repliesQuery, [reviewIds]);
@@ -135,12 +144,16 @@ export async function GET(
         pseudonym: generatePseudonym(r.authorHash, normalizedId),
         text: r.text,
         createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
         upvotes: 0,
         downvotes: 0,
       }));
 
       // Fetch vote counts for replies too
-      let replyVoteCounts: Record<string, { upvotes: number; downvotes: number }> = {};
+      let replyVoteCounts: Record<
+        string,
+        { upvotes: number; downvotes: number }
+      > = {};
       if (baseReplies.length > 0) {
         try {
           const replyIds = baseReplies.map((r) => r.id);
