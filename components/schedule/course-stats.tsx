@@ -14,6 +14,7 @@ import CreditsSummary from "./credits-summary";
 import ProfessorSelector from "./professor-selector";
 import SearchPopup from "./search-popup";
 import { ProfessorSearch } from "@/components/professors/professor-search";
+import { AnimatePresence, motion } from "framer-motion";
 
 // Default empty schedule data
 const emptyScheduleData = {
@@ -177,28 +178,39 @@ export default function CourseStats({
           )}
 
           {/* Professor Selection */}
-          {selectedSchedule && ( // Use selectedSchedule from the store
-            <ProfessorSelector
-              professors={professors}
-              selectedProfessor={selectedProfessor}
-              onProfessorSelect={handleProfessorSelect}
-              onRemoveCourse={onRemoveCourse}
-              isInTimetable={coursesInTimetable.includes(
-                selectedSchedule.id, // Use selectedSchedule
-              )}
-              professorAggregates={professorAggregates}
-              onProfessorClick={onProfessorClick}
-            />
-          )}
+          <AnimatePresence>
+            {selectedSchedule && (
+              <motion.div
+                key={selectedSchedule.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+              >
+                <ProfessorSelector
+                  professors={professors}
+                  selectedProfessor={selectedProfessor}
+                  onProfessorSelect={handleProfessorSelect}
+                  onRemoveCourse={onRemoveCourse}
+                  isInTimetable={coursesInTimetable.includes(selectedSchedule.id)}
+                  professorAggregates={professorAggregates}
+                  onProfessorClick={onProfessorClick}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>{" "}
       </div>{" "}
-      {isSearchOpen && (
-        <SearchPopup
-          searchTerm={searchTerm}
-          onClose={() => setIsSearchOpen(false)}
-          selectedPhase={selectedPhase}
-        />
-      )}
+      <AnimatePresence>
+        {isSearchOpen && (
+          <SearchPopup
+            key="search-popup"
+            searchTerm={searchTerm}
+            onClose={() => setIsSearchOpen(false)}
+            selectedPhase={selectedPhase}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

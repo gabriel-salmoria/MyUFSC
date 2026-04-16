@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { TIMETABLE } from "@/styles/visualization";
 import { TIMETABLE_COLOR_CLASSES } from "@/styles/course-theme";
 import type { CustomScheduleEntry } from "@/types/student-plan";
@@ -121,15 +122,24 @@ export default function CustomEventModal({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open, onClose]);
 
-  if (!open) return null;
-
   return (
-    <div 
-      className="fixed inset-0 bg-black/20 dark:bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center animate-in fade-in-0 duration-200"
+    <AnimatePresence>
+      {open && (
+    <motion.div
+      key="custom-event-overlay"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 bg-black/20 dark:bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center"
       onClick={onClose}
     >
-      <div
-        className="bg-background border border-border sm:rounded-lg shadow-xl w-full max-w-md p-6 relative transition-all animate-in zoom-in-95 duration-200"
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.2 }}
+        className="bg-background border border-border sm:rounded-lg shadow-xl w-full max-w-md p-6 relative"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close button */}
@@ -312,7 +322,9 @@ export default function CustomEventModal({
               </Button>
             </div>
           </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

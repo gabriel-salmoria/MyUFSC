@@ -7,6 +7,7 @@ import type { StudentCourse } from "@/types/student-plan";
 import { courseMap, parseCourses } from "@/parsers/curriculum-parser";
 import { useStudentStore } from "@/lib/student-store";
 import { useAddCoursePrereq } from "@/components/course/use-add-course-prereq";
+import { motion } from "framer-motion";
 
 interface SearchPopupProps {
   searchTerm: string;
@@ -245,10 +246,20 @@ export default function SearchPopup({
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/20 dark:bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center pt-[10vh] animate-in fade-in-0 duration-200">
-        <div
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        className="fixed inset-0 bg-black/20 dark:bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center pt-[10vh]"
+      >
+        <motion.div
           ref={popupRef}
-          className="bg-background border border-border rounded-lg shadow-xl w-full max-w-md overflow-hidden transition-all animate-in zoom-in-95 duration-200"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ duration: 0.2 }}
+          className="bg-background border border-border rounded-lg shadow-xl w-full max-w-md overflow-hidden"
           style={{ maxHeight: "60vh" }}
         >
           <div className="p-3 bg-background-secondary border-b border-border">
@@ -324,8 +335,8 @@ export default function SearchPopup({
               </div>
             )}
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
       <PrereqDialog />
     </>
   );

@@ -10,6 +10,7 @@ import { useStudentStore } from "@/lib/student-store";
 import {
   DegreeSelector,
   DegreeMultiSelector,
+  ProgramLabel,
 } from "@/components/selector/degree-selector";
 import { TranscriptUploader } from "@/components/transcript/transcript-uploader";
 import { buildStudentInfoFromTranscript } from "@/parsers/transcript-integration";
@@ -465,7 +466,7 @@ export default function Header({
           ) : (
             <>
               <p className="text-muted-foreground break-words">
-                {getDegreeName(studentInfo.currentDegree)}
+                <ProgramLabel name={getDegreeName(studentInfo.currentDegree)} />
               </p>
               {currentCurriculum && (
                 <div className="mt-4">
@@ -534,7 +535,7 @@ export default function Header({
               studentInfo.interestedDegrees.length > 0 ? (
                 studentInfo.interestedDegrees.map((degree, index) => (
                   <li key={index} className="text-muted-foreground break-words">
-                    {getDegreeName(degree)}
+                    <ProgramLabel name={getDegreeName(degree)} />
                   </li>
                 ))
               ) : (

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { StudentInfo, StudentCourse } from "@/types/student-plan";
 import { Course } from "@/types/curriculum";
 import { Curriculum } from "@/types/curriculum";
 import { Switch } from "@/components/ui/switch";
+import { ChevronDown } from "lucide-react";
 
 import CurriculumVisualizer from "@/components/visualizers/curriculum-visualizer";
 import ProgressVisualizer from "@/components/visualizers/progress-visualizer";
@@ -12,6 +13,7 @@ import GridVisualizer from "@/components/visualizers/grid-visualizer";
 import { useStudentStore } from "@/lib/student-store";
 import { useAddCoursePrereq } from "@/components/course/use-add-course-prereq";
 import type { DegreeProgram } from "@/types/degree-program";
+import { ProgramLabel } from "@/components/selector/degree-selector";
 
 export enum ViewMode {
   CURRICULUM = "curriculum",
@@ -64,10 +66,21 @@ export default function Visualizations({
     );
   };
 
-  // Helper to get program name
-  const getDegreeName = (id: string) => {
-    return degreePrograms.find(p => p.id === id)?.name || id;
-  };
+  const getDegreeName = (id: string) => degreePrograms.find(p => p.id === id)?.name || id;
+
+  const [degreeDropdownOpen, setDegreeDropdownOpen] = useState(false);
+  const degreeDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!degreeDropdownOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (!degreeDropdownRef.current?.contains(e.target as Node)) {
+        setDegreeDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [degreeDropdownOpen]);
 
   // Calculate container height for visualizers
   const containerHeight = 500; // Using fixed height for simplicity
@@ -84,35 +97,67 @@ export default function Visualizations({
               <h2 className="text-xl font-semibold text-foreground">
                 Visão Geral:
               </h2>
-              <select
-                className="bg-background border border-border rounded px-2 py-1 text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                value={viewingDegreeId || studentInfo.currentDegree || ""}
-                onChange={(e) => setViewingDegreeId && setViewingDegreeId(e.target.value)}
-              >
-                {/* Current Degree */}
-                {studentInfo.currentDegree && (
-                  <option value={studentInfo.currentDegree}>
-                    {getDegreeName(studentInfo.currentDegree)} (Atual)
-                  </option>
+              {/* Custom degree picker with badge labels */}
+              <div className="relative" ref={degreeDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setDegreeDropdownOpen((o) => !o)}
+                  className="flex items-center gap-2 bg-background border border-border rounded-md px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring hover:bg-muted/50 transition-colors"
+                >
+                  <ProgramLabel name={getDegreeName(viewingDegreeId || studentInfo.currentDegree || "")} />
+                  <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+                </button>
+
+                {degreeDropdownOpen && (
+                  <div className="absolute top-[calc(100%+4px)] left-0 z-50 min-w-full bg-popover border border-border rounded-md shadow-md py-1 animate-in fade-in-0 zoom-in-95">
+                    {studentInfo.currentDegree && (
+                      <button
+                        type="button"
+                        className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                        onClick={() => {
+                          setViewingDegreeId?.(studentInfo.currentDegree!);
+                          setDegreeDropdownOpen(false);
+                        }}
+                      >
+                        <ProgramLabel name={getDegreeName(studentInfo.currentDegree)} />
+                      </button>
+                    )}
+
+                    {studentInfo.interestedDegrees && studentInfo.interestedDegrees.length > 0 && (
+                      <div className="my-1 mx-2 border-t border-border" />
+                    )}
+
+                    {studentInfo.interestedDegrees?.map((degreeId) => (
+                      <button
+                        key={degreeId}
+                        type="button"
+                        className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                        onClick={() => {
+                          setViewingDegreeId?.(degreeId);
+                          setDegreeDropdownOpen(false);
+                        }}
+                      >
+                        <ProgramLabel name={getDegreeName(degreeId)} />
+                      </button>
+                    ))}
+
+                    {viewingDegreeId &&
+                      viewingDegreeId !== studentInfo.currentDegree &&
+                      !studentInfo.interestedDegrees?.includes(viewingDegreeId) && (
+                        <>
+                          <div className="my-1 mx-2 border-t border-border" />
+                          <button
+                            type="button"
+                            className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                            onClick={() => setDegreeDropdownOpen(false)}
+                          >
+                            <ProgramLabel name={getDegreeName(viewingDegreeId)} />
+                          </button>
+                        </>
+                      )}
+                  </div>
                 )}
-
-                {/* Divider logic not strictly supported in selects but we can use disabled option or just list */}
-                {studentInfo.interestedDegrees?.length > 0 && <option disabled>──────────</option>}
-
-                {/* Interested Degrees */}
-                {studentInfo.interestedDegrees?.map(degreeId => (
-                  <option key={degreeId} value={degreeId}>
-                    {getDegreeName(degreeId)}
-                  </option>
-                ))}
-
-                {/* Fallback for viewingDegreeId if not in the list (e.g. debugging) */}
-                {viewingDegreeId &&
-                  viewingDegreeId !== studentInfo.currentDegree &&
-                  !studentInfo.interestedDegrees?.includes(viewingDegreeId) && (
-                    <option value={viewingDegreeId}>{getDegreeName(viewingDegreeId)}</option>
-                  )}
-              </select>
+              </div>
             </div>
           ) : (
             <h2 className="text-xl font-semibold text-foreground">

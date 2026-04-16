@@ -14,6 +14,84 @@ import {
 import { Badge } from "@/components/ui/badge";
 import type { DegreeProgram } from "@/types/degree-program";
 
+// ── Utilities ──────────────────────────────────────────────────────────────
+
+interface ParsedProgram {
+    baseName: string;
+    yearSem: string | null;
+    campus: string;
+    campusTag: string;
+}
+
+export function parseProgramName(name: string): ParsedProgram {
+    const match = name.match(/^(.+?)\s*\((\d{4}\.\d)\)(?:\s*-\s*(.+))?$/);
+    if (!match) {
+        return { baseName: name, yearSem: null, campus: "Florianópolis", campusTag: "FLO" };
+    }
+    const baseName = match[1].trim();
+    const yearSem = match[2];
+    const campus = match[3]?.trim() || "Florianópolis";
+    // First 3 letters of campus, stripping accents, uppercase
+    const campusTag = campus
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z]/g, "")
+        .slice(0, 3)
+        .toUpperCase();
+    return { baseName, yearSem, campus, campusTag };
+}
+
+/** Keep only curricula from the last 6 years.
+ *  Groups by baseName: if a group has no recent entry, keeps only its most recent. */
+function filterRecentPrograms(programs: DegreeProgram[]): DegreeProgram[] {
+    if (!programs.length) return programs;
+    const cutoff = new Date().getFullYear() - 6;
+
+    type Entry = { program: DegreeProgram; year: number };
+    const groups = new Map<string, Entry[]>();
+
+    for (const p of programs) {
+        const { baseName, yearSem } = parseProgramName(p.name);
+        const year = yearSem ? parseInt(yearSem.split(".")[0]) : 0;
+        const key = baseName.toLowerCase();
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push({ program: p, year });
+    }
+
+    const result: DegreeProgram[] = [];
+    for (const group of groups.values()) {
+        const recent = group.filter((g) => g.year >= cutoff);
+        if (recent.length > 0) {
+            result.push(...recent.map((g) => g.program));
+        } else {
+            const sorted = [...group].sort((a, b) => b.year - a.year);
+            result.push(sorted[0].program);
+        }
+    }
+    return result;
+}
+
+export function ProgramLabel({ name }: { name: string }) {
+    const { baseName, yearSem, campusTag } = parseProgramName(name);
+    return (
+        <span className="flex items-center gap-1.5 flex-wrap">
+            <span>{baseName}</span>
+            <span className="inline-flex items-center gap-1">
+                <span className="text-[10px] font-semibold bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
+                    {campusTag}
+                </span>
+                {yearSem && (
+                    <span className="text-[10px] font-semibold bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
+                        {yearSem}
+                    </span>
+                )}
+            </span>
+        </span>
+    );
+}
+
+// ── Components ─────────────────────────────────────────────────────────────
+
 export interface DegreeSelectorProps {
     label?: string;
     programs: DegreeProgram[];
@@ -41,12 +119,13 @@ export function DegreeSelector({
     const [open, setOpen] = React.useState(false);
     const [inputValue, setInputValue] = React.useState("");
 
+    const filteredPrograms = React.useMemo(() => filterRecentPrograms(programs), [programs]);
     const selectedProgram = programs.find((p) => p.id === value);
 
     // Sync input with selection when not open
     React.useEffect(() => {
         if (!open && selectedProgram) {
-            setInputValue(selectedProgram.name);
+            setInputValue(parseProgramName(selectedProgram.name).baseName);
         }
     }, [open, selectedProgram]);
 
@@ -76,13 +155,13 @@ export function DegreeSelector({
                         <CommandList>
                             <CommandEmpty>Nenhum curso encontrado.</CommandEmpty>
                             <CommandGroup>
-                                {programs.map((program) => (
+                                {filteredPrograms.map((program) => (
                                     <CommandItem
                                         key={program.id}
                                         value={program.name}
                                         onSelect={() => {
                                             onChange(program.id);
-                                            setInputValue(program.name);
+                                            setInputValue(parseProgramName(program.name).baseName);
                                             setOpen(false);
                                         }}
                                         className="cursor-pointer"
@@ -94,7 +173,7 @@ export function DegreeSelector({
                                                 value === program.id ? "opacity-100" : "opacity-0"
                                             )}
                                         />
-                                        {program.name}
+                                        <ProgramLabel name={program.name} />
                                     </CommandItem>
                                 ))}
                             </CommandGroup>
@@ -117,6 +196,8 @@ export function DegreeMultiSelector({
     const [open, setOpen] = React.useState(false);
     const [inputValue, setInputValue] = React.useState("");
 
+    const filteredPrograms = React.useMemo(() => filterRecentPrograms(programs), [programs]);
+
     const handleSelect = (programId: string) => {
         const next = value.includes(programId)
             ? value.filter((id) => id !== programId)
@@ -126,7 +207,7 @@ export function DegreeMultiSelector({
 
     const removeItem = (idToRemove: string) => {
         onChange(value.filter(id => id !== idToRemove));
-    }
+    };
 
     return (
         <div className="flex flex-col gap-2">
@@ -141,15 +222,34 @@ export function DegreeMultiSelector({
                 <div className="flex flex-wrap gap-2 mb-1">
                     {value.map((id) => {
                         const prog = programs.find((p) => p.id === id);
-                        return (
+                        if (!prog) return (
                             <Badge key={id} variant="secondary" className="gap-1 pr-1.5">
-                                {prog?.name || id}
+                                {id}
                                 <button
                                     type="button"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        removeItem(id);
-                                    }}
+                                    onClick={(e) => { e.preventDefault(); removeItem(id); }}
+                                    className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 hover:bg-muted"
+                                >
+                                    <X className="h-3 w-3" />
+                                    <span className="sr-only">Remove</span>
+                                </button>
+                            </Badge>
+                        );
+                        const { baseName, yearSem, campusTag } = parseProgramName(prog.name);
+                        return (
+                            <Badge key={id} variant="secondary" className="gap-1 pr-1.5 items-center">
+                                <span>{baseName}</span>
+                                <span className="text-[9px] font-semibold bg-secondary-foreground/10 px-1 rounded">
+                                    {campusTag}
+                                </span>
+                                {yearSem && (
+                                    <span className="text-[9px] font-semibold bg-secondary-foreground/10 px-1 rounded">
+                                        {yearSem}
+                                    </span>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={(e) => { e.preventDefault(); removeItem(id); }}
                                     className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 hover:bg-muted"
                                 >
                                     <X className="h-3 w-3" />
@@ -181,7 +281,7 @@ export function DegreeMultiSelector({
                             <CommandList>
                                 <CommandEmpty>Nenhum curso encontrado.</CommandEmpty>
                                 <CommandGroup>
-                                    {programs.map((program) => {
+                                    {filteredPrograms.map((program) => {
                                         const isSelected = value.includes(program.id);
                                         return (
                                             <CommandItem
@@ -189,8 +289,7 @@ export function DegreeMultiSelector({
                                                 value={program.name}
                                                 onSelect={() => {
                                                     handleSelect(program.id);
-                                                    setInputValue(""); // Clear input on select
-                                                    // Keep open?
+                                                    setInputValue("");
                                                 }}
                                                 className="cursor-pointer"
                                                 onMouseDown={(e) => e.preventDefault()}
@@ -201,9 +300,9 @@ export function DegreeMultiSelector({
                                                         isSelected ? "opacity-100" : "opacity-0"
                                                     )}
                                                 />
-                                                {program.name}
+                                                <ProgramLabel name={program.name} />
                                             </CommandItem>
-                                        )
+                                        );
                                     })}
                                 </CommandGroup>
                             </CommandList>

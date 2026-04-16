@@ -239,11 +239,10 @@ export default function Home() {
               scheduleState={{ ...scheduleState, setScheduleState }}
             />
           </div>
-          {(selectedCourse || selectedStudentCourse) && (
-            <StudentCourseDetailsPanel
-              setDependencyState={setDependencyState}
-            />
-          )}
+          <StudentCourseDetailsPanel
+            setDependencyState={setDependencyState}
+            scheduleData={scheduleState.scheduleData}
+          />
           {dependencyState.dependencyCourse && (
             <DependencyTree
               course={dependencyState.dependencyCourse}

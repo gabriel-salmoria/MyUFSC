@@ -1553,12 +1553,9 @@ export function ProfessorDetailsDialog({
   onClose,
   onReviewChanged,
 }: ProfessorDetailsDialogProps) {
-  if (!professorId) return null;
-
   const professors = professorId
-    .split(",")
-    .map((p) => p.trim())
-    .filter(Boolean);
+    ? professorId.split(",").map((p) => p.trim()).filter(Boolean)
+    : [];
 
   return (
     <Dialog open={!!professorId} onOpenChange={(open) => !open && onClose()}>
