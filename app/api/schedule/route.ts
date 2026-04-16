@@ -1,15 +1,36 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { unstable_cache } from "next/cache";
 import { getScheduleByProgramAndSemester, getLatestSemester, getAvailableSemesters } from "@/database/schedule/db-schedule";
 
-// Server-side route handler
+function getCachedLatestSemester(programId: string) {
+  return unstable_cache(
+    () => getLatestSemester(programId),
+    [`schedule-latest-${programId}`],
+    { revalidate: 3600 },
+  )();
+}
+
+function getCachedAvailableSemesters(programId: string) {
+  return unstable_cache(
+    () => getAvailableSemesters(programId),
+    [`schedule-semesters-${programId}`],
+    { revalidate: 3600 },
+  )();
+}
+
+function getCachedSchedule(programId: string, semester: string) {
+  return unstable_cache(
+    () => getScheduleByProgramAndSemester(programId, semester),
+    [`schedule-${programId}-${semester}`],
+    { revalidate: 3600 },
+  )();
+}
+
 export async function GET(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const userId = cookieStore.get("userId")?.value;
     const url = new URL(request.url);
     const currentDegree = url.searchParams.get("currentDegree");
-    let semester = url.searchParams.get("semester");
+    const requestedSemester = url.searchParams.get("semester");
 
     if (!currentDegree) {
       return NextResponse.json(
@@ -18,15 +39,23 @@ export async function GET(request: Request) {
       );
     }
 
-    if (!semester) {
-      const latest = await getLatestSemester(currentDegree);
-      semester = latest || "20261"; 
+    // When no semester is requested, resolve latest + available in parallel
+    let semester: string;
+    let availableSemesters: string[];
+
+    if (requestedSemester) {
+      semester = requestedSemester;
+      availableSemesters = await getCachedAvailableSemesters(currentDegree);
+    } else {
+      const [latest, semesters] = await Promise.all([
+        getCachedLatestSemester(currentDegree),
+        getCachedAvailableSemesters(currentDegree),
+      ]);
+      semester = latest || "20261";
+      availableSemesters = semesters;
     }
 
-    const [schedule, availableSemesters] = await Promise.all([
-      getScheduleByProgramAndSemester(currentDegree, semester),
-      getAvailableSemesters(currentDegree)
-    ]);
+    const schedule = await getCachedSchedule(currentDegree, semester);
 
     if (!schedule || schedule.length === 0) {
       return NextResponse.json(
@@ -36,15 +65,16 @@ export async function GET(request: Request) {
     }
 
     const response = {
-      DATA: new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', ' -'), 
       fetchedSemester: semester,
       availableSemesters: availableSemesters.length > 0 ? availableSemesters : [semester],
       [currentDegree]: schedule,
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, {
+      headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" },
+    });
   } catch (error) {
-    console.error("Error fetching schedule:", error); 
+    console.error("Error fetching schedule:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

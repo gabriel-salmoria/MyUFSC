@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
-import { getCurriculumByProgramId } from "@/database/curriculum/db-curriculum"; // Import the new DB function
+import { unstable_cache } from "next/cache";
+import { getCurriculumByProgramId } from "@/database/curriculum/db-curriculum";
 
-// Server-side route handler
+function getCachedCurriculum(programId: string) {
+  return unstable_cache(
+    () => getCurriculumByProgramId(programId),
+    [`curriculum-${programId}`],
+    { revalidate: 3600 },
+  )();
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ programId: string }> },
@@ -16,8 +24,7 @@ export async function GET(
       );
     }
 
-    // Fetch curriculum from the database
-    const curriculum = await getCurriculumByProgramId(programId);
+    const curriculum = await getCachedCurriculum(programId);
 
     if (!curriculum) {
       return NextResponse.json(
@@ -26,8 +33,9 @@ export async function GET(
       );
     }
 
-    // Return the fetched JSON blob directly
-    return NextResponse.json(curriculum);
+    return NextResponse.json(curriculum, {
+      headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" },
+    });
   } catch (error) {
     console.error("Error fetching curriculum:", error);
     return NextResponse.json(
