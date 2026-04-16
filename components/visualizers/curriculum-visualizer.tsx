@@ -5,8 +5,9 @@ import { useRef, useState, useEffect, useMemo } from "react";
 
 // tipos de dados
 import type { Curriculum, Course } from "@/types/curriculum";
-import type { StudentCourse, StudentPlan } from "@/types/student-plan"; // Added for onCourseClick type, though prop will be removed
+import type { StudentPlan } from "@/types/student-plan";
 import { CourseStatus } from "@/types/student-plan";
+import type { ViewStudentCourse } from "@/types/visualization";
 
 // componentes visuais da ui
 import Phase from "@/components/visualizers/phase";
@@ -16,6 +17,7 @@ import { PHASE, COURSE_BOX } from "@/styles/visualization";
 
 // helper to generate phases - import directly from the file where it's defined
 import { generatePhases, generateEquivalenceMap } from "@/parsers/curriculum-parser";
+import { checkPrerequisites } from "@/lib/prerequisites";
 
 import { useStudentStore } from "@/lib/student-store";
 
@@ -43,9 +45,6 @@ export default function CurriculumVisualizer({
 
   // Create equivalence map to handle equivalent courses
   const equivalenceMap = useMemo(() => generateEquivalenceMap(curriculum.courses), [curriculum]);
-
-  // Use prereq check for highlighted state
-  const { checkPrerequisites } = require('@/lib/prerequisites');
 
   // Create mapped course statuses and handle optional course hours accumulation mapped greedily against curriculum blocks
   const mappedCurriculumCourses = useMemo(() => {
@@ -222,38 +221,31 @@ export default function CurriculumVisualizer({
                 // Filter curriculum courses for this phase and map to StudentCourse-like structure
                 studentCourses={curriculum.courses
                   .filter((course) => course.phase === semester.number)
-                  .map((course) => {
+                  .map((course): ViewStudentCourse => {
                     const mappedInfo = mappedCurriculumCourses.get(course.id);
                     const isAlreadyDoneOrPlanned = mappedInfo?.status && mappedInfo.status !== CourseStatus.DEFAULT;
-                    
-                    let _isHighlighted = false;
-                    let _unavailableDimm = false;
 
-                    if (highlightAvailableForPhase !== undefined && highlightAvailableForPhase !== null) {
-                       if (isAlreadyDoneOrPlanned) {
-                         _unavailableDimm = true;
-                       } else {
-                         const { satisfied } = checkPrerequisites(course, highlightAvailableForPhase, studentStore.studentInfo, equivalenceMap);
-                         _isHighlighted = satisfied;
-                         _unavailableDimm = !satisfied;
-                       }
+                    let isHighlighted = false;
+                    let isDimmed = false;
+
+                    if (highlightAvailableForPhase != null) {
+                      if (isAlreadyDoneOrPlanned) {
+                        isDimmed = true;
+                      } else {
+                        const { satisfied } = checkPrerequisites(course, highlightAvailableForPhase, studentStore.studentInfo, equivalenceMap);
+                        isHighlighted = satisfied;
+                        isDimmed = !satisfied;
+                      }
                     }
 
                     return {
-                      course, // Original Course object
+                      course,
                       id: course.id,
-                      name: course.name,
-                      credits: course.credits,
-                      description: course.description,
-                      workload: course.workload,
-                      prerequisites: course.prerequisites,
-                      equivalents: course.equivalents,
-                      type: course.type,
                       status: mappedInfo?.status || CourseStatus.DEFAULT,
                       grade: mappedInfo?.grade,
                       phase: semester.number,
-                      _isHighlighted,
-                      _unavailableDimm,
+                      isHighlighted,
+                      isDimmed,
                     };
                   })}
                 width={phaseWidth}

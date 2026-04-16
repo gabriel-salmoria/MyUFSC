@@ -54,10 +54,9 @@ export default function Home() {
 
   // Schedule Hook
   const { scheduleState, setScheduleState, isScheduleLoading } = useSchedule({
-    studentInfo, // Pass studentInfo from useStudentProfile directly
+    studentInfo,
     isProfileLoading,
     isCurriculumLoading,
-    setAuthState,
   });
 
   // Dependency tree state
@@ -186,11 +185,6 @@ export default function Home() {
       );
     }
 
-    if (isAuthenticated && authState.error) {
-      // Only show auth error if we expected to be logged in and failed
-      // For anonymous, we don't care about auth errors
-    }
-
     // Logic continues below...
 
     if (!studentInfo) {
@@ -231,12 +225,14 @@ export default function Home() {
             viewingDegreeId={curriculumState.viewingDegreeId}
             setViewingDegreeId={setViewingDegreeId}
             degreePrograms={curriculumState.degreePrograms}
-            scheduleState={{ ...scheduleState, setScheduleState }}
+            scheduleState={scheduleState}
+            setScheduleState={setScheduleState}
           />
           <div className="mt-8">
             <Timetable
               studentInfo={studentInfo}
-              scheduleState={{ ...scheduleState, setScheduleState }}
+              scheduleState={scheduleState}
+              setScheduleState={setScheduleState}
             />
           </div>
           <StudentCourseDetailsPanel

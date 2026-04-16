@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { StudentInfo, StudentCourse } from "@/types/student-plan";
-import { Course } from "@/types/curriculum";
-import { Curriculum } from "@/types/curriculum";
+import type { StudentInfo } from "@/types/student-plan";
+import type { Curriculum } from "@/types/curriculum";
+import type { ScheduleHookState } from "@/hooks/setup/UseSchedule";
 import { Switch } from "@/components/ui/switch";
 import { ChevronDown } from "lucide-react";
 
@@ -26,7 +26,8 @@ interface VisualizationsProps {
   viewingDegreeId?: string | null;
   setViewingDegreeId?: (id: string) => void;
   degreePrograms?: DegreeProgram[];
-  scheduleState?: any;
+  scheduleState?: ScheduleHookState;
+  setScheduleState?: React.Dispatch<React.SetStateAction<ScheduleHookState>>;
 }
 
 export default function Visualizations({
@@ -36,6 +37,7 @@ export default function Visualizations({
   setViewingDegreeId,
   degreePrograms = [],
   scheduleState,
+  setScheduleState,
 }: VisualizationsProps) {
   const studentStore = useStudentStore();
   const { handleAddWithCheck, handleMoveWithCheck, PrereqDialog } = useAddCoursePrereq();
@@ -81,9 +83,6 @@ export default function Visualizations({
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [degreeDropdownOpen]);
-
-  // Calculate container height for visualizers
-  const containerHeight = 500; // Using fixed height for simplicity
 
   return (
     <div

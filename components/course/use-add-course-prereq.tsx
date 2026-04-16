@@ -8,9 +8,11 @@ import { generateEquivalenceMap } from "@/parsers/curriculum-parser";
 import { AlertTriangle, X } from "lucide-react";
 
 export function useAddCoursePrereq() {
-  const [pendingAction, setPendingAction] = useState<{ 
-    type: 'add' | 'move', 
-    course: Course, 
+  const [pendingAction, setPendingAction] = useState<{
+    type: 'add' | 'move',
+    course: Course,
+    phase?: number,
+    studentCourse?: any,
   } | null>(null);
   const [missing, setMissing] = useState<string[]>([]);
   const [dismissTimeout, setDismissTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -79,9 +81,9 @@ export function useAddCoursePrereq() {
 
   const confirmAction = () => {
     if (pendingAction) {
-      if (pendingAction.type === 'add') {
+      if (pendingAction.type === 'add' && pendingAction.phase !== undefined) {
         studentStore.addCourseToSemester(pendingAction.course, pendingAction.phase);
-      } else if (pendingAction.type === 'move' && pendingAction.studentCourse) {
+      } else if (pendingAction.type === 'move' && pendingAction.studentCourse && pendingAction.phase !== undefined) {
         studentStore.moveCourse(pendingAction.studentCourse, pendingAction.phase);
       }
       setPendingAction(null);

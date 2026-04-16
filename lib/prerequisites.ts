@@ -25,7 +25,7 @@ export function checkPrerequisites(
   plan.semesters.forEach(semester => {
     if (semester.number < targetPhaseNumber) {
       semester.courses.forEach(studentCourse => {
-        priorCourses.add(studentCourse.id);
+        priorCourses.add(studentCourse.course?.id ?? studentCourse.id ?? "");
       });
     }
   });

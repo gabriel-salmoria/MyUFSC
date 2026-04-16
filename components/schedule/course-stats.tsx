@@ -134,8 +134,8 @@ export default function CourseStats({
     setSelectedProfessor(professorId);
 
     // Call the callback if provided and a course is selected
-    if (selectedSchedule && onProfessorSelect) {
-      onProfessorSelect(selectedSchedule, professorId);
+    if (selectedStudentSchedule && onProfessorSelect) {
+      onProfessorSelect(selectedStudentSchedule, professorId);
     }
   };
 

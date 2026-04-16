@@ -68,7 +68,7 @@ export function useStudentProfile({
               // Hydrate Schedule Cache
               if (schedules) {
                 Object.entries(schedules).forEach(([degreeId, scheduleData]: [string, any]) => {
-                  primeScheduleCache(degreeId, scheduleData);
+                  primeScheduleCache(degreeId, undefined, scheduleData);
                 });
               }
             }

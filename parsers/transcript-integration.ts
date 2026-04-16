@@ -24,13 +24,6 @@ function toStudentCourse(
     grade,
     phase: course.phase,
     id: course.id,
-    name: course.name,
-    credits: course.credits,
-    description: course.description,
-    workload: course.workload,
-    prerequisites: course.prerequisites,
-    equivalents: course.equivalents,
-    type: course.type,
   };
 }
 
@@ -168,7 +161,7 @@ export function buildStudentInfoFromTranscript(
         // Overwrite past/present semesters with transcript data
         const courses = phaseMap.get(i) ?? [];
         const totalCredits = courses.reduce(
-          (sum, c) => sum + (c.credits ?? 0),
+          (sum, c) => sum + (c.course?.credits ?? 0),
           0,
         );
         mergedSemesters.push({ number: i, courses, totalCredits });
@@ -182,7 +175,7 @@ export function buildStudentInfoFromTranscript(
             (sc) => !addedCourseIds.has(sc.course.id),
           );
           const totalCredits = filteredCourses.reduce(
-            (sum, c) => sum + (c.credits ?? 0),
+            (sum, c) => sum + (c.course?.credits ?? 0),
             0,
           );
           mergedSemesters.push({
@@ -217,7 +210,7 @@ export function buildStudentInfoFromTranscript(
 
   for (let i = 1; i <= maxPhase; i++) {
     const courses = phaseMap.get(i) ?? [];
-    const totalCredits = courses.reduce((sum, c) => sum + (c.credits ?? 0), 0);
+    const totalCredits = courses.reduce((sum, c) => sum + (c.course?.credits ?? 0), 0);
     semesters.push({ number: i, courses, totalCredits });
   }
 

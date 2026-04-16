@@ -3,18 +3,16 @@
 
 import { useMemo } from "react";
 import { MousePointerClick } from "lucide-react";
-import type { Course } from "@/types/curriculum";
-import type { StudentCourse } from "@/types/student-plan";
+import type { ViewStudentCourse } from "@/types/visualization";
 import { COURSE_BOX, PHASE } from "@/styles/visualization";
 import CourseBox from "@/components/visualizers/course-box";
 import GhostCourseBox from "@/components/visualizers/ghost-box";
-import { StudentStore } from "@/lib/student-store";
 import { useStudentStore } from "@/lib/student-store";
 import { cn } from "@/components/ui/utils";
 
 interface PhaseProps {
   semesterNumber: number;
-  studentCourses: StudentCourse[];
+  studentCourses: ViewStudentCourse[];
   width?: number;
   isFromCurriculum?: boolean;
   totalSlots?: number;
@@ -80,7 +78,7 @@ export default function Phase({
       </div>
 
       {/* Course boxes - positioned dynamically within the phase */}
-      {studentCourses.map((studentCourse: StudentCourse, index) => {
+      {studentCourses.map((studentCourse: ViewStudentCourse, index) => {
         // Calculate position directly here instead of using external state
         const position = {
           courseId: studentCourse.course.id, // Use studentCourse ID

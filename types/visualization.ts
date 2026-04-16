@@ -1,3 +1,14 @@
+import type { StudentCourse } from "./student-plan";
+
+/**
+ * StudentCourse annotated with render-only highlight/dim state.
+ * These fields are computed per-render in visualizers and are never persisted.
+ */
+export interface ViewStudentCourse extends StudentCourse {
+  isHighlighted?: boolean;
+  isDimmed?: boolean;
+}
+
 /**
  * Represents a visual connection between courses (prerequisites)
  */

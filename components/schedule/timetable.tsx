@@ -4,8 +4,8 @@ import { useMemo, useState, useEffect } from "react";
 import { cn } from "@/components/ui/utils";
 import CourseStats from "./course-stats";
 import type { Course } from "@/types/curriculum";
-import type { StudentInfo, StudentCourse } from "@/types/student-plan";
-import type { CustomScheduleEntry } from "@/types/student-plan";
+import type { StudentInfo, StudentCourse, CustomScheduleEntry } from "@/types/student-plan";
+import type { ScheduleHookState } from "@/hooks/setup/UseSchedule";
 import { CourseStatus } from "@/types/student-plan";
 import { TIMETABLE } from "@/styles/visualization";
 import {
@@ -31,7 +31,8 @@ const emptyScheduleData = {
 
 interface TimetableProps {
   studentInfo: StudentInfo;
-  scheduleState: any;
+  scheduleState: ScheduleHookState;
+  setScheduleState: React.Dispatch<React.SetStateAction<ScheduleHookState>>;
 }
 
 type ScheduleEntry = {
@@ -83,6 +84,7 @@ const closedModal: ModalState = { open: false, prefill: {}, editing: false };
 export default function Timetable({
   studentInfo,
   scheduleState,
+  setScheduleState,
 }: TimetableProps) {
   const [professorOverrides, setProfessorOverrides] = useState<
     ProfessorOverride[]
@@ -103,14 +105,13 @@ export default function Timetable({
     selectedSemester,
     availableSemesters,
     isLoading: isLoadingscheduleData,
-    setScheduleState,
   } = scheduleState;
 
   const onCampusChange = (campus: string) =>
-    setScheduleState((prev: any) => ({ ...prev, selectedCampus: campus }));
+    setScheduleState((prev) => ({ ...prev, selectedCampus: campus }));
 
   const onSemesterChange = (semester: string) =>
-    setScheduleState((prev: any) => ({
+    setScheduleState((prev) => ({
       ...prev,
       selectedSemester: semester,
     }));

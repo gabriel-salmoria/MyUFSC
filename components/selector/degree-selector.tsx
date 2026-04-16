@@ -16,6 +16,16 @@ import type { DegreeProgram } from "@/types/degree-program";
 
 // ── Utilities ──────────────────────────────────────────────────────────────
 
+/** Strip diacritics and lowercase for accent-insensitive comparison. */
+function normalize(s: string) {
+    return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+/** cmdk filter: accent-insensitive substring match. */
+function accentFilter(value: string, search: string): number {
+    return normalize(value).includes(normalize(search)) ? 1 : 0;
+}
+
 interface ParsedProgram {
     baseName: string;
     yearSem: string | null;
@@ -133,7 +143,7 @@ export function DegreeSelector({
         <div className="flex flex-col gap-1.5 relative group">
             {label && <label className="text-sm font-medium">{label}</label>}
 
-            <Command className="overflow-visible rounded-md border border-input bg-transparent shadow-sm">
+            <Command filter={accentFilter} className="overflow-visible rounded-md border border-input bg-transparent shadow-sm">
                 <CommandInput
                     placeholder="Selecione um curso..."
                     value={inputValue}
@@ -263,7 +273,7 @@ export function DegreeMultiSelector({
 
             {/* Autocomplete Input */}
             <div className="relative">
-                <Command className="overflow-visible rounded-md border border-input bg-transparent shadow-sm">
+                <Command filter={accentFilter} className="overflow-visible rounded-md border border-input bg-transparent shadow-sm">
                     <CommandInput
                         placeholder="Adicionar cursos..."
                         value={inputValue}

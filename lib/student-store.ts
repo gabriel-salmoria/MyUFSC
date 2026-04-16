@@ -191,7 +191,7 @@ export const useStudentStore = create<StudentStore>()(
               if (existingSemester) {
                 let totalCredits = 0;
                 existingSemester.courses.forEach((course) => {
-                  totalCredits += course.credits || 0;
+                  totalCredits += course.course?.credits || 0;
                 });
                 allSemesters.push({ ...existingSemester, totalCredits });
               } else {
@@ -282,13 +282,6 @@ export const useStudentStore = create<StudentStore>()(
               status: CourseStatus.PLANNED,
               phase: semesterNumber,
               id: course.id,
-              name: course.name,
-              credits: course.credits,
-              description: course.description,
-              workload: course.workload,
-              prerequisites: course.prerequisites,
-              equivalents: course.equivalents,
-              type: course.type,
             };
 
             targetSemester.courses.push(newStudentCourse);
@@ -323,7 +316,7 @@ export const useStudentStore = create<StudentStore>()(
                 );
                 sourceSemester.totalCredits =
                   (sourceSemester.totalCredits || 0) -
-                  (movedCourse.credits || 0);
+                  (movedCourse.course?.credits || 0);
 
                 const targetSemester = plan.semesters.find(
                   (s) => s.number === targetSemesterNumber,
@@ -333,13 +326,13 @@ export const useStudentStore = create<StudentStore>()(
                   targetSemester.courses.push(movedCourse);
                   targetSemester.totalCredits =
                     (targetSemester.totalCredits || 0) +
-                    (movedCourse.credits || 0);
+                    (movedCourse.course?.credits || 0);
                   updateView(plan.semesters);
                 } else {
                   sourceSemester.courses.splice(courseIndex, 0, movedCourse); // Put back
                   sourceSemester.totalCredits =
                     (sourceSemester.totalCredits || 0) +
-                    (movedCourse.credits || 0); // Add credits back
+                    (movedCourse.course?.credits || 0); // Add credits back
                 }
               }
             }
@@ -367,7 +360,7 @@ export const useStudentStore = create<StudentStore>()(
                 )[0];
                 sourceSemester.totalCredits =
                   (sourceSemester.totalCredits || 0) -
-                  (removedCourse.credits || 0);
+                  (removedCourse.course?.credits || 0);
                 updateView(plan.semesters);
               }
             }

@@ -62,6 +62,10 @@ export function parsePDF(pdfPath: string) {
         ha: courseStartMatch[5] ? parseInt(courseStartMatch[5]) : 0,
         aulas: courseStartMatch[6] ? parseInt(courseStartMatch[6]) : 0,
         rest: courseStartMatch[7] || "",
+        nameParts: [] as string[],
+        equivParts: [] as string[],
+        preReqParts: [] as string[],
+        endIndex: 0,
       });
     }
   }

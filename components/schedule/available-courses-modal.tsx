@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useStudentStore } from "@/lib/student-store";
 import { Course } from "@/types/curriculum";
-import { StudentInfo } from "@/types/student-plan";
+import { StudentInfo, CourseStatus } from "@/types/student-plan";
 import { checkPrerequisites } from "@/lib/prerequisites";
 import { generateEquivalenceMap } from "@/parsers/curriculum-parser";
 import { Search } from "lucide-react";
@@ -42,7 +42,7 @@ export default function AvailableCoursesModal({ open, onClose, targetPhase }: Av
     
     // Courses already in plan (any status, any phase)
     const plannedIds = new Set<string>();
-    plan.semesters.forEach(s => s.courses.forEach(c => plannedIds.add(c.id)));
+    plan.semesters.forEach(s => s.courses.forEach(c => plannedIds.add(c.course.id)));
 
     const unlocked: Course[] = [];
     
@@ -108,7 +108,7 @@ export default function AvailableCoursesModal({ open, onClose, targetPhase }: Av
                   // It will just open the panel, then user can Add it
                   selectCourse({
                     id: course.id,
-                    status: 1, // Planned by default when searching
+                    status: CourseStatus.PLANNED,
                     phase: targetPhase,
                     course: course
                   });

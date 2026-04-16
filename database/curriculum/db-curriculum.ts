@@ -2,6 +2,16 @@ import { QueryResult } from "pg";
 import { executeQuery } from "@/database/ready";
 
 /**
+ * Builds the WHERE + ORDER clause used by all curriculum lookups.
+ * Matches exact IDs ("208_2019") or base IDs ("208" → any "208_*").
+ */
+function curriculumWhere(order: "ASC" | "DESC" = "DESC") {
+  return `WHERE "programId" = $1
+       OR "programId" LIKE ($1 || '\\_%') ESCAPE '\\'
+    ORDER BY "programId" ${order}`;
+}
+
+/**
  * Resolve a programId to its actual database key.
  *
  * Supports two modes:
@@ -14,11 +24,7 @@ export async function resolveCurriculumId(
   programId: string,
 ): Promise<string | null> {
   const result: QueryResult = await executeQuery(
-    `SELECT "programId" FROM curriculums
-     WHERE "programId" = $1
-        OR "programId" LIKE ($1 || '\\_%') ESCAPE '\\'
-     ORDER BY "programId" DESC
-     LIMIT 1`,
+    `SELECT "programId" FROM curriculums ${curriculumWhere()} LIMIT 1`,
     [programId],
   );
   return result.rows.length > 0 ? result.rows[0].programId : null;
@@ -37,11 +43,7 @@ export async function getCurriculumByProgramId(
   programId: string,
 ): Promise<any | null> {
   const result: QueryResult = await executeQuery(
-    `SELECT "curriculumJson" FROM curriculums
-     WHERE "programId" = $1
-        OR "programId" LIKE ($1 || '\\_%') ESCAPE '\\'
-     ORDER BY "programId" DESC
-     LIMIT 1`,
+    `SELECT "curriculumJson" FROM curriculums ${curriculumWhere()} LIMIT 1`,
     [programId],
   );
 
@@ -57,10 +59,7 @@ export async function listCurriculumVersions(
   baseId: string,
 ): Promise<string[]> {
   const result: QueryResult = await executeQuery(
-    `SELECT "programId" FROM curriculums
-     WHERE "programId" = $1
-        OR "programId" LIKE ($1 || '\\_%') ESCAPE '\\'
-     ORDER BY "programId" ASC`,
+    `SELECT "programId" FROM curriculums ${curriculumWhere("ASC")}`,
     [baseId],
   );
   return result.rows.map((r) => r.programId);

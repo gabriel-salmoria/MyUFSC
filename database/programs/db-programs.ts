@@ -11,7 +11,7 @@ interface DbProgram {
  * @returns {Promise<DbProgram[]>} A promise that resolves with an array of programs.
  */
 export async function getAllPrograms(): Promise<DbProgram[]> {
-  const query = 'SELECT id, name FROM programs ORDER BY name';
+  const query = `SELECT id, name FROM programs WHERE name NOT ILIKE '%magister%' ORDER BY name`;
   const result: QueryResult = await executeQuery(query);
   return result.rows as DbProgram[];
 }

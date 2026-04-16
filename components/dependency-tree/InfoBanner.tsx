@@ -27,10 +27,7 @@ export default function InfoBanner({ message, duration = 3000 }: InfoBannerProps
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 10 }}
-          transition={{ 
-            enter: { delay: 0.5, duration: 0.3 },
-            exit: { duration: 0.2 }
-          }}
+          transition={{ duration: 0.3 }}
         >
           <div className="bg-black/75 text-white px-4 py-2 rounded-full text-sm shadow-lg">
             {message}

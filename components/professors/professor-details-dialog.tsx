@@ -1559,7 +1559,7 @@ export function ProfessorDetailsDialog({
 
   return (
     <Dialog open={!!professorId} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[70vw] w-[70vw] h-[90vh] flex flex-col p-0 overflow-hidden bg-background">
+      <DialogContent aria-describedby={undefined} className="sm:max-w-[70vw] w-[70vw] h-[90vh] flex flex-col p-0 overflow-hidden bg-background">
         <VisuallyHidden>
           <DialogTitle>Detalhes do(s) Professor(es)</DialogTitle>
         </VisuallyHidden>

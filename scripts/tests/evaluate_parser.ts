@@ -35,6 +35,6 @@ for (const file of files) {
       anomalies.slice(0, 5).forEach(a => console.log(`  * ${a}`));
     }
   } catch (err) {
-    console.error(`Error parsing ${file}:`, err.message);
+    console.error(`Error parsing ${file}:`, err instanceof Error ? err.message : err);
   }
 }

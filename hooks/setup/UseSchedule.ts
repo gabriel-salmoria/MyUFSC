@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import type { StudentInfo } from "@/types/student-plan";
 import { fetchClassSchedule, primeScheduleCache } from "@/app/api/schedule/client";
-import type { AuthState } from "./CheckAuth";
 
 export interface ScheduleHookState {
   scheduleData: any;
@@ -21,14 +20,12 @@ interface UseScheduleProps {
   studentInfo: StudentInfo | null;
   isProfileLoading: boolean;
   isCurriculumLoading: boolean;
-  setAuthState: React.Dispatch<React.SetStateAction<AuthState>>;
 }
 
 export function useSchedule({
   studentInfo,
   isProfileLoading,
   isCurriculumLoading,
-  setAuthState,
 }: UseScheduleProps): UseScheduleResult {
   const [scheduleState, setScheduleState] = useState<ScheduleHookState>({
     scheduleData: null,
@@ -85,10 +82,7 @@ export function useSchedule({
             if (successfulResults.length === 0) {
               setScheduleState((prev) => ({ ...prev, scheduleData: null }));
               if (results.length > 0) {
-                setAuthState((prevAuthState) => ({
-                  ...prevAuthState,
-                  error: "Failed to load class schedules.",
-                }));
+                console.error("Failed to load class schedules.");
               }
             } else {
               const mergedData: any = {};
@@ -135,11 +129,8 @@ export function useSchedule({
           }
         } catch (error) {
           if (active) {
+            console.error("An error occurred while loading class schedules.", error);
             setScheduleState((prev) => ({ ...prev, scheduleData: null }));
-            setAuthState((prevAuthState) => ({
-              ...prevAuthState,
-              error: "An error occurred while loading class schedules.",
-            }));
           }
         } finally {
           if (active) {
@@ -158,9 +149,8 @@ export function useSchedule({
     studentInfo,
     isProfileLoading,
     isCurriculumLoading,
-    setAuthState,
     scheduleState.selectedSemester,
-    scheduleState.scheduleData
+    scheduleState.scheduleData,
   ]);
 
   return { scheduleState, setScheduleState, isScheduleLoading };

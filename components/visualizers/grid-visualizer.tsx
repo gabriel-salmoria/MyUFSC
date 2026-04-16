@@ -3,10 +3,10 @@
 import { useRef, useState, useEffect, useMemo } from "react";
 
 // types
-import type { Course, Curriculum } from "@/types/curriculum"; // Added Curriculum
-import type { CoursePosition } from "@/types/visualization";
+import type { Course, Curriculum } from "@/types/curriculum";
+import type { CoursePosition, ViewStudentCourse } from "@/types/visualization";
 import type { StudentCourse, StudentInfo } from "@/types/student-plan";
-import { CourseStatus } from "@/types/student-plan"; // Added CourseStatus for default
+import { CourseStatus } from "@/types/student-plan";
 
 // components
 import CourseBox from "@/components/visualizers/course-box";
@@ -197,18 +197,15 @@ export default function GridVisualizer({
               electiveCourse.id,
             );
 
-            let _isHighlighted = false;
-            let _unavailableDimm = false;
+            let isHighlighted = false;
+            let isDimmed = false;
 
-            if (
-              highlightAvailableForPhase !== undefined &&
-              highlightAvailableForPhase !== null
-            ) {
+            if (highlightAvailableForPhase != null) {
               const isAlreadyDoneOrPlanned =
                 studentCourseFromPlan &&
                 studentCourseFromPlan.status !== CourseStatus.DEFAULT;
               if (isAlreadyDoneOrPlanned) {
-                _unavailableDimm = true;
+                isDimmed = true;
               } else {
                 const equivalenceMap = generateEquivalenceMap(
                   curriculum?.courses || [],
@@ -219,36 +216,23 @@ export default function GridVisualizer({
                   studentStore.studentInfo,
                   equivalenceMap,
                 );
-                _isHighlighted = satisfied;
-                _unavailableDimm = !satisfied;
+                isHighlighted = satisfied;
+                isDimmed = !satisfied;
               }
             }
 
-            const studentCourse: StudentCourse = studentCourseFromPlan
-              ? {
-                  ...studentCourseFromPlan,
-                  course: electiveCourse,
-                }
-              : {
-                  course: electiveCourse,
-                  status: CourseStatus.DEFAULT,
-                };
-
-            // inject visual props that won't go to backend
-            const propsInjectedStudentCourse = {
-              ...studentCourse,
-              _isHighlighted,
-              _unavailableDimm,
-            };
+            const viewCourse: ViewStudentCourse = studentCourseFromPlan
+              ? { ...studentCourseFromPlan, course: electiveCourse, isHighlighted, isDimmed }
+              : { course: electiveCourse, status: CourseStatus.DEFAULT, isHighlighted, isDimmed };
 
             return (
               <CourseBox
                 key={`${electiveCourse.id}-${position.x}-${position.y}`}
                 position={position}
                 isFromCurriculum={true}
-                studentCourse={propsInjectedStudentCourse} // Pass the full StudentCourse object
-                isEmpty={false} // This box represents a course, not an empty slot
-                isDraggable={true} // Allow dragging these courses
+                studentCourse={viewCourse}
+                isEmpty={false}
+                isDraggable={true}
               />
             );
           })}

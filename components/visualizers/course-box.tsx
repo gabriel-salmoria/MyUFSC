@@ -8,8 +8,7 @@ import { useRef, useEffect } from "react";
 import { cn } from "@/components/ui/utils";
 
 // tipos de dados
-import type { Course } from "@/types/curriculum";
-import type { CoursePosition } from "@/types/visualization";
+import type { CoursePosition, ViewStudentCourse } from "@/types/visualization";
 import type { StudentCourse } from "@/types/student-plan";
 import { CourseStatus } from "@/types/student-plan";
 
@@ -22,15 +21,15 @@ import {
 } from "@/styles/course-theme";
 
 // store
-import { useStudentStore } from "@/lib/student-store"; // Added
+import { useStudentStore } from "@/lib/student-store";
 
 interface CourseBoxProps {
   position: CoursePosition;
-  studentCourse: StudentCourse;
+  studentCourse: ViewStudentCourse;
   isEmpty?: boolean;
   isDraggable?: boolean;
-  onDragStart?: (course: StudentCourse) => void; // Corrected type
-  isFromCurriculum?: boolean; // Added
+  onDragStart?: (course: import("@/types/curriculum").Course) => void;
+  isFromCurriculum?: boolean;
 }
 
 // quadradinho de cada disciplina, que aparece nos visualizadores
@@ -190,8 +189,8 @@ export default function CourseBox({
         CSS_CLASSES.COURSE_BOX,
         getStatusClass(),
         isDraggable && !isEmpty && CSS_CLASSES.DRAGGABLE,
-        studentCourse?._isHighlighted && "ring-2 ring-primary ring-offset-1 ring-offset-background scale-[1.03] z-10 shadow-lg shadow-primary/20",
-        studentCourse?._unavailableDimm && "opacity-30 saturate-50 pointer-events-none"
+        studentCourse?.isHighlighted && "ring-2 ring-primary ring-offset-1 ring-offset-background scale-[1.03] z-10 shadow-lg shadow-primary/20",
+        studentCourse?.isDimmed && "opacity-30 saturate-50 pointer-events-none"
       )}
       style={{
         left: `${position.x}px`,

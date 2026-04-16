@@ -21,20 +21,9 @@ export interface StudentCourse {
   status: CourseStatus;
   grade?: number;
   class?: string;
-  // Properties flattened/cached on StudentCourse for easier access/rendering
   phase?: number;
+  /** Redundant with course.id — kept for store lookup identity */
   id?: string;
-  name?: string;
-  credits?: number;
-  description?: string;
-  workload?: number;
-
-  // Visual UI states exclusively for rendering (not stored on backend)
-  _isHighlighted?: boolean;
-  _unavailableDimm?: boolean;
-  prerequisites?: string[];
-  equivalents?: string[];
-  type?: string;
 }
 
 /**
