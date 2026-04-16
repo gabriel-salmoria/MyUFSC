@@ -3,15 +3,16 @@
 import type { Course } from "@/types/curriculum";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 
 // Main layout components
 import Header from "@/components/layout/Header";
 import Visualizations from "@/components/layout/Visualizations";
 
-// Detail and specialty components
-import StudentCourseDetailsPanel from "@/components/details-panel";
-import DependencyTree from "@/components/dependency-tree/dependency-tree";
-import Timetable from "@/components/schedule/timetable";
+// Detail and specialty components — lazy-loaded, not needed on first render
+const StudentCourseDetailsPanel = dynamic(() => import("@/components/details-panel"), { ssr: false });
+const DependencyTree = dynamic(() => import("@/components/dependency-tree/dependency-tree"), { ssr: false });
+const Timetable = dynamic(() => import("@/components/schedule/timetable"), { ssr: false });
 import TrashDropZone from "@/components/visualizers/trash-drop-zone";
 
 // Import the custom hooks

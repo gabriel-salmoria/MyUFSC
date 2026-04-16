@@ -176,16 +176,11 @@ export default function CurriculumVisualizer({
   const totalWidth = curriculum.totalPhases * phaseWidth;
 
   const globalTotalSlots = useMemo(() => {
-    let maxCourses = 0;
-    for (let i = 1; i <= curriculum.totalPhases; i++) {
-      const count = curriculum.courses.filter(
-        (c) => c.phase === i
-      ).length;
-      if (count > maxCourses) maxCourses = count;
+    const countPerPhase = new Map<number, number>();
+    for (const c of curriculum.courses) {
+      if (c.phase) countPerPhase.set(c.phase, (countPerPhase.get(c.phase) ?? 0) + 1);
     }
-    // Use the exact max courses. Phase component adds padding automatically.
-    // Ensure at least min slots (e.g. 6) for empty phases visual consistency.
-    // Matching ProgressVisualizer behavior: max + 1 for buffer
+    const maxCourses = Math.max(0, ...countPerPhase.values());
     return Math.max(PHASE.BOXES_PER_COLUMN || 6, maxCourses + 1);
   }, [curriculum]);
 

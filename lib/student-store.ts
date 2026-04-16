@@ -137,6 +137,17 @@ export const useStudentStore = create<StudentStore>()(
         set(
           produce((state: StudentStore) => {
             state.curriculumCache[degreeId] = courses;
+
+            // Evict cache entries that are no longer part of the active degree set
+            if (state.studentInfo) {
+              const active = new Set([
+                state.studentInfo.currentDegree,
+                ...(state.studentInfo.interestedDegrees ?? []),
+              ]);
+              for (const key of Object.keys(state.curriculumCache)) {
+                if (!active.has(key)) delete state.curriculumCache[key];
+              }
+            }
           }),
         ),
 
