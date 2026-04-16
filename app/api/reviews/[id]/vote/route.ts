@@ -21,24 +21,18 @@ export async function POST(
     const { id: reviewId } = await params;
     const { voterHash, value } = await request.json();
 
-    if (!voterHash || (value !== 1 && value !== -1)) {
+    if (!voterHash || (value !== 1 && value !== -1 && value !== 0)) {
       return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     }
 
-    // Upsert vote — if same value, remove it (toggle off); otherwise update
-    const existing = await executeQuery(
-      `SELECT value FROM review_votes WHERE "reviewId" = $1 AND "voterHash" = $2`,
-      [reviewId, voterHash],
-    );
-
-    if (existing.rows.length > 0 && existing.rows[0].value === value) {
-      // Same vote → remove (toggle off)
+    if (value === 0) {
+      // Explicit removal — client handles toggle logic, just delete
       await executeQuery(
         `DELETE FROM review_votes WHERE "reviewId" = $1 AND "voterHash" = $2`,
         [reviewId, voterHash],
       );
     } else {
-      // New vote or changed vote → upsert
+      // Direct upsert to desired value — no server-side toggle
       await executeQuery(
         `INSERT INTO review_votes ("reviewId", "voterHash", value)
          VALUES ($1, $2, $3)

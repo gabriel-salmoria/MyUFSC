@@ -30,6 +30,7 @@ interface CourseStatsProps {
   onRemoveCourse?: (courseId: string) => void; // New prop for removing a course
   professorAggregates?: Record<string, any>;
   onProfessorClick?: (professorName: string) => void;
+  searchRefreshTrigger?: number;
 }
 
 // Type for professor data
@@ -52,6 +53,7 @@ export default function CourseStats({
   onRemoveCourse,
   professorAggregates,
   onProfessorClick,
+  searchRefreshTrigger,
 }: CourseStatsProps) {
   const [selectedProfessor, setSelectedProfessor] = useState<string | null>(
     null,
@@ -167,7 +169,12 @@ export default function CourseStats({
             totalWorkload={totalWorkload}
           />
 
-          {onProfessorClick && <ProfessorSearch onSelect={onProfessorClick} />}
+          {onProfessorClick && (
+            <ProfessorSearch
+              onSelect={onProfessorClick}
+              refreshTrigger={searchRefreshTrigger}
+            />
+          )}
 
           {/* Professor Selection */}
           {selectedSchedule && ( // Use selectedSchedule from the store

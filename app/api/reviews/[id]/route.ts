@@ -61,12 +61,41 @@ export async function DELETE(
       });
     } else {
       // Hard delete: no children depend on this, safe to remove completely
+      const parentQuery = `SELECT "parentId" FROM reviews WHERE id = $1`;
+      const parentResult = await executeQuery(parentQuery, [id]);
+      let parentId =
+        parentResult.rows.length > 0 ? parentResult.rows[0].parentId : null;
+
       const deleteQuery = `
         DELETE FROM reviews
         WHERE id = $1
         RETURNING id
       `;
       await executeQuery(deleteQuery, [id]);
+
+      // Cascade upward to delete soft-deleted parents that no longer have replies
+      while (parentId) {
+        const pQuery = `
+          SELECT text, "parentId", (
+            SELECT COUNT(*) FROM reviews WHERE "parentId" = $1
+          ) as children_count
+          FROM reviews WHERE id = $1
+        `;
+        const pResult = await executeQuery(pQuery, [parentId]);
+        if (pResult.rows.length === 0) break;
+
+        const parentNode = pResult.rows[0];
+        if (
+          parentNode.text === "[removido]" &&
+          parseInt(parentNode.children_count, 10) === 0
+        ) {
+          await executeQuery(`DELETE FROM reviews WHERE id = $1`, [parentId]);
+          parentId = parentNode.parentId;
+        } else {
+          break;
+        }
+      }
+
       return NextResponse.json({
         success: true,
         deletedId: id,

@@ -20,7 +20,6 @@ import TimetableHeader from "./timetable-header";
 import TimetableGrid from "./timetable-grid";
 import CustomEventModal from "./custom-event-modal";
 import { ProfessorDetailsDialog } from "@/components/professors/professor-details-dialog";
-import { WriteReviewDialog } from "@/components/professors/write-review-dialog";
 import { fetchProfessorAggregates } from "@/lib/professors-client";
 import { CalendarPlus2 } from "lucide-react";
 
@@ -128,11 +127,7 @@ export default function Timetable({
   const [detailsProfessorId, setDetailsProfessorId] = useState<string | null>(
     null,
   );
-  const [reviewModalState, setReviewModalState] = useState<{
-    isOpen: boolean;
-    professorId: string | null;
-    courseId: string | null;
-  }>({ isOpen: false, professorId: null, courseId: null });
+  const [searchRefreshTrigger, setSearchRefreshTrigger] = useState(0);
 
   // ─── Modal state ───────────────────────────────────────────────────────────
   const [modalState, setModalState] = useState<ModalState>(closedModal);
@@ -641,6 +636,7 @@ export default function Timetable({
             onRemoveCourse={handleRemoveCourse}
             professorAggregates={professorAggregates}
             onProfessorClick={handleProfessorClick}
+            searchRefreshTrigger={searchRefreshTrigger}
           />
         </div>
       </div>
@@ -660,19 +656,10 @@ export default function Timetable({
         professorId={detailsProfessorId}
         taughtCourses={knownTaughtCourses}
         onClose={() => setDetailsProfessorId(null)}
-        onWriteReview={(professorId, courseId) =>
-          setReviewModalState({ isOpen: true, professorId, courseId })
-        }
-        onReviewChanged={() => setAggregatesRefreshKey((k) => k + 1)}
-      />
-
-      <WriteReviewDialog
-        isOpen={reviewModalState.isOpen}
-        onClose={() =>
-          setReviewModalState((prev) => ({ ...prev, isOpen: false }))
-        }
-        professorId={reviewModalState.professorId}
-        courseId={reviewModalState.courseId}
+        onReviewChanged={() => {
+          setAggregatesRefreshKey((k) => k + 1);
+          setSearchRefreshTrigger((k) => k + 1);
+        }}
       />
     </>
   );

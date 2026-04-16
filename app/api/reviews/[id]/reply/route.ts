@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { executeQuery } from "@/database/ready";
-import { isTextClean } from "@/lib/professors";
+import { isTextClean, generatePseudonym } from "@/lib/professors";
 
 export async function POST(
   request: Request,
@@ -67,7 +67,22 @@ export async function POST(
       text,
     ]);
 
-    return NextResponse.json({ success: true, reply: result.rows[0] });
+    const row = result.rows[0];
+    return NextResponse.json({
+      success: true,
+      reply: {
+        id: row.id,
+        parentId,
+        authorHash,
+        pseudonym: generatePseudonym(authorHash, parent.professorId),
+        text,
+        createdAt: row.createdAt,
+        updatedAt: undefined,
+        upvotes: 0,
+        downvotes: 0,
+        myVote: 0,
+      },
+    });
   } catch (error) {
     console.error("Error submitting reply:", error);
     return NextResponse.json(

@@ -18,9 +18,10 @@ interface ProfessorSearchResult {
 interface ProfessorSearchProps {
   onSelect: (professorName: string) => void;
   className?: string;
+  refreshTrigger?: number;
 }
 
-export function ProfessorSearch({ onSelect, className }: ProfessorSearchProps) {
+export function ProfessorSearch({ onSelect, className, refreshTrigger }: ProfessorSearchProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ProfessorSearchResult[]>([]);
@@ -30,6 +31,13 @@ export function ProfessorSearch({ onSelect, className }: ProfessorSearchProps) {
   const popupRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const isSelectingRef = useRef(false);
+
+  // When a review is submitted externally, clear cached results so they re-fetch on next open
+  useEffect(() => {
+    if (refreshTrigger !== undefined) {
+      setResults([]);
+    }
+  }, [refreshTrigger]);
 
   // Debounced search
   useEffect(() => {

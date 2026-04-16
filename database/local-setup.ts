@@ -49,9 +49,10 @@ export async function ensureLocalSchema(db: PGlite): Promise<void> {
       "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
 
-    CREATE UNIQUE INDEX IF NOT EXISTS unique_top_level_review
+    DROP INDEX IF EXISTS unique_top_level_review;
+    CREATE UNIQUE INDEX unique_top_level_review
     ON reviews ("authorHash", "professorId", "courseId")
-    WHERE "parentId" IS NULL;
+    WHERE "parentId" IS NULL AND text != '[removido]';
 
     CREATE TABLE IF NOT EXISTS review_votes (
       "reviewId" UUID NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,

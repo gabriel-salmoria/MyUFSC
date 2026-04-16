@@ -1,5 +1,14 @@
 import crypto from "crypto";
 
+export function normalizeProfessorId(raw: string): string {
+  return raw
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 const ANIMALS = [
   "Capivara",
   "Jacaré",

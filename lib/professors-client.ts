@@ -1,7 +1,13 @@
-export async function fetchProfessorDetails(professorId: string) {
-  const res = await fetch(
+export async function fetchProfessorDetails(
+  professorId: string,
+  voterHash?: string,
+) {
+  const url = new URL(
     `/api/professors/${encodeURIComponent(professorId)}/details`,
+    window.location.origin,
   );
+  if (voterHash) url.searchParams.set("voterHash", voterHash);
+  const res = await fetch(url.toString());
   if (!res.ok) {
     const error = await res.json();
     throw new Error(error.error || "Failed to fetch professor details");
@@ -88,7 +94,7 @@ export async function fetchProfessorAggregates(courseIds: string[]) {
 export async function submitVote(
   reviewId: string,
   voterHash: string,
-  value: 1 | -1,
+  value: 1 | -1 | 0,
 ) {
   const res = await fetch(`/api/reviews/${reviewId}/vote`, {
     method: "POST",

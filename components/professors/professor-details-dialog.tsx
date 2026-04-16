@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useStudentStore } from "@/lib/student-store";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -49,7 +49,6 @@ interface ProfessorDetailsDialogProps {
   taughtCourses?: string[];
   professorId: string | null;
   onClose: () => void;
-  onWriteReview?: (professorId: string, courseId: string) => void;
   onReviewChanged?: () => void;
 }
 
@@ -63,7 +62,7 @@ interface Review {
     overall: number;
     difficulty: number;
     didactics: number;
-  };
+  } | null;
   createdAt: string;
   updatedAt?: string;
   upvotes: number;
@@ -494,7 +493,7 @@ function ReplyThread({
   parentId: string;
   myHash: string;
   voteState: Record<string, any>;
-  handleVote: (id: string, v: 1 | -1, curr: any) => void;
+  handleVote: (id: string, v: 1 | -1) => void;
   replyingTo: string | null;
   setReplyingTo: (id: string | null) => void;
   replyText: string;
@@ -541,12 +540,7 @@ function ReplyThread({
               upvotes={reply.upvotes ?? 0}
               downvotes={reply.downvotes ?? 0}
               voteState={voteState[reply.id]}
-              onVote={(v) =>
-                handleVote(reply.id, v, {
-                  upvotes: reply.upvotes ?? 0,
-                  downvotes: reply.downvotes ?? 0,
-                })
-              }
+              onVote={(v) => handleVote(reply.id, v)}
               onReply={() => setReplyingTo(reply.id)}
               isReplyOpen={replyingTo === reply.id}
               replyText={replyText}
@@ -604,15 +598,82 @@ function ReplyThread({
   );
 }
 
+type Scores = { overall: number; difficulty: number; didactics: number };
+
+/**
+ * Iteratively removes soft-deleted nodes ([removido]) that have no children.
+ * Runs until no more orphans exist (handles chains: grandparent → parent → child).
+ */
+function cleanupOrphanedSoftDeleted(
+  replies: ReplyObj[],
+  reviews: Review[],
+): { reviews: Review[]; replies: ReplyObj[] } {
+  let currReviews = reviews;
+  let currReplies = replies;
+  let changed = true;
+  while (changed) {
+    changed = false;
+    // Set of IDs that are currently someone's parent
+    const parentIds = new Set(currReplies.map((r) => r.parentId));
+
+    const nextReviews = currReviews.filter(
+      (r) => r.text !== "[removido]" || parentIds.has(r.id),
+    );
+    if (nextReviews.length !== currReviews.length) {
+      currReviews = nextReviews;
+      changed = true;
+    }
+
+    const nextReplies = currReplies.filter(
+      (r) => r.text !== "[removido]" || parentIds.has(r.id),
+    );
+    if (nextReplies.length !== currReplies.length) {
+      currReplies = nextReplies;
+      changed = true;
+    }
+  }
+  return { reviews: currReviews, replies: currReplies };
+}
+
+function statsAddReview(stats: Stats, scores: Scores): Stats {
+  const n = stats.totalReviews;
+  return {
+    totalReviews: n + 1,
+    overall: ((stats.overall ?? 0) * n + scores.overall) / (n + 1),
+    difficulty: ((stats.difficulty ?? 0) * n + scores.difficulty) / (n + 1),
+    didactics: ((stats.didactics ?? 0) * n + scores.didactics) / (n + 1),
+  };
+}
+
+function statsRemoveReview(stats: Stats, scores: Scores): Stats {
+  const n = stats.totalReviews;
+  if (n <= 1) return { totalReviews: 0, overall: null, difficulty: null, didactics: null };
+  return {
+    totalReviews: n - 1,
+    overall: ((stats.overall ?? 0) * n - scores.overall) / (n - 1),
+    difficulty: ((stats.difficulty ?? 0) * n - scores.difficulty) / (n - 1),
+    didactics: ((stats.didactics ?? 0) * n - scores.didactics) / (n - 1),
+  };
+}
+
+function statsEditReview(stats: Stats, oldScores: Scores, newScores: Scores): Stats {
+  const n = stats.totalReviews;
+  if (n === 0) return stats;
+  return {
+    totalReviews: n,
+    overall: ((stats.overall ?? 0) * n - oldScores.overall + newScores.overall) / n,
+    difficulty: ((stats.difficulty ?? 0) * n - oldScores.difficulty + newScores.difficulty) / n,
+    didactics: ((stats.didactics ?? 0) * n - oldScores.didactics + newScores.didactics) / n,
+  };
+}
+
 function ProfessorDetailsSection({
   professorId,
   taughtCourses,
-  onWriteReview,
   onReviewChanged,
 }: {
   professorId: string;
   taughtCourses?: string[];
-  onWriteReview?: (professorId: string, courseId: string) => void;
   onReviewChanged?: () => void;
 }) {
   const { userId, isAuthenticated } = useStudentStore();
@@ -620,9 +681,10 @@ function ProfessorDetailsSection({
   const [stats, setStats] = useState<Record<string, Stats>>({});
   const [reviews, setReviews] = useState<Review[]>([]);
   const [replies, setReplies] = useState<ReplyObj[]>([]);
-  const [refreshKey, setRefreshKey] = useState(0);
   const { toast } = useToast();
   const { curriculumCache } = useStudentStore();
+
+  const myHash = useMemo(() => getAnonymousUserId(userId), [userId]);
 
   // Build a courseId → name map from the curriculum cache
   const courseNameMap = useMemo(() => {
@@ -655,46 +717,84 @@ function ProfessorDetailsSection({
     Record<string, { upvotes: number; downvotes: number; myVote: 1 | -1 | 0 }>
   >({});
 
-  const handleVote = async (
-    reviewId: string,
-    value: 1 | -1,
-    current: { upvotes: number; downvotes: number },
-  ) => {
-    const myHash = getAnonymousUserId(userId);
-    const existing = voteState[reviewId]?.myVote ?? 0;
-    const newVote: 0 | 1 | -1 = existing === value ? 0 : value;
-    // Optimistic update: recalculate from current counts
-    let up = voteState[reviewId]?.upvotes ?? current.upvotes;
-    let down = voteState[reviewId]?.downvotes ?? current.downvotes;
-    if (existing === 1) up--;
-    if (existing === -1) down--;
-    if (newVote === 1) up++;
-    if (newVote === -1) down++;
-    setVoteState((s) => ({
-      ...s,
-      [reviewId]: { upvotes: up, downvotes: down, myVote: newVote },
-    }));
-    try {
-      const result = await submitVote(reviewId, myHash, value);
+  // Refs for debounced voting — stable across renders
+  const voteStateRef = useRef(voteState);
+  voteStateRef.current = voteState; // Always up-to-date
+  const pendingVotes = useRef<Record<string, 0 | 1 | -1>>({});
+  const voteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const committedVoteStates = useRef<
+    Record<string, { upvotes: number; downvotes: number; myVote: 0 | 1 | -1 }>
+  >({});
+
+  // Clear all pending vote timers when the dialog unmounts
+  useEffect(() => {
+    return () => {
+      for (const timer of Object.values(voteTimers.current)) clearTimeout(timer);
+    };
+  }, []);
+
+  const handleVote = useCallback(
+    (reviewId: string, value: 1 | -1) => {
+      const current = voteStateRef.current[reviewId] ?? {
+        upvotes: 0,
+        downvotes: 0,
+        myVote: 0 as const,
+      };
+      const existing = current.myVote;
+      const newVote: 0 | 1 | -1 = existing === value ? 0 : value;
+
+      // Snapshot base state once per debounce window
+      if (!voteTimers.current[reviewId]) {
+        committedVoteStates.current[reviewId] = { ...current };
+      }
+
+      // Optimistic count update
+      let up = current.upvotes;
+      let down = current.downvotes;
+      if (existing === 1) up--;
+      if (existing === -1) down--;
+      if (newVote === 1) up++;
+      if (newVote === -1) down++;
+
+      pendingVotes.current[reviewId] = newVote;
       setVoteState((s) => ({
         ...s,
-        [reviewId]: {
-          upvotes: result.upvotes,
-          downvotes: result.downvotes,
-          myVote: newVote,
-        },
+        [reviewId]: { upvotes: up, downvotes: down, myVote: newVote },
       }));
-    } catch {
-      setVoteState((s) => ({
-        ...s,
-        [reviewId]: {
-          upvotes: current.upvotes,
-          downvotes: current.downvotes,
-          myVote: existing as 0 | 1 | -1,
-        },
-      }));
-    }
-  };
+
+      // Reset debounce timer — actual request fires 1.5s after last click
+      clearTimeout(voteTimers.current[reviewId]);
+      voteTimers.current[reviewId] = setTimeout(async () => {
+        delete voteTimers.current[reviewId];
+        const desiredVote = pendingVotes.current[reviewId] ?? 0;
+        const committed = committedVoteStates.current[reviewId];
+
+        // If user toggled back to original state, skip the request entirely
+        if (desiredVote === (committed?.myVote ?? 0)) {
+          delete committedVoteStates.current[reviewId];
+          return;
+        }
+
+        try {
+          const result = await submitVote(reviewId, myHash, desiredVote);
+          delete committedVoteStates.current[reviewId];
+          setVoteState((s) => ({
+            ...s,
+            [reviewId]: {
+              upvotes: result.upvotes,
+              downvotes: result.downvotes,
+              myVote: desiredVote,
+            },
+          }));
+        } catch {
+          const base = committedVoteStates.current[reviewId];
+          delete committedVoteStates.current[reviewId];
+          if (base) setVoteState((s) => ({ ...s, [reviewId]: base }));
+        }
+      }, 1500);
+    },
+    [myHash],
+  );
 
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
   const [reviewText, setReviewText] = useState("");
@@ -705,13 +805,13 @@ function ProfessorDetailsSection({
   const [isEditingForm, setIsEditingForm] = useState(false);
 
   const myReviewByCourse = useMemo(() => {
-    const myHash = getAnonymousUserId(userId);
     const map: Record<string, Review> = {};
     for (const r of reviews) {
-      if (r.authorHash === myHash) map[r.courseId] = r;
+      if (r.authorHash === myHash && r.text !== "[removido]")
+        map[r.courseId] = r;
     }
     return map;
-  }, [reviews]);
+  }, [reviews, myHash]);
 
   function selectCourse(courseId: string) {
     setReviewText("");
@@ -726,9 +826,11 @@ function ProfessorDetailsSection({
     const existing = myReviewByCourse[courseId];
     if (existing) {
       setReviewText(existing.text);
-      setOverall(existing.scores.overall);
-      setDifficulty(existing.scores.difficulty);
-      setDidactics(existing.scores.didactics);
+      if (existing.scores) {
+        setOverall(existing.scores.overall);
+        setDifficulty(existing.scores.difficulty);
+        setDidactics(existing.scores.didactics);
+      }
     }
     setIsEditingForm(true);
     setSelectedCourse(courseId);
@@ -745,17 +847,18 @@ function ProfessorDetailsSection({
 
   // Set of courseIds this user has already reviewed (matched by stored authorHash)
   const alreadyReviewedCourses = useMemo(() => {
-    const myHash = getAnonymousUserId(userId);
     return new Set(
-      reviews.filter((r) => r.authorHash === myHash).map((r) => r.courseId),
+      reviews
+        .filter((r) => r.authorHash === myHash && r.text !== "[removido]")
+        .map((r) => r.courseId),
     );
-  }, [reviews]);
+  }, [reviews, myHash]);
 
   useEffect(() => {
     let mounted = true;
     setLoading(true);
 
-    fetchProfessorDetails(professorId)
+    fetchProfessorDetails(professorId, myHash)
       .then((data) => {
         if (!mounted) return;
         const newStats = { ...(data.statsPerCourse || {}) };
@@ -772,8 +875,30 @@ function ProfessorDetailsSection({
           });
         }
         setStats(newStats);
-        setReviews(data.reviews || []);
-        setReplies(data.replies || []);
+        // Clean up any already-orphaned [removido] nodes from previous sessions
+        const cleaned = cleanupOrphanedSoftDeleted(
+          data.replies || [],
+          data.reviews || [],
+        );
+        setReviews(cleaned.reviews);
+        setReplies(cleaned.replies);
+
+        // Initialize vote state from API (includes myVote)
+        const initialVoteState: Record<
+          string,
+          { upvotes: number; downvotes: number; myVote: 1 | -1 | 0 }
+        > = {};
+        for (const item of [
+          ...(data.reviews || []),
+          ...(data.replies || []),
+        ]) {
+          initialVoteState[item.id] = {
+            upvotes: item.upvotes ?? 0,
+            downvotes: item.downvotes ?? 0,
+            myVote: (item.myVote ?? 0) as 1 | -1 | 0,
+          };
+        }
+        setVoteState(initialVoteState);
       })
       .catch((err) => {
         if (!mounted) return;
@@ -790,15 +915,60 @@ function ProfessorDetailsSection({
     return () => {
       mounted = false;
     };
-  }, [professorId, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [professorId, myHash]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleDeleteReview = async (reviewId: string) => {
+  const handleDeleteTopLevelReview = async (reviewId: string) => {
+    const target = reviews.find((r) => r.id === reviewId);
     try {
-      const myHash = getAnonymousUserId(userId);
-      await deleteReview(reviewId, myHash);
+      const result = await deleteReview(reviewId, myHash);
+      const newReviews = result.softDeleted
+        ? reviews.map((r) =>
+            r.id === reviewId ? { ...r, text: "[removido]", scores: null } : r,
+          )
+        : reviews.filter((r) => r.id !== reviewId);
+
+      // After updating reviews, cascade-remove any newly orphaned [removido] nodes
+      const cleaned = cleanupOrphanedSoftDeleted(replies, newReviews);
+      setReviews(cleaned.reviews);
+      setReplies(cleaned.replies);
+
+      // Update stats if review had scores
+      if (target?.scores) {
+        setStats((prev) => {
+          const existing = prev[target.courseId];
+          if (!existing) return prev;
+          return {
+            ...prev,
+            [target.courseId]: statsRemoveReview(existing, target.scores!),
+          };
+        });
+      }
       toast({ title: "Avaliação excluída" });
-      setRefreshKey((k) => k + 1);
       onReviewChanged?.();
+    } catch (err: any) {
+      toast({
+        title: "Erro ao excluir",
+        description: err.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteReply = async (replyId: string) => {
+    try {
+      const result = await deleteReview(replyId, myHash);
+      const newReplies = result.softDeleted
+        ? replies.map((r) =>
+            r.id === replyId ? { ...r, text: "[removido]" } : r,
+          )
+        : replies.filter((r) => r.id !== replyId);
+
+      // Cascade-remove any [removido] ancestors that are now childless
+      const cleaned = cleanupOrphanedSoftDeleted(newReplies, reviews);
+      setReviews(cleaned.reviews);
+      setReplies(cleaned.replies);
+
+      toast({ title: "Resposta excluída" });
     } catch (err: any) {
       toast({
         title: "Erro ao excluir",
@@ -811,12 +981,17 @@ function ProfessorDetailsSection({
   const handleEditReplySubmit = async (replyId: string) => {
     if (!editReplyText.trim()) return;
     try {
-      const authorHash = getAnonymousUserId(userId);
-      await updateReply(replyId, authorHash, editReplyText);
+      const result = await updateReply(replyId, myHash, editReplyText);
+      setReplies((prev) =>
+        prev.map((r) =>
+          r.id === replyId
+            ? { ...r, text: editReplyText, updatedAt: result.review?.updatedAt }
+            : r,
+        ),
+      );
       setEditingReply(null);
       setEditReplyText("");
       toast({ title: "Resposta atualizada" });
-      setRefreshKey((k) => k + 1);
     } catch (err: any) {
       toast({
         title: "Erro ao atualizar resposta",
@@ -829,13 +1004,15 @@ function ProfessorDetailsSection({
   const handleReplySubmit = async (parentId: string) => {
     if (!replyText.trim()) return;
     try {
-      const authorHash = getAnonymousUserId(userId);
-      await submitReply(parentId, authorHash, replyText);
+      const result = await submitReply(parentId, myHash, replyText);
+      setReplies((prev) => [...prev, result.reply]);
+      setVoteState((s) => ({
+        ...s,
+        [result.reply.id]: { upvotes: 0, downvotes: 0, myVote: 0 },
+      }));
       setReplyingTo(null);
       setReplyText("");
       toast({ title: "Resposta enviada" });
-      // Re-fetch to get the reply with correct pseudonym and all fields
-      setRefreshKey((k) => k + 1);
     } catch (err: any) {
       toast({
         title: "Erro ao enviar resposta",
@@ -867,34 +1044,76 @@ function ProfessorDetailsSection({
       return;
     }
 
+    const newScores = { overall, difficulty, didactics };
     setSubmittingReview(true);
     try {
-      const authorHash = getAnonymousUserId(userId);
       if (isEditing) {
-        await updateReview(
+        const result = await updateReview(
           professorId,
           selectedCourse,
-          authorHash,
+          myHash,
           reviewText,
-          {
-            overall,
-            difficulty,
-            didactics,
-          },
+          newScores,
         );
+        setReviews((prev) =>
+          prev.map((r) =>
+            r.courseId === selectedCourse && r.authorHash === myHash
+              ? {
+                  ...r,
+                  text: reviewText,
+                  scores: newScores,
+                  updatedAt: result.review?.updatedAt,
+                }
+              : r,
+          ),
+        );
+        setStats((prev) => {
+          const existing = prev[selectedCourse];
+          const oldReview = myReviewByCourse[selectedCourse];
+          if (!existing || !oldReview?.scores) return prev;
+          return {
+            ...prev,
+            [selectedCourse]: statsEditReview(existing, oldReview.scores, newScores),
+          };
+        });
         toast({ title: "Avaliação atualizada!" });
       } else {
-        await submitReview(
+        const result = await submitReview(
           professorId,
           selectedCourse,
-          authorHash,
+          myHash,
           reviewText,
-          {
-            overall,
-            difficulty,
-            didactics,
-          },
+          newScores,
         );
+        const newReview: Review = {
+          id: result.review.id,
+          courseId: selectedCourse,
+          authorHash: myHash,
+          pseudonym: result.review.pseudonym,
+          text: reviewText,
+          scores: newScores,
+          createdAt: result.review.createdAt,
+          updatedAt: undefined,
+          upvotes: 0,
+          downvotes: 0,
+        };
+        setReviews((prev) => [newReview, ...prev]);
+        setVoteState((s) => ({
+          ...s,
+          [newReview.id]: { upvotes: 0, downvotes: 0, myVote: 0 },
+        }));
+        setStats((prev) => {
+          const existing = prev[selectedCourse] ?? {
+            totalReviews: 0,
+            overall: null,
+            difficulty: null,
+            didactics: null,
+          };
+          return {
+            ...prev,
+            [selectedCourse]: statsAddReview(existing, newScores),
+          };
+        });
         toast({ title: "Avaliação enviada!" });
       }
       // Reset form
@@ -903,8 +1122,7 @@ function ProfessorDetailsSection({
       setOverall(0);
       setDifficulty(0);
       setDidactics(0);
-      // Re-fetch data to reflect the new review in the UI
-      setRefreshKey((k) => k + 1);
+      setIsEditingForm(false);
       onReviewChanged?.();
     } catch (err: any) {
       toast({
@@ -917,7 +1135,12 @@ function ProfessorDetailsSection({
     }
   };
 
-  const getOverallStats = () => {
+  // Clear reply text when switching which reply box is open
+  useEffect(() => {
+    setReplyText("");
+  }, [replyingTo]);
+
+  const overallStats = useMemo(() => {
     let totalRev = 0,
       sumOverall = 0,
       sumDiff = 0,
@@ -937,9 +1160,7 @@ function ProfessorDetailsSection({
       difficulty: sumDiff / totalRev,
       didactics: sumDid / totalRev,
     };
-  };
-
-  const overallStats = getOverallStats();
+  }, [stats]);
 
   return (
     <div className="mb-10 last:mb-0">
@@ -1195,7 +1416,6 @@ function ProfessorDetailsSection({
 
               {/* Existing reviews — filtered by selected course when one is active */}
               {(() => {
-                const myHash = getAnonymousUserId(userId);
                 const baseReviews = selectedCourse
                   ? reviews.filter((r) => r.courseId === selectedCourse)
                   : reviews;
@@ -1253,7 +1473,7 @@ function ProfessorDetailsSection({
                                   date={review.createdAt}
                                   updatedAt={review.updatedAt}
                                   text={review.text}
-                                  scores={review.scores}
+                                  scores={review.scores ?? undefined}
                                   courseName={
                                     !selectedCourse
                                       ? courseNameMap[review.courseId] ||
@@ -1263,12 +1483,7 @@ function ProfessorDetailsSection({
                                   upvotes={review.upvotes ?? 0}
                                   downvotes={review.downvotes ?? 0}
                                   voteState={voteState[review.id]}
-                                  onVote={(v) =>
-                                    handleVote(review.id, v, {
-                                      upvotes: review.upvotes ?? 0,
-                                      downvotes: review.downvotes ?? 0,
-                                    })
-                                  }
+                                  onVote={(v) => handleVote(review.id, v)}
                                   onReply={() => setReplyingTo(review.id)}
                                   onEdit={
                                     isMyReview
@@ -1277,7 +1492,7 @@ function ProfessorDetailsSection({
                                   }
                                   onDelete={
                                     isMyReview
-                                      ? () => handleDeleteReview(review.id)
+                                      ? () => handleDeleteTopLevelReview(review.id)
                                       : undefined
                                   }
                                   isReplyOpen={replyingTo === review.id}
@@ -1302,7 +1517,7 @@ function ProfessorDetailsSection({
                                     replyText={replyText}
                                     setReplyText={setReplyText}
                                     handleReplySubmit={handleReplySubmit}
-                                    handleDelete={handleDeleteReview}
+                                    handleDelete={handleDeleteReply}
                                     editingReply={editingReply}
                                     setEditingReply={setEditingReply}
                                     editReplyText={editReplyText}
@@ -1336,7 +1551,6 @@ export function ProfessorDetailsDialog({
   taughtCourses,
   professorId,
   onClose,
-  onWriteReview,
   onReviewChanged,
 }: ProfessorDetailsDialogProps) {
   if (!professorId) return null;
@@ -1358,7 +1572,6 @@ export function ProfessorDetailsDialog({
               <ProfessorDetailsSection
                 professorId={prof}
                 taughtCourses={taughtCourses}
-                onWriteReview={onWriteReview}
                 onReviewChanged={onReviewChanged}
               />
               {index < professors.length - 1 && <Separator className="my-8" />}

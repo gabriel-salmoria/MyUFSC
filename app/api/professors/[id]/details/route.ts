@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { executeQuery } from "@/database/ready";
-import { generatePseudonym } from "@/lib/professors";
+import { generatePseudonym, normalizeProfessorId } from "@/lib/professors";
 
 export async function GET(
   request: Request,
@@ -14,48 +14,38 @@ export async function GET(
         { status: 400 },
       );
     }
-    const decodedId = decodeURIComponent(id);
-    // Normalize to match what update-professors.ts stored (UPPERCASE, no accents)
-    const normalizedId = decodedId
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toUpperCase()
-      .replace(/\s+/g, " ")
-      .trim();
+    const normalizedId = normalizeProfessorId(decodeURIComponent(id));
 
-    // 1. Get aggregate stats per course taught by the professor
-    const aggregateQuery = `
-      SELECT
-        "courseId",
-        COUNT(id) as "totalReviews",
-        AVG((scores->>'overall')::numeric) as overall,
-        AVG((scores->>'difficulty')::numeric) as difficulty,
-        AVG((scores->>'didactics')::numeric) as didactics
-      FROM reviews
-      WHERE "professorId" = $1 AND "parentId" IS NULL
-      GROUP BY "courseId"
-    `;
+    const { searchParams } = new URL(request.url);
+    // voterHash is optional — when provided, each review/reply gets a myVote field
+    const voterHash = searchParams.get("voterHash") ?? "";
 
-    // Also get the list of all courses taught by the professor just in case there are no reviews yet
-    const coursesQuery = `
-      SELECT "courseId"
-      FROM professor_courses
-      WHERE "professorId" = $1
-    `;
-
-    // 2. Get top-level reviews
-    const reviewsQuery = `
-      SELECT id, "courseId", "authorHash", text, scores, "createdAt", "updatedAt"
-      FROM reviews
-      WHERE "professorId" = $1 AND "parentId" IS NULL
-      ORDER BY "createdAt" DESC
-      LIMIT 20
-    `;
-
+    // 1. Aggregate stats per course + all courses taught
     const [aggResult, coursesResult, reviewsResult] = await Promise.all([
-      executeQuery(aggregateQuery, [normalizedId]),
-      executeQuery(coursesQuery, [normalizedId]),
-      executeQuery(reviewsQuery, [normalizedId]),
+      executeQuery(
+        `SELECT
+          "courseId",
+          COUNT(id) as "totalReviews",
+          AVG((scores->>'overall')::numeric) as overall,
+          AVG((scores->>'difficulty')::numeric) as difficulty,
+          AVG((scores->>'didactics')::numeric) as didactics
+        FROM reviews
+        WHERE "professorId" = $1 AND "parentId" IS NULL
+        GROUP BY "courseId"`,
+        [normalizedId],
+      ),
+      executeQuery(
+        `SELECT "courseId" FROM professor_courses WHERE "professorId" = $1`,
+        [normalizedId],
+      ),
+      executeQuery(
+        `SELECT id, "courseId", "authorHash", text, scores, "createdAt", "updatedAt"
+        FROM reviews
+        WHERE "professorId" = $1 AND "parentId" IS NULL
+        ORDER BY "createdAt" DESC
+        LIMIT 20`,
+        [normalizedId],
+      ),
     ]);
 
     const statsPerCourse: Record<string, any> = {};
@@ -87,57 +77,27 @@ export async function GET(
       updatedAt: r.updatedAt,
       upvotes: 0,
       downvotes: 0,
+      myVote: 0 as 1 | -1 | 0,
     }));
 
-    // Fetch vote counts separately — gracefully skip if table doesn't exist yet
-    let voteCounts: Record<string, { upvotes: number; downvotes: number }> = {};
+    // 2. Fetch all replies for those reviews (recursive CTE)
+    let baseReplies: any[] = [];
     if (baseReviews.length > 0) {
-      try {
-        const reviewIds = baseReviews.map((r) => r.id);
-        const votesResult = await executeQuery(
-          `SELECT "reviewId",
-             COALESCE(SUM(CASE WHEN value = 1 THEN 1 ELSE 0 END), 0) AS upvotes,
-             COALESCE(SUM(CASE WHEN value = -1 THEN 1 ELSE 0 END), 0) AS downvotes
-           FROM review_votes WHERE "reviewId" = ANY($1) GROUP BY "reviewId"`,
-          [reviewIds],
-        );
-        for (const row of votesResult.rows) {
-          voteCounts[row.reviewId] = {
-            upvotes: parseInt(row.upvotes, 10),
-            downvotes: parseInt(row.downvotes, 10),
-          };
-        }
-      } catch {
-        // review_votes table not yet created — votes default to 0
-      }
-    }
-
-    const reviews = baseReviews.map((r) => ({
-      ...r,
-      ...(voteCounts[r.id] ?? { upvotes: 0, downvotes: 0 }),
-    }));
-
-    // 3. For the fetched reviews, get their replies
-    let replies: any[] = [];
-    if (reviews.length > 0) {
-      const reviewIds = reviews.map((r: any) => r.id);
-      const repliesQuery = `
-        WITH RECURSIVE reply_tree AS (
+      const reviewIds = baseReviews.map((r) => r.id);
+      const repliesResult = await executeQuery(
+        `WITH RECURSIVE reply_tree AS (
           SELECT id, "parentId", "authorHash", text, "createdAt", "updatedAt"
           FROM reviews
           WHERE "parentId" = ANY($1)
-
           UNION ALL
-
           SELECT r.id, r."parentId", r."authorHash", r.text, r."createdAt", r."updatedAt"
           FROM reviews r
           INNER JOIN reply_tree rt ON r."parentId" = rt.id
         )
-        SELECT * FROM reply_tree
-        ORDER BY "createdAt" ASC
-      `;
-      const repliesResult = await executeQuery(repliesQuery, [reviewIds]);
-      const baseReplies = repliesResult.rows.map((r: any) => ({
+        SELECT * FROM reply_tree ORDER BY "createdAt" ASC`,
+        [reviewIds],
+      );
+      baseReplies = repliesResult.rows.map((r: any) => ({
         id: r.id,
         parentId: r.parentId,
         authorHash: r.authorHash,
@@ -147,45 +107,55 @@ export async function GET(
         updatedAt: r.updatedAt,
         upvotes: 0,
         downvotes: 0,
-      }));
-
-      // Fetch vote counts for replies too
-      let replyVoteCounts: Record<
-        string,
-        { upvotes: number; downvotes: number }
-      > = {};
-      if (baseReplies.length > 0) {
-        try {
-          const replyIds = baseReplies.map((r) => r.id);
-          const replyVotesResult = await executeQuery(
-            `SELECT "reviewId",
-               COALESCE(SUM(CASE WHEN value = 1 THEN 1 ELSE 0 END), 0) AS upvotes,
-               COALESCE(SUM(CASE WHEN value = -1 THEN 1 ELSE 0 END), 0) AS downvotes
-             FROM review_votes WHERE "reviewId" = ANY($1) GROUP BY "reviewId"`,
-            [replyIds],
-          );
-          for (const row of replyVotesResult.rows) {
-            replyVoteCounts[row.reviewId] = {
-              upvotes: parseInt(row.upvotes, 10),
-              downvotes: parseInt(row.downvotes, 10),
-            };
-          }
-        } catch {
-          // review_votes table not yet created
-        }
-      }
-
-      replies = baseReplies.map((r) => ({
-        ...r,
-        ...(replyVoteCounts[r.id] ?? { upvotes: 0, downvotes: 0 }),
+        myVote: 0 as 1 | -1 | 0,
       }));
     }
 
-    return NextResponse.json({
-      statsPerCourse,
-      reviews,
-      replies,
-    });
+    // 3. Single vote query covering reviews + replies together
+    const allIds = [
+      ...baseReviews.map((r) => r.id),
+      ...baseReplies.map((r) => r.id),
+    ];
+    const voteMap: Record<
+      string,
+      { upvotes: number; downvotes: number; myVote: 1 | -1 | 0 }
+    > = {};
+
+    if (allIds.length > 0) {
+      try {
+        const votesResult = await executeQuery(
+          `SELECT "reviewId",
+             COALESCE(SUM(CASE WHEN value = 1 THEN 1 ELSE 0 END), 0) AS upvotes,
+             COALESCE(SUM(CASE WHEN value = -1 THEN 1 ELSE 0 END), 0) AS downvotes,
+             MAX(CASE WHEN "voterHash" = $2 THEN value ELSE NULL END) AS "myVote"
+           FROM review_votes
+           WHERE "reviewId" = ANY($1)
+           GROUP BY "reviewId"`,
+          [allIds, voterHash],
+        );
+        for (const row of votesResult.rows) {
+          voteMap[row.reviewId] = {
+            upvotes: parseInt(row.upvotes, 10),
+            downvotes: parseInt(row.downvotes, 10),
+            myVote: (row.myVote ?? 0) as 1 | -1 | 0,
+          };
+        }
+      } catch {
+        // review_votes table not yet created — votes default to 0
+      }
+    }
+
+    const reviews = baseReviews.map((r) => ({
+      ...r,
+      ...(voteMap[r.id] ?? { upvotes: 0, downvotes: 0, myVote: 0 as const }),
+    }));
+
+    const replies = baseReplies.map((r) => ({
+      ...r,
+      ...(voteMap[r.id] ?? { upvotes: 0, downvotes: 0, myVote: 0 as const }),
+    }));
+
+    return NextResponse.json({ statsPerCourse, reviews, replies });
   } catch (error) {
     console.error("Error fetching professor details:", error);
     return NextResponse.json(
