@@ -44,7 +44,7 @@ export default function CourseBox({
   isFromCurriculum, // Include in destructured props
 }: CourseBoxProps) {
   const courseBoxRef = useRef<HTMLDivElement>(null);
-  const studentStore = useStudentStore(); // Added
+  const selectCourse = useStudentStore((s) => s.selectCourse);
 
   // Get appropriate status class based on course status
   const getStatusClass = () => {
@@ -178,7 +178,7 @@ export default function CourseBox({
     // Added
     console.log("CourseBox clicked:", studentCourse);
     if (!isEmpty) {
-      studentStore.selectCourse(studentCourse);
+      selectCourse(studentCourse, studentCourse.course);
     }
   };
 

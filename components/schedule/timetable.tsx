@@ -5,6 +5,7 @@ import { cn } from "@/components/ui/utils";
 import CourseStats from "./course-stats";
 import type { Course } from "@/types/curriculum";
 import type { StudentInfo, StudentCourse, CustomScheduleEntry } from "@/types/student-plan";
+import type { ViewStudentCourse } from "@/types/visualization";
 import type { ScheduleHookState } from "@/hooks/setup/UseSchedule";
 import { CourseStatus } from "@/types/student-plan";
 import { TIMETABLE } from "@/styles/visualization";
@@ -15,6 +16,7 @@ import {
 } from "@/styles/course-theme";
 import { parsescheduleData } from "@/parsers/class-parser";
 import { useStudentStore } from "@/lib/student-store";
+import { useCourseMap } from "@/hooks/useCourseMap";
 
 import TimetableHeader from "./timetable-header";
 import TimetableGrid from "./timetable-grid";
@@ -90,12 +92,11 @@ export default function Timetable({
     ProfessorOverride[]
   >([]);
 
-  const studentStore = useStudentStore();
-  const {
-    addCustomScheduleEntry,
-    removeCustomScheduleEntry,
-    updateCustomScheduleEntry,
-  } = studentStore;
+  const courseMap = useCourseMap();
+  const addCustomScheduleEntry = useStudentStore((s) => s.addCustomScheduleEntry);
+  const removeCustomScheduleEntry = useStudentStore((s) => s.removeCustomScheduleEntry);
+  const updateCustomScheduleEntry = useStudentStore((s) => s.updateCustomScheduleEntry);
+  const setCourseClass = useStudentStore((s) => s.setCourseClass);
 
   const customScheduleEntries = studentInfo?.customScheduleEntries || [];
 
@@ -199,7 +200,7 @@ export default function Timetable({
   const scheduledCourses = useMemo(() => {
     return selectedPhaseCourses.filter((course) => {
       const hasOverride = professorOverrides.some(
-        (o) => o.courseId === course.course.id,
+        (o) => o.courseId === course.courseId,
       );
       return hasOverride;
     });
@@ -207,14 +208,16 @@ export default function Timetable({
 
   const [aggregatesRefreshKey, setAggregatesRefreshKey] = useState(0);
 
+  const scheduledCourseIdsKey = scheduledCourses.map((c) => c.courseId).sort().join(",");
   useEffect(() => {
-    const courseIds = scheduledCourses.map((c) => c.course.id);
+    const courseIds = scheduledCourseIdsKey ? scheduledCourseIdsKey.split(",") : [];
     if (courseIds.length > 0) {
       fetchProfessorAggregates(courseIds)
         .then((data) => setProfessorAggregates(data))
         .catch(console.error);
     }
-  }, [scheduledCourses, aggregatesRefreshKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scheduledCourseIdsKey, aggregatesRefreshKey]);
 
   const handleProfessorClick = (professorName: string) => {
     setDetailsProfessorId(professorName);
@@ -259,7 +262,7 @@ export default function Timetable({
   ): ProfessorOverride | null => {
     const scheduleText = professorData.schedule;
     const scheduleEntries: ScheduleEntry[] = [];
-    const courseId = course.course ? course.course.id : (course as any).id;
+    const courseId = course.courseId;
 
     if (scheduleText) {
       const timeSlots = scheduleText.split(",").map((s) => s.trim());
@@ -305,9 +308,7 @@ export default function Timetable({
 
     selectedPhaseCourses.forEach((studentCourse) => {
       const classId = (studentCourse as any).class;
-      const courseId = studentCourse.course
-        ? studentCourse.course.id
-        : (studentCourse as any).id;
+      const courseId = studentCourse.courseId;
       if (classId) {
         const profs = timetableData.professors[courseId];
         if (profs) {
@@ -358,13 +359,13 @@ export default function Timetable({
     course: StudentCourse,
     professorId: string,
   ) => {
-    const courseId = course.course ? course.course.id : (course as any).id;
+    const courseId = course.courseId;
     const professorsForCourse = timetableData.professors[courseId];
     const professorData = professorsForCourse?.find(
       (p) => p.professorId === professorId,
     );
     if (professorData) {
-      studentStore.setCourseClass(course, professorData.classNumber);
+      setCourseClass(course, professorData.classNumber);
     }
   };
 
@@ -376,7 +377,7 @@ export default function Timetable({
         string,
         {
           courses: {
-            course: StudentCourse;
+            course: ViewStudentCourse;
             isConflicting: boolean;
             location?: string;
           }[];
@@ -395,7 +396,7 @@ export default function Timetable({
     // Place course overrides
     professorOverrides.forEach((override) => {
       const course = selectedPhaseCourses.find(
-        (c) => c.course.id === override.courseId,
+        (c) => c.courseId === override.courseId,
       );
       if (!course) return;
 
@@ -416,10 +417,13 @@ export default function Timetable({
         const lastSlotIndex =
           endSlotIndex === -1 ? TIMETABLE.TIME_SLOTS.length : endSlotIndex;
 
+        const resolvedCourse = courseMap.get(course.courseId);
+        if (!resolvedCourse) return;
+        const viewCourse: ViewStudentCourse = { ...course, course: resolvedCourse };
         for (let i = startSlotIndex; i < lastSlotIndex; i++) {
           const slotId = TIMETABLE.TIME_SLOTS[i].id;
           schedule[slotId][day].courses.push({
-            course,
+            course: viewCourse,
             isConflicting: false,
             location,
           });
@@ -465,9 +469,9 @@ export default function Timetable({
 
   const courseColorMap = useMemo(() => {
     selectedPhaseCourses.forEach((course) => {
-      if (!courseColors.has(course.course.id)) {
+      if (!courseColors.has(course.courseId)) {
         const colorIndex = courseColors.size % TIMETABLE_COLORS.length;
-        courseColors.set(course.course.id, TIMETABLE_COLORS[colorIndex]);
+        courseColors.set(course.courseId, TIMETABLE_COLORS[colorIndex]);
       }
     });
     return courseColors;
@@ -477,8 +481,8 @@ export default function Timetable({
     courseColors.get(courseId) || STATUS_CLASSES.DEFAULT;
 
   const handleRemoveCourse = (courseId: string) => {
-    const course = selectedPhaseCourses.find((c) => c.course.id === courseId);
-    if (course) studentStore.setCourseClass(course, "");
+    const course = selectedPhaseCourses.find((c) => c.courseId === courseId);
+    if (course) setCourseClass(course, "");
   };
 
   const availablePhases = useMemo(() => {
@@ -548,10 +552,10 @@ export default function Timetable({
     // Export selected courses
     professorOverrides.forEach((override) => {
       const course = selectedPhaseCourses.find(
-        (c) => c.course.id === override.courseId,
+        (c) => c.courseId === override.courseId,
       );
       if (!course) return;
-      const title = course.course.name;
+      const title = courseMap.get(course.courseId)?.name ?? course.courseId;
       const desc = `Turma: ${override.classNumber}\\nProfessor: ${override.professorId}`;
       override.schedule.forEach((entry) => {
         if (!entry.endTime) return;

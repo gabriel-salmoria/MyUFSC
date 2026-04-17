@@ -16,9 +16,9 @@ interface AvailableCoursesModalProps {
 }
 
 export default function AvailableCoursesModal({ open, onClose, targetPhase }: AvailableCoursesModalProps) {
-  const studentStore = useStudentStore();
-  const selectCourse = studentStore.selectCourse;
-  const studentInfo = studentStore.studentInfo;
+  const selectCourse = useStudentStore((s) => s.selectCourse);
+  const studentInfo = useStudentStore((s) => s.studentInfo);
+  const curriculumCache = useStudentStore((s) => s.curriculumCache);
   const [searchTerm, setSearchTerm] = useState("");
 
   const { availableCourses, curriculumMap } = useMemo(() => {
@@ -28,7 +28,7 @@ export default function AvailableCoursesModal({ open, onClose, targetPhase }: Av
     const { currentDegree, interestedDegrees } = studentInfo;
     const degrees = [currentDegree, ...(interestedDegrees || [])];
     degrees.forEach(id => {
-      const cx = studentStore.curriculumCache[id];
+      const cx = curriculumCache[id];
       if (cx) {
         allCourses = [...allCourses, ...cx];
       }
@@ -42,7 +42,7 @@ export default function AvailableCoursesModal({ open, onClose, targetPhase }: Av
     
     // Courses already in plan (any status, any phase)
     const plannedIds = new Set<string>();
-    plan.semesters.forEach(s => s.courses.forEach(c => plannedIds.add(c.course.id)));
+    plan.semesters.forEach(s => s.courses.forEach(c => plannedIds.add(c.courseId)));
 
     const unlocked: Course[] = [];
     
@@ -63,7 +63,7 @@ export default function AvailableCoursesModal({ open, onClose, targetPhase }: Av
     const uniqueUnlocked = Array.from(new Map(unlocked.map(item => [item.id, item])).values());
     
     return { availableCourses: uniqueUnlocked, curriculumMap: cmap };
-  }, [studentInfo, studentStore.curriculumCache, targetPhase]);
+  }, [studentInfo, curriculumCache, targetPhase]);
 
   const displayedCourses = useMemo(() => {
     if (!searchTerm) return availableCourses;
@@ -104,14 +104,10 @@ export default function AvailableCoursesModal({ open, onClose, targetPhase }: Av
                 key={course.id} 
                 className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-accent cursor-pointer transition-colors"
                 onClick={() => {
-                  // Mocks the StudentCourse object to pass it correctly to selectCourse
-                  // It will just open the panel, then user can Add it
-                  selectCourse({
-                    id: course.id,
-                    status: CourseStatus.PLANNED,
-                    phase: targetPhase,
-                    course: course
-                  });
+                  selectCourse(
+                    { courseId: course.id, credits: course.credits || 0, status: CourseStatus.PLANNED, phase: targetPhase },
+                    course,
+                  );
                   onClose();
                 }}
               >

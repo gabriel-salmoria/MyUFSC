@@ -1,18 +1,48 @@
+// Cache professor details for 2 min. Invalidated explicitly after any review mutation.
+const _detailsCache = new Map<string, { data: any; expiresAt: number }>();
+const _detailsInFlight = new Map<string, Promise<any>>();
+
 export async function fetchProfessorDetails(
   professorId: string,
   voterHash?: string,
 ) {
+  const key = `${professorId}:${voterHash ?? ""}`;
+
+  const cached = _detailsCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.data;
+
+  const inflight = _detailsInFlight.get(key);
+  if (inflight) return inflight;
+
   const url = new URL(
     `/api/professors/${encodeURIComponent(professorId)}/details`,
     window.location.origin,
   );
   if (voterHash) url.searchParams.set("voterHash", voterHash);
-  const res = await fetch(url.toString());
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.error || "Failed to fetch professor details");
+
+  const request = fetch(url.toString())
+    .then(async (res) => {
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to fetch professor details");
+      }
+      const data = await res.json();
+      _detailsCache.set(key, { data, expiresAt: Date.now() + 120_000 });
+      return data;
+    })
+    .finally(() => {
+      _detailsInFlight.delete(key);
+    });
+
+  _detailsInFlight.set(key, request);
+  return request;
+}
+
+/** Call this after submitting/editing/deleting a review so the next open fetches fresh data. */
+export function invalidateProfessorDetailsCache(professorId: string) {
+  for (const key of _detailsCache.keys()) {
+    if (key.startsWith(`${professorId}:`)) _detailsCache.delete(key);
   }
-  return res.json();
 }
 
 export async function submitReply(
@@ -76,19 +106,40 @@ export async function submitReview(
   return res.json();
 }
 
+// Deduplicate in-flight requests and cache responses for 30 s
+const _aggregatesCache = new Map<string, { data: any; expiresAt: number }>();
+const _aggregatesInFlight = new Map<string, Promise<any>>();
+
 export async function fetchProfessorAggregates(courseIds: string[]) {
   if (!courseIds || courseIds.length === 0) return {};
-  const res = await fetch(`/api/professors/aggregates`, {
+  const key = [...courseIds].sort().join(",");
+
+  const cached = _aggregatesCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.data;
+
+  const inflight = _aggregatesInFlight.get(key);
+  if (inflight) return inflight;
+
+  const request = fetch(`/api/professors/aggregates`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ courseIds }),
-  });
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.error || "Failed to fetch aggregates");
-  }
-  const data = await res.json();
-  return data.aggregates;
+  })
+    .then(async (res) => {
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to fetch aggregates");
+      }
+      const data = await res.json();
+      _aggregatesCache.set(key, { data: data.aggregates, expiresAt: Date.now() + 30_000 });
+      return data.aggregates;
+    })
+    .finally(() => {
+      _aggregatesInFlight.delete(key);
+    });
+
+  _aggregatesInFlight.set(key, request);
+  return request;
 }
 
 export async function submitVote(

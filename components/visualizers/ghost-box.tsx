@@ -1,9 +1,5 @@
-import { getCourseInfo } from "@/parsers/curriculum-parser";
 import { CSS_CLASSES } from "@/styles/course-theme";
-import { Course } from "@/types/curriculum";
 import { COURSE_BOX } from "@/styles/visualization";
-import { StudentStore } from "@/lib/student-store";
-import { useStudentStore } from "@/lib/student-store";
 
 // GhostCourseBox Component
 interface GhostCourseBoxProps {
@@ -23,7 +19,6 @@ export default function GhostCourseBox({
   semesterNumber,
   positionIndex,
 }: GhostCourseBoxProps) {
-  const studentStore = useStudentStore();
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
   };

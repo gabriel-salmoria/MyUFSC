@@ -30,14 +30,8 @@ export default function Home() {
     useCheckAuth();
 
   // Student Store Hook
-  const studentStore = useStudentStore();
-  const {
-    studentInfo: storeStudentInfo,
-    selectedCourse,
-    selectedStudentCourse,
-    selectCourse,
-    setStudentInfo: setStoreStudentInfo,
-  } = studentStore;
+  const storeStudentInfo = useStudentStore((s) => s.studentInfo);
+  const setStoreStudentInfo = useStudentStore((s) => s.setStudentInfo);
 
   // Student Profile Hook
   const { studentInfo, isProfileLoading } = useStudentProfile({

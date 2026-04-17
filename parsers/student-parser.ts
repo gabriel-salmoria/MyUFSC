@@ -24,7 +24,7 @@ export function createPhases(studentPlan: StudentPlan): {
   studentPlan.semesters.forEach((semester, semesterIndex) => {
     phaseArray.push([]);
     semester.courses.forEach((course, courseIndex) => {
-      if (!course || !course.course) {
+      if (!course || !course.courseId) {
         return;
       }
       phaseArray[semesterIndex].push(course);

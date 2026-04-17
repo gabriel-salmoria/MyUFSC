@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import {
   fetchProfessorDetails,
+  invalidateProfessorDetailsCache,
   submitReply,
   submitReview,
   submitVote,
@@ -676,13 +677,14 @@ function ProfessorDetailsSection({
   taughtCourses?: string[];
   onReviewChanged?: () => void;
 }) {
-  const { userId, isAuthenticated } = useStudentStore();
+  const userId = useStudentStore((s) => s.userId);
+  const isAuthenticated = useStudentStore((s) => s.isAuthenticated);
+  const curriculumCache = useStudentStore((s) => s.curriculumCache);
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<Record<string, Stats>>({});
   const [reviews, setReviews] = useState<Review[]>([]);
   const [replies, setReplies] = useState<ReplyObj[]>([]);
   const { toast } = useToast();
-  const { curriculumCache } = useStudentStore();
 
   const myHash = useMemo(() => getAnonymousUserId(userId), [userId]);
 
@@ -944,6 +946,7 @@ function ProfessorDetailsSection({
         });
       }
       toast({ title: "Avaliação excluída" });
+      invalidateProfessorDetailsCache(professorId);
       onReviewChanged?.();
     } catch (err: any) {
       toast({
@@ -1123,6 +1126,7 @@ function ProfessorDetailsSection({
       setDifficulty(0);
       setDidactics(0);
       setIsEditingForm(false);
+      invalidateProfessorDetailsCache(professorId);
       onReviewChanged?.();
     } catch (err: any) {
       toast({

@@ -10,7 +10,6 @@ import { ChevronDown } from "lucide-react";
 import CurriculumVisualizer from "@/components/visualizers/curriculum-visualizer";
 import ProgressVisualizer from "@/components/visualizers/progress-visualizer";
 import GridVisualizer from "@/components/visualizers/grid-visualizer";
-import { useStudentStore } from "@/lib/student-store";
 import { useAddCoursePrereq } from "@/components/course/use-add-course-prereq";
 import type { DegreeProgram } from "@/types/degree-program";
 import { ProgramLabel } from "@/components/selector/degree-selector";
@@ -39,7 +38,6 @@ export default function Visualizations({
   scheduleState,
   setScheduleState,
 }: VisualizationsProps) {
-  const studentStore = useStudentStore();
   const { handleAddWithCheck, handleMoveWithCheck, PrereqDialog } = useAddCoursePrereq();
 
   useEffect(() => {

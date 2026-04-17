@@ -3,8 +3,8 @@
 import React from "react";
 import { cn } from "@/components/ui/utils";
 import { CSS_CLASSES } from "@/styles/course-theme";
-import type { StudentCourse } from "@/types/student-plan";
 import type { CustomScheduleEntry } from "@/types/student-plan";
+import type { ViewStudentCourse } from "@/types/visualization";
 import { TIMETABLE } from "@/styles/visualization";
 import { useStudentStore } from "@/lib/student-store";
 
@@ -15,7 +15,7 @@ interface TimetableGridProps {
       string,
       {
         courses: {
-          course: StudentCourse;
+          course: ViewStudentCourse;
           isConflicting: boolean;
           location?: string;
         }[];
@@ -34,7 +34,8 @@ export default function TimetableGrid({
   onEmptyCellClick,
   onCustomEntryClick,
 }: TimetableGridProps) {
-  const { selectedStudentCourse, selectCourse } = useStudentStore();
+  const selectedStudentCourse = useStudentStore((s) => s.selectedStudentCourse);
+  const selectCourse = useStudentStore((s) => s.selectCourse);
 
   // Render a single course item inside a cell
   const renderCourseItem = (courseData: any, idx: number) => {
@@ -42,16 +43,16 @@ export default function TimetableGrid({
 
     return (
       <div
-        key={`${courseData.course.course.id}-${idx}`}
+        key={`${courseData.course.courseId}-${idx}`}
         className={cn(
           CSS_CLASSES.TIMETABLE_COURSE,
           "flex-1 min-w-0",
           courseData.isConflicting && "border-[3px] border-red-600",
-          getCourseColor(courseData.course.course.id),
-          selectedStudentCourse?.course.id === courseData.course.course.id &&
+          getCourseColor(courseData.course.courseId),
+          selectedStudentCourse?.courseId === courseData.course.courseId &&
           CSS_CLASSES.COURSE_SELECTED,
         )}
-        onClick={() => selectCourse(courseData.course)}
+        onClick={() => selectCourse(courseData.course, courseData.course.course)}
       >
         <div className="flex items-center justify-between">
           {location && (

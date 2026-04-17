@@ -5,6 +5,7 @@ import { cn } from "@/components/ui/utils";
 import { CSS_CLASSES } from "@/styles/course-theme";
 import type { StudentCourse } from "@/types/student-plan";
 import { useStudentStore } from "@/lib/student-store"; // Import the store
+import { useCourseMap } from "@/hooks/useCourseMap";
 
 interface CourseListProps {
   courses: StudentCourse[];
@@ -16,32 +17,35 @@ export default function CourseList({
   // onCourseClick, // REMOVED
   getCourseColor,
 }: CourseListProps) {
-  const { selectSchedule } = useStudentStore(); // Use the store
+  const selectSchedule = useStudentStore((s) => s.selectSchedule);
+  const courseMap = useCourseMap();
 
   return (
     <div className={CSS_CLASSES.STATS_SECTION}>
       <h3 className="text-sm font-medium mb-2">Disciplinas Atuais</h3>
       <div className={CSS_CLASSES.STATS_GRID}>
-        {courses.map((course, idx) => (
+        {courses.map((course, idx) => {
+          const resolved = courseMap.get(course.courseId);
+          return (
           <div
-            key={`${course.course.id}-${idx}`}
+            key={`${course.courseId}-${idx}`}
             className={cn(
               CSS_CLASSES.STATS_COURSE_CARD,
-              getCourseColor(course.course.id),
+              getCourseColor(course.courseId),
             )}
-            // Use the store action directly
             onClick={(e) => {
-              e.stopPropagation(); // Prevent event from bubbling
-              selectSchedule(course);
+              e.stopPropagation();
+              selectSchedule(course, resolved ?? null);
             }}
           >
-            <div className={CSS_CLASSES.COURSE_ID}>{course.course.id}</div>
-            <div className={CSS_CLASSES.COURSE_NAME}>{course.course.name}</div>
+            <div className={CSS_CLASSES.COURSE_ID}>{course.courseId}</div>
+            <div className={CSS_CLASSES.COURSE_NAME}>{resolved?.name ?? course.courseId}</div>
             <div className="mt-1 text-black dark:text-white text-center text-opacity-70 dark:text-opacity-80">
-              Créditos: {course.course.credits}
+              Créditos: {course.credits}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

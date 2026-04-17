@@ -257,8 +257,8 @@ export function createStudentCoursesFromMatrufsc(
 
       // Create student course
       return {
-        ...courseObj,
-        course: courseObj,
+        courseId,
+        credits,
         status,
         class: Array.isArray(courseClasses) && courseClasses.length > 0 && Array.isArray(courseClasses[0])
           ? courseClasses[0][0]

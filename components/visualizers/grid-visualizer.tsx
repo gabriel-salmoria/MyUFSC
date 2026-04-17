@@ -62,7 +62,7 @@ export default function GridVisualizer({
         currentPlan.semesters
           .flatMap((semester) => semester.courses)
           .forEach((sc) => {
-            map.set(sc.course.id, sc);
+            map.set(sc.courseId, sc);
           });
       }
     }
@@ -223,7 +223,7 @@ export default function GridVisualizer({
 
             const viewCourse: ViewStudentCourse = studentCourseFromPlan
               ? { ...studentCourseFromPlan, course: electiveCourse, isHighlighted, isDimmed }
-              : { course: electiveCourse, status: CourseStatus.DEFAULT, isHighlighted, isDimmed };
+              : { courseId: electiveCourse.id, credits: electiveCourse.credits || 0, course: electiveCourse, status: CourseStatus.DEFAULT, isHighlighted, isDimmed };
 
             return (
               <CourseBox

@@ -69,7 +69,8 @@ export async function getAvailableSemesters(
      FROM schedules s
      WHERE s."programId" = $1
         OR s."programId" LIKE ($1 || '\\_%') ESCAPE '\\'
-     ORDER BY s.semester DESC`,
+     ORDER BY s.semester DESC
+     LIMIT 20`,
     [programId],
   );
 

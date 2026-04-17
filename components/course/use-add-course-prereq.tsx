@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Course } from "@/types/curriculum";
+import type { Course } from "@/types/curriculum";
+import type { ViewStudentCourse } from "@/types/visualization";
 import { useStudentStore } from "@/lib/student-store";
 import { checkPrerequisites } from "@/lib/prerequisites";
 import { generateEquivalenceMap } from "@/parsers/curriculum-parser";
@@ -50,7 +51,7 @@ export function useAddCoursePrereq() {
     }
   };
 
-  const handleMoveWithCheck = (studentCourse: any, targetPhase: number) => {
+  const handleMoveWithCheck = (studentCourse: ViewStudentCourse, targetPhase: number) => {
     let allCourses: Course[] = [];
     if (studentInfo) {
       const { currentDegree, interestedDegrees } = studentInfo;

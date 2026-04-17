@@ -5,7 +5,8 @@ import type React from "react";
 import { useRef, useState, useEffect, useMemo } from "react";
 
 // tipos de dados
-import type { StudentPlan, StudentCourse } from "@/types/student-plan";
+import type { StudentPlan } from "@/types/student-plan";
+import type { ViewStudentCourse } from "@/types/visualization";
 
 // componentes visuais da ui
 import Phase from "@/components/visualizers/phase";
@@ -13,8 +14,7 @@ import AvailableCoursesModal from "@/components/schedule/available-courses-modal
 
 // config
 import { PHASE } from "@/styles/visualization";
-import { StudentStore } from "@/lib/student-store";
-import { useStudentStore } from "@/lib/student-store";
+import { useCourseMap } from "@/hooks/useCourseMap";
 
 interface ProgressVisualizerProps {
   studentPlan: StudentPlan;
@@ -30,7 +30,7 @@ export default function ProgressVisualizer({
   height,
   onPhaseClick,
 }: ProgressVisualizerProps) {
-  const studentStore = useStudentStore();
+  const courseMap = useCourseMap();
   const containerRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [phaseWidth, setPhaseWidth] = useState<number>(PHASE.MIN_WIDTH);
@@ -132,6 +132,17 @@ export default function ProgressVisualizer({
     return Math.max(PHASE.BOXES_PER_COLUMN || 6, maxCourses + 1);
   }, [displayedSemesters]);
 
+  // Resolve StudentCourse → ViewStudentCourse outside of JSX to avoid per-render allocations
+  const viewSemesters = useMemo(() => {
+    return displayedSemesters.map((semester) => ({
+      ...semester,
+      viewCourses: semester.courses.map((sc): ViewStudentCourse => {
+        const resolved = courseMap.get(sc.courseId);
+        return { ...sc, course: resolved ?? { id: sc.courseId, name: sc.courseId, credits: sc.credits, phase: sc.phase ?? 0 } };
+      }),
+    }));
+  }, [displayedSemesters, courseMap]);
+
   return (
     <div className="flex flex-col w-full h-full">
       <div
@@ -150,14 +161,14 @@ export default function ProgressVisualizer({
         >
           {/* Render Phases side by side */}
           <div className="flex h-full">
-            {displayedSemesters.map((semester, index) => (
+            {viewSemesters.map((semester) => (
               <Phase
                 key={`phase-${semester.number}`}
                 semesterNumber={semester.number}
-                studentCourses={semester.courses}
+                studentCourses={semester.viewCourses}
                 width={phaseWidth}
-                isFromCurriculum={false} // Mark as not from curriculum (it's student progress)
-                totalSlots={globalTotalSlots} // Pass uniform height
+                isFromCurriculum={false}
+                totalSlots={globalTotalSlots}
                 onHeaderClick={() => onPhaseClick && onPhaseClick(semester.number)}
               />
             ))}

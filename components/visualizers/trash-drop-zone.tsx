@@ -2,11 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { Trash2 } from "lucide-react";
-import { StudentStore } from "@/lib/student-store";
 import { useStudentStore } from "@/lib/student-store";
 
 export default function TrashDropZone() {
-  const studentStore = useStudentStore();
+  const removeCourse = useStudentStore((s) => s.removeCourse);
   const [isDragging, setIsDragging] = useState(false);
   const [isActive, setIsActive] = useState(false);
   const [isFromProgress, setIsFromProgress] = useState(false);
@@ -122,7 +121,7 @@ export default function TrashDropZone() {
 
             const data = JSON.parse(dragData);
             if (data.sourceVisualizer === "progress") {
-              studentStore.removeCourse(data.studentCourse);
+              removeCourse(data.studentCourse);
               // Hide the trash component immediately after removing the course
               setIsDragging(false);
               setIsFromProgress(false);

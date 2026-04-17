@@ -66,11 +66,11 @@ export default function ProfessorSelector({
   professorAggregates,
   onProfessorClick,
 }: ProfessorSelectorProps) {
-  const { selectedStudentSchedule } = useStudentStore();
+  const selectedStudentSchedule = useStudentStore((s) => s.selectedStudentSchedule);
 
   if (!selectedStudentSchedule) return null;
 
-  const courseId = selectedStudentSchedule.course.id;
+  const courseId = selectedStudentSchedule.courseId;
 
   return (
     <div className={CSS_CLASSES.STATS_SECTION}>

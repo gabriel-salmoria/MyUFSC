@@ -43,7 +43,7 @@ export default function StudentCourseDetailsPanel({
     <AnimatePresence>
       {isOpen && (
         <PanelContent
-          key={studentCourse!.course.id}
+          key={studentCourse!.courseId}
           course={course!}
           studentCourse={studentCourse!}
           scheduleData={scheduleData}

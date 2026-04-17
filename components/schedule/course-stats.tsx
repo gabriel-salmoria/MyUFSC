@@ -6,6 +6,7 @@ import type { Course } from "@/types/curriculum";
 import type { StudentCourse } from "@/types/student-plan";
 import { CourseStatus } from "@/types/student-plan";
 import { useStudentStore } from "@/lib/student-store";
+import { useCourseMap } from "@/hooks/useCourseMap";
 
 // Import the extracted components
 import SearchInput from "./search-input";
@@ -62,15 +63,12 @@ export default function CourseStats({
 
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const studentStore = useStudentStore();
-
-  const {
-    selectedSchedule,
-    selectedStudentSchedule,
-
-    selectSchedule,
-    clearSchedule,
-  } = studentStore;
+  const courseMap = useCourseMap();
+  const selectedSchedule = useStudentStore((s) => s.selectedSchedule);
+  const selectedStudentSchedule = useStudentStore((s) => s.selectedStudentSchedule);
+  const selectSchedule = useStudentStore((s) => s.selectSchedule);
+  const clearSchedule = useStudentStore((s) => s.clearSchedule);
+  const addCourseToSemester = useStudentStore((s) => s.addCourseToSemester);
 
   // Use provided timetable data or fall back to empty data
   const scheduleDataToUse = timetableData || emptyScheduleData;
@@ -91,10 +89,10 @@ export default function CourseStats({
     isCurrentCourse: boolean,
   ) => {
     if (isCurrentCourse) {
-      selectSchedule(course as StudentCourse); // Use local state setter for existing courses
+      selectSchedule(course as StudentCourse, null);
     } else {
       const newCourse = course as Course;
-      studentStore.addCourseToSemester(
+      addCourseToSemester(
         newCourse,
         selectedPhase, // Use the selectedPhase prop
       );
@@ -105,16 +103,16 @@ export default function CourseStats({
   // Calculate total weekly hours
   const weeklyHours = useMemo(() => {
     return courses.reduce((total, course) => {
-      return total + course.course.credits;
+      return total + course.credits;
     }, 0);
   }, [courses]);
 
   // Calculate total workload (hours)
   const totalWorkload = useMemo(() => {
     return courses.reduce((total, course) => {
-      return total + (course.course.workload || 0);
+      return total + (courseMap.get(course.courseId)?.workload || 0);
     }, 0);
-  }, [courses]);
+  }, [courses, courseMap]);
 
   // Get the course color based on its ID
   const getCourseColor = (courseId: string) => {

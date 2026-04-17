@@ -1,4 +1,3 @@
-import type { Course } from "./curriculum";
 
 /**
  * Represents the status of a course in a student's plan
@@ -14,16 +13,17 @@ export enum CourseStatus {
 }
 
 /**
- * Represents a course in the student's personal plan
+ * Represents a course in the student's personal plan.
+ * Only stores the course ID — the full Course object is resolved at render
+ * time from the curriculum cache, keeping persisted data small.
  */
 export interface StudentCourse {
-  course: Course;
+  courseId: string;
+  credits: number;   // denormalized from Course, needed for totalCredits without cache
   status: CourseStatus;
   grade?: number;
   class?: string;
   phase?: number;
-  /** Redundant with course.id — kept for store lookup identity */
-  id?: string;
 }
 
 /**

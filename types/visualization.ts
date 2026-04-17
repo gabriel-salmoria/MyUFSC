@@ -1,10 +1,12 @@
 import type { StudentCourse } from "./student-plan";
+import type { Course } from "./curriculum";
 
 /**
- * StudentCourse annotated with render-only highlight/dim state.
- * These fields are computed per-render in visualizers and are never persisted.
+ * StudentCourse with the resolved Course object and render-only state.
+ * Built by visualizers at render time — never persisted.
  */
 export interface ViewStudentCourse extends StudentCourse {
+  course: Course;          // resolved from curriculum cache, not stored
   isHighlighted?: boolean;
   isDimmed?: boolean;
 }

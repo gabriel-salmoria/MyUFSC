@@ -62,7 +62,7 @@ export interface StudentStore {
   selectedSchedule: Course | null;
   selectedStudentSchedule: StudentCourse | null;
 
-  selectSchedule: (studentCourse: StudentCourse | null) => void;
+  selectSchedule: (studentCourse: StudentCourse | null, course: Course | null) => void;
   clearSchedule: () => void;
 
   // Actions
@@ -94,7 +94,7 @@ export interface StudentStore {
   updateCustomScheduleEntry: (entry: CustomScheduleEntry) => void;
 
   // Selection actions
-  selectCourse: (studentCourse: StudentCourse | null) => void;
+  selectCourse: (studentCourse: StudentCourse | null, course: Course | null) => void;
   clearSelection: () => void;
 
   // Cache
@@ -202,7 +202,7 @@ export const useStudentStore = create<StudentStore>()(
               if (existingSemester) {
                 let totalCredits = 0;
                 existingSemester.courses.forEach((course) => {
-                  totalCredits += course.course?.credits || 0;
+                  totalCredits += course.credits || 0;
                 });
                 allSemesters.push({ ...existingSemester, totalCredits });
               } else {
@@ -289,10 +289,10 @@ export const useStudentStore = create<StudentStore>()(
             }
 
             const newStudentCourse: StudentCourse = {
-              course,
+              courseId: course.id,
+              credits: course.credits || 0,
               status: CourseStatus.PLANNED,
               phase: semesterNumber,
-              id: course.id,
             };
 
             targetSemester.courses.push(newStudentCourse);
@@ -316,18 +316,13 @@ export const useStudentStore = create<StudentStore>()(
             );
             if (sourceSemester) {
               const courseIndex = sourceSemester.courses.findIndex(
-                (c) =>
-                  c.id === studentCourse.id && c.grade === studentCourse.grade, // Assuming id and grade make it unique enough for this op
+                (c) => c.courseId === studentCourse.courseId && c.grade === studentCourse.grade,
               );
 
               if (courseIndex !== -1) {
-                const [movedCourse] = sourceSemester.courses.splice(
-                  courseIndex,
-                  1,
-                );
+                const [movedCourse] = sourceSemester.courses.splice(courseIndex, 1);
                 sourceSemester.totalCredits =
-                  (sourceSemester.totalCredits || 0) -
-                  (movedCourse.course?.credits || 0);
+                  (sourceSemester.totalCredits || 0) - (movedCourse.credits || 0);
 
                 const targetSemester = plan.semesters.find(
                   (s) => s.number === targetSemesterNumber,
@@ -336,14 +331,12 @@ export const useStudentStore = create<StudentStore>()(
                   movedCourse.phase = targetSemesterNumber;
                   targetSemester.courses.push(movedCourse);
                   targetSemester.totalCredits =
-                    (targetSemester.totalCredits || 0) +
-                    (movedCourse.course?.credits || 0);
+                    (targetSemester.totalCredits || 0) + (movedCourse.credits || 0);
                   updateView(plan.semesters);
                 } else {
-                  sourceSemester.courses.splice(courseIndex, 0, movedCourse); // Put back
+                  sourceSemester.courses.splice(courseIndex, 0, movedCourse);
                   sourceSemester.totalCredits =
-                    (sourceSemester.totalCredits || 0) +
-                    (movedCourse.course?.credits || 0); // Add credits back
+                    (sourceSemester.totalCredits || 0) + (movedCourse.credits || 0);
                 }
               }
             }
@@ -361,17 +354,12 @@ export const useStudentStore = create<StudentStore>()(
             );
             if (sourceSemester) {
               const courseIndex = sourceSemester.courses.findIndex(
-                (c) =>
-                  c.id === studentCourse.id && c.grade === studentCourse.grade, // Assuming id and grade make it unique
+                (c) => c.courseId === studentCourse.courseId && c.grade === studentCourse.grade,
               );
               if (courseIndex !== -1) {
-                const removedCourse = sourceSemester.courses.splice(
-                  courseIndex,
-                  1,
-                )[0];
+                const removedCourse = sourceSemester.courses.splice(courseIndex, 1)[0];
                 sourceSemester.totalCredits =
-                  (sourceSemester.totalCredits || 0) -
-                  (removedCourse.course?.credits || 0);
+                  (sourceSemester.totalCredits || 0) - (removedCourse.credits || 0);
                 updateView(plan.semesters);
               }
             }
@@ -391,15 +379,14 @@ export const useStudentStore = create<StudentStore>()(
             );
             if (semester) {
               const courseInStore = semester.courses.find(
-                (c) => c.id === studentCourse.id,
+                (c) => c.courseId === studentCourse.courseId,
               );
               if (courseInStore) {
                 courseInStore.status = status;
 
-                // Update selectedStudentCourse if it matches
                 if (
                   state.selectedStudentCourse &&
-                  state.selectedStudentCourse.id === studentCourse.id
+                  state.selectedStudentCourse.courseId === studentCourse.courseId
                 ) {
                   state.selectedStudentCourse = courseInStore;
                 }
@@ -419,10 +406,9 @@ export const useStudentStore = create<StudentStore>()(
             // Find the semester containing the course
             let courseInStore: StudentCourse | undefined;
 
-            // Robust search
             for (const semester of plan.semesters) {
               const found = semester.courses.find(
-                (c) => c.id === studentCourse.id,
+                (c) => c.courseId === studentCourse.courseId,
               );
               if (found) {
                 courseInStore = found;
@@ -437,10 +423,9 @@ export const useStudentStore = create<StudentStore>()(
                   ? CourseStatus.COMPLETED
                   : CourseStatus.FAILED;
 
-              // Update selectedStudentCourse if it matches
               if (
                 state.selectedStudentCourse &&
-                state.selectedStudentCourse.id === studentCourse.id
+                state.selectedStudentCourse.courseId === studentCourse.courseId
               ) {
                 state.selectedStudentCourse = courseInStore;
               }
@@ -454,32 +439,22 @@ export const useStudentStore = create<StudentStore>()(
             const plan = CheckStudentInfo(state.studentInfo);
             if (!plan) return;
 
-            // Find the semester containing the course
-            // We use course.course.id to match safely
-            // But wait, studentCourse might be a flat structure in some contexts?
-            // No, in the store it should be robust.
-            // We'll traverse and match ID.
-
-            const targetId = studentCourse.course
-              ? studentCourse.course.id
-              : (studentCourse as any).id;
-
             for (const semester of plan.semesters) {
               const courseInStore = semester.courses.find(
-                (c) => c.course.id === targetId,
+                (c) => c.courseId === studentCourse.courseId,
               );
               if (courseInStore) {
                 courseInStore.class = classId;
-                return; // Found and updated
+                return;
               }
             }
           }),
         ),
 
-      selectCourse: (studentCourse: StudentCourse | null) =>
+      selectCourse: (studentCourse: StudentCourse | null, course: Course | null) =>
         set(
           produce((state: StudentStore) => {
-            state.selectedCourse = studentCourse ? studentCourse.course : null;
+            state.selectedCourse = course;
             state.selectedStudentCourse = studentCourse;
           }),
         ),
@@ -492,12 +467,10 @@ export const useStudentStore = create<StudentStore>()(
           }),
         ),
 
-      selectSchedule: (studentCourse: StudentCourse | null) =>
+      selectSchedule: (studentCourse: StudentCourse | null, course: Course | null) =>
         set(
           produce((state: StudentStore) => {
-            state.selectedSchedule = studentCourse
-              ? studentCourse.course
-              : null;
+            state.selectedSchedule = course;
             state.selectedStudentSchedule = studentCourse;
           }),
         ),
@@ -559,19 +532,42 @@ export const useStudentStore = create<StudentStore>()(
       partialize: (state) => ({
         studentInfo: state.studentInfo,
       }),
-      merge: (persistedState: any, currentState) => ({
-        ...currentState,
-        ...(persistedState as object),
-        // Ensure transient states are NEVER hydrated from old sessions
-        isAuthenticated: currentState.isAuthenticated,
-        userId: currentState.userId,
-        authCheckCompleted: currentState.authCheckCompleted,
-        selectedCourse: null,
-        selectedStudentCourse: null,
-        selectedSchedule: null,
-        selectedStudentSchedule: null,
-        curriculumCache: {},
-      }),
+      merge: (persistedState: any, currentState) => {
+        // Migrate old StudentCourse format: { course: Course, id?, ... } → { courseId, credits, ... }
+        const migrated = persistedState as any;
+        if (migrated?.studentInfo?.plans) {
+          migrated.studentInfo.plans.forEach((plan: any) => {
+            plan.semesters?.forEach((semester: any) => {
+              semester.courses = (semester.courses || []).map((sc: any) => {
+                if (sc.course && !sc.courseId) {
+                  return {
+                    courseId: sc.course.id || sc.id || "",
+                    credits: sc.course.credits || 0,
+                    status: sc.status,
+                    grade: sc.grade,
+                    class: sc.class,
+                    phase: sc.phase,
+                  };
+                }
+                return sc;
+              });
+            });
+          });
+        }
+        return {
+          ...currentState,
+          ...(migrated as object),
+          // Transient states are never hydrated from persisted storage
+          isAuthenticated: currentState.isAuthenticated,
+          userId: currentState.userId,
+          authCheckCompleted: currentState.authCheckCompleted,
+          selectedCourse: null,
+          selectedStudentCourse: null,
+          selectedSchedule: null,
+          selectedStudentSchedule: null,
+          curriculumCache: {},
+        };
+      },
     },
   ),
 );

@@ -70,7 +70,9 @@ export async function POST(request: Request) {
       };
     }
 
-    return NextResponse.json({ aggregates });
+    return NextResponse.json({ aggregates }, {
+      headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" },
+    });
   } catch (error) {
     console.error("Error fetching professor aggregates:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

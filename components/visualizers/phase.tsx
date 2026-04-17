@@ -7,7 +7,6 @@ import type { ViewStudentCourse } from "@/types/visualization";
 import { COURSE_BOX, PHASE } from "@/styles/visualization";
 import CourseBox from "@/components/visualizers/course-box";
 import GhostCourseBox from "@/components/visualizers/ghost-box";
-import { useStudentStore } from "@/lib/student-store";
 import { cn } from "@/components/ui/utils";
 
 interface PhaseProps {
@@ -27,7 +26,6 @@ export default function Phase({
   totalSlots: explicitTotalSlots,
   onHeaderClick,
 }: PhaseProps) {
-  const studentStore = useStudentStore();
   const boxWidth = useMemo(() => {
     return Math.max(COURSE_BOX.MIN_WIDTH, width * COURSE_BOX.WIDTH_FACTOR);
   }, [width]);

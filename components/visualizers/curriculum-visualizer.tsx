@@ -76,7 +76,7 @@ export default function CurriculumVisualizer({
     // Sum up optional hours from the student's progress strictly based on the current curriculum's rules
     allStudentCourses.forEach((sc) => {
       // Lookup how THIS specific curriculum classifies the course the student took
-      const curriculumDef = curriculum.courses.find(c => c.id === sc.course.id);
+      const curriculumDef = curriculum.courses.find(c => c.id === sc.courseId);
 
       // A course is a valid elective (Optativa) if it exists in the curriculum as 'optional' 
       // and is NOT a generic placeholder itself
@@ -121,7 +121,7 @@ export default function CurriculumVisualizer({
       } else {
         // Standard courses check via exact Match or Equivalence rules
         const matchingStudentCourse = allStudentCourses.find((sc) =>
-          equivalents ? equivalents.has(sc.course.id) : sc.course.id === course.id
+          equivalents ? equivalents.has(sc.courseId) : sc.courseId === course.id
         );
 
         if (matchingStudentCourse) {
@@ -145,13 +145,15 @@ export default function CurriculumVisualizer({
     );
   }
 
+  const phaseCount = curriculum.totalPhases || phases.length || 1;
+
   useEffect(() => {
     const updatePhaseWidth = () => {
       if (containerRef.current) {
         const containerWidth = containerRef.current.clientWidth;
         const calculatedWidth = Math.max(
           PHASE.MIN_WIDTH,
-          containerWidth / curriculum.totalPhases,
+          containerWidth / phaseCount,
         );
         setPhaseWidth(calculatedWidth);
       }
@@ -170,10 +172,10 @@ export default function CurriculumVisualizer({
     return () => {
       resizeObserver.disconnect();
     };
-  }, [curriculum.totalPhases]);
+  }, [phaseCount]);
 
   // calcula a largura total do curriculo
-  const totalWidth = curriculum.totalPhases * phaseWidth;
+  const totalWidth = phaseCount * phaseWidth;
 
   const globalTotalSlots = useMemo(() => {
     const countPerPhase = new Map<number, number>();
@@ -234,8 +236,9 @@ export default function CurriculumVisualizer({
                     }
 
                     return {
+                      courseId: course.id,
+                      credits: course.credits || 0,
                       course,
-                      id: course.id,
                       status: mappedInfo?.status || CourseStatus.DEFAULT,
                       grade: mappedInfo?.grade,
                       phase: semester.number,

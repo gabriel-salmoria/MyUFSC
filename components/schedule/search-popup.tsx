@@ -91,7 +91,8 @@ export default function SearchPopup({
         const result = searchResults[activeIndex];
         // Use store actions directly
         if (result.isCurrentCourse) {
-          selectCourse(result.originalCourse as StudentCourse);
+          const sc = result.originalCourse as StudentCourse;
+          selectCourse(sc, availableCourses.get(sc.courseId) ?? null);
         } else {
           handleAddWithCheck(result.originalCourse as Course, selectedPhase);
         }
@@ -121,7 +122,7 @@ export default function SearchPopup({
   useEffect(() => {
     // Map of current course IDs for quick lookup
     const currentCourseIds = new Set(
-      currentCourses.map((c: StudentCourse) => c.course.id),
+      currentCourses.map((c: StudentCourse) => c.courseId),
     );
 
     // Prepare results array
@@ -135,13 +136,12 @@ export default function SearchPopup({
 
       // First add current courses
       currentCourses.forEach((course: StudentCourse) => {
-        // Skip placeholder optativa courses
-        if (course.course.id.includes("Optativa")) return;
-
+        if (course.courseId.includes("Optativa")) return;
+        const resolved = availableCourses.get(course.courseId);
         results.push({
-          id: course.course.id,
-          name: course.course.name,
-          credits: course.course.credits,
+          id: course.courseId,
+          name: resolved?.name ?? course.courseId,
+          credits: course.credits,
           isCurrentCourse: true,
           originalCourse: course,
         });
@@ -170,17 +170,17 @@ export default function SearchPopup({
 
     // First check current courses
     currentCourses.forEach((course: StudentCourse) => {
-      // Skip placeholder optativa courses
-      if (course.course.id.includes("Optativa")) return;
-
+      if (course.courseId.includes("Optativa")) return;
+      const resolved = availableCourses.get(course.courseId);
+      const name = resolved?.name ?? course.courseId;
       if (
-        course.course.id.toLowerCase().includes(term) ||
-        course.course.name.toLowerCase().includes(term)
+        course.courseId.toLowerCase().includes(term) ||
+        name.toLowerCase().includes(term)
       ) {
         results.push({
-          id: course.course.id,
-          name: course.course.name,
-          credits: course.course.credits,
+          id: course.courseId,
+          name,
+          credits: course.credits,
           isCurrentCourse: true,
           originalCourse: course,
         });
@@ -234,7 +234,8 @@ export default function SearchPopup({
   const handleResultClick = (result: SearchResult) => {
     // Use store actions directly
     if (result.isCurrentCourse) {
-      selectCourse(result.originalCourse as StudentCourse);
+      const sc = result.originalCourse as StudentCourse;
+      selectCourse(sc, availableCourses.get(sc.courseId) ?? null);
     } else {
       handleAddWithCheck(result.originalCourse as Course, selectedPhase);
     }

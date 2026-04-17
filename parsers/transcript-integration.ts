@@ -19,11 +19,11 @@ function toStudentCourse(
   grade?: number,
 ): StudentCourse {
   return {
-    course,
+    courseId: course.id,
+    credits: course.credits || 0,
     status,
     grade,
     phase: course.phase,
-    id: course.id,
   };
 }
 
@@ -109,8 +109,8 @@ export function buildStudentInfoFromTranscript(
   const addedCourseIds = new Set<string>();
 
   const addToPhase = (sc: StudentCourse, semesterStr?: string) => {
-    if (addedCourseIds.has(sc.course.id)) return;
-    addedCourseIds.add(sc.course.id);
+    if (addedCourseIds.has(sc.courseId)) return;
+    addedCourseIds.add(sc.courseId);
 
     let phase = sc.phase ?? 0;
     if (semesterStr && semesterToIndex.has(semesterStr)) {
@@ -161,7 +161,7 @@ export function buildStudentInfoFromTranscript(
         // Overwrite past/present semesters with transcript data
         const courses = phaseMap.get(i) ?? [];
         const totalCredits = courses.reduce(
-          (sum, c) => sum + (c.course?.credits ?? 0),
+          (sum, c) => sum + (c.credits ?? 0),
           0,
         );
         mergedSemesters.push({ number: i, courses, totalCredits });
@@ -172,10 +172,10 @@ export function buildStudentInfoFromTranscript(
         );
         if (existingSemester) {
           const filteredCourses = existingSemester.courses.filter(
-            (sc) => !addedCourseIds.has(sc.course.id),
+            (sc) => !addedCourseIds.has(sc.courseId),
           );
           const totalCredits = filteredCourses.reduce(
-            (sum, c) => sum + (c.course?.credits ?? 0),
+            (sum, c) => sum + (c.credits ?? 0),
             0,
           );
           mergedSemesters.push({
@@ -210,7 +210,7 @@ export function buildStudentInfoFromTranscript(
 
   for (let i = 1; i <= maxPhase; i++) {
     const courses = phaseMap.get(i) ?? [];
-    const totalCredits = courses.reduce((sum, c) => sum + (c.course?.credits ?? 0), 0);
+    const totalCredits = courses.reduce((sum, c) => sum + (c.credits ?? 0), 0);
     semesters.push({ number: i, courses, totalCredits });
   }
 
