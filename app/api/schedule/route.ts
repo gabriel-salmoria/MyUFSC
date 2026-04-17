@@ -71,7 +71,7 @@ export async function GET(request: Request) {
     };
 
     return NextResponse.json(response, {
-      headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" },
+      headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=604800" },
     });
   } catch (error) {
     console.error("Error fetching schedule:", error);

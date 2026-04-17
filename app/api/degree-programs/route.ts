@@ -5,7 +5,7 @@ import { getAllPrograms } from "@/database/programs/db-programs";
 const getCachedPrograms = unstable_cache(
   () => getAllPrograms(),
   ["degree-programs"],
-  { revalidate: 3600 },
+  { revalidate: 86400 },
 );
 
 export async function GET() {
@@ -13,7 +13,7 @@ export async function GET() {
     const programs = await getCachedPrograms();
 
     return NextResponse.json({ programs }, {
-      headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" },
+      headers: { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=2592000" },
     });
   } catch (error) {
     console.error("Failed to load degree programs:", error);

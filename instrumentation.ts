@@ -7,6 +7,23 @@ export async function register() {
       // the first real request arrives. This moves the cold-start cost to
       // server boot time rather than the first user request.
       await executeQuery("SELECT 1");
+
+      // Ensure aggregates query indexes exist (idempotent, cheap if already present)
+      await executeQuery(`
+        CREATE INDEX IF NOT EXISTS idx_professor_courses_course_id
+        ON professor_courses ("courseId")
+      `);
+      await executeQuery(`
+        CREATE INDEX IF NOT EXISTS idx_reviews_professor_top_level
+        ON reviews ("professorId")
+        WHERE "parentId" IS NULL
+      `);
+      await executeQuery(`
+        CREATE INDEX IF NOT EXISTS idx_reviews_professor_course_top_level
+        ON reviews ("professorId", "courseId")
+        WHERE "parentId" IS NULL
+      `);
+
       console.log("[instrumentation] DB adapter pre-warmed.");
     } catch (err) {
       console.warn("[instrumentation] DB pre-warm failed:", err);

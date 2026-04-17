@@ -54,6 +54,18 @@ export async function ensureLocalSchema(db: PGlite): Promise<void> {
     ON reviews ("authorHash", "professorId", "courseId")
     WHERE "parentId" IS NULL AND text != '[removido]';
 
+    -- Indexes for professor aggregates queries
+    CREATE INDEX IF NOT EXISTS idx_professor_courses_course_id
+    ON professor_courses ("courseId");
+
+    CREATE INDEX IF NOT EXISTS idx_reviews_professor_top_level
+    ON reviews ("professorId")
+    WHERE "parentId" IS NULL;
+
+    CREATE INDEX IF NOT EXISTS idx_reviews_professor_course_top_level
+    ON reviews ("professorId", "courseId")
+    WHERE "parentId" IS NULL;
+
     CREATE TABLE IF NOT EXISTS review_votes (
       "reviewId" UUID NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,
       "voterHash" VARCHAR(255) NOT NULL,
