@@ -88,7 +88,7 @@ export default function TrashDropZone() {
 
   return (
     <div
-      className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50 transition-transform duration-200 ease-in-out"
+      className="fixed bottom-8 left-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 duration-200"
       style={{
         transform: isActive
           ? "translateX(-50%) scale(1.1)"
@@ -99,7 +99,7 @@ export default function TrashDropZone() {
         className={`
           flex flex-col items-center justify-center
           w-28 h-28 rounded-full shadow-lg
-          ${isActive ? "bg-red-500 text-white" : "bg-gray-200 text-gray-700"}
+          ${isActive ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}
           transition-all duration-200
         `}
         onDragOver={(e) => {
@@ -133,7 +133,7 @@ export default function TrashDropZone() {
       >
         <Trash2 size={36} className={isActive ? "animate-bounce" : ""} />
         <div className="text-sm mt-1 font-medium text-center">
-          {isActive ? "Release to Remove" : "Drop to Remove"}
+          {isActive ? "Soltar para remover" : "Arraste aqui para remover"}
         </div>
       </div>
     </div>

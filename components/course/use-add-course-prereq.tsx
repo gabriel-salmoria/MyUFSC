@@ -8,6 +8,44 @@ import { checkPrerequisites } from "@/lib/prerequisites";
 import { generateEquivalenceMap } from "@/parsers/curriculum-parser";
 import { AlertTriangle, X } from "lucide-react";
 
+function PrereqToast({
+  course,
+  missing,
+  onDismiss,
+}: {
+  course: Course;
+  missing: string[];
+  onDismiss: () => void;
+}) {
+  return (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-popover border border-border shadow-2xl rounded-xl p-4 min-w-[350px] w-auto max-w-[90%] flex flex-col justify-between animate-in fade-in-0 duration-200">
+      <div className="flex gap-4 items-start relative">
+        <div className="mt-1 bg-destructive/10 p-2 rounded-full min-w-max">
+          <AlertTriangle className="w-5 h-5 text-destructive" />
+        </div>
+        <div className="flex-1 space-y-2 pr-6">
+          <h3 className="font-semibold text-lg leading-none tracking-tight">Pré-requisitos não atendidos</h3>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            A disciplina <span className="font-medium text-foreground">{course.name} ({course.id})</span> foi movida, mas possui pré-requisitos não alocados.
+          </p>
+          {missing.length > 0 && (
+            <p className="text-sm font-medium text-destructive mt-1">
+              Pendentes: {missing.join(", ")}
+            </p>
+          )}
+        </div>
+        <button
+          onClick={onDismiss}
+          className="absolute right-0 top-0 text-muted-foreground hover:text-foreground transition-colors p-1"
+          aria-label="Dispensar aviso"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function useAddCoursePrereq() {
   const [pendingAction, setPendingAction] = useState<{
     type: 'add' | 'move',
@@ -95,36 +133,13 @@ export function useAddCoursePrereq() {
     setPendingAction(null);
   };
 
-  const PrereqDialog = () => {
-    if (!pendingAction) return null;
-    return (
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-popover border border-border shadow-2xl rounded-xl p-4 min-w-[350px] w-auto max-w-[90%] flex flex-col justify-between animate-in fade-in-0 duration-200">
-        <div className="flex gap-4 items-start relative">
-          <div className="mt-1 bg-destructive/10 p-2 rounded-full min-w-max">
-            <AlertTriangle className="w-5 h-5 text-destructive" />
-          </div>
-          <div className="flex-1 space-y-2 pr-6">
-            <h3 className="font-semibold text-lg leading-none tracking-tight">Pré-requisitos não atendidos</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              A disciplina <span className="font-medium text-foreground">{pendingAction.course.name} ({pendingAction.course.id})</span> foi movida, mas possui pré-requisitos não alocados.
-            </p>
-            {missing.length > 0 && (
-              <p className="text-sm font-medium text-destructive mt-1">
-                Pendentes: {missing.join(", ")}
-              </p>
-            )}
-          </div>
-          <button 
-            onClick={() => setPendingAction(null)}
-            className="absolute right-0 top-0 text-muted-foreground hover:text-foreground transition-colors p-1"
-            aria-label="Dispensar aviso"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-    );
-  };
+  const prereqToast = pendingAction ? (
+    <PrereqToast
+      course={pendingAction.course}
+      missing={missing}
+      onDismiss={() => setPendingAction(null)}
+    />
+  ) : null;
 
-  return { handleAddWithCheck, handleMoveWithCheck, PrereqDialog };
+  return { handleAddWithCheck, handleMoveWithCheck, prereqToast };
 }

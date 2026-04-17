@@ -39,7 +39,7 @@ export default function SearchPopup({
   const curriculumCache = useStudentStore((state) => state.curriculumCache);
   const selectCourse = useStudentStore((state) => state.selectCourse);
   const addCourseToSemester = useStudentStore((state) => state.addCourseToSemester);
-  const { handleAddWithCheck, PrereqDialog } = useAddCoursePrereq();
+  const { handleAddWithCheck, prereqToast } = useAddCoursePrereq();
 
   // Derive available courses from the global cache
   // This avoids double-rendering (flash) and state duplication
@@ -338,7 +338,7 @@ export default function SearchPopup({
           </div>
         </motion.div>
       </motion.div>
-      <PrereqDialog />
+      {prereqToast}
     </>
   );
 }

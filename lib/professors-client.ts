@@ -112,34 +112,72 @@ const _aggregatesInFlight = new Map<string, Promise<any>>();
 
 export async function fetchProfessorAggregates(courseIds: string[]) {
   if (!courseIds || courseIds.length === 0) return {};
-  const key = [...courseIds].sort().join(",");
+  const uniqueCourseIds = Array.from(new Set(courseIds)).sort();
 
-  const cached = _aggregatesCache.get(key);
-  if (cached && cached.expiresAt > Date.now()) return cached.data;
+  const now = Date.now();
+  const missingIds = uniqueCourseIds.filter((id) => {
+    const cached = _aggregatesCache.get(id);
+    return !cached || cached.expiresAt <= now;
+  });
 
-  const inflight = _aggregatesInFlight.get(key);
-  if (inflight) return inflight;
-
-  const request = fetch(`/api/professors/aggregates`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ courseIds }),
-  })
-    .then(async (res) => {
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || "Failed to fetch aggregates");
+  if (missingIds.length === 0) {
+    const result: any = {};
+    for (const id of uniqueCourseIds) {
+      const cached = _aggregatesCache.get(id);
+      if (cached) {
+        Object.assign(result, cached.data);
       }
-      const data = await res.json();
-      _aggregatesCache.set(key, { data: data.aggregates, expiresAt: Date.now() + 30_000 });
-      return data.aggregates;
-    })
-    .finally(() => {
-      _aggregatesInFlight.delete(key);
-    });
+    }
+    return result;
+  }
 
-  _aggregatesInFlight.set(key, request);
-  return request;
+  const fetchKey = missingIds.join(",");
+  let request = _aggregatesInFlight.get(fetchKey);
+
+  if (!request) {
+    request = fetch(`/api/professors/aggregates`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ courseIds: missingIds }),
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.error || "Failed to fetch aggregates");
+        }
+        const data = await res.json();
+
+        // Cache the entire result under each requested courseId
+        // This is an approximation since a professor might teach multiple courses,
+        // but it prevents duplicate fetches.
+        for (const id of missingIds) {
+          _aggregatesCache.set(id, {
+            data: data.aggregates,
+            expiresAt: Date.now() + 300_000,
+          });
+        }
+        return data.aggregates;
+      })
+      .finally(() => {
+        _aggregatesInFlight.delete(fetchKey);
+      });
+
+    _aggregatesInFlight.set(fetchKey, request);
+  }
+
+  const fetchedData = await request;
+
+  const finalResult: any = { ...fetchedData };
+  for (const id of uniqueCourseIds) {
+    if (!missingIds.includes(id)) {
+      const cached = _aggregatesCache.get(id);
+      if (cached) {
+        Object.assign(finalResult, cached.data);
+      }
+    }
+  }
+
+  return finalResult;
 }
 
 export async function submitVote(

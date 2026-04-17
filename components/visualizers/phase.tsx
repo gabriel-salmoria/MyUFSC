@@ -43,12 +43,13 @@ export default function Phase({
   const utilizedSlots = studentCourses.length;
 
   // Use explicit total slots if provided, otherwise calculate locally
-  const totalSlots = explicitTotalSlots || Math.max(minSlots, utilizedSlots + 1);
+  const totalSlots =
+    explicitTotalSlots || Math.max(minSlots, utilizedSlots + 1);
 
   // Calculate total phase height:
   // Last box bottom = totalSlots * SPACING_Y + HEIGHT
   // Add some bottom padding
-  const bottomPadding = 20;
+  const bottomPadding = 30;
   const phaseHeight =
     totalSlots * COURSE_BOX.SPACING_Y + COURSE_BOX.HEIGHT + bottomPadding;
 
@@ -58,10 +59,12 @@ export default function Phase({
       style={{ width: `${width}px`, height: `${phaseHeight}px` }}
     >
       {/* Phase header */}
-      <div 
+      <div
         className={cn(
           "sticky top-0 z-10 bg-background/90 backdrop-blur-sm px-2 py-3 border-b border-border transition-all flex items-center justify-center gap-1 group",
-          onHeaderClick ? "cursor-pointer hover:bg-primary/5 hover:text-primary hover:border-primary/30" : ""
+          onHeaderClick
+            ? "cursor-pointer hover:bg-primary/5 hover:text-primary hover:border-primary/30"
+            : "",
         )}
         onClick={(e) => {
           e.stopPropagation();

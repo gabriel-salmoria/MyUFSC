@@ -25,19 +25,36 @@ interface UseCurriculumProps {
   isProfileLoading: boolean;
 }
 
+let cachedDegreePrograms: DegreeProgram[] | null = null;
+let fetchDegreeProgramsPromise: Promise<DegreeProgram[]> | null = null;
+
 async function fetchDegreePrograms(): Promise<DegreeProgram[]> {
-  try {
-    const response = await fetch(`/api/degree-programs`);
-    if (!response.ok) {
-      console.error("Failed to fetch degree programs", response.status);
-      return [];
-    }
-    const data = await response.json();
-    return data.programs || [];
-  } catch (error) {
-    console.error("Error fetching degree programs:", error);
-    return [];
+  if (cachedDegreePrograms) {
+    return cachedDegreePrograms;
   }
+  if (fetchDegreeProgramsPromise) {
+    return fetchDegreeProgramsPromise;
+  }
+
+  fetchDegreeProgramsPromise = (async () => {
+    try {
+      const response = await fetch(`/api/degree-programs`);
+      if (!response.ok) {
+        console.error("Failed to fetch degree programs", response.status);
+        return [];
+      }
+      const data = await response.json();
+      cachedDegreePrograms = data.programs || [];
+      return cachedDegreePrograms!;
+    } catch (error) {
+      console.error("Error fetching degree programs:", error);
+      return [];
+    } finally {
+      fetchDegreeProgramsPromise = null;
+    }
+  })();
+
+  return fetchDegreeProgramsPromise;
 }
 
 async function fetchCurriculumData(

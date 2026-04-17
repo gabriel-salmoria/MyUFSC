@@ -16,7 +16,10 @@ import Phase from "@/components/visualizers/phase";
 import { PHASE, COURSE_BOX } from "@/styles/visualization";
 
 // helper to generate phases - import directly from the file where it's defined
-import { generatePhases, generateEquivalenceMap } from "@/parsers/curriculum-parser";
+import {
+  generatePhases,
+  generateEquivalenceMap,
+} from "@/parsers/curriculum-parser";
 import { checkPrerequisites } from "@/lib/prerequisites";
 
 import { useStudentStore } from "@/lib/student-store";
@@ -44,7 +47,10 @@ export default function CurriculumVisualizer({
   const phases = useMemo(() => generatePhases(curriculum), [curriculum]);
 
   // Create equivalence map to handle equivalent courses
-  const equivalenceMap = useMemo(() => generateEquivalenceMap(curriculum.courses), [curriculum]);
+  const equivalenceMap = useMemo(
+    () => generateEquivalenceMap(curriculum.courses),
+    [curriculum],
+  );
 
   // Create mapped course statuses and handle optional course hours accumulation mapped greedily against curriculum blocks
   const mappedCurriculumCourses = useMemo(() => {
@@ -58,7 +64,9 @@ export default function CurriculumVisualizer({
 
     // Helper to safely determine if a course definition is optional
     const isDefOptional = (def: Course) =>
-      def.type === "optional" || (def as any).type === false || String((def as any).type).toLowerCase() === "false";
+      def.type === "optional" ||
+      (def as any).type === false ||
+      String((def as any).type).toLowerCase() === "false";
 
     // Helper to determine if a course is a generic generic placeholder (optativa) in the curriculum
     const isGenericPlaceholder = (def: Course) => {
@@ -76,15 +84,26 @@ export default function CurriculumVisualizer({
     // Sum up optional hours from the student's progress strictly based on the current curriculum's rules
     allStudentCourses.forEach((sc) => {
       // Lookup how THIS specific curriculum classifies the course the student took
-      const curriculumDef = curriculum.courses.find(c => c.id === sc.courseId);
+      const curriculumDef = curriculum.courses.find(
+        (c) => c.id === sc.courseId,
+      );
 
-      // A course is a valid elective (Optativa) if it exists in the curriculum as 'optional' 
+      // A course is a valid elective (Optativa) if it exists in the curriculum as 'optional'
       // and is NOT a generic placeholder itself
-      if (curriculumDef && isDefOptional(curriculumDef) && !isGenericPlaceholder(curriculumDef)) {
+      if (
+        curriculumDef &&
+        isDefOptional(curriculumDef) &&
+        !isGenericPlaceholder(curriculumDef)
+      ) {
         // UFSC usually counts 18h per credit
-        const hours = curriculumDef.workload || (curriculumDef.credits ? curriculumDef.credits * 18 : 0);
+        const hours =
+          curriculumDef.workload ||
+          (curriculumDef.credits ? curriculumDef.credits * 18 : 0);
 
-        if (sc.status === CourseStatus.COMPLETED || sc.status === CourseStatus.EXEMPTED) {
+        if (
+          sc.status === CourseStatus.COMPLETED ||
+          sc.status === CourseStatus.EXEMPTED
+        ) {
           optionalPools[CourseStatus.COMPLETED] += hours;
         } else if (sc.status === CourseStatus.IN_PROGRESS) {
           optionalPools[CourseStatus.IN_PROGRESS] += hours;
@@ -94,8 +113,13 @@ export default function CurriculumVisualizer({
       }
     });
 
-    const statusMap = new Map<string, { status: CourseStatus; grade?: number }>();
-    const sortedCurriculumCourses = [...curriculum.courses].sort((a, b) => a.phase - b.phase);
+    const statusMap = new Map<
+      string,
+      { status: CourseStatus; grade?: number }
+    >();
+    const sortedCurriculumCourses = [...curriculum.courses].sort(
+      (a, b) => a.phase - b.phase,
+    );
 
     sortedCurriculumCourses.forEach((course) => {
       let status = CourseStatus.DEFAULT;
@@ -103,10 +127,11 @@ export default function CurriculumVisualizer({
 
       const equivalents = equivalenceMap.get(course.id);
 
-      // Generic curriculum placeholders (like "Optativa I" or "OPT0004") 
+      // Generic curriculum placeholders (like "Optativa I" or "OPT0004")
       if (isGenericPlaceholder(course)) {
         // Optional courses map strictly greedily via their explicit workload limits, left-to-right (1st semester -> nth semester)
-        const courseHours = course.workload || (course.credits ? course.credits * 18 : 72);
+        const courseHours =
+          course.workload || (course.credits ? course.credits * 18 : 72);
 
         if (optionalPools[CourseStatus.COMPLETED] >= courseHours) {
           optionalPools[CourseStatus.COMPLETED] -= courseHours;
@@ -121,7 +146,9 @@ export default function CurriculumVisualizer({
       } else {
         // Standard courses check via exact Match or Equivalence rules
         const matchingStudentCourse = allStudentCourses.find((sc) =>
-          equivalents ? equivalents.has(sc.courseId) : sc.courseId === course.id
+          equivalents
+            ? equivalents.has(sc.courseId)
+            : sc.courseId === course.id,
         );
 
         if (matchingStudentCourse) {
@@ -180,10 +207,11 @@ export default function CurriculumVisualizer({
   const globalTotalSlots = useMemo(() => {
     const countPerPhase = new Map<number, number>();
     for (const c of curriculum.courses) {
-      if (c.phase) countPerPhase.set(c.phase, (countPerPhase.get(c.phase) ?? 0) + 1);
+      if (c.phase)
+        countPerPhase.set(c.phase, (countPerPhase.get(c.phase) ?? 0) + 1);
     }
     const maxCourses = Math.max(0, ...countPerPhase.values());
-    return Math.max(PHASE.BOXES_PER_COLUMN || 6, maxCourses + 1);
+    return Math.max(PHASE.BOXES_PER_COLUMN || 6, maxCourses);
   }, [curriculum]);
 
   // Use fixed height for the container logic (scrollable), mirroring ProgressVisualizer
@@ -205,9 +233,10 @@ export default function CurriculumVisualizer({
           }}
         >
           {/* Highlight Overlay */}
-          {highlightAvailableForPhase !== undefined && highlightAvailableForPhase !== null && (
-            <div className="absolute inset-0 bg-background/80 z-[5] transition-opacity duration-300 pointer-events-none backdrop-blur-[1px]" />
-          )}
+          {highlightAvailableForPhase !== undefined &&
+            highlightAvailableForPhase !== null && (
+              <div className="absolute inset-0 bg-background/80 z-[5] transition-opacity duration-300 pointer-events-none backdrop-blur-[1px]" />
+            )}
 
           {/* Phase components that handle course positioning internally */}
           <div className="flex" style={{ height: `${containerHeight}px` }}>
@@ -220,7 +249,9 @@ export default function CurriculumVisualizer({
                   .filter((course) => course.phase === semester.number)
                   .map((course): ViewStudentCourse => {
                     const mappedInfo = mappedCurriculumCourses.get(course.id);
-                    const isAlreadyDoneOrPlanned = mappedInfo?.status && mappedInfo.status !== CourseStatus.DEFAULT;
+                    const isAlreadyDoneOrPlanned =
+                      mappedInfo?.status &&
+                      mappedInfo.status !== CourseStatus.DEFAULT;
 
                     let isHighlighted = false;
                     let isDimmed = false;
@@ -229,7 +260,12 @@ export default function CurriculumVisualizer({
                       if (isAlreadyDoneOrPlanned) {
                         isDimmed = true;
                       } else {
-                        const { satisfied } = checkPrerequisites(course, highlightAvailableForPhase, studentStore.studentInfo, equivalenceMap);
+                        const { satisfied } = checkPrerequisites(
+                          course,
+                          highlightAvailableForPhase,
+                          studentStore.studentInfo,
+                          equivalenceMap,
+                        );
                         isHighlighted = satisfied;
                         isDimmed = !satisfied;
                       }

@@ -62,7 +62,10 @@ export interface StudentStore {
   selectedSchedule: Course | null;
   selectedStudentSchedule: StudentCourse | null;
 
-  selectSchedule: (studentCourse: StudentCourse | null, course: Course | null) => void;
+  selectSchedule: (
+    studentCourse: StudentCourse | null,
+    course: Course | null,
+  ) => void;
   clearSchedule: () => void;
 
   // Actions
@@ -94,7 +97,10 @@ export interface StudentStore {
   updateCustomScheduleEntry: (entry: CustomScheduleEntry) => void;
 
   // Selection actions
-  selectCourse: (studentCourse: StudentCourse | null, course: Course | null) => void;
+  selectCourse: (
+    studentCourse: StudentCourse | null,
+    course: Course | null,
+  ) => void;
   clearSelection: () => void;
 
   // Cache
@@ -281,6 +287,12 @@ export const useStudentStore = create<StudentStore>()(
             let plan = CheckStudentInfo(state.studentInfo);
             if (!plan) return;
 
+            // Prevent duplicates
+            const isAlreadyInPlan = plan.semesters.some((s) =>
+              s.courses.some((c) => c.courseId === course.id),
+            );
+            if (isAlreadyInPlan) return;
+
             const targetSemester = plan.semesters.find(
               (s) => s.number === semesterNumber,
             );
@@ -311,33 +323,42 @@ export const useStudentStore = create<StudentStore>()(
             let plan = CheckStudentInfo(state.studentInfo);
             if (!plan) return;
 
-            let sourceSemester = plan.semesters.find(
-              (s) => s.number === studentCourse.phase,
-            );
-            if (sourceSemester) {
-              const courseIndex = sourceSemester.courses.findIndex(
-                (c) => c.courseId === studentCourse.courseId && c.grade === studentCourse.grade,
+            let sourceSemester = null;
+            let courseIndex = -1;
+
+            for (const s of plan.semesters) {
+              courseIndex = s.courses.findIndex(
+                (c) => c.courseId === studentCourse.courseId,
               );
-
               if (courseIndex !== -1) {
-                const [movedCourse] = sourceSemester.courses.splice(courseIndex, 1);
-                sourceSemester.totalCredits =
-                  (sourceSemester.totalCredits || 0) - (movedCourse.credits || 0);
+                sourceSemester = s;
+                break;
+              }
+            }
 
-                const targetSemester = plan.semesters.find(
-                  (s) => s.number === targetSemesterNumber,
-                );
-                if (targetSemester) {
-                  movedCourse.phase = targetSemesterNumber;
-                  targetSemester.courses.push(movedCourse);
-                  targetSemester.totalCredits =
-                    (targetSemester.totalCredits || 0) + (movedCourse.credits || 0);
-                  updateView(plan.semesters);
-                } else {
-                  sourceSemester.courses.splice(courseIndex, 0, movedCourse);
-                  sourceSemester.totalCredits =
-                    (sourceSemester.totalCredits || 0) + (movedCourse.credits || 0);
-                }
+            if (sourceSemester && courseIndex !== -1) {
+              const [movedCourse] = sourceSemester.courses.splice(
+                courseIndex,
+                1,
+              );
+              sourceSemester.totalCredits =
+                (sourceSemester.totalCredits || 0) - (movedCourse.credits || 0);
+
+              const targetSemester = plan.semesters.find(
+                (s) => s.number === targetSemesterNumber,
+              );
+              if (targetSemester) {
+                movedCourse.phase = targetSemesterNumber;
+                targetSemester.courses.push(movedCourse);
+                targetSemester.totalCredits =
+                  (targetSemester.totalCredits || 0) +
+                  (movedCourse.credits || 0);
+                updateView(plan.semesters);
+              } else {
+                sourceSemester.courses.splice(courseIndex, 0, movedCourse);
+                sourceSemester.totalCredits =
+                  (sourceSemester.totalCredits || 0) +
+                  (movedCourse.credits || 0);
               }
             }
           }),
@@ -349,19 +370,28 @@ export const useStudentStore = create<StudentStore>()(
             let plan = CheckStudentInfo(state.studentInfo);
             if (!plan) return;
 
-            const sourceSemester = plan.semesters.find(
-              (s) => s.number === studentCourse.phase,
-            );
-            if (sourceSemester) {
-              const courseIndex = sourceSemester.courses.findIndex(
-                (c) => c.courseId === studentCourse.courseId && c.grade === studentCourse.grade,
+            let sourceSemester = null;
+            let courseIndex = -1;
+
+            for (const s of plan.semesters) {
+              courseIndex = s.courses.findIndex(
+                (c) => c.courseId === studentCourse.courseId,
               );
               if (courseIndex !== -1) {
-                const removedCourse = sourceSemester.courses.splice(courseIndex, 1)[0];
-                sourceSemester.totalCredits =
-                  (sourceSemester.totalCredits || 0) - (removedCourse.credits || 0);
-                updateView(plan.semesters);
+                sourceSemester = s;
+                break;
               }
+            }
+
+            if (sourceSemester && courseIndex !== -1) {
+              const removedCourse = sourceSemester.courses.splice(
+                courseIndex,
+                1,
+              )[0];
+              sourceSemester.totalCredits =
+                (sourceSemester.totalCredits || 0) -
+                (removedCourse.credits || 0);
+              updateView(plan.semesters);
             }
           }),
         ),
@@ -374,22 +404,27 @@ export const useStudentStore = create<StudentStore>()(
           produce((state: StudentStore) => {
             const plan = CheckStudentInfo(state.studentInfo);
             if (!plan) return;
-            const semester = plan.semesters.find(
-              (s) => s.number === studentCourse.phase,
-            );
-            if (semester) {
-              const courseInStore = semester.courses.find(
+            let semester = null;
+            let courseInStore = null;
+
+            for (const s of plan.semesters) {
+              courseInStore = s.courses.find(
                 (c) => c.courseId === studentCourse.courseId,
               );
               if (courseInStore) {
-                courseInStore.status = status;
+                semester = s;
+                break;
+              }
+            }
 
-                if (
-                  state.selectedStudentCourse &&
-                  state.selectedStudentCourse.courseId === studentCourse.courseId
-                ) {
-                  state.selectedStudentCourse = courseInStore;
-                }
+            if (semester && courseInStore) {
+              courseInStore.status = status;
+
+              if (
+                state.selectedStudentCourse &&
+                state.selectedStudentCourse.courseId === studentCourse.courseId
+              ) {
+                state.selectedStudentCourse = courseInStore;
               }
             }
           }),
@@ -451,7 +486,10 @@ export const useStudentStore = create<StudentStore>()(
           }),
         ),
 
-      selectCourse: (studentCourse: StudentCourse | null, course: Course | null) =>
+      selectCourse: (
+        studentCourse: StudentCourse | null,
+        course: Course | null,
+      ) =>
         set(
           produce((state: StudentStore) => {
             state.selectedCourse = course;
@@ -467,7 +505,10 @@ export const useStudentStore = create<StudentStore>()(
           }),
         ),
 
-      selectSchedule: (studentCourse: StudentCourse | null, course: Course | null) =>
+      selectSchedule: (
+        studentCourse: StudentCourse | null,
+        course: Course | null,
+      ) =>
         set(
           produce((state: StudentStore) => {
             state.selectedSchedule = course;
