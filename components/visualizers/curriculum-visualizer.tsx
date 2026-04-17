@@ -38,7 +38,7 @@ export default function CurriculumVisualizer({
   highlightAvailableForPhase,
   height = 500,
 }: CurriculumVisualizerProps) {
-  const studentStore = useStudentStore();
+  const studentInfo = useStudentStore((s) => s.studentInfo);
   const containerRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [phaseWidth, setPhaseWidth] = useState<number>(PHASE.MIN_WIDTH);
@@ -214,6 +214,51 @@ export default function CurriculumVisualizer({
     return Math.max(PHASE.BOXES_PER_COLUMN || 6, maxCourses);
   }, [curriculum]);
 
+  // Pre-compute ViewStudentCourse arrays per phase so Phase/CourseBox receive stable refs
+  const phaseStudentCourses = useMemo(() => {
+    const result = new Map<number, ViewStudentCourse[]>();
+    for (const semester of phases) {
+      const courses = curriculum.courses
+        .filter((c) => c.phase === semester.number)
+        .map((course): ViewStudentCourse => {
+          const mappedInfo = mappedCurriculumCourses.get(course.id);
+          const isAlreadyDoneOrPlanned =
+            mappedInfo?.status && mappedInfo.status !== CourseStatus.DEFAULT;
+
+          let isHighlighted = false;
+          let isDimmed = false;
+
+          if (highlightAvailableForPhase != null) {
+            if (isAlreadyDoneOrPlanned) {
+              isDimmed = true;
+            } else {
+              const { satisfied } = checkPrerequisites(
+                course,
+                highlightAvailableForPhase,
+                studentInfo,
+                equivalenceMap,
+              );
+              isHighlighted = satisfied;
+              isDimmed = !satisfied;
+            }
+          }
+
+          return {
+            courseId: course.id,
+            credits: course.credits || 0,
+            course,
+            status: mappedInfo?.status || CourseStatus.DEFAULT,
+            grade: mappedInfo?.grade,
+            phase: semester.number,
+            isHighlighted,
+            isDimmed,
+          };
+        });
+      result.set(semester.number, courses);
+    }
+    return result;
+  }, [phases, curriculum.courses, mappedCurriculumCourses, highlightAvailableForPhase, studentInfo, equivalenceMap]);
+
   // Use fixed height for the container logic (scrollable), mirroring ProgressVisualizer
   const containerHeight = height || 500;
 
@@ -240,51 +285,14 @@ export default function CurriculumVisualizer({
 
           {/* Phase components that handle course positioning internally */}
           <div className="flex" style={{ height: `${containerHeight}px` }}>
-            {phases.map((semester, index) => (
+            {phases.map((semester) => (
               <Phase
                 key={`phase-${semester.number}`}
                 semesterNumber={semester.number}
-                // Filter curriculum courses for this phase and map to StudentCourse-like structure
-                studentCourses={curriculum.courses
-                  .filter((course) => course.phase === semester.number)
-                  .map((course): ViewStudentCourse => {
-                    const mappedInfo = mappedCurriculumCourses.get(course.id);
-                    const isAlreadyDoneOrPlanned =
-                      mappedInfo?.status &&
-                      mappedInfo.status !== CourseStatus.DEFAULT;
-
-                    let isHighlighted = false;
-                    let isDimmed = false;
-
-                    if (highlightAvailableForPhase != null) {
-                      if (isAlreadyDoneOrPlanned) {
-                        isDimmed = true;
-                      } else {
-                        const { satisfied } = checkPrerequisites(
-                          course,
-                          highlightAvailableForPhase,
-                          studentStore.studentInfo,
-                          equivalenceMap,
-                        );
-                        isHighlighted = satisfied;
-                        isDimmed = !satisfied;
-                      }
-                    }
-
-                    return {
-                      courseId: course.id,
-                      credits: course.credits || 0,
-                      course,
-                      status: mappedInfo?.status || CourseStatus.DEFAULT,
-                      grade: mappedInfo?.grade,
-                      phase: semester.number,
-                      isHighlighted,
-                      isDimmed,
-                    };
-                  })}
+                studentCourses={phaseStudentCourses.get(semester.number)!}
                 width={phaseWidth}
-                isFromCurriculum={true} // Mark as from curriculum
-                totalSlots={globalTotalSlots} // Pass uniform height
+                isFromCurriculum={true}
+                totalSlots={globalTotalSlots}
               />
             ))}
           </div>

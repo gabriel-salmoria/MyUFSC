@@ -2,7 +2,7 @@
 
 // react apenas
 import { Check, Clock, AlertTriangle } from "lucide-react";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useMemo, memo } from "react";
 
 // utils
 import { cn } from "@/components/ui/utils";
@@ -35,75 +35,43 @@ interface CourseBoxProps {
 // quadradinho de cada disciplina, que aparece nos visualizadores
 // recebe um course e uma posicao, e renderiza o quadradinho
 // so tem bastantinho switch case pra decidir a cor e o icone dele
-export default function CourseBox({
+const CourseBox = memo(function CourseBox({
   position,
   studentCourse,
   isEmpty = false,
   isDraggable = false,
   onDragStart,
-  isFromCurriculum, // Include in destructured props
+  isFromCurriculum,
 }: CourseBoxProps) {
   const courseBoxRef = useRef<HTMLDivElement>(null);
   const selectCourse = useStudentStore((s) => s.selectCourse);
 
-  // Get appropriate status class based on course status
-  const getStatusClass = () => {
-    if (isEmpty) {
-      return isEmpty ? STATUS_CLASSES.EMPTY : STATUS_CLASSES.EMPTY_ALT;
+  const statusClass = useMemo(() => {
+    if (isEmpty) return STATUS_CLASSES.EMPTY;
+    switch (studentCourse.status) {
+      case CourseStatus.COMPLETED: return STATUS_CLASSES.COMPLETED;
+      case CourseStatus.IN_PROGRESS: return STATUS_CLASSES.IN_PROGRESS;
+      case CourseStatus.FAILED: return STATUS_CLASSES.FAILED;
+      case CourseStatus.PLANNED: return STATUS_CLASSES.PLANNED;
+      default: return STATUS_CLASSES.DEFAULT;
     }
+  }, [isEmpty, studentCourse.status]);
 
-
-
-    if (studentCourse.status === CourseStatus.COMPLETED) {
-      return STATUS_CLASSES.COMPLETED;
-    } else if (studentCourse.status === CourseStatus.IN_PROGRESS) {
-      return STATUS_CLASSES.IN_PROGRESS;
-    } else if (studentCourse.status === CourseStatus.FAILED) {
-      return STATUS_CLASSES.FAILED;
-    } else if (studentCourse.status === CourseStatus.PLANNED) {
-      return STATUS_CLASSES.PLANNED;
-    } else {
-      return STATUS_CLASSES.DEFAULT;
-    }
-  };
-
-  // Get appropriate status icon based on course status
-  const getStatusIcon = () => {
+  const statusIcon = useMemo(() => {
     if (isEmpty) return null;
-
     switch (studentCourse.status) {
       case CourseStatus.COMPLETED:
-        return (
-          <Check
-            className="w-3 h-3"
-            style={{ color: STATUS_COLORS.COMPLETED.icon }}
-          />
-        );
+        return <Check className="w-3 h-3" style={{ color: STATUS_COLORS.COMPLETED.icon }} />;
       case CourseStatus.IN_PROGRESS:
-        return (
-          <Clock
-            className="w-3 h-3"
-            style={{ color: STATUS_COLORS.IN_PROGRESS.icon }}
-          />
-        );
+        return <Clock className="w-3 h-3" style={{ color: STATUS_COLORS.IN_PROGRESS.icon }} />;
       case CourseStatus.FAILED:
-        return (
-          <AlertTriangle
-            className="w-3 h-3"
-            style={{ color: STATUS_COLORS.FAILED.icon }}
-          />
-        );
+        return <AlertTriangle className="w-3 h-3" style={{ color: STATUS_COLORS.FAILED.icon }} />;
       case CourseStatus.PLANNED:
-        return (
-          <Clock
-            className="w-3 h-3"
-            style={{ color: STATUS_COLORS.PLANNED.icon }}
-          />
-        );
+        return <Clock className="w-3 h-3" style={{ color: STATUS_COLORS.PLANNED.icon }} />;
       default:
         return null;
     }
-  };
+  }, [isEmpty, studentCourse.status]);
 
   // Set up drag events
   useEffect(() => {
@@ -113,12 +81,10 @@ export default function CourseBox({
     const handleDragStart = (e: DragEvent) => {
       if (!e.dataTransfer) return;
 
-      // Set effects
       e.dataTransfer.effectAllowed = "move";
 
-      // Create a ghost image for dragging
       const ghostEl = document.createElement("div");
-      ghostEl.className = `${CSS_CLASSES.COURSE_BOX} ${getStatusClass()}`;
+      ghostEl.className = `${CSS_CLASSES.COURSE_BOX} ${statusClass}`;
       ghostEl.style.width = `${position.width}px`;
       ghostEl.style.height = `${position.height}px`;
       ghostEl.innerHTML = `
@@ -128,58 +94,33 @@ export default function CourseBox({
         <div class="${CSS_CLASSES.COURSE_NAME}">${studentCourse.course.name}</div>
       `;
 
-      // Position off-screen to not interfere with the actual drag
       ghostEl.style.position = "absolute";
       ghostEl.style.left = "-9999px";
       document.body.appendChild(ghostEl);
 
-      // Set the drag image
-      e.dataTransfer.setDragImage(
-        ghostEl,
-        position.width / 2,
-        position.height / 2,
-      );
+      e.dataTransfer.setDragImage(ghostEl, position.width / 2, position.height / 2);
 
-      // Set the drag data - include both application/json and text/plain
       const dragData = JSON.stringify({
         studentCourse,
-        sourceVisualizer: isFromCurriculum ? "curriculum" : "progress", // Use new prop
+        sourceVisualizer: isFromCurriculum ? "curriculum" : "progress",
       });
 
       e.dataTransfer.setData("application/json", dragData);
       e.dataTransfer.setData("text/plain", dragData);
 
-      // Call the drag start handler if provided
-      if (onDragStart) {
-        onDragStart(studentCourse.course);
-      }
+      if (onDragStart) onDragStart(studentCourse.course);
 
-      // Clean up the ghost element after a short delay
       setTimeout(() => {
         document.body.removeChild(ghostEl);
       }, 100);
     };
 
     el.addEventListener("dragstart", handleDragStart);
-
-    return () => {
-      el.removeEventListener("dragstart", handleDragStart);
-    };
-  }, [
-    studentCourse,
-    position,
-    isDraggable,
-    isEmpty,
-    onDragStart,
-    getStatusClass,
-  ]); // Added studentCourse to dependency array
+    return () => { el.removeEventListener("dragstart", handleDragStart); };
+  }, [studentCourse, position, isDraggable, isEmpty, onDragStart, statusClass, isFromCurriculum]);
 
   const handleCourseClick = () => {
-    // Added
-    console.log("CourseBox clicked:", studentCourse);
-    if (!isEmpty) {
-      selectCourse(studentCourse, studentCourse.course);
-    }
+    if (!isEmpty) selectCourse(studentCourse, studentCourse.course);
   };
 
   return (
@@ -187,7 +128,7 @@ export default function CourseBox({
       ref={courseBoxRef}
       className={cn(
         CSS_CLASSES.COURSE_BOX,
-        getStatusClass(),
+        statusClass,
         isDraggable && !isEmpty && CSS_CLASSES.DRAGGABLE,
         studentCourse?.isHighlighted && "ring-2 ring-primary ring-offset-1 ring-offset-background scale-[1.03] z-10 shadow-lg shadow-primary/20",
         studentCourse?.isDimmed && "opacity-30 saturate-50 pointer-events-none"
@@ -199,29 +140,23 @@ export default function CourseBox({
         height: `${position.height}px`,
         opacity: isEmpty && !studentCourse ? 0.4 : 1,
       }}
-      onClick={handleCourseClick} // Re-attached internal handler
+      onClick={handleCourseClick}
       data-course-id={studentCourse.course.id}
       draggable={isDraggable && !isEmpty}
       role={isDraggable && !isEmpty ? "button" : undefined}
-      aria-label={
-        isDraggable && !isEmpty
-          ? `Drag course ${studentCourse.course.id}`
-          : undefined
-      }
+      aria-label={isDraggable && !isEmpty ? `Drag course ${studentCourse.course.id}` : undefined}
     >
       {!isEmpty && (
         <>
           <div className="flex items-center justify-between">
-            <div className={CSS_CLASSES.COURSE_ID}>
-              {studentCourse.course.id}
-            </div>
-            {getStatusIcon()}
+            <div className={CSS_CLASSES.COURSE_ID}>{studentCourse.course.id}</div>
+            {statusIcon}
           </div>
-          <div className={CSS_CLASSES.COURSE_NAME}>
-            {studentCourse.course.name}
-          </div>
+          <div className={CSS_CLASSES.COURSE_NAME}>{studentCourse.course.name}</div>
         </>
       )}
     </div>
   );
-}
+});
+
+export default CourseBox;

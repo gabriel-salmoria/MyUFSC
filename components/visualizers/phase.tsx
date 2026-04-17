@@ -35,6 +35,18 @@ export default function Phase({
     return (width - boxWidth) / 2;
   }, [width, boxWidth]);
 
+  // Stable position objects so CourseBox drag useEffect doesn't re-run on every render
+  const positions = useMemo(() =>
+    studentCourses.map((sc, index) => ({
+      courseId: sc.course.id,
+      x: xOffset,
+      y: index * COURSE_BOX.SPACING_Y + COURSE_BOX.SPACING_Y,
+      width: boxWidth,
+      height: COURSE_BOX.HEIGHT,
+    })),
+    [studentCourses, xOffset, boxWidth],
+  );
+
   // Estimate header height (adjust if needed)
   const headerHeight = 0; // px, adjust to match your actual header height
 
@@ -79,27 +91,16 @@ export default function Phase({
       </div>
 
       {/* Course boxes - positioned dynamically within the phase */}
-      {studentCourses.map((studentCourse: ViewStudentCourse, index) => {
-        // Calculate position directly here instead of using external state
-        const position = {
-          courseId: studentCourse.course.id, // Use studentCourse ID
-          x: xOffset,
-          y: index * COURSE_BOX.SPACING_Y + COURSE_BOX.SPACING_Y,
-          width: boxWidth,
-          height: COURSE_BOX.HEIGHT,
-        };
-
-        return (
-          <CourseBox
-            key={`student-course-${semesterNumber}-${index}`}
-            studentCourse={studentCourse} // Pass the StudentCourse object
-            position={position}
-            isEmpty={false}
-            isDraggable={true} // Should be draggable if not empty
-            isFromCurriculum={isFromCurriculum}
-          />
-        );
-      })}
+      {studentCourses.map((studentCourse: ViewStudentCourse, index) => (
+        <CourseBox
+          key={`student-course-${semesterNumber}-${index}`}
+          studentCourse={studentCourse}
+          position={positions[index]}
+          isEmpty={false}
+          isDraggable={true}
+          isFromCurriculum={isFromCurriculum}
+        />
+      ))}
 
       {/* Add ghost boxes for empty slots if it's an actual semester (progress view) */}
       {!isFromCurriculum &&

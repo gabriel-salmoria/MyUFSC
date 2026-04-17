@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useRef } from "react";
 import type { Course } from "@/types/curriculum";
 import type { ViewStudentCourse } from "@/types/visualization";
 import { useStudentStore } from "@/lib/student-store";
@@ -54,76 +54,48 @@ export function useAddCoursePrereq() {
     studentCourse?: any,
   } | null>(null);
   const [missing, setMissing] = useState<string[]>([]);
-  const [dismissTimeout, setDismissTimeout] = useState<NodeJS.Timeout | null>(null);
-  
-  const studentStore = useStudentStore();
-  const studentInfo = studentStore.studentInfo;
+  const dismissTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const handleAddWithCheck = (course: Course, targetPhase: number) => {
-    // Collect full curriculum to generate equivalence map
-    let allCourses: Course[] = [];
-    if (studentInfo) {
-      const { currentDegree, interestedDegrees } = studentInfo;
-      const degrees = [currentDegree, ...(interestedDegrees || [])];
-      degrees.forEach(id => {
-        const cx = studentStore.curriculumCache[id];
-        if (cx) {
-          allCourses = [...allCourses, ...cx];
-        }
-      });
-    }
+  const studentInfo = useStudentStore((s) => s.studentInfo);
+  const curriculumCache = useStudentStore((s) => s.curriculumCache);
+  const addCourseToSemester = useStudentStore((s) => s.addCourseToSemester);
+  const moveCourse = useStudentStore((s) => s.moveCourse);
 
-    const eqMap = generateEquivalenceMap(allCourses);
+  const showToast = useCallback((course: Course, type: 'add' | 'move', missingPrereqs: string[]) => {
+    setMissing(missingPrereqs);
+    setPendingAction({ type, course });
+    if (dismissTimeoutRef.current) clearTimeout(dismissTimeoutRef.current);
+    dismissTimeoutRef.current = setTimeout(() => setPendingAction(null), 5000);
+  }, []);
+
+  const buildEquivalenceMap = useCallback(() => {
+    if (!studentInfo) return generateEquivalenceMap([]);
+    const { currentDegree, interestedDegrees } = studentInfo;
+    const allCourses = [currentDegree, ...(interestedDegrees || [])]
+      .flatMap(id => curriculumCache[id] ?? []);
+    return generateEquivalenceMap(allCourses);
+  }, [studentInfo, curriculumCache]);
+
+  const handleAddWithCheck = useCallback((course: Course, targetPhase: number) => {
+    const eqMap = buildEquivalenceMap();
     const { satisfied, missing: missingPrereqs } = checkPrerequisites(course, targetPhase, studentInfo, eqMap);
+    addCourseToSemester(course, targetPhase);
+    if (!satisfied) showToast(course, 'add', missingPrereqs);
+  }, [studentInfo, addCourseToSemester, buildEquivalenceMap, showToast]);
 
-    // Always perform the action immediately
-    studentStore.addCourseToSemester(course, targetPhase);
-
-    if (!satisfied) {
-      setMissing(missingPrereqs);
-      setPendingAction({ type: 'add', course });
-      
-      // Auto-dismiss the toast
-      if (dismissTimeout) clearTimeout(dismissTimeout);
-      setDismissTimeout(setTimeout(() => setPendingAction(null), 5000));
-    }
-  };
-
-  const handleMoveWithCheck = (studentCourse: ViewStudentCourse, targetPhase: number) => {
-    let allCourses: Course[] = [];
-    if (studentInfo) {
-      const { currentDegree, interestedDegrees } = studentInfo;
-      const degrees = [currentDegree, ...(interestedDegrees || [])];
-      degrees.forEach(id => {
-        const cx = studentStore.curriculumCache[id];
-        if (cx) {
-          allCourses = [...allCourses, ...cx];
-        }
-      });
-    }
-
-    const eqMap = generateEquivalenceMap(allCourses);
+  const handleMoveWithCheck = useCallback((studentCourse: ViewStudentCourse, targetPhase: number) => {
+    const eqMap = buildEquivalenceMap();
     const { satisfied, missing: missingPrereqs } = checkPrerequisites(studentCourse.course, targetPhase, studentInfo, eqMap);
-
-    // Always perform the action immediately
-    studentStore.moveCourse(studentCourse, targetPhase);
-
-    if (!satisfied) {
-      setMissing(missingPrereqs);
-      setPendingAction({ type: 'move', course: studentCourse.course });
-      
-      // Auto-dismiss the toast
-      if (dismissTimeout) clearTimeout(dismissTimeout);
-      setDismissTimeout(setTimeout(() => setPendingAction(null), 5000));
-    }
-  };
+    moveCourse(studentCourse, targetPhase);
+    if (!satisfied) showToast(studentCourse.course, 'move', missingPrereqs);
+  }, [studentInfo, moveCourse, buildEquivalenceMap, showToast]);
 
   const confirmAction = () => {
     if (pendingAction) {
       if (pendingAction.type === 'add' && pendingAction.phase !== undefined) {
-        studentStore.addCourseToSemester(pendingAction.course, pendingAction.phase);
+        addCourseToSemester(pendingAction.course, pendingAction.phase);
       } else if (pendingAction.type === 'move' && pendingAction.studentCourse && pendingAction.phase !== undefined) {
-        studentStore.moveCourse(pendingAction.studentCourse, pendingAction.phase);
+        moveCourse(pendingAction.studentCourse, pendingAction.phase);
       }
       setPendingAction(null);
     }

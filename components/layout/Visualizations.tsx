@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import type { StudentInfo } from "@/types/student-plan";
 import type { Curriculum } from "@/types/curriculum";
 import type { ScheduleHookState } from "@/hooks/setup/UseSchedule";
@@ -41,16 +41,16 @@ export default function Visualizations({
   const { handleAddWithCheck, handleMoveWithCheck, prereqToast } =
     useAddCoursePrereq();
 
-  useEffect(() => {
-    const handleDropReq = (e: any) => {
-      if (e.detail.type === "add")
-        handleAddWithCheck(e.detail.course, e.detail.phase);
-      else handleMoveWithCheck(e.detail.studentCourse, e.detail.phase);
-    };
-    window.addEventListener("request-course-drop", handleDropReq);
-    return () =>
-      window.removeEventListener("request-course-drop", handleDropReq);
+  const handleDropReq = useCallback((e: any) => {
+    if (e.detail.type === "add")
+      handleAddWithCheck(e.detail.course, e.detail.phase);
+    else handleMoveWithCheck(e.detail.studentCourse, e.detail.phase);
   }, [handleAddWithCheck, handleMoveWithCheck]);
+
+  useEffect(() => {
+    window.addEventListener("request-course-drop", handleDropReq);
+    return () => window.removeEventListener("request-course-drop", handleDropReq);
+  }, [handleDropReq]);
 
   // Toggle view mode between curriculum and electives
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.CURRICULUM);
@@ -62,6 +62,10 @@ export default function Visualizations({
 
   // Filter offered electives
   const [filterOffered, setFilterOffered] = useState(false);
+
+  const handlePhaseClick = useCallback((phase: number) => {
+    setHighlightAvailableForPhase((prev) => prev === phase ? null : phase);
+  }, []);
 
   const toggleView = () => {
     setViewMode(
@@ -253,12 +257,8 @@ export default function Visualizations({
           <ProgressVisualizer
             studentPlan={studentInfo.plans[studentInfo.currentPlan]!}
             totalPhases={curriculum?.totalPhases || 8}
-            height={500} // Keeps a default reasonable height for progress
-            onPhaseClick={(phase: number) => {
-              if (highlightAvailableForPhase === phase)
-                setHighlightAvailableForPhase(null);
-              else setHighlightAvailableForPhase(phase);
-            }}
+            height={500}
+            onPhaseClick={handlePhaseClick}
             key={`progress-${studentInfo.currentPlan || "default"}`}
           />
         </div>

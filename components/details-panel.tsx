@@ -29,13 +29,11 @@ export default function StudentCourseDetailsPanel({
   setDependencyState,
   scheduleData,
 }: StudentCourseDetailsPanelProps) {
-  const {
-    selectedCourse: course,
-    selectedStudentCourse: studentCourse,
-    clearSelection,
-    setCourseGrade,
-    changeCourseStatus,
-  } = useStudentStore();
+  const course = useStudentStore((s) => s.selectedCourse);
+  const studentCourse = useStudentStore((s) => s.selectedStudentCourse);
+  const clearSelection = useStudentStore((s) => s.clearSelection);
+  const setCourseGrade = useStudentStore((s) => s.setCourseGrade);
+  const changeCourseStatus = useStudentStore((s) => s.changeCourseStatus);
 
   const isOpen = !!(course && studentCourse);
 
