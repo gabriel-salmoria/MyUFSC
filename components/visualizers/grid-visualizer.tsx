@@ -39,7 +39,6 @@ export default function GridVisualizer({
 }: GridVisualizerProps) {
   const studentStore = useStudentStore();
   const containerRef = useRef<HTMLDivElement>(null);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
   const [containerWidth, setContainerWidth] = useState(800);
 
   const parsedSchedule = useMemo(() => {
@@ -173,8 +172,6 @@ export default function GridVisualizer({
         <div
           className="relative dashboard-content"
           style={{
-            transform: `translate(${pan.x}px, ${pan.y}px)`,
-            transformOrigin: "0 0",
             height: `${calculatedGridHeight}px`,
           }}
         >

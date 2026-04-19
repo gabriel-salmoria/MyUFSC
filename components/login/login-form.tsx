@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { Button } from "@/components/ui/button"
 
 export default function LoginForm() {
   const router = useRouter()
@@ -74,12 +75,9 @@ export default function LoginForm() {
           />
         </div>
 
-        <button
-          type="submit"
-          className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition"
-        >
+        <Button type="submit" className="w-full">
           Entrar
-        </button>
+        </Button>
       </form>
 
       <div className="text-center text-sm text-foreground">

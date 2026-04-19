@@ -59,8 +59,7 @@ export function useStudentProfile({
                 const { cacheCurriculum } = useStudentStore.getState();
                 Object.entries(curriculums).forEach(([degreeId, curr]: [string, any]) => {
                   if (curr && curr.courses) {
-                    const parsed = parseCourses(curr.courses);
-                    cacheCurriculum(degreeId, parsed);
+                    cacheCurriculum(degreeId, { ...curr, courses: parseCourses(curr.courses) });
                   }
                 });
               }
@@ -103,16 +102,10 @@ export function useStudentProfile({
 
       loadData();
     }
-    // Case 1: storeStudentInfo has become available (was null, now has data)
-    else if (storeStudentInfo && !prevStoreStudentInfoRef.current) {
+    // Case 1/2: storeStudentInfo is available (new or updated)
+    else if (storeStudentInfo) {
       setStudentInfo(storeStudentInfo);
-      setIsProfileLoading(false);
-    }
-    // Case 2: storeStudentInfo was available and has been updated (reference changed)
-    else if (storeStudentInfo && prevStoreStudentInfoRef.current) {
-      setStudentInfo(storeStudentInfo);
-      // isProfileLoading should already be false from Case 1 or initial state, no change needed
-      if (isProfileLoading) setIsProfileLoading(false); // Defensive: ensure it's false
+      if (isProfileLoading) setIsProfileLoading(false);
     }
     // Case 3: storeStudentInfo has become null (was populated, now it's null - e.g., logout)
     else if (!storeStudentInfo && prevStoreStudentInfoRef.current) {

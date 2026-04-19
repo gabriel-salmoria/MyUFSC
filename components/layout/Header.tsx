@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { LogOut, Save, Edit2, X, Check, Github, Upload } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { StudentInfo } from "@/types/student-plan";
 import { DegreeProgram } from "@/types/degree-program";
 import useEncryptedData from "@/hooks/setup/LoadUser";
@@ -41,22 +42,20 @@ function ImportHistoryPopover({ studentInfo, studentStore }: ImportHistoryPopove
 
   return (
     <div className="relative" ref={containerRef}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-4 py-2 border border-border bg-background hover:bg-accent text-foreground rounded-md transition-colors"
-      >
+      <Button variant="outline" onClick={() => setIsOpen(!isOpen)}>
         <Upload className="w-4 h-4" />
         Importar Histórico
-      </button>
+      </Button>
 
       {isOpen && (
         <div className="absolute right-0 top-full mt-2 w-[340px] sm:w-[400px] p-6 bg-card text-card-foreground rounded-lg shadow-xl border border-border z-50 origin-top-right animate-in fade-in zoom-in duration-200">
-          <button
+          <Button
+            variant="ghost" size="icon"
             onClick={() => setIsOpen(false)}
-            className="absolute top-4 right-4 p-1 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            className="absolute top-4 right-4 h-7 w-7 rounded-full"
           >
             <X className="w-5 h-5" />
-          </button>
+          </Button>
           <h2 className="text-lg font-medium mb-4">Importar Histórico</h2>
           <TranscriptUploader
             onParsed={async (data) => {
@@ -284,20 +283,16 @@ export default function Header({
                   if (e.key === "Escape") handleCancelNameEdit();
                 }}
               />
-              <button
-                onClick={handleSaveName}
-                className="p-1 rounded-full hover:bg-green-100 text-green-600 dark:hover:bg-green-900/30 dark:text-green-400"
-                title="Salvar Nome"
-              >
+              <Button variant="ghost" size="icon" onClick={handleSaveName}
+                className="h-7 w-7 rounded-full text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 dark:text-green-400"
+                title="Salvar Nome">
                 <Check className="w-5 h-5" />
-              </button>
-              <button
-                onClick={handleCancelNameEdit}
-                className="p-1 rounded-full hover:bg-red-100 text-red-600 dark:hover:bg-red-900/30 dark:text-red-400"
-                title="Cancelar"
-              >
+              </Button>
+              <Button variant="ghost" size="icon" onClick={handleCancelNameEdit}
+                className="h-7 w-7 rounded-full text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 dark:text-red-400"
+                title="Cancelar">
                 <X className="w-5 h-5" />
-              </button>
+              </Button>
             </div>
           ) : (
             <div className="group flex items-center gap-3">
@@ -306,14 +301,11 @@ export default function Header({
                   ? `Bem-vindo, ${studentInfo.name}`
                   : "Meu Planejamento"}
               </h1>
-              <button
-                onClick={handleStartNameEdit}
-                className="opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground transition-all duration-200"
-                title="Editar Nome"
-                aria-label="Editar Nome"
-              >
+              <Button variant="ghost" size="icon" onClick={handleStartNameEdit}
+                className="opacity-0 group-hover:opacity-100 h-7 w-7 rounded-full"
+                title="Editar Nome" aria-label="Editar Nome">
                 <Edit2 className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -331,15 +323,12 @@ export default function Header({
           {isAuthenticated ? (
             <>
               <div className="relative group/save">
-                <button
-                  onClick={handleSaveData}
-                  disabled={isSaving}
+                <Button onClick={handleSaveData} disabled={isSaving}
                   onMouseEnter={() => setIsHoveringSave(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors relative z-10"
-                >
+                  className="bg-green-600 hover:bg-green-700 relative z-10">
                   <Save className="w-4 h-4" />
                   {isSaving ? "Salvando..." : "Salvar"}
-                </button>
+                </Button>
 
                 {/* Save Encryption Tooltip Bubble */}
                 <div
@@ -395,30 +384,23 @@ export default function Header({
                 </div>
               </div>
               <ImportHistoryPopover studentInfo={studentInfo} studentStore={studentStore} />
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-4 py-2 text-red-500 hover:text-red-700 transition-colors"
-              >
+              <Button variant="ghost" onClick={handleLogout}
+                className="text-red-500 hover:text-red-700 hover:bg-transparent">
                 <LogOut className="w-4 h-4" />
                 Sair
-              </button>
+              </Button>
             </>
           ) : (
             <>
-              <button
-                onClick={() => (window.location.href = "/register")}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-              >
+              <Button onClick={() => (window.location.href = "/register")}>
                 <Save className="w-4 h-4" />
                 Salvar Progresso (Registrar)
-              </button>
+              </Button>
               <ImportHistoryPopover studentInfo={studentInfo} studentStore={studentStore} />
-              <button
-                onClick={() => (window.location.href = "/login")}
-                className="flex items-center gap-2 px-4 py-2 text-muted-foreground hover:text-foreground transition-colors"
-              >
+              <Button variant="ghost" onClick={() => (window.location.href = "/login")}
+                className="text-muted-foreground hover:text-foreground hover:bg-transparent">
                 Entrar
-              </button>
+              </Button>
             </>
           )}
         </div>
@@ -433,13 +415,10 @@ export default function Header({
               Curso Atual
             </h2>
             {!isEditingDegree && (
-              <button
-                onClick={() => setIsEditingDegree(true)}
-                className="p-1 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                title="Alterar Curso"
-              >
+              <Button variant="ghost" size="icon" onClick={() => setIsEditingDegree(true)}
+                className="h-7 w-7 rounded-full" title="Alterar Curso">
                 <Edit2 className="w-4 h-4" />
-              </button>
+              </Button>
             )}
           </div>
 
@@ -455,12 +434,10 @@ export default function Header({
                 }}
               />
               <div className="mt-2 flex justify-end">
-                <button
-                  onClick={() => setIsEditingDegree(false)}
-                  className="text-sm text-red-500 hover:text-red-700 hover:underline"
-                >
+                <Button variant="link" size="sm" onClick={() => setIsEditingDegree(false)}
+                  className="h-auto p-0 text-red-500 hover:text-red-700">
                   Cancelar
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
@@ -495,18 +472,15 @@ export default function Header({
                 exibidas na montagem de horários.
               </p>
             </div>
-            <button
+            <Button variant="ghost" size="icon"
               onClick={() => {
                 if (isEditingInterest) setIsEditingInterest(false);
                 else {
-                  // Ensure array before editing
-                  if (!studentInfo.interestedDegrees) {
-                    studentStore.setInterestedDegrees([]);
-                  }
+                  if (!studentInfo.interestedDegrees) studentStore.setInterestedDegrees([]);
                   setIsEditingInterest(true);
                 }
               }}
-              className="p-1 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+              className="h-7 w-7 rounded-full"
               title={isEditingInterest ? "Pronto" : "Editar Interesses"}
             >
               {isEditingInterest ? (
@@ -514,7 +488,7 @@ export default function Header({
               ) : (
                 <Edit2 className="w-4 h-4" />
               )}
-            </button>
+            </Button>
           </div>
 
           {isEditingInterest ? (

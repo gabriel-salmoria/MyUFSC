@@ -10,7 +10,6 @@ export interface CurriculumHookState {
   currentCurriculum: Curriculum | null;
   degreePrograms: DegreeProgram[];
   viewingDegreeId: string | null;
-  curriculumsCache: Record<string, Curriculum>;
 }
 
 export interface UseCurriculumResult {
@@ -29,12 +28,8 @@ let cachedDegreePrograms: DegreeProgram[] | null = null;
 let fetchDegreeProgramsPromise: Promise<DegreeProgram[]> | null = null;
 
 async function fetchDegreePrograms(): Promise<DegreeProgram[]> {
-  if (cachedDegreePrograms) {
-    return cachedDegreePrograms;
-  }
-  if (fetchDegreeProgramsPromise) {
-    return fetchDegreeProgramsPromise;
-  }
+  if (cachedDegreePrograms) return cachedDegreePrograms;
+  if (fetchDegreeProgramsPromise) return fetchDegreeProgramsPromise;
 
   fetchDegreeProgramsPromise = (async () => {
     try {
@@ -57,9 +52,7 @@ async function fetchDegreePrograms(): Promise<DegreeProgram[]> {
   return fetchDegreeProgramsPromise;
 }
 
-async function fetchCurriculumData(
-  programId: string,
-): Promise<Curriculum | null> {
+async function fetchCurriculumData(programId: string): Promise<Curriculum | null> {
   try {
     const response = await fetch(`/api/curriculum/${programId}`);
     if (!response.ok) {
@@ -82,27 +75,19 @@ export function useCurriculum({
     currentCurriculum: null,
     degreePrograms: [],
     viewingDegreeId: null,
-    curriculumsCache: {},
   });
   const [isCurriculumLoading, setIsCurriculumLoading] = useState(true);
-  const fetchedForDegreeRef = useRef<string | null | undefined>(null); // Tracks signature of fetched degrees
+  const fetchedForDegreeRef = useRef<string | null | undefined>(null);
 
-  // Exposed setter that updates state
   const setViewingDegreeId = (id: string) => {
-    setCurriculumState((prev) => {
-      // If we have it in cache, use it immediately
-      const cached = prev.curriculumsCache[id];
-      return {
-        ...prev,
-        viewingDegreeId: id,
-        curriculum: cached
-          ? {
-              ...cached,
-              courses: Array.isArray(cached.courses) ? cached.courses : [],
-            }
-          : prev.curriculum,
-      };
-    });
+    const cached = useStudentStore.getState().curriculumCache[id];
+    setCurriculumState((prev) => ({
+      ...prev,
+      viewingDegreeId: id,
+      curriculum: cached
+        ? { ...cached, courses: Array.isArray(cached.courses) ? cached.courses : [] }
+        : prev.curriculum,
+    }));
   };
 
   useEffect(() => {
@@ -119,7 +104,6 @@ export function useCurriculum({
         currentCurriculum: null,
         degreePrograms: [],
         viewingDegreeId: null,
-        curriculumsCache: {},
       });
       fetchedForDegreeRef.current = null;
       return;
@@ -131,15 +115,14 @@ export function useCurriculum({
         const programs = await fetchDegreePrograms();
         if (!active) return;
 
-        // Auto-correct old IDs
+        // Auto-correct old bare IDs (e.g. "208") to the latest versioned ID (e.g. "208_2019")
         let currentDegree = studentInfo.currentDegree;
         let interestedDegrees = studentInfo.interestedDegrees || [];
         let needsMigration = false;
 
         const migrate = (id: string) => {
           if (!id) return id;
-          if (programs.some((p) => p.id === id)) return id; // Already valid
-          // Find all that start with id + "_" and pick the one with the highest id
+          if (programs.some((p) => p.id === id)) return id;
           const matches = programs.filter((p) => p.id.startsWith(id + "_"));
           if (matches.length > 0) {
             matches.sort((a, b) => b.id.localeCompare(a.id));
@@ -162,24 +145,16 @@ export function useCurriculum({
 
         if (needsMigration) {
           const { setStudentInfo } = useStudentStore.getState();
-          setStudentInfo({
-            ...studentInfo,
-            currentDegree,
-            interestedDegrees,
-          });
-          // Wait for the hook to re-run with the updated store data
-          // But we can also set the program list so it's cached
+          setStudentInfo({ ...studentInfo, currentDegree, interestedDegrees });
           setCurriculumState((prev) => ({ ...prev, degreePrograms: programs }));
           return;
         }
 
-        // Determine all degrees to fetch
         const distinctDegrees = new Set<string>([currentDegree]);
         interestedDegrees.forEach((d) => distinctDegrees.add(d));
         const degreesToFetch = Array.from(distinctDegrees).sort();
         const degreesSignature = degreesToFetch.join(",");
 
-        // Check if we need to fetch (signature changed)
         if (degreesSignature === fetchedForDegreeRef.current) {
           setIsCurriculumLoading(false);
           setCurriculumState((prev) => ({ ...prev, degreePrograms: programs }));
@@ -192,86 +167,44 @@ export function useCurriculum({
         }
 
         const isInitialLoad = !fetchedForDegreeRef.current;
-        if (isInitialLoad) {
-          setIsCurriculumLoading(true);
-        }
+        if (isInitialLoad) setIsCurriculumLoading(true);
 
         fetchedForDegreeRef.current = degreesSignature;
 
-        // Fetch all curriculums in parallel
-        // Check student store cache first to avoid redundant fetches
         const { curriculumCache, cacheCurriculum } = useStudentStore.getState();
 
-        const curriculumsResults = await Promise.all(
+        // Fetch any degrees not already in the Zustand cache
+        await Promise.all(
           degreesToFetch.map(async (degreeId) => {
-            if (curriculumCache[degreeId]) {
-              return { degreeId, cachedCourses: curriculumCache[degreeId] };
-            }
+            if (curriculumCache[degreeId]) return;
             const curr = await fetchCurriculumData(degreeId);
-            return { degreeId, curr };
+            if (curr) {
+              cacheCurriculum(degreeId, { ...curr, courses: parseCourses(curr.courses) });
+            }
           }),
         );
 
-        const newCache: Record<string, Curriculum> = {};
+        if (!active) return;
 
-        curriculumsResults.forEach((result) => {
-          const { degreeId } = result;
+        // Read the now-populated Zustand cache
+        const freshCache = useStudentStore.getState().curriculumCache;
 
-          if ("cachedCourses" in result && result.cachedCourses) {
-            const maxPhase = result.cachedCourses.reduce(
-              (max, c) => Math.max(max, c.phase || 0),
-              0,
-            );
-            const reconstructed: Curriculum = {
-              id: degreeId,
-              name: "",
-              department: "",
-              totalPhases: maxPhase || 8,
-              courses: result.cachedCourses as any,
-            };
-            newCache[degreeId] = reconstructed;
-          } else if ("curr" in result && result.curr) {
-            const curr = result.curr;
-            newCache[degreeId] = curr;
-            if (curr.courses) {
-              const parsed = parseCourses(curr.courses);
-              cacheCurriculum(degreeId, parsed);
-            }
-          }
-        });
-
-        // Initialize viewingDegreeId if not set
         let targetDegree = curriculumState.viewingDegreeId;
         if (!targetDegree || !distinctDegrees.has(targetDegree)) {
           targetDegree = currentDegree;
         }
 
-        const viewingCurr = newCache[targetDegree] || null;
-        const currentCurr = newCache[currentDegree] || null;
+        const viewingCurr = freshCache[targetDegree] ?? null;
+        const currentCurr = freshCache[currentDegree] ?? null;
 
-        const processedViewing = viewingCurr
-          ? {
-              ...viewingCurr,
-              courses: Array.isArray(viewingCurr.courses)
-                ? viewingCurr.courses
-                : [],
-            }
-          : null;
-        const processedCurrent = currentCurr
-          ? {
-              ...currentCurr,
-              courses: Array.isArray(currentCurr.courses)
-                ? currentCurr.courses
-                : [],
-            }
-          : null;
+        const normalize = (c: Curriculum | null) =>
+          c ? { ...c, courses: Array.isArray(c.courses) ? c.courses : [] } : null;
 
         setCurriculumState((prev) => ({
           ...prev,
           degreePrograms: programs,
-          curriculumsCache: { ...prev.curriculumsCache, ...newCache },
-          currentCurriculum: processedCurrent || prev.currentCurriculum,
-          curriculum: processedViewing || prev.curriculum,
+          currentCurriculum: normalize(currentCurr) ?? prev.currentCurriculum,
+          curriculum: normalize(viewingCurr) ?? prev.curriculum,
           viewingDegreeId: targetDegree,
         }));
       } catch (err) {
@@ -282,15 +215,8 @@ export function useCurriculum({
     };
 
     loadData();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [studentInfo, isProfileLoading]);
 
-  return {
-    curriculumState,
-    setCurriculumState,
-    isCurriculumLoading,
-    setViewingDegreeId,
-  };
+  return { curriculumState, setCurriculumState, isCurriculumLoading, setViewingDegreeId };
 }

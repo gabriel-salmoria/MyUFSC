@@ -10,8 +10,8 @@ export function useCourseMap(): Map<string, Course> {
   const curriculumCache = useStudentStore((state) => state.curriculumCache);
   return useMemo(() => {
     const map = new Map<string, Course>();
-    for (const courses of Object.values(curriculumCache)) {
-      for (const course of courses) {
+    for (const curriculum of Object.values(curriculumCache)) {
+      for (const course of curriculum.courses) {
         map.set(course.id, course);
       }
     }

@@ -355,11 +355,11 @@ function PanelContent({
                         {names.map((name, i) => {
                           const rating = getRating(name);
                           return (
-                            <button
+                            <Button
                               key={i}
-                              type="button"
+                              variant="outline" size="sm"
                               onClick={() => setOpenProfessorId(name)}
-                              className="inline-flex items-center gap-1.5 text-sm font-medium px-2 py-1 rounded-md border border-border bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
+                              className="h-auto py-1 px-2 font-medium gap-1.5"
                             >
                               {name}
                               {rating && (
@@ -371,7 +371,7 @@ function PanelContent({
                                   )}
                                 </span>
                               )}
-                            </button>
+                            </Button>
                           );
                         })}
                       </div>
@@ -402,15 +402,14 @@ function PanelContent({
 
                 {/* Show more / less */}
                 {sortedProfessors.length > LIMIT && (
-                  <button
-                    type="button"
+                  <Button variant="ghost" size="sm"
                     onClick={() => setShowAllProfs((v) => !v)}
-                    className="w-full text-xs text-muted-foreground hover:text-foreground py-1 transition-colors"
+                    className="w-full text-xs text-muted-foreground hover:text-foreground hover:bg-transparent"
                   >
                     {showAllProfs
                       ? "Mostrar menos"
                       : `... e mais ${hiddenCount} turma${hiddenCount !== 1 ? "s" : ""}`}
-                  </button>
+                  </Button>
                 )}
               </div>
             )}

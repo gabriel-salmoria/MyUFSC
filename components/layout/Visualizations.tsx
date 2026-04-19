@@ -6,6 +6,7 @@ import type { Curriculum } from "@/types/curriculum";
 import type { ScheduleHookState } from "@/hooks/setup/UseSchedule";
 import { Switch } from "@/components/ui/switch";
 import { ChevronDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 import CurriculumVisualizer from "@/components/visualizers/curriculum-visualizer";
 import ProgressVisualizer from "@/components/visualizers/progress-visualizer";
@@ -106,10 +107,9 @@ export default function Visualizations({
               </h2>
               {/* Custom degree picker with badge labels */}
               <div className="relative" ref={degreeDropdownRef}>
-                <button
+                <Button variant="outline" size="sm"
                   type="button"
                   onClick={() => setDegreeDropdownOpen((o) => !o)}
-                  className="flex items-center gap-2 bg-background border border-border rounded-md px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring hover:bg-muted/50 transition-colors"
                 >
                   <ProgramLabel
                     name={getDegreeName(
@@ -117,14 +117,14 @@ export default function Visualizations({
                     )}
                   />
                   <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
-                </button>
+                </Button>
 
                 {degreeDropdownOpen && (
                   <div className="absolute top-[calc(100%+4px)] left-0 z-50 min-w-full bg-popover border border-border rounded-md shadow-md py-1 animate-in fade-in-0 zoom-in-95">
                     {studentInfo.currentDegree && (
-                      <button
+                      <Button variant="ghost"
                         type="button"
-                        className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                        className="w-full justify-start px-3 h-8 text-sm"
                         onClick={() => {
                           setViewingDegreeId?.(studentInfo.currentDegree!);
                           setDegreeDropdownOpen(false);
@@ -133,7 +133,7 @@ export default function Visualizations({
                         <ProgramLabel
                           name={getDegreeName(studentInfo.currentDegree)}
                         />
-                      </button>
+                      </Button>
                     )}
 
                     {studentInfo.interestedDegrees &&
@@ -142,17 +142,17 @@ export default function Visualizations({
                       )}
 
                     {studentInfo.interestedDegrees?.map((degreeId) => (
-                      <button
+                      <Button variant="ghost"
                         key={degreeId}
                         type="button"
-                        className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                        className="w-full justify-start px-3 h-8 text-sm"
                         onClick={() => {
                           setViewingDegreeId?.(degreeId);
                           setDegreeDropdownOpen(false);
                         }}
                       >
                         <ProgramLabel name={getDegreeName(degreeId)} />
-                      </button>
+                      </Button>
                     ))}
 
                     {viewingDegreeId &&
@@ -162,15 +162,15 @@ export default function Visualizations({
                       ) && (
                         <>
                           <div className="my-1 mx-2 border-t border-border" />
-                          <button
+                          <Button variant="ghost"
                             type="button"
-                            className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                            className="w-full justify-start px-3 h-8 text-sm"
                             onClick={() => setDegreeDropdownOpen(false)}
                           >
                             <ProgramLabel
                               name={getDegreeName(viewingDegreeId)}
                             />
-                          </button>
+                          </Button>
                         </>
                       )}
                   </div>
@@ -192,13 +192,10 @@ export default function Visualizations({
                 Filtrar atualmente sendo ofertadas
               </label>
             )}
-            <button
-              onClick={toggleView}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition"
-            >
+            <Button onClick={toggleView}>
               Mostrar{" "}
               {viewMode === ViewMode.CURRICULUM ? "Optativas" : "Currículo"}
-            </button>
+            </Button>
           </div>
         </div>
 

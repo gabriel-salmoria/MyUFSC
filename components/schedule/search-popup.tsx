@@ -52,7 +52,7 @@ export default function SearchPopup({
       const allDegrees = [currentDegree, ...(interestedDegrees || [])];
 
       allDegrees.forEach(degreeId => {
-        const courses = curriculumCache[degreeId];
+        const courses = curriculumCache[degreeId]?.courses;
         if (courses) {
           courses.forEach(c => {
             if (!map.has(c.id)) {

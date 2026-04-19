@@ -40,7 +40,6 @@ export default function CurriculumVisualizer({
 }: CurriculumVisualizerProps) {
   const studentInfo = useStudentStore((s) => s.studentInfo);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
   const [phaseWidth, setPhaseWidth] = useState<number>(PHASE.MIN_WIDTH);
 
   // Generate phases from curriculum
@@ -271,8 +270,6 @@ export default function CurriculumVisualizer({
         <div
           className="relative dashboard-content"
           style={{
-            transform: `translate(${pan.x}px, ${pan.y}px)`,
-            transformOrigin: "0 0",
             width: totalWidth,
             height: `${containerHeight}px`,
           }}

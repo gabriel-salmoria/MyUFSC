@@ -4,6 +4,7 @@ import React from "react";
 import { cn } from "@/components/ui/utils";
 import { CSS_CLASSES } from "@/styles/course-theme";
 import { useStudentStore } from "@/lib/student-store";
+import { normalizeProfessorId } from "@/lib/professors";
 import { Star } from "lucide-react";
 
 type ProfessorData = {
@@ -25,15 +26,6 @@ interface ProfessorSelectorProps {
   onProfessorClick?: (professorName: string) => void;
 }
 
-function normalizeProfName(name: string): string {
-  return name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toUpperCase()
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 /**
  * Returns { rating, isCourseSpecific } — prefers the per-course rating when
  * available, falls back to the professor's overall rating across all courses.
@@ -44,7 +36,7 @@ function getRating(
   aggregates?: Record<string, any>,
 ): { overall: number; isCourseSpecific: boolean } | null {
   if (!aggregates) return null;
-  const agg = aggregates[normalizeProfName(name)];
+  const agg = aggregates[normalizeProfessorId(name)];
   if (!agg) return null;
 
   const courseAgg = agg.byCourse?.[courseId];

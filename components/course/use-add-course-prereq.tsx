@@ -72,7 +72,7 @@ export function useAddCoursePrereq() {
     if (!studentInfo) return generateEquivalenceMap([]);
     const { currentDegree, interestedDegrees } = studentInfo;
     const allCourses = [currentDegree, ...(interestedDegrees || [])]
-      .flatMap(id => curriculumCache[id] ?? []);
+      .flatMap(id => curriculumCache[id]?.courses ?? []);
     return generateEquivalenceMap(allCourses);
   }, [studentInfo, curriculumCache]);
 

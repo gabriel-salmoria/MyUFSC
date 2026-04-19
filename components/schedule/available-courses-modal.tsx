@@ -30,7 +30,7 @@ export default function AvailableCoursesModal({ open, onClose, targetPhase }: Av
     degrees.forEach(id => {
       const cx = curriculumCache[id];
       if (cx) {
-        allCourses = [...allCourses, ...cx];
+        allCourses = [...allCourses, ...cx.courses];
       }
     });
 

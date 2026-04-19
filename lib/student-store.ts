@@ -9,7 +9,7 @@ import type {
   CustomScheduleEntry,
 } from "@/types/student-plan";
 import { CourseStatus } from "@/types/student-plan";
-import type { Course } from "@/types/curriculum";
+import type { Course, Curriculum } from "@/types/curriculum";
 import { PHASE_DIMENSIONS } from "@/styles/course-theme";
 
 // Helper function to ensure we always have at least TOTAL_SEMESTERS,
@@ -104,8 +104,8 @@ export interface StudentStore {
   clearSelection: () => void;
 
   // Cache
-  curriculumCache: Record<string, Course[]>;
-  cacheCurriculum: (degreeId: string, courses: Course[]) => void;
+  curriculumCache: Record<string, Curriculum>;
+  cacheCurriculum: (degreeId: string, curriculum: Curriculum) => void;
 }
 
 const CheckStudentInfo = (info: StudentInfo | null): StudentPlan | null => {
@@ -139,10 +139,10 @@ export const useStudentStore = create<StudentStore>()(
         set({ authCheckCompleted: completed }),
 
       curriculumCache: {},
-      cacheCurriculum: (degreeId: string, courses: Course[]) =>
+      cacheCurriculum: (degreeId: string, curriculum: Curriculum) =>
         set(
           produce((state: StudentStore) => {
-            state.curriculumCache[degreeId] = courses;
+            state.curriculumCache[degreeId] = curriculum;
 
             // Evict cache entries that are no longer part of the active degree set
             if (state.studentInfo) {

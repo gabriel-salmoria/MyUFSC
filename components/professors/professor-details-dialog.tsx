@@ -691,8 +691,8 @@ function ProfessorDetailsSection({
   // Build a courseId → name map from the curriculum cache
   const courseNameMap = useMemo(() => {
     const map: Record<string, string> = {};
-    for (const courses of Object.values(curriculumCache)) {
-      for (const c of courses) {
+    for (const curriculum of Object.values(curriculumCache)) {
+      for (const c of curriculum.courses) {
         if (!map[c.id]) map[c.id] = c.name;
       }
     }
