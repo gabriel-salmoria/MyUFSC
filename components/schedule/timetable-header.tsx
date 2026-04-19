@@ -37,7 +37,7 @@ export default function TimetableHeader({
   return (
     <div className="flex items-center justify-between mb-6">
       <div className="flex items-center gap-4">
-        <h2 className="text-xl font-semibold text-foreground">Cronograma Semanal</h2>
+        <h2 className="section-heading">Cronograma Semanal</h2>
         <div className="flex items-center gap-2">
           <select
             value={selectedSemester}

@@ -40,7 +40,7 @@ export function FormField({
 }) {
   return (
     <div>
-      <label htmlFor={id} className="block text-sm font-medium text-foreground">
+      <label htmlFor={id} className="form-label">
         {label}{" "}
         {optional && (
           <span className="text-sm font-medium text-blue-500">(opcional)</span>
@@ -51,7 +51,7 @@ export function FormField({
         id={id}
         value={value}
         onChange={onChange}
-        className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2"
+        className="form-input"
         placeholder={placeholder}
         required={required}
         style={style}
@@ -95,7 +95,7 @@ export function DegreeProgramSelector({
     <div ref={ref} className="relative">
       <label
         htmlFor="currentDegree"
-        className="block text-sm font-medium text-foreground"
+        className="form-label"
       >
         {label}
       </label>
@@ -187,7 +187,7 @@ export function DegreesOfInterestSelector({
 }) {
   return (
     <div ref={ref} className="relative">
-      <label className="block text-sm font-medium text-foreground">
+      <label className="form-label">
         {label}{" "}
         {optional && (
           <span className="text-sm font-medium text-blue-500">(opcional)</span>

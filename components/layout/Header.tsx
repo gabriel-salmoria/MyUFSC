@@ -411,7 +411,7 @@ export default function Header({
         {/* Current Degree Card */}
         <div className="bg-card p-6 rounded-lg shadow-lg relative cursor-default">
           <div className="flex justify-between items-start mb-4">
-            <h2 className="text-xl font-semibold text-foreground">
+            <h2 className="section-heading">
               Curso Atual
             </h2>
             {!isEditingDegree && (
@@ -464,7 +464,7 @@ export default function Header({
         <div className="bg-card p-6 rounded-lg shadow-lg relative">
           <div className="flex justify-between items-start mb-4">
             <div>
-              <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+              <h2 className="section-heading flex items-center gap-2">
                 Cursos de Interesse
               </h2>
               <p className="text-xs text-muted-foreground mt-1 pr-4">

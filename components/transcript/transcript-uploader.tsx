@@ -76,7 +76,7 @@ export function TranscriptUploader({
     <div
       className={`space-y-3 ${bordered ? "p-4 border border-border rounded-md" : ""}`}
     >
-      <label className="block text-sm font-medium text-foreground">
+      <label className="form-label">
         Importar Histórico (PDF){" "}
         {optional && (
           <span className="text-sm font-medium text-blue-500">(opcional)</span>

@@ -3,6 +3,7 @@
 import type { Course } from "@/types/curriculum";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import dynamic from "next/dynamic";
 
 // Main layout components
@@ -89,7 +90,7 @@ export default function Home() {
   // We now allow !isAuthenticated if we have studentInfo (anonymous user)
   if (!authCheckCompleted) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="auth-screen">
         <div className="text-center">
           <div className="mb-4">Carregando seu MyUFSC...</div>
           <div className="text-sm text-muted-foreground">
@@ -119,42 +120,31 @@ export default function Home() {
     // Let's redirect to a new route /setup if we want to be clean, or render a button "Começar sem cadastro".
 
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+      <div className="auth-screen flex-col p-4">
         <div className="max-w-md text-center space-y-6">
           <h1 className="text-4xl font-bold">Bem-vindo ao MyUFSC</h1>
           <p className="text-muted-foreground">
             Planeje sua grade curricular, visualize dependências e organize seus semestres.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
-            <button
-              onClick={() => router.push("/login")}
-              className="flex-1 px-6 py-3 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition font-medium"
-            >
+            <Button variant="secondary" className="flex-1" onClick={() => router.push("/login")}>
               Entrar
-            </button>
-            <button
-              onClick={() => router.push("/register")}
-              className="flex-1 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition font-medium"
-            >
+            </Button>
+            <Button className="flex-1" onClick={() => router.push("/register")}>
               Criar Conta
-            </button>
+            </Button>
           </div>
           <div className="relative my-2">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Ou
-              </span>
+              <span className="bg-background px-2 text-muted-foreground">Ou</span>
             </div>
           </div>
-          <button
-            onClick={() => router.push("/setup")}
-            className="px-6 py-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground rounded-lg transition font-medium"
-          >
+          <Button variant="outline" onClick={() => router.push("/setup")}>
             Continuar sem conta
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -168,7 +158,7 @@ export default function Home() {
       (studentInfo && isScheduleLoading)
     ) {
       return (
-        <div className="min-h-screen flex items-center justify-center">
+        <div className="auth-screen">
           <div className="text-center">
             <div className="mb-4">Carregando seu MyUFSC...</div>
             {/* ... existing loading text ... */}
@@ -185,7 +175,7 @@ export default function Home() {
     if (!studentInfo) {
       if (isAuthenticated) {
         return (
-          <div className="min-h-screen flex items-center justify-center">
+          <div className="auth-screen">
             <div className="text-center text-muted-foreground">
               Informações do estudante ausentes. Redirecionando para login...
             </div>

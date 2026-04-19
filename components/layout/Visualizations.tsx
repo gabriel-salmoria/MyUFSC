@@ -102,7 +102,7 @@ export default function Visualizations({
         <div className="flex justify-between items-center mb-2">
           {viewMode === ViewMode.CURRICULUM ? (
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-semibold text-foreground">
+              <h2 className="section-heading">
                 Visão Geral:
               </h2>
               {/* Custom degree picker with badge labels */}
@@ -178,7 +178,7 @@ export default function Visualizations({
               </div>
             </div>
           ) : (
-            <h2 className="text-xl font-semibold text-foreground">
+            <h2 className="section-heading">
               Disciplinas Optativas
             </h2>
           )}
@@ -200,7 +200,7 @@ export default function Visualizations({
         </div>
 
         <div
-          className="border border-border rounded-lg overflow-hidden shadow-md bg-card"
+          className="panel"
           // Removed fixed height style to allow auto-sizing
         >
           {viewMode === ViewMode.CURRICULUM ? (
@@ -238,7 +238,7 @@ export default function Visualizations({
 
       <div>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-2">
-          <h2 className="text-xl font-semibold text-foreground m-0">
+          <h2 className="section-heading m-0">
             Meu Progresso
           </h2>
           <p className="text-sm text-muted-foreground italic">
@@ -248,7 +248,7 @@ export default function Visualizations({
           </p>
         </div>
         <div
-          className="border border-border rounded-lg overflow-hidden shadow-md bg-card"
+          className="panel"
           // Removed fixed height style
         >
           <ProgressVisualizer

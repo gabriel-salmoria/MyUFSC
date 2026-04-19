@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import useEncryptedData from "@/hooks/setup/LoadUser";
 import { useStudentStore } from "@/lib/student-store";
 import { StudentInfo } from "@/types/student-plan";
@@ -55,14 +56,14 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="w-full max-w-md p-8 space-y-6 bg-card rounded-lg shadow-lg">
-        <h1 className="text-2xl font-bold text-center text-foreground">
+    <div className="auth-screen">
+      <div className="auth-card">
+        <h1 className="auth-heading">
           Entrar
         </h1>
 
         {error && (
-          <div className="p-3 text-sm text-red-500 bg-red-100 rounded">
+          <div className="auth-error">
             {error}
           </div>
         )}
@@ -71,7 +72,7 @@ export default function LoginPage() {
           <div>
             <label
               htmlFor="username"
-              className="block text-sm font-medium text-foreground"
+              className="form-label"
             >
               Usuário
             </label>
@@ -82,7 +83,7 @@ export default function LoginPage() {
               onChange={(e) =>
                 setFormData({ ...formData, username: e.target.value })
               }
-              className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2"
+              className="form-input"
               required
             />
           </div>
@@ -90,7 +91,7 @@ export default function LoginPage() {
           <div>
             <label
               htmlFor="password"
-              className="block text-sm font-medium text-foreground"
+              className="form-label"
             >
               Senha
             </label>
@@ -101,18 +102,14 @@ export default function LoginPage() {
               onChange={(e) =>
                 setFormData({ ...formData, password: e.target.value })
               }
-              className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2"
+              className="form-input"
               required
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition disabled:opacity-50"
-          >
+          <Button type="submit" disabled={isLoading} className="w-full">
             {isLoading ? "Entrando..." : "Entrar"}
-          </button>
+          </Button>
         </form>
 
         <div className="text-center text-sm text-foreground">

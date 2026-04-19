@@ -36,7 +36,7 @@ function setGlobal<T>(key: string, val: T): void {
   (global as any)[key] = val;
 }
 
-async function buildAdapter(): Promise<DbAdapter> {
+async function buildAdapter(): Promise<DbAdapter & { _pglite?: any }> {
   if (PROVIDER === "neon") {
     if (!process.env.NEON_URL) {
       throw new Error(
@@ -62,6 +62,7 @@ async function buildAdapter(): Promise<DbAdapter> {
   console.log("[db] local PGlite (.dev-db/) ready");
 
   return {
+    _pglite: db,
     async query(sql, params = []) {
       return db.query(sql, params) as unknown as QueryResult;
     },
@@ -121,10 +122,8 @@ export const executeTransaction = async (
       client.release();
     }
   } else {
-    await getAdapter();
-    const { PGlite } = await import("@electric-sql/pglite");
-    const db = new PGlite("./.dev-db");
-    await db.waitReady;
+    const adapter = await getAdapter() as any;
+    const db = adapter._pglite;
     await db.transaction(async (tx: any) => {
       for (const step of steps) {
         await tx.query(step.sql, step.params ?? []);
