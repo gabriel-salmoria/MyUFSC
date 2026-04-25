@@ -20,7 +20,7 @@ import {
   generatePhases,
   generateEquivalenceMap,
 } from "@/parsers/curriculum-parser";
-import { checkPrerequisites } from "@/lib/prerequisites";
+import { checkPrerequisites, computeBlocksCounts } from "@/lib/prerequisites";
 
 import { useStudentStore } from "@/lib/student-store";
 
@@ -213,6 +213,11 @@ export default function CurriculumVisualizer({
     return Math.max(PHASE.BOXES_PER_COLUMN || 6, maxCourses);
   }, [curriculum]);
 
+  const blocksCounts = useMemo(
+    () => computeBlocksCounts(curriculum.courses),
+    [curriculum.courses],
+  );
+
   // Pre-compute ViewStudentCourse arrays per phase so Phase/CourseBox receive stable refs
   const phaseStudentCourses = useMemo(() => {
     const result = new Map<number, ViewStudentCourse[]>();
@@ -251,12 +256,13 @@ export default function CurriculumVisualizer({
             phase: semester.number,
             isHighlighted,
             isDimmed,
+            blocksCount: blocksCounts.get(course.id) ?? 0,
           };
         });
       result.set(semester.number, courses);
     }
     return result;
-  }, [phases, curriculum.courses, mappedCurriculumCourses, highlightAvailableForPhase, studentInfo, equivalenceMap]);
+  }, [phases, curriculum.courses, mappedCurriculumCourses, highlightAvailableForPhase, studentInfo, equivalenceMap, blocksCounts]);
 
   // Use fixed height for the container logic (scrollable), mirroring ProgressVisualizer
   const containerHeight = height || 500;

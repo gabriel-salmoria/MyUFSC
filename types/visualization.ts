@@ -9,6 +9,7 @@ export interface ViewStudentCourse extends StudentCourse {
   course: Course;          // resolved from curriculum cache, not stored
   isHighlighted?: boolean;
   isDimmed?: boolean;
+  blocksCount?: number;    // how many future courses this course transitively unlocks
 }
 
 /**

@@ -1,8 +1,8 @@
 "use client";
 
 // react apenas
-import { Check, Clock, AlertTriangle } from "lucide-react";
-import { useRef, useEffect, useMemo, memo } from "react";
+import { Check, Clock, AlertTriangle, Lock } from "lucide-react";
+import React, { useRef, useEffect, useMemo, memo } from "react";
 
 // utils
 import { cn } from "@/components/ui/utils";
@@ -22,6 +22,12 @@ import {
 
 // store
 import { useStudentStore } from "@/lib/student-store";
+
+function blocksCountStyle(count: number): React.CSSProperties {
+  if (count >= 9) return { color: "#dc2626", backgroundColor: "#fee2e2" };
+  if (count >= 4) return { color: "#ea580c", backgroundColor: "#ffedd5" };
+  return { color: "#d97706", backgroundColor: "#fef3c7" };
+}
 
 interface CourseBoxProps {
   position: CoursePosition;
@@ -150,7 +156,19 @@ const CourseBox = memo(function CourseBox({
         <>
           <div className="flex items-center justify-between">
             <div className={CSS_CLASSES.COURSE_ID}>{studentCourse.course.id}</div>
-            {statusIcon}
+            <div className="flex items-center gap-0.5">
+              {studentCourse.blocksCount != null && studentCourse.blocksCount > 0 && (
+                <span
+                  className="flex items-center gap-px text-[9px] font-semibold leading-none px-1 py-0.5 rounded"
+                  style={blocksCountStyle(studentCourse.blocksCount)}
+                  title={`Desbloqueia ${studentCourse.blocksCount} disciplina${studentCourse.blocksCount !== 1 ? "s" : ""}`}
+                >
+                  <Lock className="w-2 h-2" />
+                  {studentCourse.blocksCount}
+                </span>
+              )}
+              {statusIcon}
+            </div>
           </div>
           <div className={CSS_CLASSES.COURSE_NAME}>{studentCourse.course.name}</div>
         </>

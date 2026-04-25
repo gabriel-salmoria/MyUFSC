@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import type { Course } from "@/types/curriculum";
-import { courseMap } from "@/parsers/curriculum-parser";
+import { useCourseMap } from "@/hooks/useCourseMap";
 
 export interface Connection {
   from: string;
@@ -12,6 +12,7 @@ export const useDependencyGraph = (
   course: Course | null,
   isVisible: boolean,
 ) => {
+  const courseMap = useCourseMap();
   const [connections, setConnections] = useState<Connection[]>([]);
   const [prerequisiteCourses, setPrerequisiteCourses] = useState<Course[]>([]);
   const [coursesDepth, setCoursesDepth] = useState<Map<string, number>>(
@@ -63,7 +64,7 @@ export const useDependencyGraph = (
     setCoursesDepth(depthMap);
     setPrerequisiteCourses(prerequisites);
     setConnections(newConnections);
-  }, [course, isVisible]);
+  }, [course, isVisible, courseMap]);
 
   return {
     connections,
