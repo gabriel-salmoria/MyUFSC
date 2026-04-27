@@ -76,7 +76,7 @@ export default function DependencyTree({
 
   const cleanupDashboard = () => {
     // Remove dashboard highlights (kept minimal for essential cleanup)
-    document.querySelectorAll('.border.rounded-lg.overflow-hidden.shadow-md').forEach(dashboard => {
+    document.querySelectorAll('.panel').forEach(dashboard => {
       dashboard.classList.remove('ring-1', 'ring-inset', 'ring-blue-300')
       dashboard.querySelectorAll('#dashboard-overlay').forEach(overlay => overlay.remove())
     })

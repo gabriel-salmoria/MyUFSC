@@ -214,7 +214,7 @@ export default function CurriculumVisualizer({
   }, [curriculum]);
 
   const blocksCounts = useMemo(
-    () => computeBlocksCounts(curriculum.courses),
+    () => computeBlocksCounts(curriculum.courses.filter(c => c.type === "mandatory")),
     [curriculum.courses],
   );
 
@@ -256,7 +256,7 @@ export default function CurriculumVisualizer({
             phase: semester.number,
             isHighlighted,
             isDimmed,
-            blocksCount: blocksCounts.get(course.id) ?? 0,
+            blocksCount: isHighlighted ? (blocksCounts.get(course.id) ?? 0) : undefined,
           };
         });
       result.set(semester.number, courses);

@@ -159,11 +159,11 @@ const CourseBox = memo(function CourseBox({
             <div className="flex items-center gap-0.5">
               {studentCourse.blocksCount != null && studentCourse.blocksCount > 0 && (
                 <span
-                  className="flex items-center gap-px text-[9px] font-semibold leading-none px-1 py-0.5 rounded"
+                  className="flex items-center gap-0.5 text-xs font-semibold leading-none px-1.5 py-1 rounded"
                   style={blocksCountStyle(studentCourse.blocksCount)}
                   title={`Desbloqueia ${studentCourse.blocksCount} disciplina${studentCourse.blocksCount !== 1 ? "s" : ""}`}
                 >
-                  <Lock className="w-2 h-2" />
+                  <Lock className="w-3 h-3" />
                   {studentCourse.blocksCount}
                 </span>
               )}

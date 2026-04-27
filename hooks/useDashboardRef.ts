@@ -16,9 +16,7 @@ export const useDashboardRef = (course: Course | null, isVisible: boolean) => {
 
     // Find the dashboard containing the course
     const findSourceDashboard = () => {
-      const dashboardContainers = document.querySelectorAll(
-        ".border.rounded-lg.overflow-hidden.shadow-md",
-      );
+      const dashboardContainers = document.querySelectorAll(".panel");
 
       for (const dashboard of dashboardContainers) {
         const courseElement = dashboard.querySelector(
