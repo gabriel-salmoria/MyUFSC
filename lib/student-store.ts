@@ -178,6 +178,21 @@ export const useStudentStore = create<StudentStore>()(
             // Deep clone to prevent "read-only" errors if `info` contains frozen objects
             state.studentInfo = JSON.parse(JSON.stringify(info));
 
+            // Migrate old StudentCourse formats → { courseId, credits, ... }
+            state.studentInfo!.plans?.forEach((plan: any) => {
+              plan.semesters?.forEach((semester: any) => {
+                semester.courses = (semester.courses || []).map((sc: any) => {
+                  if (sc.course && !sc.courseId) {
+                    return { courseId: sc.course.id || sc.id || "", credits: sc.course.credits || 0, status: sc.status, grade: sc.grade, class: sc.class, phase: sc.phase };
+                  }
+                  if (!sc.courseId && sc.id) {
+                    return { courseId: sc.id, credits: sc.credits || 0, status: sc.status, grade: sc.grade, class: sc.class, phase: sc.phase };
+                  }
+                  return sc;
+                });
+              });
+            });
+
             if (
               info.currentPlan == null ||
               !info.plans ||
@@ -581,9 +596,21 @@ export const useStudentStore = create<StudentStore>()(
             plan.semesters?.forEach((semester: any) => {
               semester.courses = (semester.courses || []).map((sc: any) => {
                 if (sc.course && !sc.courseId) {
+                  // Old format: { course: Course, id?, ... }
                   return {
                     courseId: sc.course.id || sc.id || "",
                     credits: sc.course.credits || 0,
+                    status: sc.status,
+                    grade: sc.grade,
+                    class: sc.class,
+                    phase: sc.phase,
+                  };
+                }
+                if (!sc.courseId && sc.id) {
+                  // Old format: Course object stored directly as StudentCourse
+                  return {
+                    courseId: sc.id,
+                    credits: sc.credits || 0,
                     status: sc.status,
                     grade: sc.grade,
                     class: sc.class,
