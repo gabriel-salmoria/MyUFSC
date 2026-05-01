@@ -5,6 +5,11 @@ function getPool(): Pool {
   if (!(global as any)._sharedPool) {
     (global as any)._sharedPool = new Pool({
       connectionString: process.env.NEON_URL!,
+      max: 5,
+      idleTimeoutMillis: 0,              // never evict idle clients from the pool
+      connectionTimeoutMillis: 10_000,
+      keepAlive: true,                   // send TCP keep-alive packets
+      keepAliveInitialDelayMillis: 10_000,
     });
   }
   return (global as any)._sharedPool;

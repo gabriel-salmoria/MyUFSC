@@ -25,6 +25,20 @@ export async function register() {
       `);
 
       console.log("[instrumentation] DB adapter pre-warmed.");
+
+      // Neon's compute auto-suspends after 5 minutes of inactivity, adding
+      // 500–1500 ms to the next query. Ping every 4 minutes to keep it awake.
+      // Guard against multiple registrations during HMR / module reloads.
+      if (!(global as any)._heartbeatStarted) {
+        (global as any)._heartbeatStarted = true;
+        setInterval(async () => {
+          try {
+            await executeQuery("SELECT 1");
+          } catch (err) {
+            console.warn("[instrumentation] DB heartbeat failed:", err);
+          }
+        }, 4 * 60 * 1000);
+      }
     } catch (err) {
       console.warn("[instrumentation] DB pre-warm failed:", err);
     }

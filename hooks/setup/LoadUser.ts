@@ -30,8 +30,10 @@ export default function useEncryptedData({
   // Cache the PBKDF2-derived key — 10 000 iterations is expensive; password never
   // changes during a session so the result is always the same.
   const derivedKeyCache = useRef<{ hashedPwd: string; key: string } | null>(null);
+  // Tracks the JSON of the last successfully saved data so unchanged saves are instant.
+  const lastSavedRef = useRef<string | null>(null);
 
-  // Load password from sessionStorage on initial mount
+  // Load password from localStorage on initial mount.
   useEffect(() => {
     if (typeof window !== "undefined") {
       const storedPassword = localStorage.getItem("enc_pwd");
@@ -41,6 +43,25 @@ export default function useEncryptedData({
     }
   }, []);
 
+  // Pre-warm the derived key during browser idle time so the first save click
+  // doesn't pay the PBKDF2 cost.
+  useEffect(() => {
+    if (!password) return;
+    const warm = () => {
+      const hashedPwd = hashString(password);
+      if (!derivedKeyCache.current || derivedKeyCache.current.hashedPwd !== hashedPwd) {
+        derivedKeyCache.current = { hashedPwd, key: deriveEncryptionKey(hashedPwd) };
+      }
+    };
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      const id = (window as any).requestIdleCallback(warm, { timeout: 4000 });
+      return () => (window as any).cancelIdleCallback(id);
+    } else {
+      const id = setTimeout(warm, 1500);
+      return () => clearTimeout(id);
+    }
+  }, [password]);
+
   // Decrypt data from server response
   const decryptData = useCallback(
     (encryptedData: any, iv: any, password: string) => {
@@ -49,6 +70,9 @@ export default function useEncryptedData({
 
         setStudentData(decrypted);
         setPassword(password);
+        // Seed the save cache with the server's current state so an immediate
+        // save (nothing changed) is a no-op.
+        lastSavedRef.current = JSON.stringify(decrypted);
 
         // Store password in localStorage to persist between page reloads
         if (typeof window !== "undefined") {
@@ -134,6 +158,10 @@ export default function useEncryptedData({
         return false;
       }
 
+      // Skip the round-trip entirely if nothing changed since the last save.
+      const dataStr = JSON.stringify(dataToSave);
+      if (lastSavedRef.current === dataStr) return true;
+
       setIsLoading(true);
       setStudentData(dataToSave);
 
@@ -159,6 +187,7 @@ export default function useEncryptedData({
           throw new Error(result.error || "Failed to save encrypted data");
         }
 
+        lastSavedRef.current = dataStr;
         return true;
       } catch (error) {
         if (onSaveError) {
@@ -171,7 +200,7 @@ export default function useEncryptedData({
         setIsLoading(false);
       }
     },
-    [password, studentData, onSaveError],
+    [password, onSaveError],
   );
 
   // Initialize auth info from the API
