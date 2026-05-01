@@ -16,9 +16,16 @@ export enum CourseStatus {
  * Represents a course in the student's personal plan.
  * Only stores the course ID — the full Course object is resolved at render
  * time from the curriculum cache, keeping persisted data small.
+ *
+ * The same course may appear more than once in the plan (e.g. a student who
+ * takes a sport/elective course in multiple semesters). Each enrollment slot
+ * gets its own `instanceId` so the store can distinguish between them.
+ * Legacy data that was saved before this field was added will have
+ * `instanceId === undefined`; those entries are matched by `courseId` only.
  */
 export interface StudentCourse {
   courseId: string;
+  instanceId?: string; // unique per enrollment slot; undefined for legacy data
   credits: number;   // denormalized from Course, needed for totalCredits without cache
   status: CourseStatus;
   grade?: number;

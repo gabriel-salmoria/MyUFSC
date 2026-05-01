@@ -12,6 +12,26 @@ import { CourseStatus } from "@/types/student-plan";
 import type { Course, Curriculum } from "@/types/curriculum";
 import { PHASE_DIMENSIONS } from "@/styles/course-theme";
 
+/** Generate a short random ID for a new course enrollment slot. */
+function newInstanceId(): string {
+  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
+/**
+ * Find the index of a StudentCourse within an array.
+ * Prefers matching by instanceId (precise, for duplicate-course support).
+ * Falls back to courseId-only match for legacy data that has no instanceId.
+ */
+function findCourseIndex(courses: StudentCourse[], needle: StudentCourse): number {
+  // 1. Try exact instanceId match (new data)
+  if (needle.instanceId) {
+    const idx = courses.findIndex((c) => c.instanceId === needle.instanceId);
+    if (idx !== -1) return idx;
+  }
+  // 2. Fall back: match by courseId where neither side has an instanceId (legacy)
+  return courses.findIndex((c) => c.courseId === needle.courseId && !c.instanceId && !needle.instanceId);
+}
+
 // Helper function to ensure we always have at least TOTAL_SEMESTERS,
 // and exactly one empty semester at the end to allow for dropping new items.
 const updateView = (semesters: StudentSemester[]) => {
@@ -302,11 +322,10 @@ export const useStudentStore = create<StudentStore>()(
             let plan = CheckStudentInfo(state.studentInfo);
             if (!plan) return;
 
-            // Prevent duplicates
-            const isAlreadyInPlan = plan.semesters.some((s) =>
-              s.courses.some((c) => c.courseId === course.id),
-            );
-            if (isAlreadyInPlan) return;
+            // Duplicate courses are intentionally allowed — a student may take
+            // the same course in multiple semesters (e.g. sport electives).
+            // Each enrollment gets a unique instanceId so they can be managed
+            // independently.
 
             const targetSemester = plan.semesters.find(
               (s) => s.number === semesterNumber,
@@ -317,6 +336,7 @@ export const useStudentStore = create<StudentStore>()(
 
             const newStudentCourse: StudentCourse = {
               courseId: course.id,
+              instanceId: newInstanceId(),
               credits: course.credits || 0,
               status: CourseStatus.PLANNED,
               phase: semesterNumber,
@@ -342,9 +362,7 @@ export const useStudentStore = create<StudentStore>()(
             let courseIndex = -1;
 
             for (const s of plan.semesters) {
-              courseIndex = s.courses.findIndex(
-                (c) => c.courseId === studentCourse.courseId,
-              );
+              courseIndex = findCourseIndex(s.courses, studentCourse);
               if (courseIndex !== -1) {
                 sourceSemester = s;
                 break;
@@ -389,9 +407,7 @@ export const useStudentStore = create<StudentStore>()(
             let courseIndex = -1;
 
             for (const s of plan.semesters) {
-              courseIndex = s.courses.findIndex(
-                (c) => c.courseId === studentCourse.courseId,
-              );
+              courseIndex = findCourseIndex(s.courses, studentCourse);
               if (courseIndex !== -1) {
                 sourceSemester = s;
                 break;
@@ -420,13 +436,12 @@ export const useStudentStore = create<StudentStore>()(
             const plan = CheckStudentInfo(state.studentInfo);
             if (!plan) return;
             let semester = null;
-            let courseInStore = null;
+            let courseInStore: StudentCourse | null = null;
 
             for (const s of plan.semesters) {
-              courseInStore = s.courses.find(
-                (c) => c.courseId === studentCourse.courseId,
-              );
-              if (courseInStore) {
+              const idx = findCourseIndex(s.courses, studentCourse);
+              if (idx !== -1) {
+                courseInStore = s.courses[idx];
                 semester = s;
                 break;
               }
@@ -437,7 +452,9 @@ export const useStudentStore = create<StudentStore>()(
 
               if (
                 state.selectedStudentCourse &&
-                state.selectedStudentCourse.courseId === studentCourse.courseId
+                (state.selectedStudentCourse.instanceId
+                  ? state.selectedStudentCourse.instanceId === studentCourse.instanceId
+                  : state.selectedStudentCourse.courseId === studentCourse.courseId)
               ) {
                 state.selectedStudentCourse = courseInStore;
               }
@@ -457,11 +474,9 @@ export const useStudentStore = create<StudentStore>()(
             let courseInStore: StudentCourse | undefined;
 
             for (const semester of plan.semesters) {
-              const found = semester.courses.find(
-                (c) => c.courseId === studentCourse.courseId,
-              );
-              if (found) {
-                courseInStore = found;
+              const idx = findCourseIndex(semester.courses, studentCourse);
+              if (idx !== -1) {
+                courseInStore = semester.courses[idx];
                 break;
               }
             }
@@ -475,7 +490,9 @@ export const useStudentStore = create<StudentStore>()(
 
               if (
                 state.selectedStudentCourse &&
-                state.selectedStudentCourse.courseId === studentCourse.courseId
+                (state.selectedStudentCourse.instanceId
+                  ? state.selectedStudentCourse.instanceId === studentCourse.instanceId
+                  : state.selectedStudentCourse.courseId === studentCourse.courseId)
               ) {
                 state.selectedStudentCourse = courseInStore;
               }
@@ -490,11 +507,9 @@ export const useStudentStore = create<StudentStore>()(
             if (!plan) return;
 
             for (const semester of plan.semesters) {
-              const courseInStore = semester.courses.find(
-                (c) => c.courseId === studentCourse.courseId,
-              );
-              if (courseInStore) {
-                courseInStore.class = classId;
+              const idx = findCourseIndex(semester.courses, studentCourse);
+              if (idx !== -1) {
+                semester.courses[idx].class = classId;
                 return;
               }
             }

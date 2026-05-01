@@ -38,7 +38,9 @@ export default function Phase({
   // Stable position objects so CourseBox drag useEffect doesn't re-run on every render
   const positions = useMemo(() =>
     studentCourses.map((sc, index) => ({
-      courseId: sc.course.id,
+      // Use instanceId as the position key so two instances of the same course
+      // don't share a React identity. Fall back to courseId+index for legacy data.
+      courseId: sc.instanceId ?? `${sc.course.id}-${index}`,
       x: xOffset,
       y: index * COURSE_BOX.SPACING_Y + COURSE_BOX.SPACING_Y,
       width: boxWidth,
@@ -93,7 +95,7 @@ export default function Phase({
       {/* Course boxes - positioned dynamically within the phase */}
       {studentCourses.map((studentCourse: ViewStudentCourse, index) => (
         <CourseBox
-          key={`student-course-${semesterNumber}-${index}`}
+          key={studentCourse.instanceId ?? `${semesterNumber}-${studentCourse.course.id}-${index}`}
           studentCourse={studentCourse}
           position={positions[index]}
           isEmpty={false}
