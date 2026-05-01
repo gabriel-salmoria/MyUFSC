@@ -66,7 +66,7 @@
     "immer": "^11.1.4",
     "input-otp": "1.4.2",
     "lucide-react": "^0.561.0",
-    "next": "16.2.1",
+    "next": "16.2.3",
     "next-themes": "^0.4.6",
     "pdf-parse": "^1.1.1",
     "pg": "^8.20.0",
@@ -89,7 +89,7 @@
     "@types/pdf-parse": "^1.1.5",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "postcss": "^8.5.8",
+    "postcss": "^8.5.10",
     "tailwindcss": "^4.2.2",
     "tsconfig-paths": "^4.2.0",
     "tsx": "^4.21.0",
@@ -97,5 +97,10 @@
   },
   "overrides": {
     "react-is": "^19.0.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "postcss": "^8.5.10"
+    }
   }
 }

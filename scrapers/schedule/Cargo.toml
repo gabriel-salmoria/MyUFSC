@@ -7,18 +7,18 @@ license = "GPL-2+"
 
 [dependencies]
 anyhow = "1.0.86"
-thiserror = "1.0.61"
+thiserror = "1.0.69"
 time = "0.3.47"
 bytes = "1.11.1"
-tokio = { version = "1.38", features = ["rt-multi-thread", "macros"] }
-futures = "0.3.30"
-reqwest = { version = "0.12.5", features = ["cookies"] }
-select = "0.6.0"
-serde = { version = "1.0.203", features = ["derive"] }
-chrono = { version = "0.4.38", features = ["now"] }
+tokio = { version = "1.50", features = ["rt-multi-thread", "macros"] }
+futures = "0.3.32"
+reqwest = { version = "0.12.28", features = ["cookies"] }
+select = "0.6.1"
+serde = { version = "1.0.228", features = ["derive"] }
+chrono = { version = "0.4.44", features = ["now"] }
 enum-iterator = "2.1.0"
-serde_json = "1.0.120"
+serde_json = "1.0.149"
 serde_tuple = "0.5.0"
 itertools = "0.13.0"
 log = "0.4.22"
-env_logger = "0.11.3"
+env_logger = "0.11.10"
