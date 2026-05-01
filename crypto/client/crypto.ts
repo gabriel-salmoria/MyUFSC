@@ -55,6 +55,22 @@ export function decryptStudentData(
 }
 
 /**
+ * Encrypts student data using an already-derived key (skip expensive PBKDF2).
+ */
+export function encryptWithKey(
+  studentData: StudentInfo,
+  derivedKey: string,
+): { iv: string; encryptedData: string } {
+  const iv = CryptoJS.lib.WordArray.random(16);
+  const encrypted = CryptoJS.AES.encrypt(JSON.stringify(studentData), derivedKey, {
+    iv,
+    mode: CryptoJS.mode.CBC,
+    padding: CryptoJS.pad.Pkcs7,
+  });
+  return { iv: iv.toString(), encryptedData: encrypted.toString() };
+}
+
+/**
  * Encrypts student data for sending to server
  */
 export function encryptStudentData(

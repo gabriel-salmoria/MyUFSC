@@ -1,11 +1,11 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   decryptStudentData,
-  encryptStudentData,
+  encryptWithKey,
   hashString,
+  deriveEncryptionKey,
 } from "@/crypto/client/crypto";
 import type { StudentInfo } from "@/types/student-plan";
-import { User } from "lucide-react";
 
 interface UseEncryptedDataProps {
   onSaveError?: (error: any) => void;
@@ -27,6 +27,9 @@ export default function useEncryptedData({
   const [password, setPassword] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [authInfo, setAuthInfo] = useState<AuthInfo | null>(null);
+  // Cache the PBKDF2-derived key — 10 000 iterations is expensive; password never
+  // changes during a session so the result is always the same.
+  const derivedKeyCache = useRef<{ hashedPwd: string; key: string } | null>(null);
 
   // Load password from sessionStorage on initial mount
   useEffect(() => {
@@ -135,7 +138,11 @@ export default function useEncryptedData({
       setStudentData(dataToSave);
 
       try {
-        const encrypted = encryptStudentData(dataToSave, hashString(password));
+        const hashedPwd = hashString(password);
+        if (!derivedKeyCache.current || derivedKeyCache.current.hashedPwd !== hashedPwd) {
+          derivedKeyCache.current = { hashedPwd, key: deriveEncryptionKey(hashedPwd) };
+        }
+        const encrypted = encryptWithKey(dataToSave, derivedKeyCache.current.key);
 
         const response = await fetch("/api/user/update", {
           method: "POST",

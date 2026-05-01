@@ -108,6 +108,13 @@ export default function Header({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [savingDots, setSavingDots] = useState(1);
+
+  useEffect(() => {
+    if (!isSaving) { setSavingDots(1); return; }
+    const interval = setInterval(() => setSavingDots((d) => (d % 3) + 1), 400);
+    return () => clearInterval(interval);
+  }, [isSaving]);
 
   // Name Editing State
   const [isEditingName, setIsEditingName] = useState(false);
@@ -174,7 +181,7 @@ export default function Header({
   }, [isHoveringSave]);
 
   // Use the encrypted data hook for saving
-  const { saveData, authInfo, initializeAuthInfo } = useEncryptedData({
+  const { saveData } = useEncryptedData({
     onSaveError: (error) => {
       setSaveError(
         error instanceof Error ? error.message : "Failed to save data",
@@ -186,21 +193,6 @@ export default function Header({
   // Handle saving data
   const handleSaveData = async () => {
     if (!studentInfo) return;
-
-    // If we don't have auth info, retrieve it first
-    if (!authInfo) {
-      try {
-        const initialized = await initializeAuthInfo();
-        if (!initialized) {
-          setSaveError("Could not retrieve authentication information");
-          return;
-        }
-      } catch (error) {
-        setSaveError("Failed to retrieve authentication information");
-        // return; // Continue? No, error.
-        return;
-      }
-    }
 
     setIsSaving(true);
     setSaveError("");
@@ -327,7 +319,7 @@ export default function Header({
                   onMouseEnter={() => setIsHoveringSave(true)}
                   className="bg-green-600 hover:bg-green-700 relative z-10">
                   <Save className="w-4 h-4" />
-                  {isSaving ? "Salvando..." : "Salvar"}
+                  {isSaving ? `Salvando${".".repeat(savingDots)}` : "Salvar"}
                 </Button>
 
                 {/* Save Encryption Tooltip Bubble */}

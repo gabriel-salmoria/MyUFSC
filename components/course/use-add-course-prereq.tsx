@@ -62,11 +62,21 @@ export function useAddCoursePrereq() {
   const moveCourse = useStudentStore((s) => s.moveCourse);
 
   const showToast = useCallback((course: Course, type: 'add' | 'move', missingPrereqs: string[]) => {
-    setMissing(missingPrereqs);
+    const courseNameMap = new Map<string, string>();
+    if (studentInfo) {
+      [studentInfo.currentDegree, ...(studentInfo.interestedDegrees || [])]
+        .flatMap(id => curriculumCache[id]?.courses ?? [])
+        .forEach(c => { if (!courseNameMap.has(c.id)) courseNameMap.set(c.id, c.name); });
+    }
+    const resolved = missingPrereqs.map(id => {
+      const name = courseNameMap.get(id);
+      return name ? `${name} (${id})` : id;
+    });
+    setMissing(resolved);
     setPendingAction({ type, course });
     if (dismissTimeoutRef.current) clearTimeout(dismissTimeoutRef.current);
     dismissTimeoutRef.current = setTimeout(() => setPendingAction(null), 5000);
-  }, []);
+  }, [studentInfo, curriculumCache]);
 
   const buildEquivalenceMap = useCallback(() => {
     if (!studentInfo) return generateEquivalenceMap([]);

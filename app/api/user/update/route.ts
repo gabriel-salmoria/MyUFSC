@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import type { EncryptedUser } from "@/types/user";
-// import { hashUsername } from "@/crypto/server/crypto";
-import { getUserByHashedUsername, updateUser } from "@/database/users/db-user";
+import { updateUser } from "@/database/users/db-user";
 
 export async function POST(request: Request) {
   try {
@@ -25,20 +23,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get the hashed username
-    const hashedUsername = userId;
-
-    // Check if user exists in database
-    const userData = await getUserByHashedUsername(hashedUsername);
-    if (!userData) {
+    const updated = await updateUser(userId, { iv, encryptedData });
+    if (!updated) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
-
-    // Update user in the database
-    await updateUser(hashedUsername, {
-      iv,
-      encryptedData,
-    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

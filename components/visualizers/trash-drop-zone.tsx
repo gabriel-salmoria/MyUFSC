@@ -87,19 +87,13 @@ export default function TrashDropZone() {
   if (!isDragging || !isFromProgress) return null;
 
   return (
-    <div
-      className="fixed bottom-8 left-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 duration-200"
-      style={{
-        transform: isActive
-          ? "translateX(-50%) scale(1.1)"
-          : "translateX(-50%) scale(1)",
-      }}
-    >
+    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-200">
       <div
         className={`
           flex flex-col items-center justify-center
           w-28 h-28 rounded-full shadow-lg
-          ${isActive ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}
+          ${isActive ? "bg-destructive text-destructive-foreground scale-110" : "bg-muted text-muted-foreground scale-100"}
           transition-all duration-200
         `}
         onDragOver={(e) => {
@@ -135,6 +129,7 @@ export default function TrashDropZone() {
         <div className="text-sm mt-1 font-medium text-center">
           {isActive ? "Soltar para remover" : "Arraste aqui para remover"}
         </div>
+      </div>
       </div>
     </div>
   );
