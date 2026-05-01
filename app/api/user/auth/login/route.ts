@@ -15,18 +15,11 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { hUsername, hPassword } = body;
 
-    console.log("[login] hashing username…");
-    const hashedUsername = hashUsername(hUsername);
-    console.log("[login] looking up user:", hashedUsername.slice(0, 12) + "…");
-
-    // Validate input
-    if (!hashedUsername || !hPassword) {
-      console.log("[login] missing fields");
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 },
-      );
+    if (!hUsername || !hPassword) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
+
+    const hashedUsername = hashUsername(hUsername);
 
     // Get user from database
     const userData = await getUserByHashedUsername(hashedUsername);

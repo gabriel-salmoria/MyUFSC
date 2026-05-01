@@ -9,6 +9,8 @@ export async function register() {
       await executeQuery("SELECT 1");
 
       // Ensure aggregates query indexes exist (idempotent, cheap if already present)
+      // pg_trgm enables trigram indexes that make LIKE '%...%' searches fast.
+      await executeQuery(`CREATE EXTENSION IF NOT EXISTS pg_trgm`).catch(() => {});
       await executeQuery(`
         CREATE INDEX IF NOT EXISTS idx_professor_courses_course_id
         ON professor_courses ("courseId")
@@ -23,6 +25,10 @@ export async function register() {
         ON reviews ("professorId", "courseId")
         WHERE "parentId" IS NULL
       `);
+      await executeQuery(`
+        CREATE INDEX IF NOT EXISTS idx_professor_courses_professor_trgm
+        ON professor_courses USING gin ("professorId" gin_trgm_ops)
+      `).catch(() => {});
 
       console.log("[instrumentation] DB adapter pre-warmed.");
 

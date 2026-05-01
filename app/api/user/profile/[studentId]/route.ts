@@ -1,8 +1,35 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { unstable_cache } from "next/cache";
 import { getUserByHashedUsername } from "@/database/users/db-user";
 import { getCurriculumByProgramId } from "@/database/curriculum/db-curriculum";
 import { getScheduleByProgramAndSemester, getLatestSemester } from "@/database/schedule/db-schedule";
+
+// Mirror the same cache keys used by the dedicated curriculum/schedule routes so
+// prefetch calls share their cache rather than hitting the DB independently.
+function getCachedCurriculum(programId: string) {
+  return unstable_cache(
+    () => getCurriculumByProgramId(programId),
+    [`curriculum-${programId}`],
+    { revalidate: 86400 },
+  )();
+}
+
+function getCachedLatestSemester(programId: string) {
+  return unstable_cache(
+    () => getLatestSemester(programId),
+    [`schedule-latest-${programId}`],
+    { revalidate: 3600 },
+  )();
+}
+
+function getCachedSchedule(programId: string, semester: string) {
+  return unstable_cache(
+    () => getScheduleByProgramAndSemester(programId, semester),
+    [`schedule-${programId}-${semester}`],
+    { revalidate: 3600 },
+  )();
+}
 
 // Server-side route handler
 export async function GET(
@@ -31,26 +58,19 @@ export async function GET(
       try {
         const degreesToFetch = prefetchCookie.value.split(",");
 
-        // Fetch curriculums
+        // Fetch curriculums — uses the same unstable_cache as /api/curriculum/[programId]
         const curriculums = await Promise.all(
-          degreesToFetch.map(async (id) => {
-            try {
-              return await getCurriculumByProgramId(id);
-            } catch (e) {
-              return null;
-            }
-          })
+          degreesToFetch.map((id) => getCachedCurriculum(id).catch(() => null))
         );
 
-        // Fetch schedules (latest semester)
-        // We don't have the semester from the cookie, so we default to latest
+        // Fetch schedules — uses the same unstable_cache as /api/schedule
         const schedules = await Promise.all(
           degreesToFetch.map(async (id) => {
             try {
-              const latest = await getLatestSemester(id);
+              const latest = await getCachedLatestSemester(id);
               if (!latest) return null;
-              return await getScheduleByProgramAndSemester(id, latest);
-            } catch (e) {
+              return await getCachedSchedule(id, latest);
+            } catch {
               return null;
             }
           })

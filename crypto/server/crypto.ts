@@ -26,16 +26,21 @@ function legacyHashUsername(username: string): string {
 
 // New enhanced hash with 10k PBKDF2 rounds total (1 legacy + 9999 new)
 export function hashUsername(username: string): string {
+  // This function runs bcrypt.hashSync (blocking, ~100ms) + PBKDF2(9999 iters).
+  // The result is deterministic for a given input, so cache it globally to avoid
+  // re-blocking the event loop on every login attempt by the same user.
+  const cache: Map<string, string> = ((global as any)._usernameHashCache ??= new Map());
+  if (cache.has(username)) return cache.get(username)!;
+
   const legacyHash = legacyHashUsername(username);
 
-  // Apply 9,999 rounds of PBKDF2 over the existing bcrypt hash
-  // This ensures perfect compatibility with offline DB migration
   const enhancedHash = CryptoJS.PBKDF2(legacyHash, "MyUFSC_V2_PEPPER", {
     keySize: 256 / 32,
     iterations: 9999,
     hasher: CryptoJS.algo.SHA256
   }).toString(CryptoJS.enc.Hex);
 
+  cache.set(username, enhancedHash);
   return enhancedHash;
 }
 

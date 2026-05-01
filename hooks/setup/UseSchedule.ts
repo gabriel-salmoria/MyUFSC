@@ -60,7 +60,7 @@ export function useSchedule({
     // We add selectedSemester to the signature to force re-fetch when user changes it
     const degreesSignature = degreesToFetch.join(",") + "_" + (scheduleState.selectedSemester || "LATEST");
 
-    if (degreesSignature !== fetchedForDegreeRef_Schedule.current || scheduleState.scheduleData === null) {
+    if (degreesSignature !== fetchedForDegreeRef_Schedule.current) {
       let active = true;
       const fetchScheduleData = async () => {
         const isInitialLoad = !fetchedForDegreeRef_Schedule.current;
@@ -80,6 +80,7 @@ export function useSchedule({
             const successfulResults = results.filter(r => r !== null);
 
             if (successfulResults.length === 0) {
+              fetchedForDegreeRef_Schedule.current = null;
               setScheduleState((prev) => ({ ...prev, scheduleData: null }));
               if (results.length > 0) {
                 console.error("Failed to load class schedules.");
@@ -130,6 +131,7 @@ export function useSchedule({
         } catch (error) {
           if (active) {
             console.error("An error occurred while loading class schedules.", error);
+            fetchedForDegreeRef_Schedule.current = null;
             setScheduleState((prev) => ({ ...prev, scheduleData: null }));
           }
         } finally {
@@ -150,7 +152,6 @@ export function useSchedule({
     isProfileLoading,
     isCurriculumLoading,
     scheduleState.selectedSemester,
-    scheduleState.scheduleData,
   ]);
 
   return { scheduleState, setScheduleState, isScheduleLoading };

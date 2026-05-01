@@ -93,6 +93,7 @@ function PanelContent({
     studentCourse.status === CourseStatus.COMPLETED &&
       studentCourse.grade === undefined,
   );
+  const [prevStatus, setPrevStatus] = useState<CourseStatus | null>(null);
   const [error, setError] = useState("");
   const [showAllProfs, setShowAllProfs] = useState(false);
   const [profAggregates, setProfAggregates] = useState<Record<string, any>>({});
@@ -157,6 +158,7 @@ function PanelContent({
     setError("");
     const grade = Math.round(val * 2) / 2;
     onSetGrade(studentCourse, grade);
+    setPrevStatus(null);
     setIsEditing(false);
   };
 
@@ -262,7 +264,13 @@ function PanelContent({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setIsEditing(false)}
+                          onClick={() => {
+                            if (prevStatus !== null) {
+                              onChangeStatus(studentCourse, prevStatus);
+                              setPrevStatus(null);
+                            }
+                            setIsEditing(false);
+                          }}
                         >
                           Cancelar
                         </Button>
@@ -310,8 +318,11 @@ function PanelContent({
                 active={studentCourse.status === CourseStatus.COMPLETED}
                 label="Marcar como Concluído"
                 onClick={() => {
-                  onChangeStatus(studentCourse, CourseStatus.COMPLETED);
-                  if (studentCourse.status !== CourseStatus.COMPLETED) setIsEditing(true);
+                  if (studentCourse.status !== CourseStatus.COMPLETED) {
+                    setPrevStatus(studentCourse.status);
+                    onChangeStatus(studentCourse, CourseStatus.COMPLETED);
+                    setIsEditing(true);
+                  }
                 }}
               />
               <ActionButton

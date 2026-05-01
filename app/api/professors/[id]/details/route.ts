@@ -1,6 +1,96 @@
 import { NextResponse } from "next/server";
+import { unstable_cache } from "next/cache";
 import { executeQuery } from "@/database/ready";
 import { generatePseudonym, normalizeProfessorId } from "@/lib/professors";
+
+// Fetches stats, reviews, and replies — nothing user-specific here.
+async function fetchProfessorCore(professorId: string) {
+  const [aggResult, coursesResult, reviewsResult] = await Promise.all([
+    executeQuery(
+      `SELECT
+        "courseId",
+        COUNT(id) as "totalReviews",
+        AVG((scores->>'overall')::numeric) as overall,
+        AVG((scores->>'difficulty')::numeric) as difficulty,
+        AVG((scores->>'didactics')::numeric) as didactics
+       FROM reviews
+       WHERE "professorId" = $1 AND "parentId" IS NULL
+       GROUP BY "courseId"`,
+      [professorId],
+    ),
+    executeQuery(
+      `SELECT "courseId" FROM professor_courses WHERE "professorId" = $1`,
+      [professorId],
+    ),
+    executeQuery(
+      `SELECT id, "courseId", "authorHash", text, scores, "createdAt", "updatedAt"
+       FROM reviews
+       WHERE "professorId" = $1 AND "parentId" IS NULL
+       ORDER BY "createdAt" DESC
+       LIMIT 20`,
+      [professorId],
+    ),
+  ]);
+
+  const statsPerCourse: Record<string, any> = {};
+  for (const row of coursesResult.rows) {
+    statsPerCourse[row.courseId] = { totalReviews: 0, overall: null, difficulty: null, didactics: null };
+  }
+  for (const row of aggResult.rows) {
+    statsPerCourse[row.courseId] = {
+      totalReviews: parseInt(row.totalReviews, 10),
+      overall: row.overall ? parseFloat(row.overall) : null,
+      difficulty: row.difficulty ? parseFloat(row.difficulty) : null,
+      didactics: row.didactics ? parseFloat(row.didactics) : null,
+    };
+  }
+
+  const baseReviews = reviewsResult.rows.map((r: any) => ({
+    id: r.id,
+    courseId: r.courseId,
+    authorHash: r.authorHash,
+    pseudonym: generatePseudonym(r.authorHash, professorId),
+    text: r.text,
+    scores: r.scores,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  }));
+
+  let baseReplies: any[] = [];
+  if (baseReviews.length > 0) {
+    const reviewIds = baseReviews.map((r) => r.id);
+    const repliesResult = await executeQuery(
+      `WITH RECURSIVE reply_tree AS (
+         SELECT id, "parentId", "authorHash", text, "createdAt", "updatedAt"
+         FROM reviews WHERE "parentId" = ANY($1)
+         UNION ALL
+         SELECT r.id, r."parentId", r."authorHash", r.text, r."createdAt", r."updatedAt"
+         FROM reviews r INNER JOIN reply_tree rt ON r."parentId" = rt.id
+       )
+       SELECT * FROM reply_tree ORDER BY "createdAt" ASC`,
+      [reviewIds],
+    );
+    baseReplies = repliesResult.rows.map((r: any) => ({
+      id: r.id,
+      parentId: r.parentId,
+      authorHash: r.authorHash,
+      pseudonym: generatePseudonym(r.authorHash, professorId),
+      text: r.text,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    }));
+  }
+
+  return { statsPerCourse, baseReviews, baseReplies };
+}
+
+function getCachedProfessorCore(professorId: string) {
+  return unstable_cache(
+    () => fetchProfessorCore(professorId),
+    [`prof-details-${professorId}`],
+    { revalidate: 300 },
+  )();
+}
 
 export async function GET(
   request: Request,
@@ -9,117 +99,18 @@ export async function GET(
   try {
     const { id } = await params;
     if (!id) {
-      return NextResponse.json(
-        { error: "Missing professor ID" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Missing professor ID" }, { status: 400 });
     }
     const normalizedId = normalizeProfessorId(decodeURIComponent(id));
 
     const { searchParams } = new URL(request.url);
-    // voterHash is optional — when provided, each review/reply gets a myVote field
     const voterHash = searchParams.get("voterHash") ?? "";
 
-    // 1. Aggregate stats per course + all courses taught
-    const [aggResult, coursesResult, reviewsResult] = await Promise.all([
-      executeQuery(
-        `SELECT
-          "courseId",
-          COUNT(id) as "totalReviews",
-          AVG((scores->>'overall')::numeric) as overall,
-          AVG((scores->>'difficulty')::numeric) as difficulty,
-          AVG((scores->>'didactics')::numeric) as didactics
-        FROM reviews
-        WHERE "professorId" = $1 AND "parentId" IS NULL
-        GROUP BY "courseId"`,
-        [normalizedId],
-      ),
-      executeQuery(
-        `SELECT "courseId" FROM professor_courses WHERE "professorId" = $1`,
-        [normalizedId],
-      ),
-      executeQuery(
-        `SELECT id, "courseId", "authorHash", text, scores, "createdAt", "updatedAt"
-        FROM reviews
-        WHERE "professorId" = $1 AND "parentId" IS NULL
-        ORDER BY "createdAt" DESC
-        LIMIT 20`,
-        [normalizedId],
-      ),
-    ]);
+    // Core data is cached for 5 minutes — only votes are user-specific and fetched fresh.
+    const { statsPerCourse, baseReviews, baseReplies } = await getCachedProfessorCore(normalizedId);
 
-    const statsPerCourse: Record<string, any> = {};
-    for (const row of coursesResult.rows) {
-      statsPerCourse[row.courseId] = {
-        totalReviews: 0,
-        overall: null,
-        difficulty: null,
-        didactics: null,
-      };
-    }
-    for (const row of aggResult.rows) {
-      statsPerCourse[row.courseId] = {
-        totalReviews: parseInt(row.totalReviews, 10),
-        overall: row.overall ? parseFloat(row.overall) : null,
-        difficulty: row.difficulty ? parseFloat(row.difficulty) : null,
-        didactics: row.didactics ? parseFloat(row.didactics) : null,
-      };
-    }
-
-    const baseReviews = reviewsResult.rows.map((r: any) => ({
-      id: r.id,
-      courseId: r.courseId,
-      authorHash: r.authorHash,
-      pseudonym: generatePseudonym(r.authorHash, normalizedId),
-      text: r.text,
-      scores: r.scores,
-      createdAt: r.createdAt,
-      updatedAt: r.updatedAt,
-      upvotes: 0,
-      downvotes: 0,
-      myVote: 0 as 1 | -1 | 0,
-    }));
-
-    // 2. Fetch all replies for those reviews (recursive CTE)
-    let baseReplies: any[] = [];
-    if (baseReviews.length > 0) {
-      const reviewIds = baseReviews.map((r) => r.id);
-      const repliesResult = await executeQuery(
-        `WITH RECURSIVE reply_tree AS (
-          SELECT id, "parentId", "authorHash", text, "createdAt", "updatedAt"
-          FROM reviews
-          WHERE "parentId" = ANY($1)
-          UNION ALL
-          SELECT r.id, r."parentId", r."authorHash", r.text, r."createdAt", r."updatedAt"
-          FROM reviews r
-          INNER JOIN reply_tree rt ON r."parentId" = rt.id
-        )
-        SELECT * FROM reply_tree ORDER BY "createdAt" ASC`,
-        [reviewIds],
-      );
-      baseReplies = repliesResult.rows.map((r: any) => ({
-        id: r.id,
-        parentId: r.parentId,
-        authorHash: r.authorHash,
-        pseudonym: generatePseudonym(r.authorHash, normalizedId),
-        text: r.text,
-        createdAt: r.createdAt,
-        updatedAt: r.updatedAt,
-        upvotes: 0,
-        downvotes: 0,
-        myVote: 0 as 1 | -1 | 0,
-      }));
-    }
-
-    // 3. Single vote query covering reviews + replies together
-    const allIds = [
-      ...baseReviews.map((r) => r.id),
-      ...baseReplies.map((r) => r.id),
-    ];
-    const voteMap: Record<
-      string,
-      { upvotes: number; downvotes: number; myVote: 1 | -1 | 0 }
-    > = {};
+    const allIds = [...baseReviews.map((r) => r.id), ...baseReplies.map((r) => r.id)];
+    const voteMap: Record<string, { upvotes: number; downvotes: number; myVote: 1 | -1 | 0 }> = {};
 
     if (allIds.length > 0) {
       try {
@@ -145,22 +136,13 @@ export async function GET(
       }
     }
 
-    const reviews = baseReviews.map((r) => ({
-      ...r,
-      ...(voteMap[r.id] ?? { upvotes: 0, downvotes: 0, myVote: 0 as const }),
-    }));
-
-    const replies = baseReplies.map((r) => ({
-      ...r,
-      ...(voteMap[r.id] ?? { upvotes: 0, downvotes: 0, myVote: 0 as const }),
-    }));
+    const zero = { upvotes: 0, downvotes: 0, myVote: 0 as const };
+    const reviews = baseReviews.map((r) => ({ ...r, ...(voteMap[r.id] ?? zero) }));
+    const replies = baseReplies.map((r) => ({ ...r, ...(voteMap[r.id] ?? zero) }));
 
     return NextResponse.json({ statsPerCourse, reviews, replies });
   } catch (error) {
     console.error("Error fetching professor details:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
