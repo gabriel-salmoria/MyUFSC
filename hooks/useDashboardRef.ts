@@ -53,16 +53,15 @@ export const useDashboardRef = (course: Course | null, isVisible: boolean) => {
       return newCourseElements.size > 0;
     };
 
-    // Initialize dashboard and course elements with a small delay
-    // to ensure DOM is ready
-    setTimeout(() => {
+    // rAF ensures the browser has painted the current frame before we query positions
+    const rafId = requestAnimationFrame(() => {
       if (findSourceDashboard() && findCourseElements()) {
         setIsReady(true);
       }
-    }, 100);
+    });
 
-    // Cleanup function
     return () => {
+      cancelAnimationFrame(rafId);
       setIsReady(false);
     };
   }, [course, isVisible]);

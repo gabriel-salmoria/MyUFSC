@@ -176,7 +176,7 @@ export default function CourseStats({
           )}
 
           {/* Professor Selection */}
-          <AnimatePresence>
+          <AnimatePresence mode="wait">
             {selectedSchedule && (
               <motion.div
                 key={selectedSchedule.id}

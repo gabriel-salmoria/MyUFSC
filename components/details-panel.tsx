@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import type { Course } from "@/types/curriculum";
 import { type StudentCourse, CourseStatus } from "@/types/student-plan";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,6 @@ import { getCourseInfo } from "@/parsers/curriculum-parser";
 import { parsescheduleData } from "@/parsers/class-parser";
 import { useStudentStore } from "@/lib/student-store";
 import { cn } from "@/components/ui/utils";
-import { motion, AnimatePresence } from "framer-motion";
 import { fetchProfessorAggregates } from "@/lib/professors-client";
 import { normalizeProfessorId } from "@/lib/professors";
 import { ProfessorDetailsDialog } from "@/components/professors/professor-details-dialog";
@@ -37,24 +36,75 @@ export default function StudentCourseDetailsPanel({
 
   const isOpen = !!(course && studentCourse);
 
+  // Keep the last-seen data alive so the panel has content during the exit slide.
+  const [displayData, setDisplayData] = useState<{
+    course: Course;
+    studentCourse: StudentCourse;
+  } | null>(null);
+
+  useEffect(() => {
+    if (course && studentCourse) setDisplayData({ course, studentCourse });
+  }, [course, studentCourse]);
+
+  // Unmount content after the exit animation completes (220 ms matches CSS duration).
+  useEffect(() => {
+    if (isOpen) return;
+    const id = setTimeout(() => setDisplayData(null), 220);
+    return () => clearTimeout(id);
+  }, [isOpen]);
+
+  // Use live store values when available so status changes reflect instantly.
+  // Fall back to displayData only during the exit animation (store is already null).
+  const activeCourse = course ?? displayData?.course ?? null;
+  const activeStudentCourse = studentCourse ?? displayData?.studentCourse ?? null;
+
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <PanelContent
-          key={studentCourse!.instanceId ?? studentCourse!.courseId}
-          course={course!}
-          studentCourse={studentCourse!}
-          scheduleData={scheduleData}
-          onClose={clearSelection}
-          onSetGrade={setCourseGrade}
-          onChangeStatus={changeCourseStatus}
-          onViewDependencies={(c) => {
-            setDependencyState({ showDependencyTree: true, dependencyCourse: c });
-            clearSelection();
-          }}
-        />
-      )}
-    </AnimatePresence>
+    <>
+      {/* Backdrop — pure CSS opacity transition, compositor-only */}
+      <div
+        className="fixed inset-0 bg-black/20 dark:bg-black/50 z-40"
+        style={{
+          opacity: isOpen ? 1 : 0,
+          transition: "opacity 0.2s ease",
+          pointerEvents: isOpen ? "auto" : "none",
+        }}
+        onClick={clearSelection}
+      />
+
+      {/* Panel shell — always in the DOM, CSS translateX transition.
+          Because the shell is pre-existing, the browser starts the transition
+          from the already-composited off-screen layer — no mount work races
+          the animation. */}
+      <div
+        className="fixed right-0 top-0 h-full w-[480px] bg-background shadow-lg border-l border-border z-50 flex flex-col"
+        style={{
+          transform: isOpen ? "translateX(0)" : "translateX(100%)",
+          transition: "transform 0.22s ease-out",
+        }}
+      >
+        {activeCourse && activeStudentCourse && (
+          <PanelContent
+            key={
+              activeStudentCourse.instanceId ??
+              activeStudentCourse.courseId
+            }
+            course={activeCourse}
+            studentCourse={activeStudentCourse}
+            scheduleData={scheduleData}
+            onClose={clearSelection}
+            onSetGrade={setCourseGrade}
+            onChangeStatus={changeCourseStatus}
+            onViewDependencies={(c) => {
+              setDependencyState({
+                showDependencyTree: true,
+                dependencyCourse: c,
+              });
+              clearSelection();
+            }}
+          />
+        )}
+      </div>
+    </>
   );
 }
 
@@ -93,24 +143,28 @@ function PanelContent({
     studentCourse.status === CourseStatus.COMPLETED &&
       studentCourse.grade === undefined,
   );
-  const [prevStatus, setPrevStatus] = useState<CourseStatus | null>(null);
   const [error, setError] = useState("");
   const [showAllProfs, setShowAllProfs] = useState(false);
   const [profAggregates, setProfAggregates] = useState<Record<string, any>>({});
   const [openProfessorId, setOpenProfessorId] = useState<string | null>(null);
+  const gradeInputRef = useRef<HTMLInputElement>(null);
 
-  // Derive professors for this course from schedule data
-  const professors: ProfEntry[] = useMemo(() => {
-    if (!scheduleData) return [];
+  useEffect(() => {
+    if (isEditing) gradeInputRef.current?.focus({ preventScroll: true });
+  }, [isEditing]);
+
+  // Deferred parse — avoids blocking the first render with a full schedule scan.
+  const [professors, setProfessors] = useState<ProfEntry[]>([]);
+  useEffect(() => {
+    if (!scheduleData) { setProfessors([]); return; }
     try {
       const parsed = parsescheduleData(scheduleData);
-      return (parsed.professors[course.id] as ProfEntry[]) || [];
+      setProfessors((parsed.professors[course.id] as ProfEntry[]) || []);
     } catch {
-      return [];
+      setProfessors([]);
     }
   }, [scheduleData, course.id]);
 
-  // Fetch aggregates whenever the professor list changes
   useEffect(() => {
     if (!professors.length) return;
     fetchProfessorAggregates([course.id])
@@ -118,7 +172,6 @@ function PanelContent({
       .catch(() => {});
   }, [course.id, professors.length]);
 
-  // Look up a rating for an individual professor name
   function getRating(name: string) {
     const agg = profAggregates[normalizeProfessorId(name)];
     if (!agg) return null;
@@ -129,7 +182,6 @@ function PanelContent({
     return null;
   }
 
-  // Best rating across all individual names in a class entry
   function bestRating(prof: ProfEntry): number {
     return prof.name
       .split(",")
@@ -157,8 +209,8 @@ function PanelContent({
     }
     setError("");
     const grade = Math.round(val * 2) / 2;
+    onChangeStatus(studentCourse, CourseStatus.COMPLETED);
     onSetGrade(studentCourse, grade);
-    setPrevStatus(null);
     setIsEditing(false);
   };
 
@@ -171,264 +223,230 @@ function PanelContent({
 
   return (
     <>
-      <motion.div
-        className="fixed inset-0 bg-black/20 dark:bg-black/50 z-40"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
-        onClick={onClose}
-      />
-      <motion.div
-        className="fixed right-0 top-0 h-full w-[480px] bg-background shadow-lg border-l border-border z-50 flex flex-col"
-        initial={{ x: "100%" }}
-        animate={{ x: 0 }}
-        exit={{ x: "100%" }}
-        transition={{ duration: 0.18, ease: "easeOut" }}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-4 border-b border-border shrink-0">
-          <div>
-            <h3 className="text-lg font-bold">{course.id}</h3>
-            <p className="text-sm text-muted-foreground leading-tight">{course.name}</p>
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-4 border-b border-border shrink-0">
+        <div>
+          <h3 className="text-lg font-bold">{course.id}</h3>
+          <p className="text-sm text-muted-foreground leading-tight">{course.name}</p>
         </div>
+        <Button variant="ghost" size="icon" onClick={onClose}>
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
 
-        {/* Tabs */}
-        <Tabs defaultValue="details" className="flex flex-col flex-1 min-h-0">
-          <TabsList className="mx-4 mt-3 mb-1 shrink-0 w-auto self-start">
-            <TabsTrigger value="details">Detalhes</TabsTrigger>
-            <TabsTrigger value="professors">
-              Professores
-              {professors.length > 0 && (
-                <span className="ml-1.5 text-[10px] bg-muted-foreground/20 text-muted-foreground rounded-full px-1.5 py-0.5 font-medium">
-                  {professors.length}
-                </span>
-              )}
-            </TabsTrigger>
-          </TabsList>
+      <Tabs defaultValue="details" className="flex flex-col flex-1 min-h-0">
+        <TabsList className="mx-4 mt-3 mb-1 shrink-0 w-auto self-start">
+          <TabsTrigger value="details">Detalhes</TabsTrigger>
+          <TabsTrigger value="professors">
+            Professores
+            {professors.length > 0 && (
+              <span className="ml-1.5 text-[10px] bg-muted-foreground/20 text-muted-foreground rounded-full px-1.5 py-0.5 font-medium">
+                {professors.length}
+              </span>
+            )}
+          </TabsTrigger>
+        </TabsList>
 
-          {/* ── Details tab ── */}
-          <TabsContent value="details" className="flex-1 overflow-y-auto px-4 pb-4">
-            <div className="space-y-6 pt-2">
-              <DetailBlock label="Créditos" value={course.credits} />
-              <DetailBlock label="Carga Horária" value={`${course.workload} horas`} />
-              <DetailBlock label="Fase Recomendada" value={course.phase} />
+        {/* ── Details tab ── */}
+        <TabsContent value="details" className="flex-1 overflow-y-auto px-4 pb-4">
+          <div className="space-y-6 pt-2">
+            <DetailBlock label="Créditos" value={course.credits} />
+            <DetailBlock label="Carga Horária" value={`${course.workload} horas`} />
+            <DetailBlock label="Fase Recomendada" value={course.phase} />
 
-              {(studentCourse.status === CourseStatus.COMPLETED ||
-                studentCourse.status === CourseStatus.FAILED) && (
-                <div>
-                  <h4 className="text-sm font-medium text-muted-foreground mb-1">Nota</h4>
-                  {!isEditing && studentCourse.grade !== undefined ? (
-                    <div className="flex items-center gap-2">
-                      <span className={cn("text-lg font-bold", statusColor)}>
-                        {studentCourse.grade.toFixed(1)}
-                      </span>
+            {/* Nota — static card always reserves space; editor floats over it */}
+            <div className="relative">
+              {/* Static display — always in flow */}
+              <div className="px-3 py-2.5 space-y-1.5">
+                <h4 className="text-xs font-medium text-muted-foreground">Nota</h4>
+                {studentCourse.grade !== undefined ? (
+                  <div className="flex items-center gap-2">
+                    <span className={cn("text-lg font-bold tabular-nums", statusColor)}>
+                      {studentCourse.grade.toFixed(1)}
+                    </span>
+                    {!isEditing && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => setIsEditing(true)}
-                        className="h-6 text-xs"
+                        className="h-7 px-2 text-xs text-muted-foreground"
                       >
                         Editar
                       </Button>
-                    </div>
-                  ) : (
-                    <div className="bg-muted/30 p-3 rounded-md border border-border space-y-2">
-                      <div className="flex gap-2">
-                        <input
-                          type="number"
-                          min="0"
-                          max="10"
-                          step="0.5"
-                          value={gradeInput}
-                          onChange={(e) => {
-                            setGradeInput(e.target.value);
-                            setError("");
-                          }}
-                          onKeyDown={(e) => e.key === "Enter" && handleSave()}
-                          className={cn(
-                            "flex h-9 w-24 rounded-md border bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                            error
-                              ? "border-red-500 focus-visible:ring-red-500"
-                              : "border-input",
-                          )}
-                          placeholder="0.0"
-                        />
-                        <Button size="sm" onClick={handleSave}>
-                          Salvar
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            if (prevStatus !== null) {
-                              onChangeStatus(studentCourse, prevStatus);
-                              setPrevStatus(null);
-                            }
-                            setIsEditing(false);
-                          }}
-                        >
-                          Cancelar
-                        </Button>
-                      </div>
-                      {error && <p className="text-xs text-red-500">{error}</p>}
-                      <p className="text-xs text-muted-foreground">
-                        ≥ 6.0:{" "}
-                        <span className="text-green-500 font-medium">Aprovado</span>,{" "}
-                        {"< "}6.0:{" "}
-                        <span className="text-red-500 font-medium">Reprovado</span>.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <ListBlock title="Equivalências" items={course.equivalents} />
-              <ListBlock title="Pré-requisitos" items={course.prerequisites} />
-
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground mb-1">Ementa</h4>
-                <p className="text-sm text-foreground">
-                  {course.description || "Sem descrição"}
-                </p>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="mt-8 space-y-2 pt-4 border-t border-border/50">
-              {(course.prerequisites?.length ?? 0) > 0 && (
-                <Button
-                  variant="secondary"
-                  className="w-full gap-2"
-                  onClick={() => onViewDependencies(course)}
-                >
-                  <GitGraph className="h-4 w-4" /> Ver Árvore de Dependências
-                </Button>
-              )}
-              <ActionButton
-                active={studentCourse.status === CourseStatus.IN_PROGRESS}
-                label="Marcar como Cursando"
-                onClick={() => onChangeStatus(studentCourse, CourseStatus.IN_PROGRESS)}
-              />
-              <ActionButton
-                active={studentCourse.status === CourseStatus.COMPLETED}
-                label="Marcar como Concluído"
-                onClick={() => {
-                  if (studentCourse.status !== CourseStatus.COMPLETED) {
-                    setPrevStatus(studentCourse.status);
-                    onChangeStatus(studentCourse, CourseStatus.COMPLETED);
-                    setIsEditing(true);
-                  }
-                }}
-              />
-              <ActionButton
-                active={studentCourse.status === CourseStatus.PLANNED}
-                label="Marcar como Planejado"
-                onClick={() => {
-                  onChangeStatus(studentCourse, CourseStatus.PLANNED);
-                  setGradeInput("");
-                  setIsEditing(false);
-                }}
-              />
-            </div>
-          </TabsContent>
-
-          {/* ── Professors tab ── */}
-          <TabsContent value="professors" className="flex-1 overflow-y-auto px-4 pb-4">
-            {professors.length === 0 ? (
-              <p className="text-sm text-muted-foreground pt-4 text-center">
-                Nenhuma turma disponível para este semestre.
-              </p>
-            ) : (
-              <div className="space-y-2 pt-2">
-                {visibleProfessors.map((prof) => {
-                  const names = prof.name
-                    .split(",")
-                    .map((n) => n.trim())
-                    .filter(Boolean);
-                  const fillPct = Math.min(
-                    100,
-                    Math.round((prof.enrolledStudents / prof.maxStudents) * 100),
-                  );
-                  const isAlmostFull = fillPct >= 90;
-
-                  return (
-                    <div
-                      key={prof.professorId}
-                      className="rounded-lg border border-border bg-card px-3 py-2.5 space-y-2"
-                    >
-                      {/* Professor name chips — one per teacher */}
-                      <div className="flex flex-wrap gap-1.5">
-                        {names.map((name, i) => {
-                          const rating = getRating(name);
-                          return (
-                            <Button
-                              key={i}
-                              variant="outline" size="sm"
-                              onClick={() => setOpenProfessorId(name)}
-                              className="h-auto py-1 px-2 font-medium gap-1.5"
-                            >
-                              {name}
-                              {rating && (
-                                <span className="inline-flex items-center gap-0.5 text-xs text-yellow-600 font-semibold">
-                                  <Star className="w-3 h-3 fill-current" />
-                                  {rating.score.toFixed(1)}
-                                  {!rating.specific && (
-                                    <span className="text-muted-foreground font-normal">g</span>
-                                  )}
-                                </span>
-                              )}
-                            </Button>
-                          );
-                        })}
-                      </div>
-
-                      {/* Class info row */}
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground">
-                          Turma {prof.classNumber}
-                        </span>
-                        <span className={cn(isAlmostFull && "text-orange-500 font-medium")}>
-                          {prof.enrolledStudents}/{prof.maxStudents} vagas ({fillPct}%)
-                        </span>
-                      </div>
-
-                      {/* Enrollment bar */}
-                      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                        <div
-                          className={cn(
-                            "h-full rounded-full transition-all",
-                            isAlmostFull ? "bg-orange-500" : "bg-primary",
-                          )}
-                          style={{ width: `${fillPct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {/* Show more / less */}
-                {sortedProfessors.length > LIMIT && (
-                  <Button variant="ghost" size="sm"
-                    onClick={() => setShowAllProfs((v) => !v)}
-                    className="w-full text-xs text-muted-foreground hover:text-foreground hover:bg-transparent"
-                  >
-                    {showAllProfs
-                      ? "Mostrar menos"
-                      : `... e mais ${hiddenCount} turma${hiddenCount !== 1 ? "s" : ""}`}
-                  </Button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Ainda não cursado</p>
                 )}
               </div>
-            )}
-          </TabsContent>
-        </Tabs>
-      </motion.div>
 
-      {/* Professor rating dialog — opened from professor name chips */}
+              {/* Floating editor — anchored to the card, overlaps content below */}
+              {isEditing && (
+                <div
+                  className="absolute left-0 top-0 z-20 w-full rounded-lg border border-border bg-popover p-3 space-y-2 animate-in fade-in-0 zoom-in-95 duration-200"
+                  style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.08)" }}
+                >
+                  <h4 className="text-xs font-medium text-muted-foreground">Nota</h4>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      ref={gradeInputRef}
+                      type="number"
+                      min="0"
+                      max="10"
+                      step="0.5"
+                      value={gradeInput}
+                      onChange={(e) => { setGradeInput(e.target.value); setError(""); }}
+                      onKeyDown={(e) => e.key === "Enter" && handleSave()}
+                      className={cn(
+                        "flex h-9 w-24 rounded-md border bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                        error ? "border-destructive focus-visible:ring-destructive" : "border-input",
+                      )}
+                      placeholder="0.0"
+                    />
+                    <Button size="sm" onClick={handleSave}>Salvar</Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsEditing(false)}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                  {error && <p className="text-xs text-destructive">{error}</p>}
+                </div>
+              )}
+            </div>
+
+            <ListBlock title="Equivalências" items={course.equivalents} />
+            <ListBlock title="Pré-requisitos" items={course.prerequisites} />
+
+            <div>
+              <h4 className="text-sm font-medium text-muted-foreground mb-1">Ementa</h4>
+              <p className="text-sm text-foreground">
+                {course.description || "Sem descrição"}
+              </p>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="mt-8 space-y-2 pt-4 border-t border-border/50">
+            {(course.prerequisites?.length ?? 0) > 0 && (
+              <Button
+                variant="secondary"
+                className="w-full gap-2"
+                onClick={() => onViewDependencies(course)}
+              >
+                <GitGraph className="h-4 w-4" /> Ver Árvore de Dependências
+              </Button>
+            )}
+            <ActionButton
+              active={studentCourse.status === CourseStatus.IN_PROGRESS}
+              label="Marcar como Cursando"
+              onClick={() => onChangeStatus(studentCourse, CourseStatus.IN_PROGRESS)}
+            />
+            <ActionButton
+              active={studentCourse.status === CourseStatus.COMPLETED || isEditing}
+              label="Marcar como Concluído"
+              onClick={() => setIsEditing(true)}
+            />
+            <ActionButton
+              active={studentCourse.status === CourseStatus.PLANNED}
+              label="Marcar como Planejado"
+              onClick={() => {
+                onChangeStatus(studentCourse, CourseStatus.PLANNED);
+                setGradeInput("");
+                setIsEditing(false);
+              }}
+            />
+          </div>
+        </TabsContent>
+
+        {/* ── Professors tab ── */}
+        <TabsContent value="professors" className="flex-1 overflow-y-auto px-4 pb-4">
+          {professors.length === 0 ? (
+            <p className="text-sm text-muted-foreground pt-4 text-center">
+              Nenhuma turma disponível para este semestre.
+            </p>
+          ) : (
+            <div className="space-y-2 pt-2">
+              {visibleProfessors.map((prof) => {
+                const names = prof.name
+                  .split(",")
+                  .map((n) => n.trim())
+                  .filter(Boolean);
+                const fillPct = Math.min(
+                  100,
+                  Math.round((prof.enrolledStudents / prof.maxStudents) * 100),
+                );
+                const isAlmostFull = fillPct >= 90;
+
+                return (
+                  <div
+                    key={prof.professorId}
+                    className="rounded-lg border border-border bg-card px-3 py-2.5 space-y-2"
+                  >
+                    <div className="flex flex-wrap gap-1.5">
+                      {names.map((name, i) => {
+                        const rating = getRating(name);
+                        return (
+                          <Button
+                            key={i}
+                            variant="outline" size="sm"
+                            onClick={() => setOpenProfessorId(name)}
+                            className="h-auto py-1 px-2 font-medium gap-1.5"
+                          >
+                            {name}
+                            {rating && (
+                              <span className="inline-flex items-center gap-0.5 text-xs text-yellow-600 font-semibold">
+                                <Star className="w-3 h-3 fill-current" />
+                                {rating.score.toFixed(1)}
+                                {!rating.specific && (
+                                  <span className="text-muted-foreground font-normal">g</span>
+                                )}
+                              </span>
+                            )}
+                          </Button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">
+                        Turma {prof.classNumber}
+                      </span>
+                      <span className={cn(isAlmostFull && "text-orange-500 font-medium")}>
+                        {prof.enrolledStudents}/{prof.maxStudents} vagas ({fillPct}%)
+                      </span>
+                    </div>
+
+                    <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all",
+                          isAlmostFull ? "bg-orange-500" : "bg-primary",
+                        )}
+                        style={{ width: `${fillPct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+
+              {sortedProfessors.length > LIMIT && (
+                <Button variant="ghost" size="sm"
+                  onClick={() => setShowAllProfs((v) => !v)}
+                  className="w-full text-xs text-muted-foreground hover:text-foreground hover:bg-transparent"
+                >
+                  {showAllProfs
+                    ? "Mostrar menos"
+                    : `... e mais ${hiddenCount} turma${hiddenCount !== 1 ? "s" : ""}`}
+                </Button>
+              )}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
       <ProfessorDetailsDialog
         professorId={openProfessorId}
         taughtCourses={[]}

@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef } from "react";
-import { motion } from "framer-motion";
 import type { Connection } from "@/hooks/useDependencyGraph";
 
 // Define color gradient for different depths
@@ -101,9 +100,10 @@ export default function ConnectionLines({
         }
 
         const lineWidth = 5 - Math.min(connection.depth, 2);
+        const length = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
 
         return (
-          <motion.line
+          <line
             key={`${connection.from}-${connection.to}`}
             x1={x1}
             y1={y1}
@@ -111,12 +111,11 @@ export default function ConnectionLines({
             y2={y2}
             stroke={strokeColor}
             strokeWidth={lineWidth}
-            initial={{ opacity: 0, pathLength: 0 }}
-            animate={{ opacity: 0.4, pathLength: 1 }}
-            transition={{
-              duration: 0.2,
-              ease: "linear",
-              delay: connection.depth * 0.2,
+            strokeDasharray={length}
+            strokeDashoffset={length}
+            style={{
+              opacity: 0.4,
+              animation: `drawLine 0.2s ease-out ${connection.depth * 0.2}s forwards`,
             }}
           />
         );
@@ -131,6 +130,9 @@ export default function ConnectionLines({
       className="fixed inset-0 pointer-events-none z-[15]"
       style={{ width: "100vw", height: "100vh" }}
     >
+      <defs>
+        <style>{`@keyframes drawLine { to { stroke-dashoffset: 0; } }`}</style>
+      </defs>
       {calculateConnectionLines()}
     </svg>
   );

@@ -125,8 +125,12 @@ const CourseBox = memo(function CourseBox({
     return () => { el.removeEventListener("dragstart", handleDragStart); };
   }, [studentCourse, position, isDraggable, isEmpty, onDragStart, statusClass, isFromCurriculum]);
 
+  const isStub =
+    /OPT/i.test(studentCourse.course.id) ||
+    /optativa/i.test(studentCourse.course.name ?? "");
+
   const handleCourseClick = () => {
-    if (!isEmpty) selectCourse(studentCourse, studentCourse.course);
+    if (!isEmpty && !isStub) selectCourse(studentCourse, studentCourse.course);
   };
 
   return (

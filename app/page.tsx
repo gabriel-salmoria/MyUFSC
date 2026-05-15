@@ -55,6 +55,14 @@ export default function Home() {
     isCurriculumLoading,
   });
 
+  // Preload the dependency tree bundle while the browser is idle
+  useEffect(() => {
+    const id = setTimeout(() => {
+      import("@/components/dependency-tree/dependency-tree");
+    }, 1500);
+    return () => clearTimeout(id);
+  }, []);
+
   // Dependency tree state
   const [dependencyState, setDependencyState] = useState<{
     showDependencyTree: boolean;
