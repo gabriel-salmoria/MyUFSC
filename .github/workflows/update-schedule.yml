@@ -2,7 +2,7 @@ name: Update Schedule
 
 on:
   schedule:
-    - cron: '0 8 */2 * *'  # Every 2 days at 08:00 UTC
+    - cron: '0 8 * * *'  # Every day at 08:00 UTC
   workflow_dispatch:         # Allow manual trigger from GitHub UI
 
 jobs:
