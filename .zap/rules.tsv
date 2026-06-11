@@ -3,3 +3,4 @@
 10010	IGNORE	Secure cookie flag — no TLS in CI; production auth routes enforce Secure
 10096	IGNORE	Timestamp disclosure — not exploitable in this context
 10049	IGNORE	Non-Storable Content — dynamic SPA routes are intentionally non-cacheable
+10055	IGNORE	CSP unsafe-inline — Next.js requires unsafe-inline for hydration scripts/styles; nonce-based CSP requires middleware refactor out of scope
