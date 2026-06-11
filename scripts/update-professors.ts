@@ -21,7 +21,7 @@ export function normalizeProfessorName(name: string): string {
 async function updateProfessors() {
   const client = new Client({
     connectionString: DB_CONNECTION_STRING,
-    ssl: { rejectUnauthorized: false },
+    ssl: true,
   });
   await client.connect();
 

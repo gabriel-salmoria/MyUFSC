@@ -1,0 +1,12 @@
+[allowlist]
+description = "Intentional crypto peppers and salts — not rotatable credentials"
+regexes = [
+  '''FIXED_SALT_STRING''',
+  '''MyUFSC_V2_PEPPER''',
+  '''MyUFSC rocks!''',
+]
+paths = [
+  '''scripts/crawler-progress\.json''',
+  '''data/''',
+  '''\.dev-db/''',
+]

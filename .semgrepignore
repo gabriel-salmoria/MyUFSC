@@ -1,0 +1,6 @@
+.next/
+scrapers/schedule/target/
+data/
+styles/public/
+scripts/crawler-progress.json
+pnpm-lock.yaml

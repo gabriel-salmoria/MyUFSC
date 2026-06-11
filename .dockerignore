@@ -1,0 +1,10 @@
+.git
+.next
+node_modules
+.dev-db
+data/pdfs
+scrapers/schedule/target
+.env
+.env.local
+myufsc.config.local.json
+trabalho-temp/
