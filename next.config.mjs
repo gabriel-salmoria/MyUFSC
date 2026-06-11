@@ -14,6 +14,8 @@ const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
   {
     key: "Content-Security-Policy",
     value: [
@@ -23,6 +25,8 @@ const securityHeaders = [
       "img-src 'self' data: blob:",
       "font-src 'self'",
       "connect-src 'self'",
+      "form-action 'self'",
+      "base-uri 'self'",
       "frame-ancestors 'none'",
     ].join("; "),
   },
@@ -32,6 +36,7 @@ const securityHeaders = [
 const nextConfig = {
   serverExternalPackages: ["pdf-parse", "pdfjs-dist", "pg"],
   instrumentationHook: true,
+  poweredByHeader: false,
 
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
