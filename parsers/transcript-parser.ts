@@ -123,7 +123,17 @@ function extractCourses(text: string): {
 }
 
 /**
- * "Historico Sintese" format
+ * "Historico Sintese" format.
+ *
+ * Two layouts exist depending on the UFSC CAGR version:
+ *
+ *   Code-first  (older): "INE5404 Prog. OO II  8.5 72 FS Ob"
+ *   Grade-first (newer): "Prog. OO II 72 8.5FSObINE5404"   (all concatenated, no spaces)
+ *
+ * The primary pattern handles code-first; the fallback handles grade-first.
+ * The `\b` word-boundary guard in the primary pattern prevents the code group
+ * from matching inside concatenated sequences like "ObINE5404" (which would
+ * produce false prefixed codes such as "bINE5404" when the i-flag is active).
  */
 function extractSinteseFormat(
   text: string,
@@ -133,7 +143,6 @@ function extractSinteseFormat(
   seen: Set<string>,
 ) {
   const semesterPattern = /Semestre\s*(\d{4}\/\d)/gi;
-
   const semesterPositions: { pos: number; semester: string }[] = [];
   let sm: RegExpExecArray | null;
   while ((sm = semesterPattern.exec(text)) !== null) {
@@ -149,82 +158,97 @@ function extractSinteseFormat(
     return current;
   };
 
-  // 1) Primary Pattern: Matches the visual order of "Historico Sintese"
-  // e.g. "MTM3131 Equacoes Diferenciais Ordinarias 8.5 72 FS Ob"
-  // This is much safer as it anchors from the Course Code and reads forward.
-  const linePattern =
-    /([A-Z]{2,4}\d{4}).*?(10\.0|[0-9]\.[0-9]{1,2})\s*(?:\d+\s+)?(FS|FI)\s*(Ob|Op|Ex)/gi;
   let match: RegExpExecArray | null;
-  while ((match = linePattern.exec(text)) !== null) {
-    const code = match[1].toUpperCase();
+
+  // 1) Primary: CODE … GRADE … FS|FI … Ob|Op|Ex  (code-first layout)
+  // \b before and after the code prevents the pattern from matching a code
+  // that is part of a longer token (e.g., "ObINE5404" produces no false "bINE5404"
+  // because there is no word-boundary before the b).
+  // Restricting to {2,3} letters covers all real UFSC dept codes.
+  // [^\n]*? keeps the match within a single line.
+  const primaryPattern =
+    /\b([A-Z]{2,3}\d{4})\b[^\n]*?(10\.0|[0-9]\.[0-9]{1,2})\s*(?:\d+\s+)?(FS|FI)\s*(Ob|Op|Ex)/g;
+  while ((match = primaryPattern.exec(text)) !== null) {
+    const code = match[1];
     if (seen.has(code)) continue;
-
-    const gradeMatch = match[2];
-    let grade = parseFloat(gradeMatch);
+    let grade = parseFloat(match[2]);
     if (grade > 10) grade = 10;
-
     const freq = match[3];
     const tipo = match[4];
     seen.add(code);
-
-    const type = parseType(tipo);
-    const semester = getSemester(match.index);
-
     if (freq === "FI") continue;
-
     if (grade >= 6.0) {
-      completed.push({ code, type, grade, semester });
+      completed.push({ code, type: parseType(tipo), grade, semester: getSemester(match.index) });
     }
   }
 
-  // 2) Fallback Pattern: Matches pdf-parse anomalies where the order is inverted or concatenated
-  // e.g. "8.5 72 FS Ob MTM3131"
-  const coursePattern =
+  // 2) Fallback: GRADE … FS|FI … Ob|Op|Ex … CODE  (grade-first / inverted layout)
+  // Handles the modern UFSC CAGR format where everything is concatenated:
+  // "Nome Horas NotaFSObCODE" → grade is extracted from within the hours+grade token.
+  const invertedPattern =
     /(10\.0|[0-9]\.[0-9]{1,2})\s*(?:\d+\s+)?(FS|FI)\s*(Ob|Op|Ex)\s*([A-Z]{2,4}\d{4})/g;
-  while ((match = coursePattern.exec(text)) !== null) {
-    const gradeMatch = match[1];
-    let grade = parseFloat(gradeMatch);
-    if (grade > 10) grade = 10; // Failsafe
-
+  while ((match = invertedPattern.exec(text)) !== null) {
+    let grade = parseFloat(match[1]);
+    if (grade > 10) grade = 10;
     const freq = match[2];
     const tipo = match[3];
     const code = match[4];
-
     if (seen.has(code)) continue;
     seen.add(code);
-
-    const type = parseType(tipo);
-    const semester = getSemester(match.index);
-
     if (freq === "FI") continue;
-
     if (grade >= 6.0) {
-      completed.push({ code, type, grade, semester });
+      completed.push({ code, type: parseType(tipo), grade, semester: getSemester(match.index) });
     }
   }
 
-  const cursandoPattern = /Cursando\s*(Ob|Op|Ex)\s*([A-Z]{2,4}\d{4})/g;
-  while ((match = cursandoPattern.exec(text)) !== null) {
-    const code = match[2];
+  // 3a) In-progress — keyword BEFORE code: "Cursando Ob INE5404"
+  const cursandoBeforePattern = /Cursando\s*(Ob|Op|Ex)\s*([A-Z]{2,4}\d{4})/gi;
+  while ((match = cursandoBeforePattern.exec(text)) !== null) {
+    const code = match[2].toUpperCase();
     if (seen.has(code)) continue;
     seen.add(code);
-    const semester = getSemester(match.index);
-    inProgress.push({ code, type: parseType(match[1]), semester });
+    inProgress.push({ code, type: parseType(match[1]), semester: getSemester(match.index) });
   }
 
-  const eqvPattern =
-    /(?:Eqv|Equival[eê]ncia|Dispensad[ao])\s*(Ob|Op|Ex)\s*([A-Z]{2,4}\d{4})/gi;
-  while ((match = eqvPattern.exec(text)) !== null) {
-    const code = match[2];
+  // 3b) In-progress — keyword AFTER code: "INE5404 ... Cursando ... Ob"
+  // \b guard prevents false matches from within concatenated tokens.
+  const cursandoAfterPattern =
+    /\b([A-Z]{2,3}\d{4})\b[^\n]*?Cursando[^\n]*?(Ob|Op|Ex)/gi;
+  while ((match = cursandoAfterPattern.exec(text)) !== null) {
+    const code = match[1].toUpperCase();
     if (seen.has(code)) continue;
     seen.add(code);
-    const semester = getSemester(match.index);
-    exempted.push({ code, type: parseType(match[1]), semester });
+    inProgress.push({ code, type: parseType(match[2]), semester: getSemester(match.index) });
+  }
+
+  // 4a) Exempted — keyword BEFORE code: "Eqv Ob INE5404" / "Dispensado Ob INE5404"
+  const eqvBeforePattern =
+    /(?:Eqv|Equival[eê]ncia|Dispensad[ao]|Aprovad[ao]\s+Eqv)\s*(Ob|Op|Ex)\s*([A-Z]{2,4}\d{4})/gi;
+  while ((match = eqvBeforePattern.exec(text)) !== null) {
+    const code = match[2].toUpperCase();
+    if (seen.has(code)) continue;
+    seen.add(code);
+    exempted.push({ code, type: parseType(match[1]), semester: getSemester(match.index) });
+  }
+
+  // 4b) Exempted — keyword AFTER code: "INE5404 ... Dispensado ... Ob"
+  const eqvAfterPattern =
+    /\b([A-Z]{2,3}\d{4})\b[^\n]*?(?:Eqv|Equival[eê]ncia|Dispensad[ao]|Aprovad[ao]\s+Eqv)[^\n]*?(Ob|Op|Ex)/gi;
+  while ((match = eqvAfterPattern.exec(text)) !== null) {
+    const code = match[1].toUpperCase();
+    if (seen.has(code)) continue;
+    seen.add(code);
+    exempted.push({ code, type: parseType(match[2]), semester: getSemester(match.index) });
   }
 }
 
 /**
- * "Controle Curricular" format
+ * "Controle Curricular" format.
+ *
+ * Groups consecutive lines into per-course blocks: a block starts at a line
+ * whose first token is a course code, and accumulates following lines that do
+ * not start a new code.  This handles multi-line records that pdf-parse
+ * sometimes produces.
  */
 function extractControleCurricularFormat(
   text: string,
@@ -233,43 +257,51 @@ function extractControleCurricularFormat(
   exempted: ParsedCourse[],
   seen: Set<string>,
 ) {
-  const coursePattern = /(([A-Z]{2,4}\d{4}).*?(Ob|Op|Ex)\b)/g;
-  const gradePattern = /(\d{4}\/\d)\s*(10\.0|[0-9]\.[0-9]{1,2})/;
+  const codeLineRe = /^([A-Z]{2,4}\d{4})\b/;
+  const gradeRe = /(\d{4}\/\d)\s*(10\.0|[0-9]\.[0-9]{1,2})/;
+  const typeRe = /\b(Ob|Op|Ex)\b/i;
 
-  let match: RegExpExecArray | null;
+  // Build per-course blocks by grouping lines.
+  const blocks: string[] = [];
   for (const line of text.split("\n")) {
     const trimmed = line.trim();
     if (!trimmed) continue;
+    if (codeLineRe.test(trimmed)) {
+      blocks.push(trimmed);
+    } else if (blocks.length > 0) {
+      blocks[blocks.length - 1] += " " + trimmed;
+    }
+  }
 
-    coursePattern.lastIndex = 0;
-    while ((match = coursePattern.exec(trimmed)) !== null) {
-      const block = match[1];
-      const code = match[2];
-      const tipo = match[3];
-      if (seen.has(code)) continue;
-      seen.add(code);
+  for (const block of blocks) {
+    const codeMatch = codeLineRe.exec(block);
+    if (!codeMatch) continue;
+    const code = codeMatch[1].toUpperCase();
+    if (seen.has(code)) continue;
 
-      const type = parseType(tipo);
-      const semesterMatch = /(\d{4}\/\d)/.exec(block);
-      const semester = semesterMatch ? semesterMatch[1] : undefined;
+    const typeMatch = typeRe.exec(block);
+    if (!typeMatch) continue;
+    const tipo = typeMatch[1];
+    const type = parseType(tipo);
 
-      if (/Cursando/i.test(block)) {
-        inProgress.push({ code, type, semester });
-      } else if (/Cursou\s+Eqv|Equival[eê]ncia/i.test(block)) {
-        exempted.push({ code, type, semester });
-      } else if (/N[aã]o\s+Cursou|Reprovado/i.test(block)) {
-        continue;
-      } else {
-        const gradeMatch = gradePattern.exec(block);
-        if (gradeMatch) {
-          let grade = parseFloat(gradeMatch[2]);
-          if (grade > 10) grade = 10;
-          completed.push({
-            code,
-            type,
-            semester: gradeMatch[1],
-            grade,
-          });
+    seen.add(code);
+
+    const semesterMatch = /(\d{4}\/\d)/.exec(block);
+    const semester = semesterMatch ? semesterMatch[1] : undefined;
+
+    if (/Cursando/i.test(block)) {
+      inProgress.push({ code, type, semester });
+    } else if (/Cursou\s+Eqv|Equival[eê]ncia|Dispensad[ao]/i.test(block)) {
+      exempted.push({ code, type, semester });
+    } else if (/N[aã]o\s+Cursou|Reprovado/i.test(block)) {
+      continue;
+    } else {
+      const gradeMatch = gradeRe.exec(block);
+      if (gradeMatch) {
+        let grade = parseFloat(gradeMatch[2]);
+        if (grade > 10) grade = 10;
+        if (grade >= 6.0) {
+          completed.push({ code, type, semester: gradeMatch[1], grade });
         }
       }
     }

@@ -31,8 +31,7 @@ export default function StudentCourseDetailsPanel({
   const course = useStudentStore((s) => s.selectedCourse);
   const studentCourse = useStudentStore((s) => s.selectedStudentCourse);
   const clearSelection = useStudentStore((s) => s.clearSelection);
-  const setCourseGrade = useStudentStore((s) => s.setCourseGrade);
-  const changeCourseStatus = useStudentStore((s) => s.changeCourseStatus);
+  const commitCourseStatus = useStudentStore((s) => s.commitCourseStatus);
 
   const isOpen = !!(course && studentCourse);
 
@@ -92,8 +91,7 @@ export default function StudentCourseDetailsPanel({
             studentCourse={activeStudentCourse}
             scheduleData={scheduleData}
             onClose={clearSelection}
-            onSetGrade={setCourseGrade}
-            onChangeStatus={changeCourseStatus}
+            onCommitStatus={commitCourseStatus}
             onViewDependencies={(c) => {
               setDependencyState({
                 showDependencyTree: true,
@@ -124,16 +122,14 @@ function PanelContent({
   studentCourse,
   scheduleData,
   onClose,
-  onSetGrade,
-  onChangeStatus,
+  onCommitStatus,
   onViewDependencies,
 }: {
   course: Course;
   studentCourse: StudentCourse;
   scheduleData?: any;
   onClose: () => void;
-  onSetGrade: (c: StudentCourse, g: number) => void;
-  onChangeStatus: (c: StudentCourse, s: CourseStatus) => void;
+  onCommitStatus: (course: Course, sc: StudentCourse, status: CourseStatus, grade?: number) => void;
   onViewDependencies: (c: Course) => void;
 }) {
   const [gradeInput, setGradeInput] = useState(
@@ -208,9 +204,7 @@ function PanelContent({
       return;
     }
     setError("");
-    const grade = Math.round(val * 2) / 2;
-    onChangeStatus(studentCourse, CourseStatus.COMPLETED);
-    onSetGrade(studentCourse, grade);
+    onCommitStatus(course, studentCourse, CourseStatus.COMPLETED, val);
     setIsEditing(false);
   };
 
@@ -342,7 +336,11 @@ function PanelContent({
             <ActionButton
               active={studentCourse.status === CourseStatus.IN_PROGRESS}
               label="Marcar como Cursando"
-              onClick={() => onChangeStatus(studentCourse, CourseStatus.IN_PROGRESS)}
+              onClick={() => {
+                onCommitStatus(course, studentCourse, CourseStatus.IN_PROGRESS);
+                setGradeInput("");
+                setIsEditing(false);
+              }}
             />
             <ActionButton
               active={studentCourse.status === CourseStatus.COMPLETED || isEditing}
@@ -353,7 +351,7 @@ function PanelContent({
               active={studentCourse.status === CourseStatus.PLANNED}
               label="Marcar como Planejado"
               onClick={() => {
-                onChangeStatus(studentCourse, CourseStatus.PLANNED);
+                onCommitStatus(course, studentCourse, CourseStatus.PLANNED);
                 setGradeInput("");
                 setIsEditing(false);
               }}

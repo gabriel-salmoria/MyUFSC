@@ -110,6 +110,14 @@ export interface StudentStore {
   changeCourseStatus: (course: StudentCourse, status: CourseStatus) => void;
   setCourseGrade: (course: StudentCourse, grade: number) => void;
   setCourseClass: (course: StudentCourse, classId: string) => void;
+  /**
+   * Sets status (and optionally grade) on a course that may or may not be in
+   * the plan yet.  If the course is already in the plan it is updated in-place
+   * using the usual findCourseIndex logic.  If it is not found, it is added to
+   * the semester that matches course.phase (defaulting to semester 1) and then
+   * the status/grade are applied.  selectedStudentCourse is synced afterwards.
+   */
+  commitCourseStatus: (course: Course, studentCourse: StudentCourse, status: CourseStatus, grade?: number) => void;
 
   // Custom schedule entries (calendar-style, stored globally, not per-semester)
   addCustomScheduleEntry: (entry: CustomScheduleEntry) => void;
@@ -512,6 +520,79 @@ export const useStudentStore = create<StudentStore>()(
                 semester.courses[idx].class = classId;
                 return;
               }
+            }
+          }),
+        ),
+
+      commitCourseStatus: (
+        course: Course,
+        studentCourse: StudentCourse,
+        status: CourseStatus,
+        grade?: number,
+      ) =>
+        set(
+          produce((state: StudentStore) => {
+            const plan = CheckStudentInfo(state.studentInfo);
+            if (!plan) return;
+
+            // Try to find the course in the plan by its known identity.
+            let courseInStore: StudentCourse | null = null;
+            for (const s of plan.semesters) {
+              const idx = findCourseIndex(s.courses, studentCourse);
+              if (idx !== -1) {
+                courseInStore = s.courses[idx];
+                break;
+              }
+            }
+
+            if (!courseInStore) {
+              // Course isn't in the plan yet — add it to the semester matching
+              // the curriculum's recommended phase (fall back to semester 1).
+              const targetSemesterNumber = Math.max(1, course.phase ?? 1);
+              let targetSemester = plan.semesters.find(
+                (s) => s.number === targetSemesterNumber,
+              );
+              if (!targetSemester) {
+                targetSemester = {
+                  number: targetSemesterNumber,
+                  courses: [],
+                  totalCredits: 0,
+                };
+                plan.semesters.push(targetSemester);
+                plan.semesters.sort((a, b) => a.number - b.number);
+              }
+              const newCourse: StudentCourse = {
+                courseId: course.id,
+                instanceId: newInstanceId(),
+                credits: course.credits ?? 0,
+                status,
+                grade: grade !== undefined ? Math.round(grade * 2) / 2 : undefined,
+                phase: targetSemesterNumber,
+              };
+              targetSemester.courses.push(newCourse);
+              targetSemester.totalCredits =
+                (targetSemester.totalCredits ?? 0) + (course.credits ?? 0);
+              updateView(plan.semesters);
+              state.selectedStudentCourse = newCourse;
+              return;
+            }
+
+            // Course found — update in place.
+            courseInStore.status = status;
+            if (grade !== undefined) {
+              const rounded = Math.round(grade * 2) / 2;
+              courseInStore.grade = rounded;
+              courseInStore.status =
+                rounded >= 6.0 ? CourseStatus.COMPLETED : CourseStatus.FAILED;
+            }
+
+            if (
+              state.selectedStudentCourse &&
+              (state.selectedStudentCourse.instanceId
+                ? state.selectedStudentCourse.instanceId === courseInStore.instanceId
+                : state.selectedStudentCourse.courseId === courseInStore.courseId)
+            ) {
+              state.selectedStudentCourse = courseInStore;
             }
           }),
         ),

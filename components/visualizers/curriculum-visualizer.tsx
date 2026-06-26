@@ -5,7 +5,7 @@ import { useRef, useState, useEffect, useMemo } from "react";
 
 // tipos de dados
 import type { Curriculum, Course } from "@/types/curriculum";
-import type { StudentPlan } from "@/types/student-plan";
+import type { StudentPlan, StudentCourse } from "@/types/student-plan";
 import { CourseStatus } from "@/types/student-plan";
 import type { ViewStudentCourse } from "@/types/visualization";
 
@@ -114,7 +114,7 @@ export default function CurriculumVisualizer({
 
     const statusMap = new Map<
       string,
-      { status: CourseStatus; grade?: number }
+      { status: CourseStatus; grade?: number; studentCourse?: StudentCourse }
     >();
     const sortedCurriculumCourses = [...curriculum.courses].sort(
       (a, b) => a.phase - b.phase,
@@ -123,6 +123,7 @@ export default function CurriculumVisualizer({
     sortedCurriculumCourses.forEach((course) => {
       let status = CourseStatus.DEFAULT;
       let grade: number | undefined = undefined;
+      let matchedStudentCourse: StudentCourse | undefined = undefined;
 
       const equivalents = equivalenceMap.get(course.id);
 
@@ -153,10 +154,11 @@ export default function CurriculumVisualizer({
         if (matchingStudentCourse) {
           status = matchingStudentCourse.status;
           grade = matchingStudentCourse.grade;
+          matchedStudentCourse = matchingStudentCourse;
         }
       }
 
-      statusMap.set(course.id, { status, grade });
+      statusMap.set(course.id, { status, grade, studentCourse: matchedStudentCourse });
     });
 
     return statusMap;
@@ -247,12 +249,16 @@ export default function CurriculumVisualizer({
             }
           }
 
+          // Use the real student plan's courseId/instanceId when matched via equivalence,
+          // so that changeCourseStatus can locate the course in the plan correctly.
+          const actualStudentCourse = mappedInfo?.studentCourse;
           return {
-            courseId: course.id,
-            credits: course.credits || 0,
+            courseId: actualStudentCourse?.courseId ?? course.id,
+            instanceId: actualStudentCourse?.instanceId,
+            credits: actualStudentCourse?.credits ?? course.credits ?? 0,
             course,
             status: mappedInfo?.status || CourseStatus.DEFAULT,
-            grade: mappedInfo?.grade,
+            grade: actualStudentCourse?.grade ?? mappedInfo?.grade,
             phase: semester.number,
             isHighlighted,
             isDimmed,
