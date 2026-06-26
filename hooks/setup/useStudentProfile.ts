@@ -26,8 +26,11 @@ export function useStudentProfile({
   authCheckCompleted = true, // Default to true if not provided (legacy behavior)
 }: UseStudentProfileProps): UseStudentProfileResult {
   const router = useRouter(); // Kept for potential future use
-  const [studentInfo, setStudentInfo] = useState<StudentInfo | null>(null);
-  // Initialize isProfileLoading based on whether storeStudentInfo is initially null
+  // Zustand v5 hydrates localStorage synchronously, so storeStudentInfo is already
+  // populated on the first render for returning users. Initializing from it avoids
+  // a one-render gap where studentInfo=null but isProfileLoading=false, which would
+  // cause useCurriculum to early-exit and open the loading gate with an empty cache.
+  const [studentInfo, setStudentInfo] = useState<StudentInfo | null>(storeStudentInfo);
   const [isProfileLoading, setIsProfileLoading] = useState(storeStudentInfo === null);
   const prevStoreStudentInfoRef = useRef<StudentInfo | null>(storeStudentInfo);
 
