@@ -136,59 +136,24 @@ export function generateCurriculumPhases(curriculum: Curriculum): {
 export function generateEquivalenceMap(courses: Course[]): Map<string, Set<string>> {
   const equivalenceMap = new Map<string, Set<string>>();
 
-  // 1. Initialize adjacency list for the graph
-  const adj = new Map<string, Set<string>>();
-
-  // Helper to add edge
-  const addEdge = (u: string, v: string) => {
-    if (!adj.has(u)) adj.set(u, new Set());
-    if (!adj.has(v)) adj.set(v, new Set());
-    adj.get(u)!.add(v);
-    adj.get(v)!.add(u);
-  };
-
-  // 2. Build the graph based on declared equivalents
+  // Seed every known course with a set containing itself
   courses.forEach(course => {
-    // Ensure every course is in the graph
-    if (!adj.has(course.id)) adj.set(course.id, new Set());
-
-    if (course.equivalents && Array.isArray(course.equivalents)) {
-      course.equivalents.forEach(eqId => {
-        addEdge(course.id, eqId);
-      });
+    if (!equivalenceMap.has(course.id)) {
+      equivalenceMap.set(course.id, new Set([course.id]));
     }
   });
 
-  // 3. Find connected components (equivalence groups)
-  const visited = new Set<string>();
-
-  for (const courseId of adj.keys()) {
-    if (!visited.has(courseId)) {
-      const component = new Set<string>();
-      const queue = [courseId];
-      visited.add(courseId);
-      component.add(courseId);
-
-      while (queue.length > 0) {
-        const current = queue.shift()!;
-        const neighbors = adj.get(current);
-        if (neighbors) {
-          for (const neighbor of neighbors) {
-            if (!visited.has(neighbor)) {
-              visited.add(neighbor);
-              component.add(neighbor);
-              queue.push(neighbor);
-            }
-          }
-        }
-      }
-
-      // 4. Map every node in this component to the full component set
-      for (const id of component) {
-        equivalenceMap.set(id, component);
-      }
-    }
-  }
+  // Build direct bidirectional equivalences only — no transitive closure.
+  // Transitivity would incorrectly merge unrelated courses that happen to share
+  // a common equivalent code (e.g. MTM3120 and MTM3131 both listing MTM5192).
+  courses.forEach(course => {
+    if (!course.equivalents || !Array.isArray(course.equivalents)) return;
+    course.equivalents.forEach(eqId => {
+      equivalenceMap.get(course.id)!.add(eqId);
+      if (!equivalenceMap.has(eqId)) equivalenceMap.set(eqId, new Set([eqId]));
+      equivalenceMap.get(eqId)!.add(course.id);
+    });
+  });
 
   return equivalenceMap;
 }
