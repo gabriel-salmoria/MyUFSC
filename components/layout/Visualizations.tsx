@@ -226,7 +226,7 @@ export default function Visualizations({
           </div>
         </div>
 
-        <ResizablePanel storageKey="myufsc:panel-height:overview" defaultHeight={600}>
+        <ResizablePanel storageKey="myufsc:panel-height:overview" defaultHeight={500}>
           {viewMode === ViewMode.CURRICULUM ? (
             curriculum ? (
               <CurriculumVisualizer
@@ -262,7 +262,7 @@ export default function Visualizations({
             destacar quais disciplinas você já pode adicionar lá.
           </p>
         </div>
-        <ResizablePanel storageKey="myufsc:panel-height:progress" defaultHeight={600}>
+        <ResizablePanel storageKey="myufsc:panel-height:progress" defaultHeight={500}>
           <ProgressVisualizer
             studentPlan={studentInfo.plans[studentInfo.currentPlan]!}
             totalPhases={curriculum?.totalPhases || 8}

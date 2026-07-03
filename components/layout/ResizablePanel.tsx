@@ -43,7 +43,7 @@ interface ResizablePanelProps {
 // height so each user's preferred size sticks across visits.
 export default function ResizablePanel({
   storageKey,
-  defaultHeight = 600,
+  defaultHeight = 500,
   className,
   children,
 }: ResizablePanelProps) {
