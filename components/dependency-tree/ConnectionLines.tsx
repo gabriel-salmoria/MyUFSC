@@ -3,12 +3,21 @@
 import { useRef } from "react";
 import type { Connection } from "@/hooks/useDependencyGraph";
 
-// Define color gradient for different depths
+// Color gradient for prerequisite (backward) depths
 export const DEPTH_COLORS = [
   "#4287f5", // brighter blue (root)
   "#9d6ffd", // brighter violet (depth 1)
   "#ff59a8", // brighter pink (depth 2)
   "#ff8534", // brighter orange (depth 3+)
+];
+
+// Color gradient for dependent (forward) depths — kept in a distinct green
+// family so the two directions are easy to tell apart at a glance.
+export const DEPENDENT_DEPTH_COLORS = [
+  "#22c55e", // green (root)
+  "#14b8a6", // teal (depth 1)
+  "#06b6d4", // cyan (depth 2)
+  "#84cc16", // lime (depth 3+)
 ];
 
 interface ConnectionLinesProps {
@@ -41,9 +50,11 @@ export default function ConnectionLines({
         const sourceRect = sourceElement.getBoundingClientRect();
         const targetRect = targetElement.getBoundingClientRect();
 
-        // Get color based on depth
-        const colorIndex = Math.min(connection.depth, DEPTH_COLORS.length - 1);
-        const strokeColor = DEPTH_COLORS[colorIndex];
+        // Get color based on depth and direction
+        const palette =
+          connection.direction === "dependent" ? DEPENDENT_DEPTH_COLORS : DEPTH_COLORS;
+        const colorIndex = Math.min(connection.depth, palette.length - 1);
+        const strokeColor = palette[colorIndex];
 
         // Calculate centers
         const sourceCenterX = sourceRect.left + sourceRect.width / 2;

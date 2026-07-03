@@ -21,10 +21,11 @@ export default function DependencyTree({
   setDependencyState,
 }: DependencyTreeProps) {
   // Get the dependency graph data
-  const { 
-    connections, 
-    prerequisiteCourses, 
-    coursesDepth 
+  const {
+    connections,
+    prerequisiteCourses,
+    dependentCourses,
+    coursesDepth
   } = useDependencyGraph(course, isVisible)
   
   // Get the dashboard reference and course elements
@@ -94,6 +95,7 @@ export default function DependencyTree({
             courseElements={courseElements}
             course={course}
             prerequisiteCourses={prerequisiteCourses}
+            dependentCourses={dependentCourses}
             coursesDepth={coursesDepth}
           />
           

@@ -13,6 +13,7 @@ import { cn } from "@/components/ui/utils";
 import { fetchProfessorAggregates } from "@/lib/professors-client";
 import { normalizeProfessorId } from "@/lib/professors";
 import { ProfessorDetailsDialog } from "@/components/professors/professor-details-dialog";
+import { useCourseMap } from "@/hooks/useCourseMap";
 
 interface StudentCourseDetailsPanelProps {
   setDependencyState: React.Dispatch<
@@ -144,6 +145,17 @@ function PanelContent({
   const [profAggregates, setProfAggregates] = useState<Record<string, any>>({});
   const [openProfessorId, setOpenProfessorId] = useState<string | null>(null);
   const gradeInputRef = useRef<HTMLInputElement>(null);
+
+  // The dependency tree now also shows courses that depend on this one, so
+  // the "view dependencies" action should be available whenever there's
+  // anything to show in either direction, not just when it has prereqs.
+  const courseMap = useCourseMap();
+  const hasDependents = useMemo(() => {
+    for (const c of courseMap.values()) {
+      if (c.prerequisites?.includes(course.id)) return true;
+    }
+    return false;
+  }, [courseMap, course.id]);
 
   useEffect(() => {
     if (isEditing) gradeInputRef.current?.focus({ preventScroll: true });
@@ -324,7 +336,7 @@ function PanelContent({
 
           {/* Actions */}
           <div className="mt-8 space-y-2 pt-4 border-t border-border/50">
-            {(course.prerequisites?.length ?? 0) > 0 && (
+            {((course.prerequisites?.length ?? 0) > 0 || hasDependents) && (
               <Button
                 variant="secondary"
                 className="w-full gap-2"

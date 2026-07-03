@@ -11,6 +11,7 @@ interface CourseHighlighterProps {
   courseElements: Map<string, Element[]>;
   course: Course;
   prerequisiteCourses: Course[];
+  dependentCourses: Course[];
   coursesDepth: Map<string, number>;
 }
 
@@ -19,6 +20,7 @@ export default function CourseHighlighter({
   courseElements,
   course,
   prerequisiteCourses,
+  dependentCourses,
   coursesDepth,
 }: CourseHighlighterProps) {
   const timerIds = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -30,13 +32,16 @@ export default function CourseHighlighter({
     applyTransitions();
     addOverlay();
 
-    // Group prerequisites by depth for BFS reveal
-    const byDepth = new Map<number, string[]>();
-    prerequisiteCourses.forEach((prereq) => {
-      const d = coursesDepth.get(prereq.id) ?? 1;
+    // Group prerequisites AND dependents by depth so each depth level of
+    // both directions reveals on the same timer, at the same time.
+    const byDepth = new Map<number, { id: string; direction: "prereq" | "dependent" }[]>();
+    const addToDepth = (id: string, direction: "prereq" | "dependent") => {
+      const d = coursesDepth.get(id) ?? 1;
       if (!byDepth.has(d)) byDepth.set(d, []);
-      byDepth.get(d)!.push(prereq.id);
-    });
+      byDepth.get(d)!.push({ id, direction });
+    };
+    prerequisiteCourses.forEach((prereq) => addToDepth(prereq.id, "prereq"));
+    dependentCourses.forEach((dep) => addToDepth(dep.id, "dependent"));
 
     requestAnimationFrame(() => {
       // Highlight main course immediately
@@ -52,14 +57,18 @@ export default function CourseHighlighter({
         }
       });
 
-      // BFS reveal: un-dim each depth level on its own timer
-      byDepth.forEach((ids, depth) => {
+      // BFS reveal: un-dim each depth level on its own timer — both
+      // directions share the same depth -> timer mapping, so e.g. the first
+      // prerequisite layer and the first dependent layer reveal together.
+      byDepth.forEach((entries, depth) => {
         const timerId = setTimeout(() => {
-          ids.forEach((courseId) => {
-            (courseElements.get(courseId) ?? []).forEach((el) => {
+          entries.forEach(({ id, direction }) => {
+            (courseElements.get(id) ?? []).forEach((el) => {
               if (el instanceof HTMLElement) {
                 el.classList.remove("course-highlight-dimmed");
-                el.classList.add("course-highlight-prereq");
+                el.classList.add(
+                  direction === "dependent" ? "course-highlight-dependent" : "course-highlight-prereq",
+                );
               }
             });
           });
@@ -75,7 +84,7 @@ export default function CourseHighlighter({
       removeHighlightStyles();
       removeOverlay();
     };
-  }, [dashboardRef.current, courseElements, course.id, prerequisiteCourses]);
+  }, [dashboardRef.current, courseElements, course.id, prerequisiteCourses, dependentCourses]);
 
   const addHighlightStyles = () => {
     if (document.getElementById("dependency-tree-highlight-styles")) return;
@@ -85,6 +94,7 @@ export default function CourseHighlighter({
       .course-transition { transition: all 0.3s ease !important; }
       .course-highlight-main { z-index: 30 !important; transform: scale(1.03) !important; }
       .course-highlight-prereq { z-index: 20 !important; transform: scale(1.02) !important; }
+      .course-highlight-dependent { z-index: 20 !important; transform: scale(1.02) !important; }
       .course-highlight-dimmed { opacity: 0.15 !important; pointer-events: none !important; }
     `;
     document.head.appendChild(style);
@@ -120,6 +130,7 @@ export default function CourseHighlighter({
       el.classList.remove(
         "course-highlight-main",
         "course-highlight-prereq",
+        "course-highlight-dependent",
         "course-highlight-dimmed",
         "course-transition",
       );
