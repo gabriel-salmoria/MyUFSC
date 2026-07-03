@@ -1,135 +1,99 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Trash2 } from "lucide-react";
 import { useStudentStore } from "@/lib/student-store";
+import {
+  getCourseDragPayload,
+  COURSE_DRAG_START,
+  COURSE_DRAG_END,
+  COURSE_DRAG_ENTER,
+  COURSE_DRAG_LEAVE,
+  COURSE_DROP,
+} from "@/lib/course-drag";
 
 export default function TrashDropZone() {
   const removeCourse = useStudentStore((s) => s.removeCourse);
   const [isDragging, setIsDragging] = useState(false);
   const [isActive, setIsActive] = useState(false);
   const [isFromProgress, setIsFromProgress] = useState(false);
+  const zoneRef = useRef<HTMLDivElement>(null);
 
-  // Monitor drag events globally
+  // Track drag lifecycle globally — the drag source tells us up front
+  // (via the event detail) whether it started in the progress visualizer,
+  // so we only need to show the trash for those drags.
   useEffect(() => {
-    // Helper to determine if drag is from progress visualizer
-    const checkIfFromProgress = (e: DragEvent) => {
-      try {
-        if (!e.dataTransfer) return false;
-
-        const data = JSON.parse(e.dataTransfer.getData("application/json"));
-        return data.sourceVisualizer === "progress";
-      } catch (error) {
-        return false;
-      }
+    const handleDragStart = (e: Event) => {
+      const detail = (e as CustomEvent<{ sourceVisualizer: string }>).detail;
+      setIsDragging(true);
+      setIsFromProgress(detail?.sourceVisualizer === "progress");
     };
 
-    // Drag start handler
-    const handleDragStart = (e: DragEvent) => {
-      try {
-        if (!e.dataTransfer) return;
-
-        // We can't read the data yet (security restriction),
-        // so we'll just set dragging state
-        setIsDragging(true);
-
-        // We'll use this for when we get dragover events
-        e.dataTransfer.effectAllowed = "move";
-      } catch (error) {
-        console.error("Error in drag start:", error);
-      }
-    };
-
-    // Drag end handler
     const handleDragEnd = () => {
       setIsDragging(false);
       setIsActive(false);
       setIsFromProgress(false);
     };
 
-    // Handle drop anywhere in the document to ensure cleanup
-    const handleDocumentDrop = () => {
-      // Wait a short moment to allow other drop handlers to process first
-      setTimeout(() => {
-        setIsDragging(false);
-        setIsActive(false);
-        setIsFromProgress(false);
-      }, 50);
+    window.addEventListener(COURSE_DRAG_START, handleDragStart);
+    window.addEventListener(COURSE_DRAG_END, handleDragEnd);
+    return () => {
+      window.removeEventListener(COURSE_DRAG_START, handleDragStart);
+      window.removeEventListener(COURSE_DRAG_END, handleDragEnd);
     };
+  }, []);
 
-    // Check if the dragged item is from progress visualizer on dragover
-    const handleDragOver = (e: DragEvent) => {
-      if (isDragging) {
-        // We can determine source now
-        try {
-          const isFromProgressVisualizer = checkIfFromProgress(e);
-          setIsFromProgress(isFromProgressVisualizer);
-        } catch (error) {
-          console.error("Error checking drag source:", error);
-        }
+  // Hover feedback + the actual drop, scoped to the drop-target element itself.
+  useEffect(() => {
+    const el = zoneRef.current;
+    if (!el || !isDragging || !isFromProgress) return;
+
+    const handleEnter = () => setIsActive(true);
+    const handleLeave = () => setIsActive(false);
+    const handleDrop = () => {
+      setIsActive(false);
+      const data = getCourseDragPayload();
+      if (!data) return;
+      if (data.sourceVisualizer === "progress") {
+        removeCourse(data.studentCourse);
+        setIsDragging(false);
+        setIsFromProgress(false);
       }
     };
 
-    document.addEventListener("dragstart", handleDragStart);
-    document.addEventListener("dragend", handleDragEnd);
-    document.addEventListener("dragover", handleDragOver);
-    document.addEventListener("drop", handleDocumentDrop);
-
+    el.addEventListener(COURSE_DRAG_ENTER, handleEnter);
+    el.addEventListener(COURSE_DRAG_LEAVE, handleLeave);
+    el.addEventListener(COURSE_DROP, handleDrop);
     return () => {
-      document.removeEventListener("dragstart", handleDragStart);
-      document.removeEventListener("dragend", handleDragEnd);
-      document.removeEventListener("dragover", handleDragOver);
-      document.removeEventListener("drop", handleDocumentDrop);
+      el.removeEventListener(COURSE_DRAG_ENTER, handleEnter);
+      el.removeEventListener(COURSE_DRAG_LEAVE, handleLeave);
+      el.removeEventListener(COURSE_DROP, handleDrop);
     };
-  }, [isDragging]);
+  }, [isDragging, isFromProgress, removeCourse]);
 
   // Don't render if no drag or not from progress visualizer
   if (!isDragging || !isFromProgress) return null;
 
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
+    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50">
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-200">
-      <div
-        className={`
-          flex flex-col items-center justify-center
-          w-28 h-28 rounded-full shadow-lg
-          ${isActive ? "bg-destructive text-destructive-foreground scale-110" : "bg-muted text-muted-foreground scale-100"}
-          transition-all duration-200
-        `}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setIsActive(true);
-        }}
-        onDragLeave={() => {
-          setIsActive(false);
-        }}
-        onDrop={(e) => {
-          e.preventDefault();
-          setIsActive(false);
-
-          try {
-            const dragData =
-              e.dataTransfer.getData("application/json") ||
-              e.dataTransfer.getData("text/plain");
-            if (!dragData) return;
-
-            const data = JSON.parse(dragData);
-            if (data.sourceVisualizer === "progress") {
-              removeCourse(data.studentCourse);
-              // Hide the trash component immediately after removing the course
-              setIsDragging(false);
-              setIsFromProgress(false);
-            }
-          } catch (error) {
-            console.error("Error parsing drop data:", error);
-          }
-        }}
-      >
-        <Trash2 size={36} className={isActive ? "animate-bounce" : ""} />
-        <div className="text-sm mt-1 font-medium text-center">
-          {isActive ? "Soltar para remover" : "Arraste aqui para remover"}
+        <div
+          ref={zoneRef}
+          data-drop-target="trash"
+          className={`
+            flex flex-col items-center justify-center
+            w-36 h-36 rounded-full shadow-lg border-2
+            ${isActive
+              ? "bg-destructive text-destructive-foreground border-destructive-foreground/40 scale-110"
+              : "bg-muted text-muted-foreground border-muted-foreground/30 scale-100"}
+            transition-all duration-200
+          `}
+        >
+          <Trash2 size={44} className={isActive ? "animate-bounce" : ""} />
+          <div className="text-sm mt-1 font-medium text-center px-2">
+            {isActive ? "Soltar para remover" : "Arraste aqui para remover"}
+          </div>
         </div>
-      </div>
       </div>
     </div>
   );

@@ -23,11 +23,34 @@ import {
 // store
 import { useStudentStore } from "@/lib/student-store";
 
+// drag-and-drop (pointer-events based, see lib/course-drag.ts for why)
+import {
+  setCourseDragPayload,
+  COURSE_DRAG_START,
+  COURSE_DRAG_END,
+  COURSE_DRAG_ENTER,
+  COURSE_DRAG_LEAVE,
+  COURSE_DROP,
+  type DragSourceVisualizer,
+} from "@/lib/course-drag";
+
 function blocksCountStyle(count: number): React.CSSProperties {
   if (count >= 9) return { color: "#dc2626", backgroundColor: "#fee2e2" };
   if (count >= 4) return { color: "#ea580c", backgroundColor: "#ffedd5" };
   return { color: "#d97706", backgroundColor: "#fef3c7" };
 }
+
+// Distance the pointer has to travel before a press turns into a drag,
+// so a plain click still opens the details panel instead of starting one.
+const DRAG_THRESHOLD = 5;
+// How close (in px) to the top/bottom of the viewport triggers autoscroll.
+const EDGE_SIZE = 140;
+// Autoscroll speed (px/frame) at the very edge of the viewport.
+const MAX_SPEED = 20;
+// Autoscroll is suppressed within this margin of the trash drop zone, so
+// hovering over it (which sits near the bottom of the screen) doesn't also
+// drag the page down.
+const TRASH_EXCLUSION_MARGIN = 60;
 
 interface CourseBoxProps {
   position: CoursePosition;
@@ -51,6 +74,9 @@ const CourseBox = memo(function CourseBox({
 }: CourseBoxProps) {
   const courseBoxRef = useRef<HTMLDivElement>(null);
   const selectCourse = useStudentStore((s) => s.selectCourse);
+  // A drag that just ended fires a synthetic click right after pointerup;
+  // this suppresses that one click so dragging doesn't also open the details panel.
+  const suppressClickRef = useRef(false);
 
   const statusClass = useMemo(() => {
     if (isEmpty) return STATUS_CLASSES.EMPTY;
@@ -79,50 +105,170 @@ const CourseBox = memo(function CourseBox({
     }
   }, [isEmpty, studentCourse.status]);
 
-  // Set up drag events
+  // Set up drag via Pointer Events instead of native HTML5 drag-and-drop.
   useEffect(() => {
     const el = courseBoxRef.current;
     if (!el || !isDraggable || isEmpty) return;
 
-    const handleDragStart = (e: DragEvent) => {
-      if (!e.dataTransfer) return;
+    const sourceVisualizer: DragSourceVisualizer = isFromCurriculum ? "curriculum" : "progress";
 
-      e.dataTransfer.effectAllowed = "move";
+    let dragging = false;
+    let pointerId: number | null = null;
+    let startX = 0;
+    let startY = 0;
+    let clientX = 0;
+    let clientY = 0;
+    let ghostEl: HTMLDivElement | null = null;
+    let currentTarget: HTMLElement | null = null;
+    let rafId: number | null = null;
 
-      const ghostEl = document.createElement("div");
+    const moveGhost = () => {
+      if (!ghostEl) return;
+      ghostEl.style.transform = `translate(${clientX - position.width / 2}px, ${clientY - position.height / 2}px)`;
+    };
+
+    const findDropTarget = (x: number, y: number): HTMLElement | null => {
+      const hit = document.elementFromPoint(x, y);
+      return (hit as HTMLElement | null)?.closest<HTMLElement>("[data-drop-target]") ?? null;
+    };
+
+    const isNearTrash = (x: number, y: number) => {
+      const trashEl = document.querySelector<HTMLElement>('[data-drop-target="trash"]');
+      if (!trashEl) return false;
+      const rect = trashEl.getBoundingClientRect();
+      return (
+        x >= rect.left - TRASH_EXCLUSION_MARGIN &&
+        x <= rect.right + TRASH_EXCLUSION_MARGIN &&
+        y >= rect.top - TRASH_EXCLUSION_MARGIN &&
+        y <= rect.bottom + TRASH_EXCLUSION_MARGIN
+      );
+    };
+
+    const scrollTick = () => {
+      if (!dragging) return;
+      if (!isNearTrash(clientX, clientY)) {
+        const { innerHeight } = window;
+        let speed = 0;
+        if (clientY < EDGE_SIZE) {
+          const intensity = (EDGE_SIZE - clientY) / EDGE_SIZE;
+          speed = -Math.ceil(intensity * intensity * MAX_SPEED);
+        } else if (clientY > innerHeight - EDGE_SIZE) {
+          const intensity = (clientY - (innerHeight - EDGE_SIZE)) / EDGE_SIZE;
+          speed = Math.ceil(intensity * intensity * MAX_SPEED);
+        }
+        if (speed !== 0) window.scrollBy(0, speed);
+      }
+      rafId = requestAnimationFrame(scrollTick);
+    };
+
+    const setTarget = (target: HTMLElement | null) => {
+      if (target === currentTarget) return;
+      if (currentTarget) currentTarget.dispatchEvent(new CustomEvent(COURSE_DRAG_LEAVE));
+      currentTarget = target;
+      if (currentTarget) currentTarget.dispatchEvent(new CustomEvent(COURSE_DRAG_ENTER));
+    };
+
+    const startDrag = () => {
+      dragging = true;
+      setCourseDragPayload({ studentCourse, sourceVisualizer });
+
+      if (pointerId !== null) {
+        try { el.setPointerCapture(pointerId); } catch { /* no-op */ }
+      }
+
+      ghostEl = document.createElement("div");
       ghostEl.className = `${CSS_CLASSES.COURSE_BOX} ${statusClass}`;
       ghostEl.style.width = `${position.width}px`;
       ghostEl.style.height = `${position.height}px`;
+      ghostEl.style.position = "fixed";
+      ghostEl.style.left = "0px";
+      ghostEl.style.top = "0px";
+      ghostEl.style.zIndex = "9999";
+      ghostEl.style.pointerEvents = "none";
+      ghostEl.style.opacity = "0.9";
+      ghostEl.style.transition = "none";
       ghostEl.innerHTML = `
         <div class="flex items-center justify-between">
           <div class="${CSS_CLASSES.COURSE_ID}">${studentCourse.course.id}</div>
         </div>
         <div class="${CSS_CLASSES.COURSE_NAME}">${studentCourse.course.name}</div>
       `;
-
-      ghostEl.style.position = "absolute";
-      ghostEl.style.left = "-9999px";
       document.body.appendChild(ghostEl);
+      moveGhost();
 
-      e.dataTransfer.setDragImage(ghostEl, position.width / 2, position.height / 2);
-
-      const dragData = JSON.stringify({
-        studentCourse,
-        sourceVisualizer: isFromCurriculum ? "curriculum" : "progress",
-      });
-
-      e.dataTransfer.setData("application/json", dragData);
-      e.dataTransfer.setData("text/plain", dragData);
-
+      window.dispatchEvent(new CustomEvent(COURSE_DRAG_START, { detail: { sourceVisualizer } }));
       if (onDragStart) onDragStart(studentCourse.course);
 
-      setTimeout(() => {
-        document.body.removeChild(ghostEl);
-      }, 100);
+      rafId = requestAnimationFrame(scrollTick);
     };
 
-    el.addEventListener("dragstart", handleDragStart);
-    return () => { el.removeEventListener("dragstart", handleDragStart); };
+    const endDrag = (dropped: boolean) => {
+      if (dragging) {
+        if (dropped && currentTarget) currentTarget.dispatchEvent(new CustomEvent(COURSE_DROP));
+        setTarget(null);
+        window.dispatchEvent(new CustomEvent(COURSE_DRAG_END));
+        suppressClickRef.current = true;
+        setTimeout(() => { suppressClickRef.current = false; }, 0);
+      }
+      if (ghostEl?.parentNode) ghostEl.parentNode.removeChild(ghostEl);
+      ghostEl = null;
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = null;
+      if (pointerId !== null) {
+        try { el.releasePointerCapture(pointerId); } catch { /* no-op */ }
+      }
+      setCourseDragPayload(null);
+      dragging = false;
+      pointerId = null;
+      document.removeEventListener("pointermove", handlePointerMove);
+      document.removeEventListener("pointerup", handlePointerUp);
+      document.removeEventListener("pointercancel", handlePointerCancel);
+    };
+
+    const handlePointerMove = (e: PointerEvent) => {
+      clientX = e.clientX;
+      clientY = e.clientY;
+
+      if (!dragging) {
+        if (Math.hypot(clientX - startX, clientY - startY) < DRAG_THRESHOLD) return;
+        startDrag();
+      }
+
+      e.preventDefault();
+      moveGhost();
+      setTarget(findDropTarget(clientX, clientY));
+    };
+
+    const handlePointerUp = (e: PointerEvent) => {
+      clientX = e.clientX;
+      clientY = e.clientY;
+      endDrag(dragging);
+    };
+
+    const handlePointerCancel = () => endDrag(false);
+
+    const handlePointerDown = (e: PointerEvent) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      e.preventDefault();
+      startX = e.clientX;
+      startY = e.clientY;
+      clientX = e.clientX;
+      clientY = e.clientY;
+      pointerId = e.pointerId;
+      document.addEventListener("pointermove", handlePointerMove);
+      document.addEventListener("pointerup", handlePointerUp);
+      document.addEventListener("pointercancel", handlePointerCancel);
+    };
+
+    el.addEventListener("pointerdown", handlePointerDown);
+    return () => {
+      el.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("pointermove", handlePointerMove);
+      document.removeEventListener("pointerup", handlePointerUp);
+      document.removeEventListener("pointercancel", handlePointerCancel);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      if (ghostEl?.parentNode) ghostEl.parentNode.removeChild(ghostEl);
+    };
   }, [studentCourse, position, isDraggable, isEmpty, onDragStart, statusClass, isFromCurriculum]);
 
   const isStub =
@@ -130,6 +276,7 @@ const CourseBox = memo(function CourseBox({
     /optativa/i.test(studentCourse.course.name ?? "");
 
   const handleCourseClick = () => {
+    if (suppressClickRef.current) return;
     if (!isEmpty && !isStub) selectCourse(studentCourse, studentCourse.course);
   };
 
@@ -149,10 +296,10 @@ const CourseBox = memo(function CourseBox({
         width: `${position.width}px`,
         height: `${position.height}px`,
         opacity: isEmpty && !studentCourse ? 0.4 : 1,
+        touchAction: isDraggable && !isEmpty ? "none" : undefined,
       }}
       onClick={handleCourseClick}
       data-course-id={studentCourse.course.id}
-      draggable={isDraggable && !isEmpty}
       role={isDraggable && !isEmpty ? "button" : undefined}
       aria-label={isDraggable && !isEmpty ? `Drag course ${studentCourse.course.id}` : undefined}
     >

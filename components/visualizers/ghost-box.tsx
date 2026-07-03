@@ -1,5 +1,15 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { cn } from "@/components/ui/utils";
 import { CSS_CLASSES } from "@/styles/course-theme";
 import { COURSE_BOX } from "@/styles/visualization";
+import {
+  getCourseDragPayload,
+  COURSE_DRAG_ENTER,
+  COURSE_DRAG_LEAVE,
+  COURSE_DROP,
+} from "@/lib/course-drag";
 
 // GhostCourseBox Component
 interface GhostCourseBoxProps {
@@ -19,26 +29,22 @@ export default function GhostCourseBox({
   semesterNumber,
   positionIndex,
 }: GhostCourseBoxProps) {
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-  };
+  const ref = useRef<HTMLDivElement>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
 
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {};
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
 
-  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-  };
+    const handleEnter = () => setIsDragOver(true);
+    const handleLeave = () => setIsDragOver(false);
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-
-    try {
-      const data = JSON.parse(e.dataTransfer.getData("application/json"));
+    const handleDrop = () => {
+      setIsDragOver(false);
+      const data = getCourseDragPayload();
       if (!data) return;
 
-      console.log("GhostCourseBox drop data:", data);
-
-      if (data.sourceVisualizer == "progress") {
+      if (data.sourceVisualizer === "progress") {
         window.dispatchEvent(
           new CustomEvent("request-course-drop", {
             detail: { type: "move", studentCourse: data.studentCourse, phase: semesterNumber },
@@ -51,10 +57,17 @@ export default function GhostCourseBox({
           })
         );
       }
-    } catch (error) {
-      console.error("Error processing drop:", error);
-    }
-  };
+    };
+
+    el.addEventListener(COURSE_DRAG_ENTER, handleEnter);
+    el.addEventListener(COURSE_DRAG_LEAVE, handleLeave);
+    el.addEventListener(COURSE_DROP, handleDrop);
+    return () => {
+      el.removeEventListener(COURSE_DRAG_ENTER, handleEnter);
+      el.removeEventListener(COURSE_DRAG_LEAVE, handleLeave);
+      el.removeEventListener(COURSE_DROP, handleDrop);
+    };
+  }, [semesterNumber]);
 
   return (
     <div
@@ -65,16 +78,14 @@ export default function GhostCourseBox({
       }}
     >
       <div
-        className={CSS_CLASSES.GHOST_BOX}
+        ref={ref}
+        className={cn(CSS_CLASSES.GHOST_BOX, isDragOver && CSS_CLASSES.GHOST_BOX_DRAG_OVER)}
         style={{
           width: `${position.width}px`,
           height: `${position.height}px`,
           opacity: COURSE_BOX.GHOST_OPACITY,
         }}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDragEnter={handleDragEnter}
-        onDrop={handleDrop}
+        data-drop-target="ghost"
         data-semester={semesterNumber}
         data-position={positionIndex}
       ></div>

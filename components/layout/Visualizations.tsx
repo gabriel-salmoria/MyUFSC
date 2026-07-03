@@ -14,6 +14,7 @@ import GridVisualizer from "@/components/visualizers/grid-visualizer";
 import { useAddCoursePrereq } from "@/components/course/use-add-course-prereq";
 import type { DegreeProgram } from "@/types/degree-program";
 import { ProgramLabel } from "@/components/selector/degree-selector";
+import { COURSE_DRAG_START, type DragSourceVisualizer } from "@/lib/course-drag";
 
 export enum ViewMode {
   CURRICULUM = "curriculum",
@@ -52,6 +53,31 @@ export default function Visualizations({
     window.addEventListener("request-course-drop", handleDropReq);
     return () => window.removeEventListener("request-course-drop", handleDropReq);
   }, [handleDropReq]);
+
+  // Ref to the "Meu Progresso" section, used to bring it into view when a
+  // course drag starts from the curriculum/electives grid above it.
+  const progressSectionRef = useRef<HTMLDivElement>(null);
+
+  // Autoscroll during the drag itself lives in CourseBox (it has the pointer
+  // position first-hand). This just handles the one-time "jump to section"
+  // nudge, similar to a "scroll to section" anchor, the moment a drag starts
+  // from the curriculum/electives grid.
+  useEffect(() => {
+    const handleDragStart = (e: Event) => {
+      const detail = (e as CustomEvent<{ sourceVisualizer: DragSourceVisualizer }>).detail;
+      if (detail?.sourceVisualizer !== "curriculum") return;
+
+      const el = progressSectionRef.current;
+      const rect = el?.getBoundingClientRect();
+      // Only jump if the progress visualizer isn't already comfortably in view.
+      if (el && rect && (rect.top > window.innerHeight * 0.5 || rect.bottom < 0)) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    };
+
+    window.addEventListener(COURSE_DRAG_START, handleDragStart);
+    return () => window.removeEventListener(COURSE_DRAG_START, handleDragStart);
+  }, []);
 
   // Toggle view mode between curriculum and electives
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.CURRICULUM);
@@ -236,7 +262,7 @@ export default function Visualizations({
         </div>
       </div>
 
-      <div>
+      <div ref={progressSectionRef}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-2">
           <h2 className="section-heading m-0">
             Meu Progresso
