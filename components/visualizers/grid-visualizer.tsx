@@ -24,7 +24,6 @@ interface GridVisualizerProps {
   studentInfo: StudentInfo;
   curriculum: Curriculum | null; // Added curriculum prop
   highlightAvailableForPhase?: number | null;
-  height?: number;
   filterOffered?: boolean;
   scheduleData?: any;
 }
@@ -33,7 +32,6 @@ export default function GridVisualizer({
   studentInfo,
   curriculum, // Added curriculum prop
   highlightAvailableForPhase,
-  height = 500,
   filterOffered,
   scheduleData,
 }: GridVisualizerProps) {
@@ -164,7 +162,7 @@ export default function GridVisualizer({
   }, [totalRows, columns]); // Added columns to dependencies as totalRows depends on it
 
   return (
-    <div className="flex flex-col w-full" style={{ height: `${height}px` }}>
+    <div className="flex flex-col w-full h-full">
       <div
         className="relative flex-1 overflow-auto bg-background"
         ref={containerRef}

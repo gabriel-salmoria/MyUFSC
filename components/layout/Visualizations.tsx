@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import CurriculumVisualizer from "@/components/visualizers/curriculum-visualizer";
 import ProgressVisualizer from "@/components/visualizers/progress-visualizer";
 import GridVisualizer from "@/components/visualizers/grid-visualizer";
+import ResizablePanel from "@/components/layout/ResizablePanel";
 import { useAddCoursePrereq } from "@/components/course/use-add-course-prereq";
 import type { DegreeProgram } from "@/types/degree-program";
 import { ProgramLabel } from "@/components/selector/degree-selector";
@@ -225,28 +226,17 @@ export default function Visualizations({
           </div>
         </div>
 
-        <div
-          className="panel"
-          // Removed fixed height style to allow auto-sizing
-        >
+        <ResizablePanel storageKey="myufsc:panel-height:overview" defaultHeight={600}>
           {viewMode === ViewMode.CURRICULUM ? (
             curriculum ? (
               <CurriculumVisualizer
                 curriculum={curriculum}
                 studentPlan={studentInfo.plans[studentInfo.currentPlan]!}
                 highlightAvailableForPhase={highlightAvailableForPhase}
-                // Removed fixed height prop
               />
             ) : (
               <div className="flex items-center justify-center h-64 text-muted-foreground">
-                {" "}
-                {/* Added min-h for loading state */}
                 Carregando dados do currículo...
-                {curriculum ? (
-                  <span className="ml-2">
-                    (Currículo carregado, aguardando visualização...)
-                  </span>
-                ) : null}
               </div>
             )
           ) : (
@@ -254,12 +244,11 @@ export default function Visualizations({
               studentInfo={studentInfo}
               curriculum={curriculum}
               highlightAvailableForPhase={highlightAvailableForPhase}
-              height={500} // Keep fixed height for grid visualizer as it's a different view type
               filterOffered={filterOffered}
               scheduleData={scheduleState?.scheduleData}
             />
           )}
-        </div>
+        </ResizablePanel>
       </div>
 
       <div ref={progressSectionRef}>
@@ -273,18 +262,14 @@ export default function Visualizations({
             destacar quais disciplinas você já pode adicionar lá.
           </p>
         </div>
-        <div
-          className="panel"
-          // Removed fixed height style
-        >
+        <ResizablePanel storageKey="myufsc:panel-height:progress" defaultHeight={600}>
           <ProgressVisualizer
             studentPlan={studentInfo.plans[studentInfo.currentPlan]!}
             totalPhases={curriculum?.totalPhases || 8}
-            height={500}
             onPhaseClick={handlePhaseClick}
             key={`progress-${studentInfo.currentPlan || "default"}`}
           />
-        </div>
+        </ResizablePanel>
       </div>
       {prereqToast}
     </div>

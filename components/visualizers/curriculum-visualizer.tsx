@@ -28,7 +28,6 @@ interface CurriculumVisualizerProps {
   curriculum: Curriculum;
   studentPlan: StudentPlan;
   highlightAvailableForPhase?: number | null;
-  height?: number;
 }
 
 // componente principal, que renderiza o currculo do aluno
@@ -36,7 +35,6 @@ export default function CurriculumVisualizer({
   curriculum,
   studentPlan,
   highlightAvailableForPhase,
-  height = 500,
 }: CurriculumVisualizerProps) {
   const studentInfo = useStudentStore((s) => s.studentInfo);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -270,9 +268,6 @@ export default function CurriculumVisualizer({
     return result;
   }, [phases, curriculum.courses, mappedCurriculumCourses, highlightAvailableForPhase, studentInfo, equivalenceMap, blocksCounts]);
 
-  // Use fixed height for the container logic (scrollable), mirroring ProgressVisualizer
-  const containerHeight = height || 500;
-
   return (
     <div className="flex flex-col w-full h-full">
       <div
@@ -280,11 +275,8 @@ export default function CurriculumVisualizer({
         ref={containerRef}
       >
         <div
-          className="relative dashboard-content"
-          style={{
-            width: totalWidth,
-            height: `${containerHeight}px`,
-          }}
+          className="relative dashboard-content h-full"
+          style={{ width: totalWidth }}
         >
           {/* Highlight Overlay */}
           {highlightAvailableForPhase !== undefined &&
@@ -292,8 +284,10 @@ export default function CurriculumVisualizer({
               <div className="absolute inset-0 bg-background/80 z-[5] transition-opacity duration-300 pointer-events-none backdrop-blur-[1px]" />
             )}
 
-          {/* Phase components that handle course positioning internally */}
-          <div className="flex" style={{ height: `${containerHeight}px` }}>
+          {/* Phase components that handle course positioning internally.
+              The frame (top/bottom/left) lives here; each Phase only adds
+              its own right-side divider — see phase.tsx for why. */}
+          <div className="flex h-full border-t border-b border-l border-border">
             {phases.map((semester) => (
               <Phase
                 key={`phase-${semester.number}`}

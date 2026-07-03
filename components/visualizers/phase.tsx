@@ -68,9 +68,15 @@ export default function Phase({
     totalSlots * COURSE_BOX.SPACING_Y + COURSE_BOX.HEIGHT + bottomPadding;
 
   return (
+    // Only a right-side divider here — this column stretches to fill
+    // whatever height the row ends up with (flex align-items: stretch), so a
+    // fixed `height` would leave its border floating above the row's actual
+    // bottom whenever the row is taller than this phase's own content (e.g.
+    // a user-resized panel, or a taller sibling phase). The top/bottom/left
+    // frame around the whole grid lives on the row itself, one level up.
     <div
-      className="relative border border-border"
-      style={{ width: `${width}px`, height: `${phaseHeight}px` }}
+      className="relative border-r border-border"
+      style={{ width: `${width}px`, minHeight: `${phaseHeight}px` }}
     >
       {/* Phase header */}
       <div

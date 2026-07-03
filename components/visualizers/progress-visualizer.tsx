@@ -19,7 +19,6 @@ import { useCourseMap } from "@/hooks/useCourseMap";
 interface ProgressVisualizerProps {
   studentPlan: StudentPlan;
   totalPhases: number; // Added totalPhases
-  height?: number;
   onPhaseClick?: (phase: number) => void;
 }
 
@@ -27,7 +26,6 @@ interface ProgressVisualizerProps {
 export default function ProgressVisualizer({
   studentPlan,
   totalPhases, // Added to destructuring
-  height,
   onPhaseClick,
 }: ProgressVisualizerProps) {
   const courseMap = useCourseMap();
@@ -150,17 +148,18 @@ export default function ProgressVisualizer({
         ref={containerRef}
       >
         <div
-          className="relative dashboard-content"
+          className="relative dashboard-content h-full"
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px)`,
             transformOrigin: "0 0",
             width: totalWidth,
-            height: height,
           }}
           key={`student-plan-${displayedSemesters.length}-${lastUpdate || "initial"}`}
         >
-          {/* Render Phases side by side */}
-          <div className="flex h-full">
+          {/* Render Phases side by side. The frame (top/bottom/left) lives
+              here; each Phase only adds its own right-side divider — see
+              phase.tsx for why. */}
+          <div className="flex h-full border-t border-b border-l border-border">
             {viewSemesters.map((semester) => (
               <Phase
                 key={`phase-${semester.number}`}
