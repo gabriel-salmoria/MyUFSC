@@ -193,11 +193,22 @@ export default function CourseStats({
             />
           </div>
 
-          {/* Professor Selection */}
-          <AnimatePresence mode="wait">
+          {/* Professor Selection — keyed by a STABLE string (not course id
+              or `layout`/`popLayout`). Switching between two already-shown
+              courses just updates this same mounted instance's content
+              instantly, with no exit/enter cycle and no Framer Motion layout
+              measurement (that measurement forces a synchronous reflow, and
+              paying it on every professor click — right when the schedule
+              grid below is *also* changing — was adding real, felt latency
+              for a comparatively small visual win). The fade only plays for
+              the actual show/hide transition (picking a course from none, or
+              clearing one via a phase/semester change), which is cheap
+              because it's a plain opacity mount/unmount, not a tracked
+              layout animation. */}
+          <AnimatePresence>
             {selectedSchedule && (
               <motion.div
-                key={selectedSchedule.id}
+                key="professor-selector"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -205,6 +216,7 @@ export default function CourseStats({
                 className="mt-6"
               >
                 <ProfessorSelector
+                  courseId={selectedSchedule.id}
                   professors={professors}
                   selectedProfessor={selectedProfessor}
                   onProfessorSelect={handleProfessorSelect}

@@ -18,6 +18,7 @@ export default function CourseList({
   getCourseColor,
 }: CourseListProps) {
   const selectSchedule = useStudentStore((s) => s.selectSchedule);
+  const selectedStudentSchedule = useStudentStore((s) => s.selectedStudentSchedule);
   const courseMap = useCourseMap();
 
   return (
@@ -26,12 +27,19 @@ export default function CourseList({
       <div className={CSS_CLASSES.STATS_GRID}>
         {courses.map((course, idx) => {
           const resolved = courseMap.get(course.courseId);
+          const isSelected = selectedStudentSchedule
+            ? course.instanceId
+              ? course.instanceId === selectedStudentSchedule.instanceId
+              : course.courseId === selectedStudentSchedule.courseId &&
+                !selectedStudentSchedule.instanceId
+            : false;
           return (
           <div
             key={`${course.courseId}-${idx}`}
             className={cn(
               CSS_CLASSES.STATS_COURSE_CARD,
               getCourseColor(course.courseId),
+              isSelected && CSS_CLASSES.COURSE_SELECTED,
             )}
             onClick={(e) => {
               e.stopPropagation();

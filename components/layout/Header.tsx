@@ -401,7 +401,7 @@ export default function Header({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
         {/* Current Degree Card */}
-        <div className="bg-card p-6 rounded-lg shadow-lg relative cursor-default">
+        <div className="bg-card p-6 rounded-lg shadow-lg border border-border relative cursor-default">
           <div className="flex justify-between items-start mb-4">
             <h2 className="section-heading">
               Curso Atual
@@ -453,7 +453,7 @@ export default function Header({
         </div>
 
         {/* Interests Card */}
-        <div className="bg-card p-6 rounded-lg shadow-lg relative">
+        <div className="bg-card p-6 rounded-lg shadow-lg border border-border relative">
           <div className="flex justify-between items-start mb-4">
             <div>
               <h2 className="section-heading flex items-center gap-2">

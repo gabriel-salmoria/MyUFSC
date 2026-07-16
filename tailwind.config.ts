@@ -261,6 +261,16 @@ const config: Config = {
           borderRadius: '0.375rem',
           padding: '0.25rem',
           cursor: 'pointer',
+          // Hard cap: a course box must never need more vertical space than
+          // its row provides. Without this, two lines of text (location +
+          // course name) can exceed the row's height, which forces the
+          // *entire* <tr> — every cell in it, including empty ones — to grow
+          // to match (HTML table rows share one height across all cells).
+          // That's what made rows visibly resize whenever a course moved in
+          // or out of a time slot. `overflow: hidden` clips instead of
+          // pushing the row taller.
+          height: '100%',
+          overflow: 'hidden',
           '&:hover': {
             boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
           },
@@ -367,10 +377,17 @@ const config: Config = {
             color: '#e5e5e5', // Light gray for dark mode
           }
         },
+        // Real, independent CSS properties (not Tailwind's ring-* utility
+        // shorthand, which only works through actual utility classes, not
+        // hand-written CSS-in-JS keys like `ringWidth` — those compile to
+        // invalid, silently-ignored declarations). Outline sits outside the
+        // box model, so it doesn't fight with a course card's own colored
+        // border/background or shift layout when it toggles.
         '.course-selected': {
-          ringWidth: '2px',
-          ringColor: 'hsl(var(--ring))',
-          ringOffsetWidth: '1px',
+          outlineWidth: '2px',
+          outlineStyle: 'solid',
+          outlineColor: 'hsl(var(--ring))',
+          outlineOffset: '2px',
         },
 
         // Course Stats component styling
@@ -478,6 +495,17 @@ const config: Config = {
         '.stats-professor-active': {
           borderColor: 'hsl(var(--primary))',
           backgroundColor: 'hsl(var(--background-secondary))'
+        },
+        // `.stats-professor-card:hover` (a class + a pseudo-class) is more
+        // specific than `.stats-professor-active` alone (just a class), so
+        // without this, hovering the *selected* card was overriding its
+        // active border back to the plain hover color — the highlight
+        // appeared to vanish for as long as the mouse stayed over it. This
+        // selector combines both classes, which is more specific than
+        // either alone, so the active look survives hover.
+        '.stats-professor-card.stats-professor-active:hover': {
+          borderColor: 'hsl(var(--primary))',
+          backgroundColor: 'hsl(var(--background-secondary))',
         },
 
         '.stats-enrollment-bar': {

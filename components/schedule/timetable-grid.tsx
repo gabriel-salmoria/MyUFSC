@@ -28,7 +28,11 @@ interface TimetableGridProps {
   onCustomEntryClick: (entry: CustomScheduleEntry) => void;
 }
 
-export default function TimetableGrid({
+// Memoized so unrelated store updates elsewhere in the app (which don't
+// change this specific phase's schedule) don't force a full re-diff of the
+// ~84-cell table. Only effective as long as the caller passes stable
+// references for courseSchedule/getCourseColor/the click handlers.
+const TimetableGrid = React.memo(function TimetableGrid({
   courseSchedule,
   getCourseColor,
   onEmptyCellClick,
@@ -56,12 +60,12 @@ export default function TimetableGrid({
       >
         <div className="flex items-center justify-between">
           {location && (
-            <div className="text-[0.75rem] ml-0 opacity-90 whitespace-nowrap font-bold">
+            <div className="text-[0.75rem] ml-0 opacity-90 whitespace-nowrap font-bold leading-tight">
               {location}
             </div>
           )}
         </div>
-        <div className={cn(CSS_CLASSES.COURSE_NAME, "truncate")}>
+        <div className={cn(CSS_CLASSES.COURSE_NAME, "truncate leading-tight")}>
           {courseData.course.course.name}
         </div>
       </div>
@@ -123,12 +127,11 @@ export default function TimetableGrid({
           hasMultiple && "p-0",
         )}
       >
-        <div
-          className={cn(
-            "flex gap-[1px]",
-            hasMultiple && "h-full",
-          )}
-        >
+        {/* Always h-full (not just when hasMultiple): this is what lets
+            `.timetable-course`'s own `height: 100%` resolve to something
+            concrete, capping course boxes at the row's height instead of
+            letting their own content size dictate it. */}
+        <div className="flex gap-[1px] h-full">
           {cellData.courses.map((courseData, idx) =>
             renderCourseItem(courseData, idx),
           )}
@@ -181,4 +184,6 @@ export default function TimetableGrid({
       </div>
     </div>
   );
-}
+});
+
+export default TimetableGrid;

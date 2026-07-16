@@ -672,13 +672,35 @@ export const useStudentStore = create<StudentStore>()(
     {
       name: "student-storage",
       storage: createJSONStorage(() => {
-        if (typeof window !== "undefined") {
-          return window.localStorage;
+        if (typeof window === "undefined") {
+          return {
+            getItem: () => null,
+            setItem: () => {},
+            removeItem: () => {},
+          };
         }
+        // Zustand's persist middleware calls storage.setItem after EVERY
+        // store `set()` call — including actions that never touch
+        // `studentInfo` (the only thing partialize() actually persists),
+        // like selecting a course or clearing a schedule selection.
+        // localStorage.setItem is a synchronous call that (in Chromium)
+        // goes through IPC to a separate storage process — a real, fixed
+        // per-call cost paid on every click regardless of payload size.
+        // Skip the actual write when the serialized value is identical to
+        // what's already there, since createJSONStorage hands us the
+        // already-JSON.stringify'd string.
+        let lastWritten: string | null = null;
         return {
-          getItem: () => null,
-          setItem: () => {},
-          removeItem: () => {},
+          getItem: (name) => window.localStorage.getItem(name),
+          setItem: (name, value) => {
+            if (value === lastWritten) return;
+            lastWritten = value;
+            window.localStorage.setItem(name, value);
+          },
+          removeItem: (name) => {
+            lastWritten = null;
+            window.localStorage.removeItem(name);
+          },
         };
       }),
       partialize: (state) => ({

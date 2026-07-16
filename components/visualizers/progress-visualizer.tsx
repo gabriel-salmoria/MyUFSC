@@ -32,6 +32,7 @@ export default function ProgressVisualizer({
   const containerRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [phaseWidth, setPhaseWidth] = useState<number>(PHASE.MIN_WIDTH);
+  const [containerHeight, setContainerHeight] = useState<number | null>(null);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   
   // Modal state
@@ -83,9 +84,15 @@ export default function ProgressVisualizer({
     );
   }
 
-  // Calculate dynamic phase width based on container size
+  // Calculate dynamic phase width/height based on the actual container box.
+  // Height is measured here (rather than left to a `h-full` percentage chain
+  // through several nested flex/overflow-auto ancestors) because that chain
+  // was unreliable after the panel became user-resizable — the grid's frame
+  // border would end at the content's natural height instead of stretching
+  // down to the resized panel's real bottom, leaving a stray line with dead
+  // space below it. Measuring directly sidesteps that entirely.
   useEffect(() => {
-    const updatePhaseWidth = () => {
+    const updateSize = () => {
       if (containerRef.current) {
         const containerWidth = containerRef.current.clientWidth;
         // Calculate phase width: max of MIN_PHASE_WIDTH or container width divided by actual semesters
@@ -94,14 +101,15 @@ export default function ProgressVisualizer({
           containerWidth / displayedSemesters.length,
         );
         setPhaseWidth(calculatedWidth);
+        setContainerHeight(containerRef.current.clientHeight);
       }
     };
 
     // Initial calculation
-    updatePhaseWidth();
+    updateSize();
 
     // Add resize listener
-    const resizeObserver = new ResizeObserver(updatePhaseWidth);
+    const resizeObserver = new ResizeObserver(updateSize);
     if (containerRef.current) {
       resizeObserver.observe(containerRef.current);
     }
@@ -148,7 +156,7 @@ export default function ProgressVisualizer({
         ref={containerRef}
       >
         <div
-          className="relative dashboard-content h-full"
+          className="relative dashboard-content"
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px)`,
             transformOrigin: "0 0",
@@ -158,8 +166,16 @@ export default function ProgressVisualizer({
         >
           {/* Render Phases side by side. The frame (top/bottom/left) lives
               here; each Phase only adds its own right-side divider — see
-              phase.tsx for why. */}
-          <div className="flex h-full border-t border-b border-l border-border">
+              phase.tsx for why. minHeight (not height) is an explicit
+              measured pixel value (see the ResizeObserver above), not
+              `h-full` — it's a floor so the frame reaches the panel's
+              resized bottom when content is short, but content taller than
+              the panel is still free to grow/scroll rather than being
+              clipped to a hard cap. */}
+          <div
+            className="flex border-t border-b border-l border-border"
+            style={{ minHeight: containerHeight ?? undefined }}
+          >
             {viewSemesters.map((semester) => (
               <Phase
                 key={`phase-${semester.number}`}

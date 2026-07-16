@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { cn } from "@/components/ui/utils";
 import CourseStats from "./course-stats";
 import type { Course } from "@/types/curriculum";
@@ -17,6 +17,7 @@ import {
 import { parsescheduleData } from "@/parsers/class-parser";
 import { useStudentStore } from "@/lib/student-store";
 import { useCourseMap } from "@/hooks/useCourseMap";
+import { useStableValue } from "@/hooks/useStableValue";
 
 import TimetableHeader from "./timetable-header";
 import TimetableGrid from "./timetable-grid";
@@ -88,15 +89,21 @@ export default function Timetable({
   scheduleState,
   setScheduleState,
 }: TimetableProps) {
-  const [professorOverrides, setProfessorOverrides] = useState<
-    ProfessorOverride[]
-  >([]);
+  // This used to be an early `return` sitting in the middle of the function
+  // (after ~10 hook calls) — meaning a component with an incomplete
+  // studentInfo would call a *different number* of hooks than a fully
+  // loaded one, a Rules-of-Hooks violation. Every hook below must run
+  // unconditionally every render, so this is now just a flag; the actual
+  // conditional JSX return happens at the very end, after all hooks.
+  const plan = studentInfo?.plans?.[studentInfo.currentPlan];
+  const isDataReady = !!studentInfo && !!plan && !!plan.semesters;
 
   const courseMap = useCourseMap();
   const addCustomScheduleEntry = useStudentStore((s) => s.addCustomScheduleEntry);
   const removeCustomScheduleEntry = useStudentStore((s) => s.removeCustomScheduleEntry);
   const updateCustomScheduleEntry = useStudentStore((s) => s.updateCustomScheduleEntry);
   const setCourseClass = useStudentStore((s) => s.setCourseClass);
+  const clearSchedule = useStudentStore((s) => s.clearSchedule);
 
   const customScheduleEntries = studentInfo?.customScheduleEntries || [];
 
@@ -111,17 +118,27 @@ export default function Timetable({
   const onCampusChange = (campus: string) =>
     setScheduleState((prev) => ({ ...prev, selectedCampus: campus }));
 
-  const onSemesterChange = (semester: string) =>
+  // Switching the MatrUFSC semester swaps the whole professor/class data
+  // source out from under the panel, so any course/professor currently being
+  // viewed no longer refers to something meaningful — clear it (the existing
+  // fade-out animation on ProfessorSelector's unmount handles the "vanish").
+  const onSemesterChange = (semester: string) => {
+    clearSchedule();
     setScheduleState((prev) => ({
       ...prev,
       selectedSemester: semester,
     }));
+  };
 
   const [selectedPhase, setSelectedPhase] = useState<number>(1);
+
+  // Same reasoning as onSemesterChange: a course selected in one phase isn't
+  // meaningful once you've switched to viewing a different phase's courses.
+  const handlePhaseChange = (phase: number) => {
+    clearSchedule();
+    setSelectedPhase(phase);
+  };
   const [courseColors] = useState(() => new Map<string, string>());
-  const [conflicts, setConflicts] = useState<Map<string, Set<string>>>(
-    new Map(),
-  );
 
   const [professorAggregates, setProfessorAggregates] = useState<
     Record<string, any>
@@ -136,15 +153,20 @@ export default function Timetable({
   const [lastEntry, setLastEntry] =
     useState<Partial<CustomScheduleEntry> | null>(null);
 
-  const openNewEntry = (day: number, slotId: string) =>
+  // Stable references (useCallback) so TimetableGrid's React.memo can
+  // actually bail out on unrelated re-renders instead of always seeing "new"
+  // handler props.
+  const openNewEntry = useCallback((day: number, slotId: string) => {
     setModalState({
       open: true,
       editing: false,
       prefill: { day, startTime: slotId },
     });
+  }, []);
 
-  const openEditEntry = (entry: CustomScheduleEntry) =>
+  const openEditEntry = useCallback((entry: CustomScheduleEntry) => {
     setModalState({ open: true, editing: true, prefill: entry });
+  }, []);
 
   const handleSave = (entry: CustomScheduleEntry) => {
     if (modalState.editing) {
@@ -164,23 +186,6 @@ export default function Timetable({
     [customScheduleEntries, selectedPhase],
   );
 
-  // ─── Academic plan data ───────────────────────────────────────────────────
-  let plan = studentInfo.plans[studentInfo.currentPlan];
-  if (!studentInfo || !plan || !plan.semesters) {
-    return (
-      <div className="bg-card rounded-lg shadow-lg p-4 mb-6">
-        <h2 className="text-xl font-semibold mb-4 text-foreground">
-          Class Schedule
-        </h2>
-        <div className="flex items-center justify-center h-[200px]">
-          <p className="text-muted-foreground">
-            Loading class schedule data...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   const timetableData = useMemo(() => {
     if (scheduleData) {
       return parsescheduleData(scheduleData);
@@ -188,7 +193,13 @@ export default function Timetable({
     return emptyScheduleData as ScheduleData;
   }, [scheduleData]);
 
-  const selectedPhaseCourses = useMemo(() => {
+  // `studentInfo` gets a new top-level reference on every store mutation,
+  // even ones affecting a completely different phase — so without
+  // `useStableValue`, this array's identity (and everything keyed off it
+  // below: professorOverrides, courseSchedule, the O(n) conflict marking)
+  // would be rebuilt from scratch on every unrelated change anywhere in the
+  // app, not just changes to the phase actually being viewed.
+  const selectedPhaseCoursesRaw = useMemo(() => {
     if (!studentInfo?.plans[studentInfo.currentPlan]) return [];
     const semester = studentInfo.plans[studentInfo.currentPlan]?.semesters.find(
       (s) => s.number === selectedPhase,
@@ -196,28 +207,7 @@ export default function Timetable({
     if (!semester) return [];
     return semester.courses;
   }, [studentInfo, selectedPhase]);
-
-  const scheduledCourses = useMemo(() => {
-    return selectedPhaseCourses.filter((course) => {
-      const hasOverride = professorOverrides.some(
-        (o) => o.courseId === course.courseId,
-      );
-      return hasOverride;
-    });
-  }, [selectedPhaseCourses, professorOverrides]);
-
-  const [aggregatesRefreshKey, setAggregatesRefreshKey] = useState(0);
-
-  const scheduledCourseIdsKey = scheduledCourses.map((c) => c.courseId).sort().join(",");
-  useEffect(() => {
-    const courseIds = scheduledCourseIdsKey ? scheduledCourseIdsKey.split(",") : [];
-    if (courseIds.length > 0) {
-      fetchProfessorAggregates(courseIds)
-        .then((data) => setProfessorAggregates(data))
-        .catch(console.error);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scheduledCourseIdsKey, aggregatesRefreshKey]);
+  const selectedPhaseCourses = useStableValue(selectedPhaseCoursesRaw);
 
   const handleProfessorClick = (professorName: string) => {
     setDetailsProfessorId(professorName);
@@ -250,11 +240,6 @@ export default function Timetable({
     }
     return courses;
   }, [detailsProfessorId, timetableData]);
-
-  const timeToMinutes = (time: string): number => {
-    const [hours, minutes] = time.split(":").map(Number);
-    return hours * 60 + minutes;
-  };
 
   const parseScheduleForProfessor = (
     professorData: Professor,
@@ -302,8 +287,16 @@ export default function Timetable({
     };
   };
 
-  useEffect(() => {
-    if (!timetableData || !selectedPhaseCourses) return;
+  // This was a `useEffect` + `setState` pair, but the computation is a pure,
+  // synchronous derivation of `selectedPhaseCourses`/`timetableData` — no
+  // async work at all. Doing it as an effect meant every course/professor
+  // pick cost *two* full render passes: one immediately (with the schedule
+  // still reflecting the old override, since effects run after commit) and
+  // a second once the effect finally ran and called setState — each one
+  // re-rendering the whole grid. A plain `useMemo` computes this in the same
+  // pass as everything else, so the grid updates once, correctly, per click.
+  const professorOverrides = useMemo(() => {
+    if (!timetableData || !selectedPhaseCourses) return [];
     const newOverrides: ProfessorOverride[] = [];
 
     selectedPhaseCourses.forEach((studentCourse) => {
@@ -321,39 +314,35 @@ export default function Timetable({
       }
     });
 
-    const newConflicts = new Map<string, Set<string>>();
-    for (let i = 0; i < newOverrides.length; i++) {
-      for (let j = i + 1; j < newOverrides.length; j++) {
-        const o1 = newOverrides[i];
-        const o2 = newOverrides[j];
-        o1.schedule.forEach((e1) => {
-          if (!e1.endTime) return;
-          o2.schedule.forEach((e2) => {
-            if (!e2.endTime || e1.day !== e2.day) return;
-            const s1 = timeToMinutes(e1.startTime);
-            const end1 = timeToMinutes(e1.endTime as string);
-            const s2 = timeToMinutes(e2.startTime);
-            const end2 = timeToMinutes(e2.endTime as string);
-            if (
-              (s1 >= s2 && s1 < end2) ||
-              (end1 > s2 && end1 <= end2) ||
-              (s1 < s2 && end1 > end2)
-            ) {
-              const k1 = `${o1.courseId}-${e1.day}-${e1.startTime}`;
-              const k2 = `${o2.courseId}-${e2.day}-${e2.startTime}`;
-              if (!newConflicts.has(k1)) newConflicts.set(k1, new Set());
-              if (!newConflicts.has(k2)) newConflicts.set(k2, new Set());
-              newConflicts.get(k1)!.add(o2.courseId);
-              newConflicts.get(k2)!.add(o1.courseId);
-            }
-          });
-        });
-      }
-    }
-
-    setProfessorOverrides(newOverrides);
-    setConflicts(newConflicts);
+    return newOverrides;
   }, [selectedPhaseCourses, timetableData]);
+
+  const [aggregatesRefreshKey, setAggregatesRefreshKey] = useState(0);
+
+  // Fetch ratings for every course in the *currently viewed phase*, not just
+  // ones that already have a class picked. The old scope meant a course's
+  // aggregates were only ever fetched *after* you'd already chosen a
+  // professor for it — exactly backwards, since ratings are supposed to help
+  // you choose in the first place. It also meant that clicking through
+  // professors to compare options paid a fresh network round-trip on each
+  // first pick, right in the middle of the interaction. Fetching for the
+  // whole phase up front means ratings are already warm (or cached — see
+  // lib/professors-client.ts's LRU) by the time you start clicking.
+  const selectedPhaseCourseIdsKey = selectedPhaseCourses
+    .map((c) => c.courseId)
+    .sort()
+    .join(",");
+  useEffect(() => {
+    const courseIds = selectedPhaseCourseIdsKey
+      ? selectedPhaseCourseIdsKey.split(",")
+      : [];
+    if (courseIds.length > 0) {
+      fetchProfessorAggregates(courseIds)
+        .then((data) => setProfessorAggregates(data))
+        .catch(console.error);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPhaseCourseIdsKey, aggregatesRefreshKey]);
 
   const handleProfessorSelect = (
     course: StudentCourse,
@@ -477,8 +466,10 @@ export default function Timetable({
     return courseColors;
   }, [selectedPhaseCourses, courseColors]);
 
-  const getCourseColor = (courseId: string) =>
-    courseColors.get(courseId) || STATUS_CLASSES.DEFAULT;
+  const getCourseColor = useCallback(
+    (courseId: string) => courseColors.get(courseId) || STATUS_CLASSES.DEFAULT,
+    [courseColors],
+  );
 
   const handleRemoveCourse = (courseId: string) => {
     const course = selectedPhaseCourses.find((c) => c.courseId === courseId);
@@ -593,9 +584,27 @@ export default function Timetable({
     URL.revokeObjectURL(url);
   };
 
+  if (!isDataReady) {
+    return (
+      <div className="bg-card rounded-lg shadow-lg p-4 mb-6">
+        <h2 className="text-xl font-semibold mb-4 text-foreground">
+          Class Schedule
+        </h2>
+        <div className="flex items-center justify-center h-[200px]">
+          <p className="text-muted-foreground">
+            Loading class schedule data...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
-      <div className="flex flex-col md:flex-row gap-4">
+      {/* items-start (not the flex default `stretch`) so CourseStats'
+          animated height (professor selector fade) can never stretch or
+          squish its sibling timetable column. */}
+      <div className="flex flex-col md:flex-row items-start gap-4">
         {/* Timetable - 2/3 width */}
         <div className="w-full md:w-2/3">
           <TimetableHeader
@@ -606,7 +615,7 @@ export default function Timetable({
             isLoadingData={isLoadingscheduleData}
             onCampusChange={onCampusChange}
             onSemesterChange={onSemesterChange}
-            onPhaseChange={setSelectedPhase}
+            onPhaseChange={handlePhaseChange}
             availablePhases={availablePhases}
             onExportCalendar={handleExportCalendar}
           />

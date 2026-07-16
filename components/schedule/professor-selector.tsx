@@ -1,9 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { cn } from "@/components/ui/utils";
 import { CSS_CLASSES } from "@/styles/course-theme";
-import { useStudentStore } from "@/lib/student-store";
 import { normalizeProfessorId } from "@/lib/professors";
 import { Star } from "lucide-react";
 
@@ -17,6 +16,7 @@ type ProfessorData = {
 };
 
 interface ProfessorSelectorProps {
+  courseId: string;
   professors: ProfessorData[];
   selectedProfessor: string | null;
   onProfessorSelect: (professorId: string, event: React.MouseEvent) => void;
@@ -50,6 +50,7 @@ function getRating(
 }
 
 export default function ProfessorSelector({
+  courseId,
   professors,
   selectedProfessor,
   onProfessorSelect,
@@ -58,11 +59,23 @@ export default function ProfessorSelector({
   professorAggregates,
   onProfessorClick,
 }: ProfessorSelectorProps) {
-  const selectedStudentSchedule = useStudentStore((s) => s.selectedStudentSchedule);
-
-  if (!selectedStudentSchedule) return null;
-
-  const courseId = selectedStudentSchedule.courseId;
+  // Precomputed once per actual data change (not per render — e.g. not on
+  // every click, which only changes `selectedProfessor`). `getRating` does
+  // NFD unicode normalization per name; with many turmas that's small but
+  // non-zero work that has no reason to redo itself just because a
+  // different card got selected.
+  const ratingsByName = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof getRating>>();
+    for (const professor of professors) {
+      const names = professor.name.split(",").map((p) => p.trim()).filter(Boolean);
+      for (const name of names) {
+        if (!map.has(name)) {
+          map.set(name, getRating(name, courseId, professorAggregates));
+        }
+      }
+    }
+    return map;
+  }, [professors, courseId, professorAggregates]);
 
   return (
     <div className={CSS_CLASSES.STATS_SECTION}>
@@ -125,11 +138,7 @@ export default function ProfessorSelector({
                       {professor.classNumber}
                     </span>
                     {individualNames.map((indivName, idx) => {
-                      const rating = getRating(
-                        indivName,
-                        courseId,
-                        professorAggregates,
-                      );
+                      const rating = ratingsByName.get(indivName);
                       if (!rating) return null;
                       return (
                         <span

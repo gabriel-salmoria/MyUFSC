@@ -39,6 +39,7 @@ export default function CurriculumVisualizer({
   const studentInfo = useStudentStore((s) => s.studentInfo);
   const containerRef = useRef<HTMLDivElement>(null);
   const [phaseWidth, setPhaseWidth] = useState<number>(PHASE.MIN_WIDTH);
+  const [containerHeight, setContainerHeight] = useState<number | null>(null);
 
   // Generate phases from curriculum
   const phases = useMemo(() => generatePhases(curriculum), [curriculum]);
@@ -173,8 +174,13 @@ export default function CurriculumVisualizer({
 
   const phaseCount = curriculum.totalPhases || phases.length || 1;
 
+  // Height is measured directly (see progress-visualizer.tsx for the same
+  // pattern) instead of relying on a `h-full` percentage chain through the
+  // resizable panel's nested flex/overflow-auto ancestors, which was
+  // unreliable and left the grid's frame border floating above the panel's
+  // actual (resized) bottom edge.
   useEffect(() => {
-    const updatePhaseWidth = () => {
+    const updateSize = () => {
       if (containerRef.current) {
         const containerWidth = containerRef.current.clientWidth;
         const calculatedWidth = Math.max(
@@ -182,14 +188,15 @@ export default function CurriculumVisualizer({
           containerWidth / phaseCount,
         );
         setPhaseWidth(calculatedWidth);
+        setContainerHeight(containerRef.current.clientHeight);
       }
     };
 
     // Initial calculation
-    updatePhaseWidth();
+    updateSize();
 
     // Add resize listener
-    const resizeObserver = new ResizeObserver(updatePhaseWidth);
+    const resizeObserver = new ResizeObserver(updateSize);
     if (containerRef.current) {
       resizeObserver.observe(containerRef.current);
     }
@@ -275,7 +282,7 @@ export default function CurriculumVisualizer({
         ref={containerRef}
       >
         <div
-          className="relative dashboard-content h-full"
+          className="relative dashboard-content"
           style={{ width: totalWidth }}
         >
           {/* Highlight Overlay */}
@@ -286,8 +293,16 @@ export default function CurriculumVisualizer({
 
           {/* Phase components that handle course positioning internally.
               The frame (top/bottom/left) lives here; each Phase only adds
-              its own right-side divider — see phase.tsx for why. */}
-          <div className="flex h-full border-t border-b border-l border-border">
+              its own right-side divider — see phase.tsx for why. minHeight
+              (not height) is an explicit measured pixel value (see the
+              ResizeObserver above), not `h-full` — it's a floor so the
+              frame reaches the panel's resized bottom when content is
+              short, but content taller than the panel can still grow/scroll
+              rather than being clipped to a hard cap. */}
+          <div
+            className="flex border-t border-b border-l border-border"
+            style={{ minHeight: containerHeight ?? undefined }}
+          >
             {phases.map((semester) => (
               <Phase
                 key={`phase-${semester.number}`}
