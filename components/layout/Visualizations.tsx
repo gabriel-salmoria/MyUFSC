@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import type { StudentInfo } from "@/types/student-plan";
 import type { Curriculum } from "@/types/curriculum";
 import type { ScheduleHookState } from "@/hooks/setup/UseSchedule";
@@ -106,6 +106,18 @@ export default function Visualizations({
   const getDegreeName = (id: string) =>
     degreePrograms.find((p) => p.id === id)?.name || id;
 
+  // Every degree id that can appear in the dropdown (current, interested,
+  // and a possibly-orphaned viewed one) — used below purely to size the
+  // trigger button to the widest option, not to render the list itself.
+  const dropdownDegreeIds = useMemo(() => {
+    const ids = [
+      studentInfo.currentDegree,
+      ...(studentInfo.interestedDegrees ?? []),
+      viewingDegreeId,
+    ].filter((id): id is string => !!id);
+    return Array.from(new Set(ids));
+  }, [studentInfo.currentDegree, studentInfo.interestedDegrees, viewingDegreeId]);
+
   const [degreeDropdownOpen, setDegreeDropdownOpen] = useState(false);
   const degreeDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -138,11 +150,33 @@ export default function Visualizations({
                   type="button"
                   onClick={() => setDegreeDropdownOpen((o) => !o)}
                 >
-                  <ProgramLabel
-                    name={getDegreeName(
-                      viewingDegreeId || studentInfo.currentDegree || "",
-                    )}
-                  />
+                  {/* Ghost sizer: every dropdown option is stacked invisibly
+                      in the same grid cell as the real (visible) label, so
+                      the button's width is always the widest option in the
+                      list — not just whichever one happens to be selected —
+                      with no JS measurement needed. */}
+                  <span className="inline-grid">
+                    {dropdownDegreeIds.map((id) => (
+                      <span
+                        key={id}
+                        aria-hidden="true"
+                        className="col-start-1 row-start-1 invisible whitespace-nowrap"
+                      >
+                        <ProgramLabel name={getDegreeName(id)} />
+                      </span>
+                    ))}
+                    {/* Not `whitespace-nowrap`/tight like the ghosts above —
+                        this one takes the full (widest-option) cell width
+                        and spreads its own badges to the far right of it. */}
+                    <span className="col-start-1 row-start-1 w-full">
+                      <ProgramLabel
+                        name={getDegreeName(
+                          viewingDegreeId || studentInfo.currentDegree || "",
+                        )}
+                        spread
+                      />
+                    </span>
+                  </span>
                   <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
                 </Button>
 
@@ -159,6 +193,7 @@ export default function Visualizations({
                       >
                         <ProgramLabel
                           name={getDegreeName(studentInfo.currentDegree)}
+                          spread
                         />
                       </Button>
                     )}
@@ -178,7 +213,7 @@ export default function Visualizations({
                           setDegreeDropdownOpen(false);
                         }}
                       >
-                        <ProgramLabel name={getDegreeName(degreeId)} />
+                        <ProgramLabel name={getDegreeName(degreeId)} spread />
                       </Button>
                     ))}
 
@@ -196,6 +231,7 @@ export default function Visualizations({
                           >
                             <ProgramLabel
                               name={getDegreeName(viewingDegreeId)}
+                              spread
                             />
                           </Button>
                         </>

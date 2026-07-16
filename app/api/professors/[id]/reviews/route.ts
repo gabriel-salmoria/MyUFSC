@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { executeQuery } from "@/database/ready";
-import { isTextClean, normalizeProfessorId, generatePseudonym } from "@/lib/professors";
+import { normalizeProfessorId, generatePseudonym } from "@/lib/professors";
 
 export async function PUT(
   request: Request,
@@ -24,10 +25,6 @@ export async function PUT(
       return NextResponse.json({ error: "Review text must be 500 characters or less" }, { status: 400 });
     }
 
-    if (!isTextClean(text)) {
-      return NextResponse.json({ error: "Review contains inappropriate language" }, { status: 400 });
-    }
-
     const updateQuery = `
       UPDATE reviews
       SET text = $1, scores = $2, "updatedAt" = NOW()
@@ -46,6 +43,13 @@ export async function PUT(
     if (result.rows.length === 0) {
       return NextResponse.json({ error: "Review not found" }, { status: 404 });
     }
+
+    // The details/aggregates endpoints cache their results server-side for
+    // 5 minutes (see their unstable_cache calls) — without this, an edited
+    // score/text would silently keep serving the pre-edit cached version
+    // for up to 5 minutes after a successful, confirmed write.
+    revalidateTag(`professor-${normalizedId}`, { expire: 0 });
+    revalidateTag(`course-${courseId}`, { expire: 0 });
 
     const row = result.rows[0];
     return NextResponse.json({
@@ -94,13 +98,6 @@ export async function POST(
       );
     }
 
-    if (!isTextClean(text)) {
-      return NextResponse.json(
-        { error: "Review contains inappropriate language" },
-        { status: 400 },
-      );
-    }
-
     const insertQuery = `
       INSERT INTO reviews ("professorId", "courseId", "authorHash", text, scores)
       VALUES ($1, $2, $3, $4, $5)
@@ -116,6 +113,13 @@ export async function POST(
         JSON.stringify(scores),
       ]);
       const row = result.rows[0];
+
+      // Same reasoning as the PUT handler above — a fresh review must be
+      // visible immediately, not after the cache's 5-minute TTL happens to
+      // expire.
+      revalidateTag(`professor-${normalizedId}`, { expire: 0 });
+      revalidateTag(`course-${courseId}`, { expire: 0 });
+
       return NextResponse.json({
         success: true,
         review: {

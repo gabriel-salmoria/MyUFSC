@@ -1,5 +1,15 @@
-// Cache professor details for 2 min. Invalidated explicitly after any review mutation.
-const _detailsCache = new Map<string, { data: any; expiresAt: number }>();
+// No time-based cache here on purpose. This used to keep a 2-minute
+// client-side cache on top of the server's own (now properly tag-invalidated
+// — see the revalidateTag calls in the reviews/reply API routes) cache, and
+// having two independent caching layers meant they could desync: a review
+// submitted and correctly reflected server-side could still be masked by a
+// stale empty result this cache had captured minutes earlier, for up to its
+// own TTL, regardless of what the server now had. The server-side cache
+// already provides the real performance win (and invalidates correctly on
+// every mutation); this layer only added risk of exactly that staleness bug
+// for no corresponding benefit. In-flight de-duping (below) is kept — it
+// only collapses truly concurrent requests within the same tick, not stale
+// data over time, so it can't cause this class of bug.
 const _detailsInFlight = new Map<string, Promise<any>>();
 
 export async function fetchProfessorDetails(
@@ -7,9 +17,6 @@ export async function fetchProfessorDetails(
   voterHash?: string,
 ) {
   const key = `${professorId}:${voterHash ?? ""}`;
-
-  const cached = _detailsCache.get(key);
-  if (cached && cached.expiresAt > Date.now()) return cached.data;
 
   const inflight = _detailsInFlight.get(key);
   if (inflight) return inflight;
@@ -26,9 +33,7 @@ export async function fetchProfessorDetails(
         const error = await res.json();
         throw new Error(error.error || "Failed to fetch professor details");
       }
-      const data = await res.json();
-      _detailsCache.set(key, { data, expiresAt: Date.now() + 120_000 });
-      return data;
+      return res.json();
     })
     .finally(() => {
       _detailsInFlight.delete(key);
@@ -36,13 +41,6 @@ export async function fetchProfessorDetails(
 
   _detailsInFlight.set(key, request);
   return request;
-}
-
-/** Call this after submitting/editing/deleting a review so the next open fetches fresh data. */
-export function invalidateProfessorDetailsCache(professorId: string) {
-  for (const key of _detailsCache.keys()) {
-    if (key.startsWith(`${professorId}:`)) _detailsCache.delete(key);
-  }
 }
 
 export async function submitReply(

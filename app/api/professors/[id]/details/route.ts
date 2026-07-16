@@ -88,7 +88,7 @@ function getCachedProfessorCore(professorId: string) {
   return unstable_cache(
     () => fetchProfessorCore(professorId),
     [`prof-details-${professorId}`],
-    { revalidate: 300 },
+    { revalidate: 300, tags: [`professor-${professorId}`] },
   )();
 }
 

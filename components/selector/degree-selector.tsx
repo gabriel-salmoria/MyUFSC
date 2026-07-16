@@ -81,12 +81,28 @@ function filterRecentPrograms(programs: DegreeProgram[]): DegreeProgram[] {
     return result;
 }
 
-export function ProgramLabel({ name }: { name: string }) {
+export function ProgramLabel({
+    name,
+    spread,
+}: {
+    name: string;
+    // Pushes the FLO/year badges to the far right of the available width
+    // instead of sitting right next to the name — use in contexts with
+    // real room to spare (e.g. a dropdown list row), not in a
+    // tightly-sized trigger button where the name and badges should stay
+    // grouped together.
+    spread?: boolean;
+}) {
     const { baseName, yearSem, campusTag } = parseProgramName(name);
     return (
-        <span className="flex items-center gap-1.5 flex-wrap">
-            <span>{baseName}</span>
-            <span className="inline-flex items-center gap-1">
+        <span
+            className={cn(
+                "flex items-center gap-1.5",
+                spread ? "w-full justify-between" : "flex-wrap",
+            )}
+        >
+            <span className={spread ? "truncate" : undefined}>{baseName}</span>
+            <span className="inline-flex items-center gap-1 shrink-0">
                 <span className="text-[10px] font-semibold bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
                     {campusTag}
                 </span>

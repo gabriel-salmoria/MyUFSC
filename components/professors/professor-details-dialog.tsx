@@ -11,7 +11,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import {
   fetchProfessorDetails,
-  invalidateProfessorDetailsCache,
   submitReply,
   submitReview,
   submitVote,
@@ -31,6 +30,7 @@ import {
   ThumbsDown,
   ChevronDown,
   ChevronRight,
+  type LucideIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -423,43 +423,65 @@ function CommentCard({
   );
 }
 
-function StarColumn({
-  icon,
+// Each rating dimension gets its own icon (not just a star for everything)
+// so what's actually being measured is visually obvious at a glance —
+// difficulty as a brain, didactics as a book — rather than three identical
+// star rows the user has to read labels to tell apart. Unselected icons use
+// a transparent fill + the theme's muted-foreground stroke (via CSS
+// variable, not a literal color) so they read correctly in both light and
+// dark mode instead of showing up as flat white shapes on a dark card.
+function RatingColumn({
+  icon: Icon,
   label,
   value,
   onChange,
+  fillColor,
+  strokeColor,
+  filled = true,
 }: {
-  icon: React.ReactNode;
+  icon: LucideIcon;
   label: string;
   value: number;
   onChange: (v: number) => void;
+  fillColor: string;
+  strokeColor: string;
+  // Star/BookOpen are simple closed shapes, so a solid fill reads fine.
+  // Brain is built from many overlapping fold-line paths (see lucide's
+  // brain.js) — filling it swallows those inner lines into a solid blob
+  // instead of a recognizable brain. For icons like that, pass
+  // `filled={false}` to indicate selection with stroke color/weight only,
+  // never a fill.
+  filled?: boolean;
 }) {
   const [hovered, setHovered] = useState(0);
   const display = hovered || value;
 
   return (
     <div className="flex flex-col items-center gap-0.5">
-      {[5, 4, 3, 2, 1].map((star) => (
-        <button
-          key={star}
-          type="button"
-          onClick={() => onChange(star)}
-          onMouseEnter={() => setHovered(star)}
-          onMouseLeave={() => setHovered(0)}
-          className="transition-transform hover:scale-110 active:scale-95"
-        >
-          <Star
-            className="w-7 h-7 transition-colors"
-            style={{
-              fill: star <= display ? "#fbbf24" : "white",
-              stroke: star <= display ? "#f59e0b" : "#94a3b8",
-              strokeWidth: 1.5,
-            }}
-          />
-        </button>
-      ))}
+      {[5, 4, 3, 2, 1].map((n) => {
+        const isActive = n <= display;
+        return (
+          <button
+            key={n}
+            type="button"
+            onClick={() => onChange(n)}
+            onMouseEnter={() => setHovered(n)}
+            onMouseLeave={() => setHovered(0)}
+            className="transition-transform hover:scale-110 active:scale-95"
+          >
+            <Icon
+              className="w-7 h-7 transition-colors"
+              style={{
+                fill: filled ? (isActive ? fillColor : "transparent") : "none",
+                stroke: isActive ? strokeColor : "hsl(var(--muted-foreground))",
+                strokeWidth: isActive && !filled ? 2.25 : 1.75,
+              }}
+            />
+          </button>
+        );
+      })}
       <div className="mt-1.5 flex flex-col items-center gap-0.5">
-        <span className="text-base leading-none">{icon}</span>
+        <Icon className="w-4 h-4" style={{ color: strokeColor }} />
         <span className="text-[10px] font-medium text-muted-foreground">
           {label}
         </span>
@@ -946,7 +968,6 @@ function ProfessorDetailsSection({
         });
       }
       toast({ title: "Avaliação excluída" });
-      invalidateProfessorDetailsCache(professorId);
       onReviewChanged?.();
     } catch (err: any) {
       toast({
@@ -1126,7 +1147,6 @@ function ProfessorDetailsSection({
       setDifficulty(0);
       setDidactics(0);
       setIsEditingForm(false);
-      invalidateProfessorDetailsCache(professorId);
       onReviewChanged?.();
     } catch (err: any) {
       toast({
@@ -1369,27 +1389,30 @@ function ProfessorDetailsSection({
                             />
                           </div>
                           <div className="flex gap-4 shrink-0 px-2 items-center">
-                            <StarColumn
-                              icon={
-                                <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                              }
+                            <RatingColumn
+                              icon={Star}
                               label="Geral"
                               value={overall}
                               onChange={setOverall}
+                              fillColor="#fbbf24"
+                              strokeColor="#f59e0b"
                             />
-                            <StarColumn
-                              icon={<Brain className="w-4 h-4 text-red-400" />}
+                            <RatingColumn
+                              icon={Brain}
                               label="Dificuldade"
                               value={difficulty}
                               onChange={setDifficulty}
+                              fillColor="#f87171"
+                              strokeColor="#ef4444"
+                              filled={false}
                             />
-                            <StarColumn
-                              icon={
-                                <BookOpen className="w-4 h-4 text-blue-400" />
-                              }
+                            <RatingColumn
+                              icon={BookOpen}
                               label="Didática"
                               value={didactics}
                               onChange={setDidactics}
+                              fillColor="#60a5fa"
+                              strokeColor="#3b82f6"
                             />
                           </div>
                         </div>

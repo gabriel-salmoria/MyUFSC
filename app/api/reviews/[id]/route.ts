@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { executeQuery } from "@/database/ready";
-import { isTextClean } from "@/lib/professors";
 
 export async function DELETE(
   request: Request,
@@ -29,8 +29,11 @@ export async function DELETE(
       );
     }
 
-    // Verify ownership
-    const checkQuery = `SELECT id FROM reviews WHERE id = $1 AND "authorHash" = $2`;
+    // Verify ownership. Also grab professorId/courseId/parentId so the
+    // relevant server-side caches (details + aggregates, both unstable_cache
+    // with a 5-minute TTL) can be busted below instead of continuing to
+    // serve the pre-delete version until the TTL happens to expire.
+    const checkQuery = `SELECT id, "professorId", "courseId", "parentId" FROM reviews WHERE id = $1 AND "authorHash" = $2`;
     const checkResult = await executeQuery(checkQuery, [id, authorHash]);
 
     if (checkResult.rows.length === 0) {
@@ -39,6 +42,13 @@ export async function DELETE(
         { status: 404 },
       );
     }
+    const { professorId, courseId, parentId: isReply } = checkResult.rows[0];
+    const invalidateCaches = () => {
+      revalidateTag(`professor-${professorId}`, { expire: 0 });
+      // Replies don't factor into aggregate scores (only top-level reviews
+      // do), so only bust the course-aggregates tag for a top-level review.
+      if (!isReply) revalidateTag(`course-${courseId}`, { expire: 0 });
+    };
 
     // Check if it has replies
     const repliesQuery = `SELECT COUNT(*) as count FROM reviews WHERE "parentId" = $1`;
@@ -54,6 +64,7 @@ export async function DELETE(
         RETURNING id
       `;
       await executeQuery(softDeleteQuery, [id]);
+      invalidateCaches();
       return NextResponse.json({
         success: true,
         deletedId: id,
@@ -96,6 +107,7 @@ export async function DELETE(
         }
       }
 
+      invalidateCaches();
       return NextResponse.json({
         success: true,
         deletedId: id,
@@ -138,18 +150,11 @@ export async function PUT(
       );
     }
 
-    if (!isTextClean(text)) {
-      return NextResponse.json(
-        { error: "Reply contains inappropriate language" },
-        { status: 400 },
-      );
-    }
-
     const updateQuery = `
       UPDATE reviews
       SET text = $1, "updatedAt" = NOW()
       WHERE id = $2 AND "authorHash" = $3 AND text != '[removido]'
-      RETURNING id, "createdAt", "updatedAt"
+      RETURNING id, "createdAt", "updatedAt", "professorId"
     `;
 
     const result = await executeQuery(updateQuery, [text, id, authorHash]);
@@ -160,6 +165,10 @@ export async function PUT(
         { status: 404 },
       );
     }
+
+    // Bust the cached /details response so the edited reply text shows up
+    // immediately instead of after the 5-minute TTL expires.
+    revalidateTag(`professor-${result.rows[0].professorId}`, { expire: 0 });
 
     return NextResponse.json({ success: true, review: result.rows[0] });
   } catch (error) {

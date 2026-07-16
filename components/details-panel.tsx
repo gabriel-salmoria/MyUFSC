@@ -136,10 +136,10 @@ function PanelContent({
   const [gradeInput, setGradeInput] = useState(
     studentCourse.grade !== undefined ? studentCourse.grade.toString() : "",
   );
-  const [isEditing, setIsEditing] = useState(
-    studentCourse.status === CourseStatus.COMPLETED &&
-      studentCourse.grade === undefined,
-  );
+  // Grade is optional — a course can be completed without one, so the editor
+  // is never auto-opened; it's only shown when the user explicitly asks to
+  // add or edit a grade.
+  const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState("");
   const [showAllProfs, setShowAllProfs] = useState(false);
   const [profAggregates, setProfAggregates] = useState<Record<string, any>>({});
@@ -210,7 +210,16 @@ function PanelContent({
   const hiddenCount = sortedProfessors.length - LIMIT;
 
   const handleSave = () => {
-    const val = parseFloat(gradeInput);
+    const trimmed = gradeInput.trim();
+    // Grade is optional: saving with nothing entered just leaves it unset
+    // instead of blocking on a required number.
+    if (trimmed === "") {
+      setError("");
+      onCommitStatus(course, studentCourse, CourseStatus.COMPLETED, undefined);
+      setIsEditing(false);
+      return;
+    }
+    const val = parseFloat(trimmed);
     if (isNaN(val) || val < 0 || val > 10) {
       setError("Nota deve ser entre 0 e 10");
       return;
@@ -264,7 +273,7 @@ function PanelContent({
             <div className="relative">
               {/* Static display — always in flow */}
               <div className="px-3 py-2.5 space-y-1.5">
-                <h4 className="text-xs font-medium text-muted-foreground">Nota</h4>
+                <h4 className="text-xs font-medium text-muted-foreground">Nota (opcional)</h4>
                 {studentCourse.grade !== undefined ? (
                   <div className="flex items-center gap-2">
                     <span className={cn("text-lg font-bold tabular-nums", statusColor)}>
@@ -282,7 +291,19 @@ function PanelContent({
                     )}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">Ainda não cursado</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-muted-foreground italic">Não informada</p>
+                    {!isEditing && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsEditing(true)}
+                        className="h-7 px-2 text-xs text-muted-foreground"
+                      >
+                        Adicionar
+                      </Button>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -292,7 +313,7 @@ function PanelContent({
                   className="absolute left-0 top-0 z-20 w-full rounded-lg border border-border bg-popover p-3 space-y-2 animate-in fade-in-0 zoom-in-95 duration-200"
                   style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.08)" }}
                 >
-                  <h4 className="text-xs font-medium text-muted-foreground">Nota</h4>
+                  <h4 className="text-xs font-medium text-muted-foreground">Nota (opcional)</h4>
                   <div className="flex gap-2 items-center">
                     <input
                       ref={gradeInputRef}
@@ -355,9 +376,14 @@ function PanelContent({
               }}
             />
             <ActionButton
-              active={studentCourse.status === CourseStatus.COMPLETED || isEditing}
+              active={studentCourse.status === CourseStatus.COMPLETED}
               label="Marcar como Concluído"
-              onClick={() => setIsEditing(true)}
+              onClick={() => {
+                // Grade is optional — completing doesn't require entering one.
+                // The "Nota" card above still lets the user add one afterwards.
+                onCommitStatus(course, studentCourse, CourseStatus.COMPLETED);
+                setIsEditing(false);
+              }}
             />
             <ActionButton
               active={studentCourse.status === CourseStatus.PLANNED}

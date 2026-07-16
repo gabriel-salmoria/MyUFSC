@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { executeQuery } from "@/database/ready";
-import { isTextClean, generatePseudonym } from "@/lib/professors";
+import { generatePseudonym } from "@/lib/professors";
 
 export async function POST(
   request: Request,
@@ -25,13 +26,6 @@ export async function POST(
     if (text.length > 500) {
       return NextResponse.json(
         { error: "Reply text must be 500 characters or less" },
-        { status: 400 },
-      );
-    }
-
-    if (!isTextClean(text)) {
-      return NextResponse.json(
-        { error: "Reply contains inappropriate language" },
         { status: 400 },
       );
     }
@@ -68,6 +62,12 @@ export async function POST(
     ]);
 
     const row = result.rows[0];
+
+    // The parent professor's /details response (which includes the reply
+    // thread) is cached server-side for 5 minutes — bust it so the new
+    // reply shows up immediately instead of after the TTL happens to expire.
+    revalidateTag(`professor-${parent.professorId}`, { expire: 0 });
+
     return NextResponse.json({
       success: true,
       reply: {

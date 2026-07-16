@@ -79,7 +79,13 @@ export async function POST(request: Request) {
     const getCached = unstable_cache(
       () => computeAggregates(sortedIds),
       [`prof-aggregates-${sortedIds.join(",")}`],
-      { revalidate: 300 },
+      {
+        revalidate: 300,
+        // Tag per course (not per batch-of-courses) so invalidating one
+        // course's tag busts every cached batch that happened to include it,
+        // regardless of what else was bundled in that particular request.
+        tags: sortedIds.map((id: string) => `course-${id}`),
+      },
     );
 
     const aggregates = await getCached();
