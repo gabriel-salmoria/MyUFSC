@@ -8,18 +8,27 @@ const inter = Inter({ subsets: ["latin"] });
 
 import { Metadata } from 'next';
 
+const SITE_URL = "https://myufsc.vercel.app";
+const SITE_DESCRIPTION = "Planeje e organize sua grade curricular universitária do começo ao fim. Plataforma 100% gratuita, segura e de código aberto.";
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://myufsc.vercel.app"),
-  title: "MyUFSC",
-  description: "Planeje e organize sua grade curricular universitária do começo ao fim. Plataforma 100% gratuita, segura e de código aberto.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "MyUFSC",
+    template: "%s | MyUFSC",
+  },
+  description: SITE_DESCRIPTION,
+  alternates: {
+    canonical: "/",
+  },
   icons: {
     icon: '/icon.jpg',
     apple: '/icon.jpg',
   },
   openGraph: {
     title: "MyUFSC",
-    description: "Planeje e organize sua grade curricular universitária do começo ao fim. Plataforma 100% gratuita, segura e de código aberto.",
-    url: "https://myufsc.vercel.app",
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
     siteName: "MyUFSC",
     images: [
       {
@@ -35,21 +44,45 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary",
     title: "MyUFSC - Planejador de Grade Curricular",
-    description: "Planeje e organize sua grade curricular universitária do começo ao fim. Plataforma 100% gratuita, segura e de código aberto.",
+    description: SITE_DESCRIPTION,
     images: ["/icon.jpg"],
   },
   verification: {
     google: "EH4gahostTccN-LRM-LGTdkgjzSSY648CO5X9SddRvA",
   },
 };
+
+// Helps search engines associate name variants ("My UFSC", "App UFSC") with
+// the site, and reinforces the entity name/description for rich results.
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: "MyUFSC",
+  alternateName: ["My UFSC", "App UFSC", "MyUFSC App", "Meu UFSC"],
+  url: SITE_URL,
+  description: SITE_DESCRIPTION,
+  applicationCategory: "EducationalApplication",
+  operatingSystem: "Web",
+  inLanguage: "pt-BR",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "BRL",
+  },
+};
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="pt-BR" suppressHydrationWarning>
       <body className={inter.className}>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+        />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

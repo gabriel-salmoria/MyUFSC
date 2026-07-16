@@ -32,7 +32,7 @@ export default function SearchInput({
   }, [])
 
   return (
-    <div className="mb-4">
+    <div>
       <div className="relative">
         <div className={CSS_CLASSES.STATS_SEARCH_ICON}>
           <svg xmlns="http://www.w3.org/2000/svg"
@@ -47,7 +47,7 @@ export default function SearchInput({
         <input
           ref={searchInputRef}
           type="text"
-          placeholder="Buscar disciplinas... (Pressione / para focar)"
+          placeholder="Buscar Disciplinas"
           className={CSS_CLASSES.STATS_SEARCH}
           value={searchTerm}
           onChange={e => onSearchChange(e.target.value)}

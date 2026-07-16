@@ -120,7 +120,7 @@ export function ProfessorSearch({ onSelect, className, refreshTrigger }: Profess
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
           type="text"
-          placeholder="Buscar professores (ex: João da Silva)..."
+          placeholder="Buscar Professores"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);

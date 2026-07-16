@@ -57,10 +57,6 @@ export default function CourseStats({
   onProfessorClick,
   searchRefreshTrigger,
 }: CourseStatsProps) {
-  const [selectedProfessor, setSelectedProfessor] = useState<string | null>(
-    null,
-  );
-
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const courseMap = useCourseMap();
@@ -128,9 +124,6 @@ export default function CourseStats({
   ) => {
     event.stopPropagation();
 
-    // Update selected professor
-    setSelectedProfessor(professorId);
-
     // Call the callback if provided and a course is selected
     if (selectedStudentSchedule && onProfessorSelect) {
       onProfessorSelect(selectedStudentSchedule, professorId);
@@ -146,34 +139,59 @@ export default function CourseStats({
     return professorsData || [];
   }, [selectedSchedule, scheduleDataToUse]); // Updated dependency array to use selectedSchedule
 
+  // Derived (not manually tracked) so it always reflects the actually
+  // persisted choice — recomputes on course switch, reload, and pick alike,
+  // instead of a click-only local state that went stale on course switch.
+  const selectedProfessor = useMemo((): string | null => {
+    if (!selectedStudentSchedule) return null;
+
+    const liveCourse = selectedStudentSchedule.instanceId
+      ? courses.find((c) => c.instanceId === selectedStudentSchedule.instanceId)
+      : courses.find(
+          (c) => c.courseId === selectedStudentSchedule.courseId && !c.instanceId,
+        );
+    const classId = liveCourse?.class;
+    if (!classId) return null;
+
+    return professors.find((p) => p.classNumber === classId)?.professorId ?? null;
+  }, [courses, selectedStudentSchedule, professors]);
+
   return (
     <div className={CSS_CLASSES.STATS_CONTAINER}>
-      <h2 className={CSS_CLASSES.STATS_HEADER}>Minhas Matérias</h2>
       <div className="p-4">
-        <div className="space-y-6">
-          {/* Search Box */}
-          <SearchInput
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            onOpenSearchPopup={() => setIsSearchOpen(true)}
-            onKeyDown={handleSearchKeyDown}
-          />
+        <div>
+          {/* Discipline + professor search, side by side */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1">
+              <SearchInput
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                onOpenSearchPopup={() => setIsSearchOpen(true)}
+                onKeyDown={handleSearchKeyDown}
+              />
+            </div>
+            {onProfessorClick && (
+              <div className="flex-1">
+                <ProfessorSearch
+                  onSelect={onProfessorClick}
+                  refreshTrigger={searchRefreshTrigger}
+                />
+              </div>
+            )}
+          </div>
 
           {/* Current Courses Section */}
-          <CourseList courses={courses} getCourseColor={getCourseColor} />
+          <div className="mt-3">
+            <CourseList courses={courses} getCourseColor={getCourseColor} />
+          </div>
 
           {/* Credits Summary */}
-          <CreditsSummary
-            totalCredits={weeklyHours}
-            totalWorkload={totalWorkload}
-          />
-
-          {onProfessorClick && (
-            <ProfessorSearch
-              onSelect={onProfessorClick}
-              refreshTrigger={searchRefreshTrigger}
+          <div className="mt-6">
+            <CreditsSummary
+              totalCredits={weeklyHours}
+              totalWorkload={totalWorkload}
             />
-          )}
+          </div>
 
           {/* Professor Selection */}
           <AnimatePresence mode="wait">
@@ -184,6 +202,7 @@ export default function CourseStats({
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.15 }}
+                className="mt-6"
               >
                 <ProfessorSelector
                   professors={professors}

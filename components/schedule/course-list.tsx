@@ -38,7 +38,14 @@ export default function CourseList({
               selectSchedule(course, resolved ?? null);
             }}
           >
-            <div className={CSS_CLASSES.COURSE_ID}>{course.courseId}</div>
+            <div className="flex items-center justify-center gap-1.5">
+              <span className={CSS_CLASSES.COURSE_ID}>{course.courseId}</span>
+              {course.class && (
+                <span className="text-[9px] font-bold leading-none px-1 py-0.5 rounded bg-black/15 dark:bg-white/20 text-black dark:text-white whitespace-nowrap">
+                  {course.class}
+                </span>
+              )}
+            </div>
             <div className={CSS_CLASSES.COURSE_NAME}>{resolved?.name ?? course.courseId}</div>
             <div className="mt-1 text-black dark:text-white text-center text-opacity-70 dark:text-opacity-80">
               Créditos: {course.credits}
