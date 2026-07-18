@@ -1,30 +1,39 @@
----
-name: myufsc
-description: >
-  Reference for the MyUFSC codebase — a Next.js semester planner for UFSC students
-  (curriculum grid, drag-and-drop plan builder, weekly timetable, professor ratings,
-  transcript import). Use whenever working in this repository: implementing features,
-  fixing bugs, understanding data flow, touching the DB schema, the crypto layer, the
-  scrapers/pipeline, or any file under app/, components/, hooks/, lib/, database/,
-  parsers/, scrapers/, scripts/, types/. Load this before making changes so existing
-  patterns, known tech debt, and cross-file duplication are not repeated.
----
-
 # MyUFSC
 
 Semester planner for UFSC (Universidade Federal de Santa Catarina) students. Pick a
 degree → see curriculum laid out by phase → drag courses into a personal plan → track
 grades/status → view the live MatrUFSC class schedule → rate professors. Anonymous
 "guest" mode needs no account. Hobby project, GPL-3.0, deployed on Vercel + Neon.
-Full narrative docs live in `docs/*.md` (one file per subsystem) — this skill is the
+Full narrative docs live in `docs/*.md` (one file per subsystem) — this file is the
 condensed map; read the relevant doc file for exhaustive detail before large changes.
 
-Stack: Next.js 16 (App Router) + React 19 + TypeScript, Tailwind + shadcn/radix UI,
+## Working in this repo
+
+- **Package manager: `pnpm`.** Dev: `pnpm run dev` (local PGlite DB auto-seeds from prod
+  on first boot — no server or `.env` needed for a basic run). Copy `.env.example` if you
+  need Neon/Gemini. Lint: `pnpm run lint`. Build: `pnpm run build`.
+- **Never commit to `main`.** This is an open-source project — all work lands on a feature
+  branch (`<type>/<slug>`) and merges via a pull request. Use the **`commit`** skill, which
+  branches off `main` automatically, formats the message, and can open the PR.
+- **Commit style: Conventional Commits.** See the **`commit-conventions`** skill for the
+  allowed types, scope vocabulary, and examples. Contributor workflow lives in
+  `CONTRIBUTING.md`.
+- **AI team & workflow.** Role agents live in `.claude/agents/` (`architect`,
+  `backend-engineer`, `frontend-engineer`, `design`, `product-owner`, `scrum-master`).
+  Sprint commands live in `.claude/commands/` — `/sprint-plan`, `/sprint-run`,
+  `/sprint-review`, and `/sprint-cycle` (all three chained). Sprint artifacts are written
+  under `sprints/`.
+- **Before changing code**, reuse existing utilities and respect the known tech debt listed
+  at the bottom of this file — don't reintroduce the duplication called out there.
+
+## Stack
+
+Next.js 16 (App Router) + React 19 + TypeScript, Tailwind + shadcn/radix UI,
 Zustand (+persist+immer) for client state, Neon Postgres (prod) / PGlite-in-WASM (dev,
 zero-config, auto-seeds from prod `/api/public/seed`), crypto-js + bcryptjs for
 client-side E2E encryption, a custom Pointer Events-based drag-and-drop engine
 (`lib/course-drag.ts` + `CourseBox`, see below — not a library), Rust scraper for MatrUFSC,
-Gemini AI for PDF curriculum parsing. Package manager: **pnpm**. Dev: `pnpm run dev`.
+Gemini AI for PDF curriculum parsing.
 
 ## Request/render flow (top to bottom)
 
