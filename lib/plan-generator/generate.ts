@@ -280,10 +280,82 @@ export function runGreedy(input: GeneratorInput, seed: RunSeed): PlanScenario {
 }
 
 /**
- * Public entry. T2 returns a single scenario ("Mais rápido"); T3 fans this out
- * into multiple seeds and dedupes.
+ * Lowest effective credit cap S2 ("Carga leve") may drop to. Prevents the
+ * "lighter load" seed from shrinking the cap so far it can't fit a normal
+ * mandatory course (most UFSC courses are ≤6 credits, so a two-course floor is
+ * always packable) or would spuriously flag courses as unplaceable.
+ */
+const MIN_REASONABLE_CAP = 12;
+
+/** How much S2 lowers the cap versus S1 to spread the load across more semesters. */
+const CARGA_LEVE_CAP_DELTA = 4;
+
+/**
+ * Structural signature of a scenario: the multiset of `(courseId,
+ * semesterNumber, classNumber)` generated placements plus the sorted set of
+ * unplaceable course ids. Two runs with identical signatures produced the same
+ * plan (determinism guarantees stable ordering), so the second is a duplicate.
+ */
+function scenarioSignature(scenario: PlanScenario): string {
+  const placements = scenario.plan.semesters
+    .flatMap((sem) =>
+      sem.courses.map((c) => `${c.courseId}@${sem.number}#${c.class ?? ""}`),
+    )
+    .sort();
+  const unplaceable = scenario.unplaceable.map((u) => u.courseId).sort();
+  return JSON.stringify({ placements, unplaceable });
+}
+
+/**
+ * Public entry. Fans the pure greedy engine out into a few deterministic seeds
+ * that produce genuinely different plans, then dedupes structurally-identical
+ * results (preferring fewer real options over duplicates) and caps the list.
+ *
+ * - **S1 "Mais rápido"** — the input config as-is (full cap, first eligible
+ *   section) → the fastest packing.
+ * - **S2 "Carga leve"** — a lower effective cap so the same courses spread
+ *   across more, lighter semesters. The cap never drops below
+ *   {@link MIN_REASONABLE_CAP}; if it can't actually go lower than S1's cap the
+ *   seed is skipped (it would just duplicate S1).
+ * - **S3 "Outro mix"** — S1's cap with a rotated section tie-break, so it tends
+ *   to pick different sections/times (the future elective-variety hook).
  */
 export function generatePlanScenarios(input: GeneratorInput): GeneratorResult {
-  const s1: RunSeed = { id: "s1", label: "Mais rápido", config: input.config };
-  return { scenarios: [runGreedy(input, s1)] };
+  const baseCap = input.config.creditCap;
+  const lightCap = Math.max(MIN_REASONABLE_CAP, baseCap - CARGA_LEVE_CAP_DELTA);
+
+  const seeds: RunSeed[] = [
+    { id: "s1", label: "Mais rápido", config: input.config },
+  ];
+
+  // Only add "Carga leve" if it can actually run a lighter cap than S1 —
+  // otherwise it would be a guaranteed duplicate.
+  if (lightCap < baseCap) {
+    seeds.push({
+      id: "s2",
+      label: "Carga leve",
+      config: { ...input.config, creditCap: lightCap },
+    });
+  }
+
+  // "Outro mix": same cap, rotated section choice → different sections/times.
+  seeds.push({
+    id: "s3",
+    label: "Outro mix",
+    config: input.config,
+    sectionRotation: 1,
+  });
+
+  const scenarios: PlanScenario[] = [];
+  const seen = new Set<string>();
+  for (const seed of seeds) {
+    const scenario = runGreedy(input, seed);
+    const signature = scenarioSignature(scenario);
+    if (seen.has(signature)) continue; // structurally identical → drop
+    seen.add(signature);
+    scenarios.push(scenario);
+    if (scenarios.length >= 4) break; // cap the returned list
+  }
+
+  return { scenarios };
 }
