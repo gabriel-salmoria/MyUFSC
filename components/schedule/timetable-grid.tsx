@@ -1,12 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useRef } from "react";
 import { cn } from "@/components/ui/utils";
 import { CSS_CLASSES } from "@/styles/course-theme";
 import type { CustomScheduleEntry } from "@/types/student-plan";
 import type { ViewStudentCourse } from "@/types/visualization";
 import { TIMETABLE } from "@/styles/visualization";
 import { useStudentStore } from "@/lib/student-store";
+import CustomEventsOverlay from "./custom-events-overlay";
 
 interface TimetableGridProps {
   courseSchedule: Record<
@@ -19,13 +20,21 @@ interface TimetableGridProps {
           isConflicting: boolean;
           location?: string;
         }[];
-        customEntries: CustomScheduleEntry[];
       }
     >
   >;
+  // Custom events are drawn as a free-positioned, draggable overlay (not in
+  // cells), so they can sit at any time and move across the grid.
+  customEntries: CustomScheduleEntry[];
   getCourseColor: (courseId: string) => string;
   onEmptyCellClick: (day: number, slotId: string) => void;
   onCustomEntryClick: (entry: CustomScheduleEntry) => void;
+  onCustomEntryMove: (
+    entry: CustomScheduleEntry,
+    day: number,
+    startTime: string,
+    endTime: string,
+  ) => void;
 }
 
 // Memoized so unrelated store updates elsewhere in the app (which don't
@@ -34,12 +43,15 @@ interface TimetableGridProps {
 // references for courseSchedule/getCourseColor/the click handlers.
 const TimetableGrid = React.memo(function TimetableGrid({
   courseSchedule,
+  customEntries,
   getCourseColor,
   onEmptyCellClick,
   onCustomEntryClick,
+  onCustomEntryMove,
 }: TimetableGridProps) {
   const selectedStudentCourse = useStudentStore((s) => s.selectedStudentCourse);
   const selectCourse = useStudentStore((s) => s.selectCourse);
+  const tbodyRef = useRef<HTMLTableSectionElement | null>(null);
 
   // Render a single course item inside a cell
   const renderCourseItem = (courseData: any, idx: number) => {
@@ -72,38 +84,12 @@ const TimetableGrid = React.memo(function TimetableGrid({
     );
   };
 
-  // Render a custom event entry inside a cell
-  const renderCustomEntry = (entry: CustomScheduleEntry, idx: number) => (
-    <div
-      key={`custom-${entry.id}-${idx}`}
-      className={cn(
-        CSS_CLASSES.TIMETABLE_COURSE,
-        "flex-1 min-w-0 cursor-pointer overflow-hidden",
-        entry.color,
-      )}
-      onClick={(e) => {
-        e.stopPropagation();
-        onCustomEntryClick(entry);
-      }}
-    >
-      <div className="flex items-center justify-between">
-        <div className="text-[0.75rem] opacity-90 truncate font-bold">
-          {entry.title}
-        </div>
-      </div>
-      <div className={cn(CSS_CLASSES.COURSE_NAME, "truncate min-h-[1.125rem]")}>
-        {entry.subtitle || ""}
-      </div>
-    </div>
-  );
-
   // Render a table cell for a specific time slot and day
   const renderTimeSlotCell = (slot: any, dayIndex: number) => {
     const cellData = courseSchedule[slot.id]?.[dayIndex];
     const hasCourses = !!cellData?.courses.length;
-    const hasCustom = !!cellData?.customEntries.length;
 
-    if (!hasCourses && !hasCustom) {
+    if (!hasCourses) {
       return (
         <td
           key={dayIndex}
@@ -116,8 +102,7 @@ const TimetableGrid = React.memo(function TimetableGrid({
       );
     }
 
-    const hasMultiple =
-      cellData.courses.length + cellData.customEntries.length > 1;
+    const hasMultiple = cellData.courses.length > 1;
 
     return (
       <td
@@ -135,9 +120,6 @@ const TimetableGrid = React.memo(function TimetableGrid({
           {cellData.courses.map((courseData, idx) =>
             renderCourseItem(courseData, idx),
           )}
-          {cellData.customEntries.map((entry, idx) =>
-            renderCustomEntry(entry, idx),
-          )}
         </div>
       </td>
     );
@@ -145,7 +127,7 @@ const TimetableGrid = React.memo(function TimetableGrid({
 
   return (
     <div className={CSS_CLASSES.TIMETABLE_CONTAINER}>
-      <div className="w-full overflow-auto">
+      <div className="relative w-full overflow-auto">
         <table className={CSS_CLASSES.TIMETABLE_TABLE}>
           <colgroup>
             <col style={{ width: "80px" }} />
@@ -168,7 +150,7 @@ const TimetableGrid = React.memo(function TimetableGrid({
             </tr>
           </thead>
 
-          <tbody>
+          <tbody ref={tbodyRef}>
             {TIMETABLE.TIME_SLOTS.map((slot) => (
               <tr key={slot.id} className="h-14">
                 <td className={CSS_CLASSES.TIMETABLE_TIME_CELL}>
@@ -181,6 +163,14 @@ const TimetableGrid = React.memo(function TimetableGrid({
             ))}
           </tbody>
         </table>
+
+        {/* Free-positioned, draggable custom events layer over the grid. */}
+        <CustomEventsOverlay
+          entries={customEntries}
+          tbodyRef={tbodyRef}
+          onEntryClick={onCustomEntryClick}
+          onEntryMove={onCustomEntryMove}
+        />
       </div>
     </div>
   );

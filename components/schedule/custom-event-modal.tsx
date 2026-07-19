@@ -17,17 +17,16 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Copy, Trash2, X } from "lucide-react";
+import { toHHMM, toMinutes } from "@/lib/timetable-time";
 
 function generateId() {
   return `custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-// Returns the slot id immediately after the given slot id (stays at last if already there)
-function nextSlotId(slotId: string): string {
-  const idx = TIMETABLE.TIME_SLOTS.findIndex((s) => s.id === slotId);
-  if (idx === -1 || idx >= TIMETABLE.TIME_SLOTS.length - 1)
-    return TIMETABLE.TIME_SLOTS[Math.max(0, idx)].id;
-  return TIMETABLE.TIME_SLOTS[idx + 1].id;
+// Default end = one hour after the start (events are free-time now, not snapped
+// to the UFSC period slots).
+function defaultEnd(startTime: string): string {
+  return toHHMM(toMinutes(startTime) + 60);
 }
 
 interface CustomEventModalProps {
@@ -55,7 +54,7 @@ export default function CustomEventModal({
   const [day, setDay] = useState<number>(initialEntry?.day ?? 0);
   const [startTime, setStartTime] = useState(defaultStart);
   const [endTime, setEndTime] = useState(
-    initialEntry?.endTime ?? nextSlotId(defaultStart),
+    initialEntry?.endTime ?? defaultEnd(defaultStart),
   );
   const [color, setColor] = useState(
     initialEntry?.color ?? TIMETABLE_COLOR_CLASSES[0],
@@ -69,8 +68,8 @@ export default function CustomEventModal({
       setSubtitle(initialEntry?.subtitle ?? "");
       setDay(initialEntry?.day ?? 0);
       setStartTime(newStart);
-      // Default end = next slot after start (unless editing an existing entry)
-      setEndTime(initialEntry?.endTime ?? nextSlotId(newStart));
+      // Default end = one hour after start (unless editing an existing entry)
+      setEndTime(initialEntry?.endTime ?? defaultEnd(newStart));
       setColor(initialEntry?.color ?? TIMETABLE_COLOR_CLASSES[0]);
       setRecurring(initialEntry?.recurring ?? true);
     }
@@ -79,10 +78,8 @@ export default function CustomEventModal({
   // When user changes start time, auto-bump end time if it's now <= start
   const handleStartTimeChange = (newStart: string) => {
     setStartTime(newStart);
-    const startIdx = TIMETABLE.TIME_SLOTS.findIndex((s) => s.id === newStart);
-    const endIdx = TIMETABLE.TIME_SLOTS.findIndex((s) => s.id === endTime);
-    if (endIdx <= startIdx) {
-      setEndTime(nextSlotId(newStart));
+    if (toMinutes(endTime) <= toMinutes(newStart)) {
+      setEndTime(defaultEnd(newStart));
     }
   };
 
@@ -95,13 +92,18 @@ export default function CustomEventModal({
 
   const handleSave = () => {
     if (!title.trim()) return;
+    // Free time inputs allow end <= start; keep at least a 30-min block.
+    const safeEnd =
+      toMinutes(endTime) > toMinutes(startTime)
+        ? endTime
+        : toHHMM(toMinutes(startTime) + 30);
     onSave({
       id: initialEntry?.id ?? generateId(),
       title: title.trim(),
       subtitle: subtitle.trim() || undefined,
       day,
       startTime,
-      endTime,
+      endTime: safeEnd,
       color,
       recurring,
       scopedToPhase: recurring ? undefined : currentPhase,
@@ -223,37 +225,28 @@ export default function CustomEventModal({
               </Select>
             </div>
 
-            {/* Início / Fim */}
+            {/* Início / Fim — free times (any minute), no longer snapped to
+                the UFSC period slots. */}
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
-                <Label>Início</Label>
-                <Select value={startTime} onValueChange={handleStartTimeChange}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIMETABLE.TIME_SLOTS.map((slot) => (
-                      <SelectItem key={slot.id} value={slot.id}>
-                        {slot.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="ce-start">Início</Label>
+                <Input
+                  id="ce-start"
+                  type="time"
+                  step={300}
+                  value={startTime}
+                  onChange={(e) => handleStartTimeChange(e.target.value)}
+                />
               </div>
               <div className="grid gap-1.5">
-                <Label>Fim</Label>
-                <Select value={endTime} onValueChange={setEndTime}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIMETABLE.TIME_SLOTS.map((slot) => (
-                      <SelectItem key={slot.id} value={slot.id}>
-                        {slot.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="ce-end">Fim</Label>
+                <Input
+                  id="ce-end"
+                  type="time"
+                  step={300}
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                />
               </div>
             </div>
 
