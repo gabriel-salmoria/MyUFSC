@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -26,20 +27,32 @@ import {
 const TIME_COL_WIDTH = 80;
 // Pointer travel (px) before a press is treated as a drag rather than a click.
 const DRAG_THRESHOLD = 4;
+// A standard UFSC period is 50 min and occupies one grid row. We size event
+// boxes at this constant scale (px per minute) so a box's height reflects its
+// duration and never changes as it moves — unlike the grid's own rows, whose
+// time spans are irregular (60/70/80-min blocks and the lunch gap).
+const SLOT_SPAN_MIN = 50;
+const MIN_EVENT_MIN = 15; // shortest event the user can resize to
+
+type GestureMode = "move" | "resize";
+
+interface Gesture {
+  id: string;
+  mode: GestureMode;
+  day: number;
+  startMin: number;
+  endMin: number;
+  origDay: number;
+  origStartMin: number;
+  origEndMin: number;
+  moved: boolean;
+}
 
 interface Geometry {
   top: number;
   left: number;
   width: number;
   height: number;
-}
-
-interface DragState {
-  id: string;
-  day: number;
-  startMin: number;
-  endMin: number;
-  moved: boolean;
 }
 
 interface CustomEventsOverlayProps {
@@ -55,11 +68,11 @@ interface CustomEventsOverlayProps {
   ) => void;
 }
 
-// A free-positioned, draggable layer of custom events drawn on top of the
-// (period-based) timetable grid. Events are placed by real time via the
-// timetable-time geometry helpers, so they are no longer locked to the 50-min
-// slot rows — they can start/end at any minute and be dragged across days and
-// times (snapped to 5 min).
+// A free-positioned, draggable/resizable layer of custom events drawn on top of
+// the (period-based) timetable grid. Event vertical position follows the grid
+// rows (so a box starts where its time sits in the grid), but its height is a
+// constant function of duration — and it can be dragged across days/times and
+// resized from the bottom edge like a calendar event.
 export default function CustomEventsOverlay({
   entries,
   tbodyRef,
@@ -67,9 +80,12 @@ export default function CustomEventsOverlay({
   onEntryMove,
 }: CustomEventsOverlayProps) {
   const [geo, setGeo] = useState<Geometry | null>(null);
-  const [drag, setDrag] = useState<DragState | null>(null);
-  const dragRef = useRef<DragState | null>(null);
+  const [gesture, setGesture] = useState<Gesture | null>(null);
+  const gestureRef = useRef<Gesture | null>(null);
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
+  // The just-dropped position, held until the store update flows back through
+  // props — prevents a one-frame flash at the old position after a drag.
+  const [pending, setPending] = useState<Gesture | null>(null);
 
   // Measure the grid body so the overlay tracks its exact position/size, even
   // as the layout reflows (responsive widths, panel resize, font load…).
@@ -96,107 +112,121 @@ export default function CustomEventsOverlay({
     };
   }, [tbodyRef, entries.length]);
 
-  const dayCount = TIMETABLE.DAYS.length;
+  // Clear the optimistic "pending" position once the real entry matches it.
+  useEffect(() => {
+    if (!pending) return;
+    const e = entries.find((x) => x.id === pending.id);
+    if (
+      e &&
+      e.day === pending.day &&
+      toMinutes(e.startTime) === pending.startMin &&
+      toMinutes(e.endTime) === pending.endMin
+    ) {
+      setPending(null);
+    }
+  }, [entries, pending]);
 
+  const dayCount = TIMETABLE.DAYS.length;
   const colWidth = geo ? (geo.width - TIME_COL_WIDTH) / dayCount : 0;
   const rowHeight = geo ? geo.height / TOTAL_ROWS : 0;
+  const pxPerMin = rowHeight / SLOT_SPAN_MIN;
 
   const handlePointerDown = useCallback(
-    (e: ReactPointerEvent, entry: CustomScheduleEntry) => {
+    (e: ReactPointerEvent, entry: CustomScheduleEntry, mode: GestureMode) => {
       e.stopPropagation();
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
       pointerStart.current = { x: e.clientX, y: e.clientY };
-      const next: DragState = {
+      const startMin = toMinutes(entry.startTime);
+      const endMin = toMinutes(entry.endTime);
+      const next: Gesture = {
         id: entry.id,
+        mode,
         day: entry.day,
-        startMin: toMinutes(entry.startTime),
-        endMin: toMinutes(entry.endTime),
+        startMin,
+        endMin,
+        origDay: entry.day,
+        origStartMin: startMin,
+        origEndMin: endMin,
         moved: false,
       };
-      dragRef.current = next;
-      setDrag(next);
+      gestureRef.current = next;
+      setGesture(next);
     },
     [],
   );
 
   const handlePointerMove = useCallback(
-    (e: ReactPointerEvent, entry: CustomScheduleEntry) => {
+    (e: ReactPointerEvent) => {
       const start = pointerStart.current;
-      const current = dragRef.current;
-      if (!start || !current || !geo || colWidth <= 0 || rowHeight <= 0) return;
+      const g = gestureRef.current;
+      if (!start || !g || rowHeight <= 0 || colWidth <= 0) return;
 
       const dx = e.clientX - start.x;
       const dy = e.clientY - start.y;
       if (
-        !current.moved &&
+        !g.moved &&
         Math.abs(dx) < DRAG_THRESHOLD &&
         Math.abs(dy) < DRAG_THRESHOLD
       )
         return;
 
-      const origStart = toMinutes(entry.startTime);
-      const origEnd = toMinutes(entry.endTime);
-      const duration = Math.max(5, origEnd - origStart);
-
-      // Horizontal → day columns (whole steps).
-      const dayDelta = Math.round(dx / colWidth);
-      const day = Math.max(0, Math.min(dayCount - 1, entry.day + dayDelta));
-
-      // Vertical → time, via the non-uniform row geometry, snapped to 5 min and
-      // clamped so the whole event stays inside the grid.
-      const origStartRows = minutesToRows(origStart);
-      const rawStart = rowsToMinutes(origStartRows + dy / rowHeight);
-      let startMin = snapMinutes(rawStart, 5);
-      startMin = Math.max(
-        GRID_START_MIN,
-        Math.min(GRID_END_MIN - duration, startMin),
-      );
-
-      const nextDrag: DragState = {
-        id: entry.id,
-        day,
-        startMin,
-        endMin: startMin + duration,
-        moved: true,
-      };
-      dragRef.current = nextDrag;
-      setDrag(nextDrag);
+      let next: Gesture;
+      if (g.mode === "resize") {
+        // Bottom edge → change end time only, at the constant px/min scale.
+        const duration = Math.max(
+          MIN_EVENT_MIN,
+          snapMinutes(g.origEndMin - g.origStartMin + dy / pxPerMin, 5),
+        );
+        const endMin = Math.min(GRID_END_MIN, g.origStartMin + duration);
+        next = { ...g, endMin, moved: true };
+      } else {
+        // Body → move across days (whole columns) and times (grid rows).
+        const day = Math.max(
+          0,
+          Math.min(dayCount - 1, g.origDay + Math.round(dx / colWidth)),
+        );
+        const duration = g.origEndMin - g.origStartMin;
+        const rawStart = rowsToMinutes(
+          minutesToRows(g.origStartMin) + dy / rowHeight,
+        );
+        const startMin = Math.max(
+          GRID_START_MIN,
+          Math.min(GRID_END_MIN - duration, snapMinutes(rawStart, 5)),
+        );
+        next = { ...g, day, startMin, endMin: startMin + duration, moved: true };
+      }
+      gestureRef.current = next;
+      setGesture(next);
     },
-    [geo, colWidth, rowHeight, dayCount],
+    [rowHeight, colWidth, pxPerMin, dayCount],
   );
 
   const handlePointerUp = useCallback(
     (e: ReactPointerEvent, entry: CustomScheduleEntry) => {
-      const current = dragRef.current;
+      const g = gestureRef.current;
       pointerStart.current = null;
-      dragRef.current = null;
-      setDrag(null);
-      if (!current) return;
-
-      if (current.moved) {
-        onEntryMove(
-          entry,
-          current.day,
-          toHHMM(current.startMin),
-          toHHMM(current.endMin),
-        );
-      } else {
-        // A press that never crossed the drag threshold is a click → edit.
-        onEntryClick(entry);
-      }
+      gestureRef.current = null;
+      setGesture(null);
       try {
         (e.target as HTMLElement).releasePointerCapture(e.pointerId);
       } catch {
         /* pointer may already be released */
       }
+      if (!g) return;
+
+      if (g.moved) {
+        // Hold the new position optimistically until props catch up.
+        setPending(g);
+        onEntryMove(entry, g.day, toHHMM(g.startMin), toHHMM(g.endMin));
+      } else if (g.mode === "move") {
+        // A press that never crossed the threshold is a click → edit.
+        onEntryClick(entry);
+      }
     },
     [onEntryMove, onEntryClick],
   );
 
-  if (!geo) {
-    // Still render an invisible measuring anchor so geometry can settle.
-    return null;
-  }
+  if (!geo) return null;
 
   return (
     <div
@@ -204,16 +234,20 @@ export default function CustomEventsOverlay({
       style={{ top: geo.top, left: geo.left, width: geo.width, height: geo.height }}
     >
       {entries.map((entry) => {
-        const isDragging = drag?.id === entry.id;
-        const day = isDragging ? drag!.day : entry.day;
-        const startMin = isDragging ? drag!.startMin : toMinutes(entry.startTime);
-        const endMin = isDragging ? drag!.endMin : toMinutes(entry.endTime);
+        const active =
+          gesture?.id === entry.id
+            ? gesture
+            : pending?.id === entry.id
+              ? pending
+              : null;
+        const day = active ? active.day : entry.day;
+        const startMin = active ? active.startMin : toMinutes(entry.startTime);
+        const endMin = active ? active.endMin : toMinutes(entry.endTime);
+        const isDragging = gesture?.id === entry.id;
 
         const top = minutesToRows(startMin) * rowHeight;
-        const height = Math.max(
-          rowHeight * 0.4,
-          (minutesToRows(endMin) - minutesToRows(startMin)) * rowHeight,
-        );
+        // Height is a pure function of duration → constant while moving.
+        const height = Math.max(pxPerMin * MIN_EVENT_MIN, (endMin - startMin) * pxPerMin);
         const left = TIME_COL_WIDTH + day * colWidth;
 
         return (
@@ -234,8 +268,8 @@ export default function CustomEventsOverlay({
               width: colWidth - 2,
               height: height - 1,
             }}
-            onPointerDown={(e) => handlePointerDown(e, entry)}
-            onPointerMove={(e) => handlePointerMove(e, entry)}
+            onPointerDown={(e) => handlePointerDown(e, entry, "move")}
+            onPointerMove={handlePointerMove}
             onPointerUp={(e) => handlePointerUp(e, entry)}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
@@ -244,19 +278,29 @@ export default function CustomEventsOverlay({
               }
             }}
           >
-            <div className="flex items-center justify-between gap-1">
-              <span className="text-[0.75rem] font-bold leading-tight truncate">
-                {entry.title}
-              </span>
-              <span className="text-[0.625rem] font-medium opacity-80 tabular-nums whitespace-nowrap">
-                {toHHMM(startMin)}
-              </span>
+            {/* Title on its own line so it never gets squeezed by the time,
+                which sits on the second line (like a calendar event). */}
+            <div className="text-[0.75rem] font-bold leading-tight truncate">
+              {entry.title}
             </div>
-            {entry.subtitle && (
+            <div className="text-[0.625rem] font-medium opacity-80 tabular-nums leading-tight truncate">
+              {toHHMM(startMin)}–{toHHMM(endMin)}
+            </div>
+            {entry.subtitle && height > pxPerMin * 45 && (
               <div className="text-[0.7rem] leading-tight truncate opacity-90">
                 {entry.subtitle}
               </div>
             )}
+
+            {/* Bottom resize handle — drag to change the end time. */}
+            <div
+              className="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize"
+              onPointerDown={(e) => handlePointerDown(e, entry, "resize")}
+              onPointerMove={handlePointerMove}
+              onPointerUp={(e) => handlePointerUp(e, entry)}
+            >
+              <div className="mx-auto mt-0.5 h-0.5 w-6 rounded-full bg-current opacity-40" />
+            </div>
           </div>
         );
       })}
