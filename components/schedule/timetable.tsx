@@ -177,6 +177,19 @@ export default function Timetable({
     setLastEntry(entry);
   };
 
+  // Persist a drag: the overlay hands back the new day + start/end times.
+  const handleCustomEntryMove = useCallback(
+    (
+      entry: CustomScheduleEntry,
+      day: number,
+      startTime: string,
+      endTime: string,
+    ) => {
+      updateCustomScheduleEntry({ ...entry, day, startTime, endTime });
+    },
+    [updateCustomScheduleEntry],
+  );
+
   // ─── Derive visible custom entries for the current phase ──────────────────
   const visibleCustomEntries = useMemo(
     () =>
@@ -370,7 +383,6 @@ export default function Timetable({
             isConflicting: boolean;
             location?: string;
           }[];
-          customEntries: CustomScheduleEntry[];
         }
       >
     > = {};
@@ -378,7 +390,7 @@ export default function Timetable({
     TIMETABLE.TIME_SLOTS.forEach((slot) => {
       schedule[slot.id] = {};
       TIMETABLE.DAYS.forEach((_, dayIndex) => {
-        schedule[slot.id][dayIndex] = { courses: [], customEntries: [] };
+        schedule[slot.id][dayIndex] = { courses: [] };
       });
     });
 
@@ -430,31 +442,10 @@ export default function Timetable({
       });
     });
 
-    // Place custom entries
-    visibleCustomEntries.forEach((entry) => {
-      const startSlotIndex = TIMETABLE.TIME_SLOTS.findIndex(
-        (slot) => slot.id === entry.startTime,
-      );
-      if (startSlotIndex === -1) return;
-
-      const endSlotIndex = TIMETABLE.TIME_SLOTS.findIndex((slot) => {
-        const slotTime = parseInt(slot.id.replace(":", ""));
-        const eTime = parseInt(entry.endTime.replace(":", ""));
-        return slotTime >= eTime;
-      });
-      const lastSlotIndex =
-        endSlotIndex === -1 ? TIMETABLE.TIME_SLOTS.length : endSlotIndex;
-
-      for (let i = startSlotIndex; i < lastSlotIndex; i++) {
-        const slotId = TIMETABLE.TIME_SLOTS[i].id;
-        if (schedule[slotId]?.[entry.day]) {
-          schedule[slotId][entry.day].customEntries.push(entry);
-        }
-      }
-    });
-
+    // Custom events are no longer placed in cells — they render in the
+    // free-positioned, draggable overlay (see CustomEventsOverlay).
     return schedule;
-  }, [selectedPhaseCourses, professorOverrides, visibleCustomEntries]);
+  }, [selectedPhaseCourses, professorOverrides]);
 
   const courseColorMap = useMemo(() => {
     selectedPhaseCourses.forEach((course) => {
@@ -632,9 +623,11 @@ export default function Timetable({
 
           <TimetableGrid
             courseSchedule={courseSchedule}
+            customEntries={visibleCustomEntries}
             getCourseColor={getCourseColor}
             onEmptyCellClick={openNewEntry}
             onCustomEntryClick={openEditEntry}
+            onCustomEntryMove={handleCustomEntryMove}
           />
         </div>
 
