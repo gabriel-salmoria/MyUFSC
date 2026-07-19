@@ -33,6 +33,17 @@ export default function StudentCourseDetailsPanel({
   const studentCourse = useStudentStore((s) => s.selectedStudentCourse);
   const clearSelection = useStudentStore((s) => s.clearSelection);
   const commitCourseStatus = useStudentStore((s) => s.commitCourseStatus);
+  const removeCourse = useStudentStore((s) => s.removeCourse);
+
+  // Unmark = the inverse of marking a status. Marking a curriculum-grid course
+  // *adds* it to the plan (see commitCourseStatus), so undoing it removes the
+  // course from the plan — it returns to a plain unmarked slot in the grid and
+  // leaves "Meu Progresso" (same effect as dropping it on the trash). The panel
+  // is closed since its selected course no longer exists.
+  const handleUnmark = (sc: StudentCourse) => {
+    removeCourse(sc);
+    clearSelection();
+  };
 
   const isOpen = !!(course && studentCourse);
 
@@ -93,6 +104,7 @@ export default function StudentCourseDetailsPanel({
             scheduleData={scheduleData}
             onClose={clearSelection}
             onCommitStatus={commitCourseStatus}
+            onUnmark={handleUnmark}
             onViewDependencies={(c) => {
               setDependencyState({
                 showDependencyTree: true,
@@ -124,6 +136,7 @@ function PanelContent({
   scheduleData,
   onClose,
   onCommitStatus,
+  onUnmark,
   onViewDependencies,
 }: {
   course: Course;
@@ -131,6 +144,7 @@ function PanelContent({
   scheduleData?: any;
   onClose: () => void;
   onCommitStatus: (course: Course, sc: StudentCourse, status: CourseStatus, grade?: number) => void;
+  onUnmark: (sc: StudentCourse) => void;
   onViewDependencies: (c: Course) => void;
 }) {
   const [gradeInput, setGradeInput] = useState(
@@ -366,10 +380,17 @@ function PanelContent({
                 <GitGraph className="h-4 w-4" /> Ver Árvore de Dependências
               </Button>
             )}
+            {/* Each button toggles: clicking the already-active status unmarks
+                the course (removes it from the plan) instead of being a no-op. */}
             <ActionButton
               active={studentCourse.status === CourseStatus.IN_PROGRESS}
               label="Marcar como Cursando"
+              activeLabel="Desmarcar Cursando"
               onClick={() => {
+                if (studentCourse.status === CourseStatus.IN_PROGRESS) {
+                  onUnmark(studentCourse);
+                  return;
+                }
                 onCommitStatus(course, studentCourse, CourseStatus.IN_PROGRESS);
                 setGradeInput("");
                 setIsEditing(false);
@@ -378,7 +399,12 @@ function PanelContent({
             <ActionButton
               active={studentCourse.status === CourseStatus.COMPLETED}
               label="Marcar como Concluído"
+              activeLabel="Desmarcar Concluído"
               onClick={() => {
+                if (studentCourse.status === CourseStatus.COMPLETED) {
+                  onUnmark(studentCourse);
+                  return;
+                }
                 // Grade is optional — completing doesn't require entering one.
                 // The "Nota" card above still lets the user add one afterwards.
                 onCommitStatus(course, studentCourse, CourseStatus.COMPLETED);
@@ -388,7 +414,12 @@ function PanelContent({
             <ActionButton
               active={studentCourse.status === CourseStatus.PLANNED}
               label="Marcar como Planejado"
+              activeLabel="Desmarcar Planejado"
               onClick={() => {
+                if (studentCourse.status === CourseStatus.PLANNED) {
+                  onUnmark(studentCourse);
+                  return;
+                }
                 onCommitStatus(course, studentCourse, CourseStatus.PLANNED);
                 setGradeInput("");
                 setIsEditing(false);
@@ -538,16 +569,31 @@ function ListBlock({ title, items }: { title: string; items?: string[] }) {
 
 function ActionButton({
   label,
+  activeLabel,
   active,
   onClick,
 }: {
   label: string;
+  activeLabel?: string;
   active: boolean;
   onClick: () => void;
 }) {
   return (
-    <Button className="w-full" variant={active ? "default" : "outline"} onClick={onClick}>
-      {label}
+    <Button
+      className="w-full group"
+      variant={active ? "default" : "outline"}
+      onClick={onClick}
+    >
+      {/* When active, the button turns into an "unmark" toggle — surface that
+          on hover so it doesn't look like a dead/no-op selected state. */}
+      {active && activeLabel ? (
+        <>
+          <span className="group-hover:hidden">{label}</span>
+          <span className="hidden group-hover:inline">{activeLabel}</span>
+        </>
+      ) : (
+        label
+      )}
     </Button>
   );
 }
