@@ -23,7 +23,7 @@ import {
 } from "@/lib/schedule-conflict";
 import { checkPrerequisites } from "@/lib/prerequisites";
 import { generateEquivalenceMap } from "@/parsers/curriculum-parser";
-import { buildRemainingCandidates } from "@/lib/plan-generator/candidates";
+import { buildRemainingCandidates, isTerminalStatus } from "@/lib/plan-generator/candidates";
 import type {
   GeneratorConfig,
   GeneratorInput,
@@ -58,31 +58,39 @@ export interface RunSeed {
 /** Result of {@link pickSection}: no offering data, a chosen section, or defer. */
 type SectionPick = "NO_DATA" | { classNumber: string; cells: Set<string> } | null;
 
-/** Deep-clone just the semester/course structure we mutate. */
-function clonePlan(plan: StudentPlan): StudentPlan {
+/**
+ * Deep-clone the plan keeping only **terminal** (fixed-history) courses in each
+ * semester — completed / exempted / in-progress. Non-terminal entries (planned,
+ * failed, pending) are dropped so the generator regenerates the entire future
+ * from scratch (the maintainer's "reorganize everything" decision), never
+ * double-placing a course that was already planned. Per-semester `totalCredits`
+ * is recomputed to match the retained courses.
+ */
+function cloneToHistory(plan: StudentPlan): StudentPlan {
   return {
     ...plan,
-    semesters: plan.semesters.map((s) => ({
-      ...s,
-      courses: s.courses.map((c) => ({ ...c })),
-    })),
+    semesters: plan.semesters.map((s) => {
+      const courses = s.courses
+        .filter((c) => isTerminalStatus(c.status))
+        .map((c) => ({ ...c }));
+      return {
+        ...s,
+        courses,
+        totalCredits: courses.reduce((sum, c) => sum + (c.credits || 0), 0),
+      };
+    }),
   };
 }
 
 /**
- * Start semester = one past the last semester holding any
- * completed / inProgress / planned course (plan.md ~115). Existing terminal and
- * planned work stays where it is; generated courses land at `startN` onward.
+ * Start semester = one past the last semester holding any terminal (fixed
+ * history) course. Since the clone has already stripped planned/failed work,
+ * the generated future is packed from `startN` onward.
  */
 function computeStartSemester(plan: StudentPlan): number {
   let last = 0;
   for (const semester of plan.semesters) {
-    const anchored = semester.courses.some(
-      (c) =>
-        c.status === CourseStatus.COMPLETED ||
-        c.status === CourseStatus.IN_PROGRESS ||
-        c.status === CourseStatus.PLANNED,
-    );
+    const anchored = semester.courses.some((c) => isTerminalStatus(c.status));
     if (anchored && semester.number > last) last = semester.number;
   }
   return last + 1;
@@ -171,7 +179,7 @@ export function runGreedy(input: GeneratorInput, seed: RunSeed): PlanScenario {
   // checkPrerequisites (which reads studentInfo.plans[currentPlan]) chains off
   // placements we write as we go.
   const currentPlan = studentInfo.currentPlan;
-  const workingPlan = clonePlan(studentInfo.plans[currentPlan]);
+  const workingPlan = cloneToHistory(studentInfo.plans[currentPlan]);
   const workingInfo: StudentInfo = {
     ...studentInfo,
     plans: studentInfo.plans.map((p, i) => (i === currentPlan ? workingPlan : p)),

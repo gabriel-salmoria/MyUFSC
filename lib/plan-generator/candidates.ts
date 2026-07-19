@@ -27,6 +27,17 @@ const TERMINAL_STATUSES: ReadonlySet<CourseStatus> = new Set([
 ]);
 
 /**
+ * A terminal course is fixed history the generator must not touch or re-place
+ * (completed / exempted / in-progress). Everything else (planned, failed,
+ * pending) is re-placeable — the generator reorganizes the whole future per the
+ * maintainer's "reorganize everything" decision, so those are stripped from the
+ * working clone and regenerated (see runGreedy) instead of left in place.
+ */
+export function isTerminalStatus(status: CourseStatus): boolean {
+  return TERMINAL_STATUSES.has(status);
+}
+
+/**
  * Resolve the terminal status of a curriculum course against the plan, matching
  * identity through the (non-transitive) equivalence map. Returns the terminal
  * status if found, otherwise `null` (course still remaining).
