@@ -1,6 +1,16 @@
 # Sprint 01 — Auto Plan Generator — Status
 
-**State:** Planned — awaiting maintainer approval (Gate 1). No code written yet.
+**State:** v1 built — all 5 tasks committed on `sprint/01-auto-plan-generator`.
+Awaiting end-to-end visual verification + PR. Electives (Phase 2) deferred.
+
+## Commits (v1)
+- `refactor(schedule)` — shared conflict/turno helper (T1)
+- `feat(plan-generator)` engine core (T2) + `fix` full-repack correction
+- `feat(plan-generator)` multi-scenario fan-out (T3)
+- `feat(store)` applyPlanScenario (T4)
+- `feat(plan-generator)` generator modal + entry button (T5)
+
+Verified: `tsc --noEmit` clean, `next build` clean. Pending: human visual pass.
 
 ## Artifacts
 - `brief.md` — feature + reusable building blocks
