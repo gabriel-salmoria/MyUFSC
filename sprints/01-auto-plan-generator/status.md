@@ -1,7 +1,11 @@
 # Sprint 01 — Auto Plan Generator — Status
 
-**State:** v1 built — all 5 tasks committed on `sprint/01-auto-plan-generator`.
-Awaiting end-to-end visual verification + PR. Electives (Phase 2) deferred.
+**State:** reviewed & PR-open — [PR #9](https://github.com/gabriel-salmoria/MyUFSC/pull/9)
+into `main`. Engine reworked during review to anchor plans to the curriculum grade
+(on-track ⇒ the grade), keep the project sequence consecutive, and treat Saturday as
+neutral; fixed a bug that dropped the project chain. Verified on real SI (238) + CS (208)
+data — see `review.md`. Awaiting maintainer merge + human visual pass. Electives (Phase 2)
+deferred.
 
 ## Commits (v1)
 - `refactor(schedule)` — shared conflict/turno helper (T1)
