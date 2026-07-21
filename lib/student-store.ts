@@ -10,6 +10,7 @@ import type {
 } from "@/types/student-plan";
 import { CourseStatus } from "@/types/student-plan";
 import type { Course, Curriculum } from "@/types/curriculum";
+import type { PlanScenario } from "@/lib/plan-generator/types";
 import { PHASE_DIMENSIONS } from "@/styles/course-theme";
 
 /** Generate a short random ID for a new course enrollment slot. */
@@ -110,6 +111,18 @@ export interface StudentStore {
   changeCourseStatus: (course: StudentCourse, status: CourseStatus) => void;
   setCourseGrade: (course: StudentCourse, grade: number) => void;
   setCourseClass: (course: StudentCourse, classId: string) => void;
+  /**
+   * Applies a fully-generated {@link PlanScenario} to the current plan.
+   *
+   * This is the ONLY write in the auto-plan-generator flow — the engine that
+   * produces scenarios is side-effect-free, so nothing changes until the user
+   * hits "Apply" and this action runs. Full-repack model: the scenario's `plan`
+   * already contains the retained terminal history (completed/exempted/in-
+   * progress) plus the regenerated future as PLANNED courses (with `class` +
+   * `phase`), so this is a wholesale swap of the current plan's semesters — not
+   * a per-course merge. The current plan's identity (`id`/`name`) is preserved.
+   */
+  applyPlanScenario: (scenario: PlanScenario) => void;
   /**
    * Sets status (and optionally grade) on a course that may or may not be in
    * the plan yet.  If the course is already in the plan it is updated in-place
@@ -521,6 +534,49 @@ export const useStudentStore = create<StudentStore>()(
                 return;
               }
             }
+          }),
+        ),
+
+      applyPlanScenario: (scenario: PlanScenario) =>
+        set(
+          produce((state: StudentStore) => {
+            const plan = CheckStudentInfo(state.studentInfo);
+            if (!plan) return;
+
+            // Wholesale swap of the plan body. The scenario already carries the
+            // retained terminal history + regenerated PLANNED future, so we
+            // rebuild the semesters array from it wholesale. Deep-clone so the
+            // scenario object (which the modal may still hold/render) is never
+            // mutated by later store edits.
+            const newSemesters: StudentSemester[] = scenario.plan.semesters.map(
+              (semester) => {
+                const courses = semester.courses.map((c) => ({
+                  ...c,
+                  // Fresh, store-consistent instanceId so nothing collides with
+                  // history entries and every slot is uniquely addressable —
+                  // matching the newInstanceId() convention used by
+                  // addCourseToSemester/commitCourseStatus.
+                  instanceId: newInstanceId(),
+                }));
+                return {
+                  number: semester.number,
+                  courses,
+                  // Recompute from the courses; never trust the scenario's
+                  // possibly-stale per-semester totalCredits.
+                  totalCredits: courses.reduce(
+                    (sum, c) => sum + (c.credits || 0),
+                    0,
+                  ),
+                };
+              },
+            );
+
+            // Preserve the current plan's identity/name and any other
+            // plan-level fields — only the semesters change.
+            plan.semesters = newSemesters;
+
+            // Single updateView pass keeps the ≥12 / trailing-empty invariant.
+            updateView(plan.semesters);
           }),
         ),
 

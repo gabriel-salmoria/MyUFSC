@@ -5,12 +5,13 @@ import type { StudentInfo } from "@/types/student-plan";
 import type { Curriculum } from "@/types/curriculum";
 import type { ScheduleHookState } from "@/hooks/setup/UseSchedule";
 import { Switch } from "@/components/ui/switch";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import CurriculumVisualizer from "@/components/visualizers/curriculum-visualizer";
 import ProgressVisualizer from "@/components/visualizers/progress-visualizer";
 import GridVisualizer from "@/components/visualizers/grid-visualizer";
+import PlanGeneratorModal from "@/components/schedule/plan-generator-modal";
 import ResizablePanel from "@/components/layout/ResizablePanel";
 import { useAddCoursePrereq } from "@/components/course/use-add-course-prereq";
 import type { DegreeProgram } from "@/types/degree-program";
@@ -90,6 +91,9 @@ export default function Visualizations({
 
   // Filter offered electives
   const [filterOffered, setFilterOffered] = useState(false);
+
+  // Auto plan generator modal
+  const [planGenOpen, setPlanGenOpen] = useState(false);
 
   const handlePhaseClick = useCallback((phase: number) => {
     setHighlightAvailableForPhase((prev) => prev === phase ? null : phase);
@@ -289,9 +293,19 @@ export default function Visualizations({
 
       <div ref={progressSectionRef}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-2">
-          <h2 className="section-heading m-0">
-            Meu Progresso
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="section-heading m-0">
+              Meu Progresso
+            </h2>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPlanGenOpen(true)}
+            >
+              <Sparkles className="h-4 w-4 mr-1.5" />
+              Gerar plano automático
+            </Button>
+          </div>
           <p className="text-sm text-muted-foreground italic">
             Dica: arraste disciplinas para o último semestre para expandir seu
             curso. <strong>Clique no cabeçalho de uma Fase</strong> para
@@ -308,6 +322,12 @@ export default function Visualizations({
         </ResizablePanel>
       </div>
       {prereqToast}
+
+      <PlanGeneratorModal
+        open={planGenOpen}
+        onClose={() => setPlanGenOpen(false)}
+        scheduleData={scheduleState?.scheduleData}
+      />
     </div>
   );
 }

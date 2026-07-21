@@ -9,18 +9,19 @@ import { Course } from "@/types/curriculum"
 import { StudentCourse, CourseStatus } from "@/types/student-plan"
 
 // Basic types
-interface ClassSchedule {
+export interface ClassSchedule {
   day: number;            // 0-6 for Monday-Sunday
   startTime: string;      // HH:MM format
   endTime: string;        // HH:MM format
   location?: string;      // Classroom building/room
 }
 
-interface Professor {
+export interface Professor {
   professorId: string;    // Generated ID
   name: string;           // Professor name
   classNumber: string;    // Class number
   schedule: string;       // Human readable schedule
+  slots: ClassSchedule[]; // Structured per-section times (parity source for conflict math)
   enrolledStudents: number;
   maxStudents: number;
 }
@@ -175,6 +176,7 @@ export function parsescheduleData(data: any): ScheduleData {
           name: professorName,
           classNumber: classId,
           schedule: generateReadableSchedule(classSchedules),
+          slots: classSchedules,
           enrolledStudents: filledSlots,
           maxStudents: totalSlots
         });

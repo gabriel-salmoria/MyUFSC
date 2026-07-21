@@ -15,6 +15,8 @@ import {
   STATUS_CLASSES,
 } from "@/styles/course-theme";
 import { parsescheduleData } from "@/parsers/class-parser";
+import type { ClassSchedule } from "@/parsers/class-parser";
+import { expandToCells } from "@/lib/schedule-conflict";
 import { useStudentStore } from "@/lib/student-store";
 import { useCourseMap } from "@/hooks/useCourseMap";
 import { useStableValue } from "@/hooks/useStableValue";
@@ -49,6 +51,7 @@ type ProfessorOverride = {
   courseId: string;
   professorId: string;
   schedule: ScheduleEntry[];
+  slots: ClassSchedule[];
   classNumber: string;
   location: string;
 };
@@ -58,6 +61,7 @@ interface Professor {
   name: string;
   classNumber: string;
   schedule: string;
+  slots: ClassSchedule[];
   enrolledStudents: number;
   maxStudents: number;
 }
@@ -254,47 +258,28 @@ export default function Timetable({
     return courses;
   }, [detailsProfessorId, timetableData]);
 
+  // Build the override straight from the section's structured `slots`
+  // (parsers/class-parser.ts) instead of regex-reparsing the human-readable
+  // `professor.schedule` string. `ClassSchedule` and `ScheduleEntry` share a
+  // shape, so this is a direct map — and it keeps a single source of truth for
+  // per-section times (also feeding lib/schedule-conflict.ts).
   const parseScheduleForProfessor = (
     professorData: Professor,
     course: StudentCourse,
   ): ProfessorOverride | null => {
-    const scheduleText = professorData.schedule;
-    const scheduleEntries: ScheduleEntry[] = [];
-    const courseId = course.courseId;
-
-    if (scheduleText) {
-      const timeSlots = scheduleText.split(",").map((s) => s.trim());
-      timeSlots.forEach((timeSlot) => {
-        const daysAndTimeMatch = timeSlot.match(
-          /^(.+?) (\d+:\d+-\d+:\d+)(.*)$/,
-        );
-        if (daysAndTimeMatch) {
-          const [_, daysStr, timeRange, locationPart] = daysAndTimeMatch;
-          const days = daysStr.split("/");
-          const [startTime, endTime] = timeRange.split("-");
-          const slotLocation = locationPart ? locationPart.trim() : "";
-
-          days.forEach((dayName) => {
-            const dayIndex =
-              TIMETABLE.DAYS_MAP[
-                dayName.trim() as keyof typeof TIMETABLE.DAYS_MAP
-              ];
-            if (dayIndex === undefined || !startTime || !endTime) return;
-            scheduleEntries.push({
-              day: dayIndex,
-              startTime,
-              endTime,
-              location: slotLocation,
-            });
-          });
-        }
-      });
-    }
+    const slots = professorData.slots ?? [];
+    const scheduleEntries: ScheduleEntry[] = slots.map((slot) => ({
+      day: slot.day,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      location: slot.location ?? "",
+    }));
 
     return {
-      courseId,
+      courseId: course.courseId,
       professorId: professorData.professorId,
       schedule: scheduleEntries,
+      slots,
       classNumber: professorData.classNumber,
       location: scheduleEntries[scheduleEntries.length - 1]?.location || "",
     };
@@ -394,41 +379,31 @@ export default function Timetable({
       });
     });
 
-    // Place course overrides
+    // Place course overrides. Cell expansion (which grid cells a section spans)
+    // is delegated to lib/schedule-conflict.ts so the timetable and the plan
+    // generator share one boundary rule. We expand per slot to keep each cell's
+    // location metadata for rendering.
     professorOverrides.forEach((override) => {
       const course = selectedPhaseCourses.find(
         (c) => c.courseId === override.courseId,
       );
       if (!course) return;
 
-      override.schedule.forEach((entry) => {
-        const { day, startTime, endTime, location } = entry;
-        if (!endTime) return;
+      const resolvedCourse = courseMap.get(course.courseId);
+      if (!resolvedCourse) return;
+      const viewCourse: ViewStudentCourse = { ...course, course: resolvedCourse };
 
-        const startSlotIndex = TIMETABLE.TIME_SLOTS.findIndex(
-          (slot) => slot.id === startTime,
-        );
-        if (startSlotIndex === -1) return;
-
-        const endSlotIndex = TIMETABLE.TIME_SLOTS.findIndex((slot) => {
-          const slotTime = parseInt(slot.id.replace(":", ""));
-          const eTime = parseInt(endTime.replace(":", ""));
-          return slotTime >= eTime;
-        });
-        const lastSlotIndex =
-          endSlotIndex === -1 ? TIMETABLE.TIME_SLOTS.length : endSlotIndex;
-
-        const resolvedCourse = courseMap.get(course.courseId);
-        if (!resolvedCourse) return;
-        const viewCourse: ViewStudentCourse = { ...course, course: resolvedCourse };
-        for (let i = startSlotIndex; i < lastSlotIndex; i++) {
-          const slotId = TIMETABLE.TIME_SLOTS[i].id;
+      override.slots.forEach((slot) => {
+        expandToCells([slot]).forEach((cell) => {
+          const [dayStr, slotIndexStr] = cell.split(":");
+          const day = parseInt(dayStr, 10);
+          const slotId = TIMETABLE.TIME_SLOTS[parseInt(slotIndexStr, 10)].id;
           schedule[slotId][day].courses.push({
             course: viewCourse,
             isConflicting: false,
-            location,
+            location: slot.location,
           });
-        }
+        });
       });
     });
 
