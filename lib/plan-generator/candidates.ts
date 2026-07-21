@@ -14,6 +14,30 @@ import type { StudentPlan } from "@/types/student-plan";
 import { CourseStatus } from "@/types/student-plan";
 import { computeBlocksCounts } from "@/lib/prerequisites";
 
+/** NFD accent-strip → lower-case → collapse whitespace, for name matching. */
+export function normalizeCourseName(name: string): string {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * True for graduation-requirement pseudo-courses that are not schedulable
+ * disciplines (e.g. "Atividades Complementares"). These are typed `mandatory`
+ * in curriculum JSON but have no class sections and no real phase, so the packer
+ * must exclude them: they can be neither scheduled nor sensibly reported as
+ * unplaceable. Matched by normalized name (robust across curricula) rather than
+ * a "no sections / phase 0" heuristic, which parseCourses makes lossy (it
+ * collapses `phase null → 0`, so a real early-phase course and a phase-less
+ * pseudo-course become indistinguishable).
+ */
+export function isNonDisciplineRequirement(course: Course): boolean {
+  return normalizeCourseName(course.name).includes("atividades complementares");
+}
+
 /**
  * Statuses that mean a course no longer needs to be generated. Note: `planned`
  * is intentionally NOT terminal here (plan.md ~99-102 lists only these three),
@@ -65,7 +89,9 @@ export function resolveTerminalStatus(
 /**
  * Build the ordered list of remaining **mandatory** courses to place.
  *
- * Filter: `type === "mandatory"` and not resolved to a terminal status.
+ * Filter: `type === "mandatory"`, not a non-discipline graduation requirement
+ * (see {@link isNonDisciplineRequirement}), and not resolved to a terminal
+ * status.
  * Order: `phase` ascending, tie-break by `computeBlocksCounts` descending
  * (courses that unlock more go first → shortens the critical path). A final
  * `id` comparison keeps the sort fully deterministic.
@@ -80,6 +106,7 @@ export function buildRemainingCandidates(
   const remaining = courses.filter(
     (course) =>
       course.type === "mandatory" &&
+      !isNonDisciplineRequirement(course) &&
       resolveTerminalStatus(course, plan, equivMap) === null,
   );
 

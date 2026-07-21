@@ -44,7 +44,11 @@ import {
 } from "@/lib/schedule-conflict";
 import { checkPrerequisites, computeBlocksCounts } from "@/lib/prerequisites";
 import { generateEquivalenceMap } from "@/parsers/curriculum-parser";
-import { buildRemainingCandidates, isTerminalStatus } from "@/lib/plan-generator/candidates";
+import {
+  buildRemainingCandidates,
+  isTerminalStatus,
+  normalizeCourseName,
+} from "@/lib/plan-generator/candidates";
 import type {
   GeneratorConfig,
   GeneratorInput,
@@ -96,16 +100,6 @@ const SEQUENCE_GROUP_MATCHERS: ReadonlyArray<ReadonlyArray<(name: string) => boo
     (n) => n === "projetos ii",
   ],
 ];
-
-/** NFD accent-strip → lower-case → collapse whitespace, for name matching. */
-function normalizeCourseName(name: string): string {
-  return name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 /**
  * Resolve the sequence groups present among `remaining`, each as an ordered
