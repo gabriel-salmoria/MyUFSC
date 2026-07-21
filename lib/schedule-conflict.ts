@@ -71,6 +71,30 @@ export function expandToCells(slots: ClassSchedule[]): Set<string> {
   return cells;
 }
 
+/**
+ * Grid `day` index for Saturday (0 = Monday … 5 = Saturday). See
+ * `class-parser.ts`, which maps MatrUFSC day 7 → 5.
+ */
+export const SATURDAY_DAY = 5;
+
+/**
+ * Drop "neutral" cells that must not participate in conflict detection.
+ *
+ * Saturday classes are treated as neutral by the plan generator: a Saturday
+ * offering never collides with anything, so two courses may share a Saturday
+ * slot without the packer flagging a conflict (maintainer decision — Saturday
+ * offerings are rare and non-blocking). Returns a new set with every Saturday
+ * `"5:<slot>"` cell removed; the timetable UI keeps using the raw cells.
+ */
+export function stripNeutralDays(cells: Set<string>): Set<string> {
+  const prefix = `${SATURDAY_DAY}:`;
+  const out = new Set<string>();
+  for (const cell of cells) {
+    if (!cell.startsWith(prefix)) out.add(cell);
+  }
+  return out;
+}
+
 /** Two sections conflict when their occupied cells intersect. */
 export function sectionsConflict(a: Set<string>, b: Set<string>): boolean {
   // Iterate the smaller set for a cheaper intersection test.
