@@ -19,9 +19,11 @@
  *     semester is at the credit cap, or no section fits the turno filter —
  *     never earlier than its anchor, so phases stay dense and the plan mirrors
  *     the grade instead of scattering.
- *  3. **Sequence groups stay consecutive.** The project chain (Gerência de
- *     Projetos → Projetos I → Projetos II) is always placed in back-to-back
- *     semesters, in order (see {@link SEQUENCE_GROUP_MATCHERS}).
+ *
+ * Prerequisite-linked chains (e.g. the project sequence Gerência de Projetos →
+ * Projeto Integrador I → II) fall out of this naturally: each link's prereq
+ * edge forces it a semester past its predecessor, so no special "keep the
+ * sequence together" mechanism is needed.
  *
  * Every placement respects prerequisites and schedule conflicts. Saturday
  * offerings are treated as neutral (see {@link stripNeutralDays}) — they never
@@ -44,11 +46,7 @@ import {
 } from "@/lib/schedule-conflict";
 import { checkPrerequisites, computeBlocksCounts } from "@/lib/prerequisites";
 import { generateEquivalenceMap } from "@/parsers/curriculum-parser";
-import {
-  buildRemainingCandidates,
-  isTerminalStatus,
-  normalizeCourseName,
-} from "@/lib/plan-generator/candidates";
+import { buildRemainingCandidates, isTerminalStatus } from "@/lib/plan-generator/candidates";
 import type {
   GeneratorConfig,
   GeneratorInput,
@@ -83,42 +81,6 @@ export interface RunSeed {
 
 /** Result of {@link pickSection}: no offering data, a chosen section, or defer. */
 type SectionPick = "NO_DATA" | { classNumber: string; cells: Set<string> } | null;
-
-/**
- * Ordered matchers identifying a "must be consecutive, in order" sequence
- * group. Names are normalized (accent-stripped, lower-cased, whitespace
- * collapsed) before matching. Only the members actually present in the
- * curriculum are enforced; a group of one imposes no constraint.
- *
- * Currently the one UFSC project chain the maintainer requires to run
- * back-to-back: Gerência de Projetos → Projetos I → Projetos II.
- */
-const SEQUENCE_GROUP_MATCHERS: ReadonlyArray<ReadonlyArray<(name: string) => boolean>> = [
-  [
-    (n) => n.includes("gerencia de projetos"),
-    (n) => n === "projetos i",
-    (n) => n === "projetos ii",
-  ],
-];
-
-/**
- * Resolve the sequence groups present among `remaining`, each as an ordered
- * list of courseIds. A matcher slot with no matching remaining course is
- * skipped; groups that collapse to fewer than two members impose no ordering
- * and are dropped.
- */
-function findSequenceGroups(remaining: Course[]): string[][] {
-  const groups: string[][] = [];
-  for (const matchers of SEQUENCE_GROUP_MATCHERS) {
-    const ids: string[] = [];
-    for (const match of matchers) {
-      const hit = remaining.find((c) => match(normalizeCourseName(c.name)));
-      if (hit) ids.push(hit.id);
-    }
-    if (ids.length >= 2) groups.push(ids);
-  }
-  return groups;
-}
 
 /**
  * Deep-clone the plan keeping only **terminal** (fixed-history) courses in each
@@ -332,9 +294,7 @@ export function runGreedy(input: GeneratorInput, seed: RunSeed): PlanScenario {
   const maxN = startN + SAFETY_MAX_SPAN - 1;
 
   const graph = buildPrecedenceGraph(remaining, equivMap);
-  const sequenceGroups = findSequenceGroups(remaining);
   const blocks = computeBlocksCounts(courses);
-  const byId = new Map(remaining.map((c) => [c.id, c] as const));
 
   // Per-semester packing state, created lazily as courses land.
   const sems = new Map<number, SemState>();
@@ -355,10 +315,9 @@ export function runGreedy(input: GeneratorInput, seed: RunSeed): PlanScenario {
 
   /** Earliest semester `id` may occupy given its anchor + placed prereqs, or
    *  `null` if a prereq is still unplaced (course not yet ready). */
-  const earliestReady = (course: Course, ignoreGroup?: Set<string>): number | null => {
+  const earliestReady = (course: Course): number | null => {
     let min = anchorOf(course);
     for (const p of graph.prereqs.get(course.id) ?? []) {
-      if (ignoreGroup?.has(p)) continue; // intra-group order handled elsewhere
       const placed = placements.get(p);
       if (!placed) return null;
       min = Math.max(min, placed.semester + 1);
@@ -384,7 +343,7 @@ export function runGreedy(input: GeneratorInput, seed: RunSeed): PlanScenario {
     }
   };
 
-  /** Place one non-group course at the earliest feasible semester ≥ its anchor. */
+  /** Place one course at the earliest feasible semester ≥ its anchor. */
   const placeSingle = (course: Course) => {
     const from = earliestReady(course);
     if (from === null) return; // a prereq was skipped → cascade
@@ -398,56 +357,6 @@ export function runGreedy(input: GeneratorInput, seed: RunSeed): PlanScenario {
       return;
     }
   };
-
-  /** Place a sequence group into consecutive semesters, in order, from its
-   *  anchor. Distinct semesters per member → no intra-block conflict to track.
-   *  Returns `false` when a member's external prerequisite isn't placed yet (so
-   *  the caller retries later) or no feasible consecutive block exists. */
-  const placeGroup = (group: string[]): boolean => {
-    const members = group.map((id) => byId.get(id)!).filter(Boolean);
-    const len = members.length;
-    const groupSet = new Set(group);
-
-    let sLo = startN;
-    for (let i = 0; i < len; i++) {
-      const ready = earliestReady(members[i], groupSet);
-      if (ready === null) return false; // external prereq unplaced → not ready
-      sLo = Math.max(sLo, ready - i);
-    }
-    const sHi = maxN - (len - 1);
-
-    for (let s = sLo; s <= sHi; s++) {
-      const picks: { course: Course; n: number; pick: SectionPick }[] = [];
-      let ok = true;
-      for (let i = 0; i < len; i++) {
-        const course = members[i];
-        const n = s + i;
-        const sem = semState(n);
-        const credits = course.credits || 0;
-        if (sem.credits + credits > config.creditCap) {
-          ok = false;
-          break;
-        }
-        const pick = pickSection(course, sections, config.turno, sem.cells, rotation);
-        if (pick === null) {
-          ok = false;
-          break;
-        }
-        picks.push({ course, n, pick });
-      }
-      if (ok) {
-        for (const p of picks) commit(p.course, p.n, p.pick);
-        return true;
-      }
-    }
-    return false;
-  };
-
-  const groupOf = new Map<string, string[]>();
-  for (const group of sequenceGroups) {
-    for (const id of group) groupOf.set(id, group);
-  }
-  const placedGroups = new Set<string[]>();
 
   // Placement order: prereqs (lower level) before dependents; then anchor
   // (curriculum phase) ascending; then courses that unlock more; then id.
@@ -466,16 +375,6 @@ export function runGreedy(input: GeneratorInput, seed: RunSeed): PlanScenario {
 
   for (const course of order) {
     if (placements.has(course.id)) continue;
-    const group = groupOf.get(course.id);
-    if (group) {
-      // Attempt when reached; if a member's external prereq isn't placed yet
-      // placeGroup returns false and we retry at the next member in the order
-      // (by the deepest member's turn every external prereq is placed).
-      if (!placedGroups.has(group) && placeGroup(group)) {
-        placedGroups.add(group);
-      }
-      continue; // members handled (or intentionally skipped) via the group
-    }
     placeSingle(course);
   }
 
