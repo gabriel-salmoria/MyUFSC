@@ -1,0 +1,22 @@
+# Sprint 03 — Status
+
+**Branch:** `sprint/03-scheduler-core` (off `sprint/02-...`, which is PR #5 awaiting merge)
+
+| Phase | State |
+|---|---|
+| Plan (product-owner + architect) | ✅ done — backlog.md, plan.md |
+| Gate 1 (approval to build) | ✅ approved — anchor RELAXED (earliest-feasible critical-path) |
+| Run — engine (backend-engineer) | ⏳ in progress (steps 1–6 + spike) |
+| Run — modal render (frontend-engineer) | ⬜ pending (step 7) |
+| Review (build/test/code-review) | ⬜ pending |
+| Gate 2 (approval to open PR) | ⬜ pending |
+
+## Engine tasks
+1. ⬜ Bottleneck weighting (`computeBottleneckWeights`)
+2. ⬜ Night turno filter + id-keyed `INE5638` Saturday exception
+3. ⬜ Slot-based max-weight packing solver
+4. ⬜ Per-semester packing loop (relaxed anchor) — keep Sprint 02 invariant
+5. ⬜ Spike vs live SI data → collision-floor detection
+6. ⬜ Result output flags (collisions, floor, assumption, grad reminder)
+
+Key data fact (verified): live SI `20262` snapshot confirms `INE5614`×`INE5607` collide Wed 18:30; `INE5638` is Saturday 08:20 only.
