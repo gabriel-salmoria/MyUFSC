@@ -451,6 +451,53 @@ function ScenarioPreview({
           </ul>
         </div>
       )}
+
+      {/* Bottleneck-collision floor diagnostic */}
+      {scenario.bottleneckCollisions.length > 0 && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+          <h4 className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
+            Piso mínimo: {scenario.minSemestersFloor} semestres
+          </h4>
+          <ul className="space-y-1.5">
+            {scenario.bottleneckCollisions.map((collision) => (
+              <li
+                key={`${collision.a}-${collision.b}`}
+                className="text-xs text-muted-foreground"
+              >
+                As disciplinas{" "}
+                <span className="font-medium text-foreground">
+                  {courseName(collision.a)}
+                </span>{" "}
+                e{" "}
+                <span className="font-medium text-foreground">
+                  {courseName(collision.b)}
+                </span>{" "}
+                não cabem no mesmo semestre (mesmo horário:{" "}
+                {collision.sharedCells.join(", ") || "—"}), o que adiciona +
+                {collision.floorImpact}{" "}
+                {collision.floorImpact === 1 ? "semestre" : "semestres"}.
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Future-schedule assumption note */}
+      {scenario.assumesReusedFutureSchedule && (
+        <p className="text-xs text-muted-foreground">
+          Horários de semestres futuros são estimados a partir da oferta de{" "}
+          {scenario.scheduleSnapshotSemester}.
+        </p>
+      )}
+
+      {/* Graduation-requirements reminder — always shown */}
+      <p className="text-xs text-muted-foreground">
+        Além das disciplinas: {scenario.graduationReminder.complementaresHours}h
+        de atividades complementares e{" "}
+        {scenario.graduationReminder.optativasHours}h de optativas não estão
+        incluídas neste plano.
+      </p>
     </div>
   );
 }
