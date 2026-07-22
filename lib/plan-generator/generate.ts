@@ -55,10 +55,21 @@ import type {
   GeneratorConfig,
   GeneratorInput,
   GeneratorResult,
+  GraduationReminder,
   PlanScenario,
   UnplacedCourse,
   UnplacedReason,
 } from "@/lib/plan-generator/types";
+
+/**
+ * Static graduation requirements beyond the mandatory disciplines (hours of
+ * atividades complementares + optativas). Surfaced on every scenario; optativas
+ * scheduling is deferred to Sprint 04.
+ */
+const GRADUATION_REMINDER: GraduationReminder = {
+  complementaresHours: 360,
+  optativasHours: 288,
+};
 
 /**
  * Max number of future semesters the packer will scan forward when deferring a
@@ -401,6 +412,13 @@ export function runGreedy(input: GeneratorInput, seed: RunSeed): PlanScenario {
     weights,
   });
 
+  // The first generated semester (startN) is assumed to be the snapshot
+  // semester; any placement beyond it reuses the snapshot's offering for a
+  // future calendar semester.
+  const scheduleSnapshotSemester =
+    input.scheduleSnapshotSemester ?? studentInfo.currentSemester ?? "";
+  const assumesReusedFutureSchedule = lastPlacedN > startN;
+
   return {
     id: seed.id,
     label: seed.label,
@@ -412,6 +430,9 @@ export function runGreedy(input: GeneratorInput, seed: RunSeed): PlanScenario {
     usedPackingFallback,
     bottleneckCollisions: collisions,
     minSemestersFloor,
+    assumesReusedFutureSchedule,
+    scheduleSnapshotSemester,
+    graduationReminder: GRADUATION_REMINDER,
     config,
   };
 }

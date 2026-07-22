@@ -35,6 +35,22 @@ export interface GeneratorInput {
   sections: Record<string, Professor[]>;
   /** Turno + credit-cap configuration. */
   config: GeneratorConfig;
+  /**
+   * Calendar code (`"YYYYS"`, e.g. `"20262"`) of the schedule snapshot the
+   * sections come from (`fetchedSemester`). Reused for every future semester.
+   * Optional — defaults to the student's current semester if the caller omits
+   * it, so existing callers/tests keep working.
+   */
+  scheduleSnapshotSemester?: string;
+}
+
+/**
+ * Static graduation requirements beyond the mandatory disciplines, surfaced as
+ * a reminder on every scenario. Optativas scheduling is deferred to Sprint 04.
+ */
+export interface GraduationReminder {
+  complementaresHours: number;
+  optativasHours: number;
 }
 
 /** Why a remaining mandatory course could not be placed. */
@@ -83,6 +99,16 @@ export interface PlanScenario {
    * achievable (see `bottleneck.ts` for the full list of limits).
    */
   minSemestersFloor: number;
+  /**
+   * True when any placement lands in a calendar semester beyond the schedule
+   * snapshot — i.e. the plan assumes the snapshot's offering repeats in future
+   * semesters (effectively always for a multi-semester plan).
+   */
+  assumesReusedFutureSchedule: boolean;
+  /** Calendar code of the reused schedule snapshot (see {@link GeneratorInput}). */
+  scheduleSnapshotSemester: string;
+  /** Static reminder of the non-discipline graduation requirements. */
+  graduationReminder: GraduationReminder;
   /** Cap + turno actually used for this scenario (shown in the preview). */
   config: GeneratorConfig;
 }
