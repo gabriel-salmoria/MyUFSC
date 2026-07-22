@@ -40,13 +40,13 @@ import type { Professor } from "@/parsers/class-parser";
 import {
   expandToCells,
   sectionsConflict,
-  sectionInTurno,
   stripNeutralDays,
   type TurnoFilter,
 } from "@/lib/schedule-conflict";
 import { checkPrerequisites, computeBlocksCounts } from "@/lib/prerequisites";
 import { generateEquivalenceMap } from "@/parsers/curriculum-parser";
 import { buildRemainingCandidates, isTerminalStatus } from "@/lib/plan-generator/candidates";
+import { isNightTurnoValid } from "@/lib/plan-generator/night";
 import type {
   GeneratorConfig,
   GeneratorInput,
@@ -155,7 +155,7 @@ function pickSection(
   const profs = sections[course.id];
   if (!profs || profs.length === 0) return "NO_DATA";
 
-  const valid = profs.filter((p) => sectionInTurno(p.slots, turno));
+  const valid = profs.filter((p) => isNightTurnoValid(course, p, turno));
   if (valid.length === 0) return null;
 
   for (const prof of rotate(valid, rotation)) {
@@ -183,7 +183,11 @@ function classifyUnplaceable(
     return "prereq";
   }
   const profs = sections[course.id];
-  if (profs && profs.length > 0 && !profs.some((p) => sectionInTurno(p.slots, turno))) {
+  if (
+    profs &&
+    profs.length > 0 &&
+    !profs.some((p) => isNightTurnoValid(course, p, turno))
+  ) {
     return "no-section-in-turno";
   }
   return "conflict";
