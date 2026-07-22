@@ -30,6 +30,9 @@ interface PlanGeneratorModalProps {
   onClose: () => void;
   /** Raw MatrUFSC schedule blob the Timetable already resolved. May be null. */
   scheduleData: unknown;
+  /** Semester the offering snapshot was fetched for (e.g. "20262"), reused for
+   *  future semesters. Drives the "horários estimados" note. */
+  snapshotSemester?: string;
 }
 
 const DEFAULT_CREDIT_CAP = 28;
@@ -53,6 +56,7 @@ export default function PlanGeneratorModal({
   open,
   onClose,
   scheduleData,
+  snapshotSemester,
 }: PlanGeneratorModalProps) {
   const studentInfo = useStudentStore((s) => s.studentInfo);
   const curriculumCache = useStudentStore((s) => s.curriculumCache);
@@ -121,6 +125,7 @@ export default function PlanGeneratorModal({
       courses,
       sections,
       config: { turno, creditCap: cap },
+      scheduleSnapshotSemester: snapshotSemester,
     });
     setResult(generated);
     setSelectedId(generated.scenarios[0]?.id ?? null);

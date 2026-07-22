@@ -327,6 +327,7 @@ export default function Visualizations({
         open={planGenOpen}
         onClose={() => setPlanGenOpen(false)}
         scheduleData={scheduleState?.scheduleData}
+        snapshotSemester={scheduleState?.selectedSemester}
       />
     </div>
   );
