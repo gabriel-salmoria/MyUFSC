@@ -268,7 +268,14 @@ export function runGreedy(input: GeneratorInput, seed: RunSeed): PlanScenario {
   const maxN = startN + SAFETY_MAX_SPAN - 1;
 
   const graph = buildPrecedenceGraph(remaining, equivMap);
-  const weights = computeBottleneckWeights(courses);
+  // Weights MUST be computed over `remaining`, not the full curriculum: a
+  // bottleneck's value is how many *still-needed* future semesters delaying it
+  // would cascade. Counting already-completed downstream courses would keep an
+  // upstream course ranked high even after the student finished everything it
+  // unlocks — which mis-prioritizes two colliding roots (e.g. a student who has
+  // done the SO→Redes track should see INE5607 rank BELOW INE5614, whose whole
+  // Projetos chain is still ahead).
+  const weights = computeBottleneckWeights(remaining);
   const courseById = new Map(remaining.map((c) => [c.id, c] as const));
 
   // Per-semester packing state (cells retained for parity/debug; conflict
