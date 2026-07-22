@@ -12,6 +12,7 @@ import type { Course } from "@/types/curriculum";
 import type { StudentInfo, StudentPlan } from "@/types/student-plan";
 import type { Professor } from "@/parsers/class-parser";
 import type { TurnoFilter } from "@/lib/schedule-conflict";
+import type { BottleneckCollision } from "@/lib/plan-generator/bottleneck";
 
 /** Student-adjustable knobs for a generation run. */
 export interface GeneratorConfig {
@@ -69,6 +70,19 @@ export interface PlanScenario {
    * back to the greedy-by-weight heuristic (result may be non-optimal).
    */
   usedPackingFallback: boolean;
+  /**
+   * Mutually-exclusive pairs among the critical roots — two central courses no
+   * section pairing can co-schedule (diagnostic; pairwise/top-K only, see
+   * `bottleneck.ts`).
+   */
+  bottleneckCollisions: BottleneckCollision[];
+  /**
+   * Lower-bound minimum number of future semesters given prerequisite chains,
+   * night capacity, and the detected collisions. A diagnostic lower bound
+   * computed against the reused schedule snapshot — NOT a proof it is
+   * achievable (see `bottleneck.ts` for the full list of limits).
+   */
+  minSemestersFloor: number;
   /** Cap + turno actually used for this scenario (shown in the preview). */
   config: GeneratorConfig;
 }

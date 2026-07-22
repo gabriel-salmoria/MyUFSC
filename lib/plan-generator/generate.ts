@@ -50,6 +50,7 @@ import {
   type PackingCandidate,
   type PackingChoice,
 } from "@/lib/plan-generator/packing";
+import { analyzeBottlenecks } from "@/lib/plan-generator/bottleneck";
 import type {
   GeneratorConfig,
   GeneratorInput,
@@ -391,6 +392,15 @@ export function runGreedy(input: GeneratorInput, seed: RunSeed): PlanScenario {
     perSemesterCredits.push(ensureSemester(workingPlan, n).totalCredits);
   }
 
+  // Diagnostic bottleneck analysis over the remaining set (independent of the
+  // packing outcome — depends only on prereq structure + section data).
+  const { collisions, minSemestersFloor } = analyzeBottlenecks({
+    remaining,
+    sections,
+    turno: config.turno,
+    weights,
+  });
+
   return {
     id: seed.id,
     label: seed.label,
@@ -400,6 +410,8 @@ export function runGreedy(input: GeneratorInput, seed: RunSeed): PlanScenario {
     placedWithoutSection,
     unplaceable,
     usedPackingFallback,
+    bottleneckCollisions: collisions,
+    minSemestersFloor,
     config,
   };
 }
