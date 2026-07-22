@@ -64,6 +64,11 @@ export interface PlanScenario {
   placedWithoutSection: string[];
   /** Remaining mandatory courses that could not be placed, with reasons. */
   unplaceable: UnplacedCourse[];
+  /**
+   * True when any semester's packing solver exhausted its node budget and fell
+   * back to the greedy-by-weight heuristic (result may be non-optimal).
+   */
+  usedPackingFallback: boolean;
   /** Cap + turno actually used for this scenario (shown in the preview). */
   config: GeneratorConfig;
 }

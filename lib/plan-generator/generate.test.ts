@@ -198,3 +198,96 @@ test("regression: 'Projetos I' and 'Projeto Integrador I' both get placed", () =
   assert.notEqual(placedSemester(scenario, "PROJINT1"), undefined);
   assert.equal(scenario.unplaceable.length, 0);
 });
+
+// --- (e) night filter drops a daytime-only course ---------------------------
+
+test("night filter: a course whose only section is daytime is not placed (no-section-in-turno)", () => {
+  const day = course({ id: "DAY", name: "Diurna" });
+  const sections: Record<string, Professor[]> = {
+    DAY: [prof("DAY", "01", 0, "13:30", "14:20")], // afternoon only
+  };
+  const input = makeInput([day], sections, NIGHT_ONLY);
+
+  const scenario = runGreedy(input, seed(input.config));
+
+  assert.equal(placedSemester(scenario, "DAY"), undefined);
+  const entry = scenario.unplaceable.find((u) => u.courseId === "DAY");
+  assert.ok(entry, "daytime-only course must be reported unplaceable");
+  assert.equal(entry!.reason, "no-section-in-turno");
+});
+
+// --- (f) INE5638 Saturday-only IS placed, consumes zero weekday capacity -----
+
+test("whitelist: INE5638 (Saturday-only) is placed and shares its semester with a night course", () => {
+  const proj = course({ id: "INE5638", name: "Introdução a Projetos" });
+  const night = course({ id: "NIGHT", name: "Noturna" });
+  const sections: Record<string, Professor[]> = {
+    // Only offering is Saturday morning → stripped as neutral → zero cells.
+    INE5638: [prof("INE5638", "07238", 5, "08:20", "10:00")],
+    NIGHT: [prof("NIGHT", "01", 0, "18:30", "19:20")],
+  };
+  const input = makeInput([proj, night], sections, NIGHT_ONLY);
+
+  const scenario = runGreedy(input, seed(input.config));
+
+  const sProj = placedSemester(scenario, "INE5638");
+  const sNight = placedSemester(scenario, "NIGHT");
+  assert.ok(sProj !== undefined, "INE5638 must be placed via the whitelist");
+  assert.ok(!scenario.unplaceable.some((u) => u.courseId === "INE5638"));
+  // Zero weekday capacity → the night course still fits the same semester.
+  assert.equal(sProj, sNight);
+});
+
+// --- (g) whitelist is id-based, not name-based ------------------------------
+
+test("whitelist is by id: a different course named 'Introdução a Projetos' is NOT whitelisted", () => {
+  // Same NAME as the whitelisted course, different id, daytime-only section.
+  const impostor = course({ id: "XYZ9999", name: "Introdução a Projetos" });
+  const real = course({ id: "INE5638", name: "Introdução a Projetos" });
+  const sections: Record<string, Professor[]> = {
+    XYZ9999: [prof("XYZ9999", "01", 0, "13:30", "14:20")], // afternoon only
+    INE5638: [prof("INE5638", "07238", 5, "08:20", "10:00")], // Saturday
+  };
+  const input = makeInput([impostor, real], sections, NIGHT_ONLY);
+
+  const scenario = runGreedy(input, seed(input.config));
+
+  // The real id is whitelisted → placed.
+  assert.ok(placedSemester(scenario, "INE5638") !== undefined);
+  // The name-twin is NOT → dropped as no-section-in-turno.
+  assert.equal(placedSemester(scenario, "XYZ9999"), undefined);
+  const entry = scenario.unplaceable.find((u) => u.courseId === "XYZ9999");
+  assert.equal(entry?.reason, "no-section-in-turno");
+});
+
+// --- (h) capacity spread: >5 co-startable night courses spread ~5/semester ---
+
+test("capacity: 7 no-prereq night courses spread across semesters ~5 at a time, none dropped", () => {
+  // Each 4-credit course occupies a whole weekday night (18:30–21:50 = the four
+  // night cells of one day). Each is offered on all five weekdays, so up to five
+  // can co-fit one night week (one per day); the rest roll forward.
+  const ids = ["C1", "C2", "C3", "C4", "C5", "C6", "C7"];
+  const courses = ids.map((id) => course({ id, name: id, credits: 4 }));
+  const sections: Record<string, Professor[]> = {};
+  for (const id of ids) {
+    sections[id] = [0, 1, 2, 3, 4].map((day) =>
+      prof(id, `d${day}`, day, "18:30", "21:50"),
+    );
+  }
+  const input = makeInput(courses, sections, NIGHT_ONLY);
+
+  const scenario = runGreedy(input, seed(input.config));
+
+  // None dropped.
+  assert.equal(scenario.unplaceable.length, 0);
+  const placed = placedIds(scenario);
+  for (const id of ids) assert.ok(placed.has(id), `${id} must be placed`);
+
+  // No generated semester exceeds the five-weekday-night capacity.
+  for (const sem of scenario.plan.semesters) {
+    assert.ok(sem.courses.length <= 5, `semester ${sem.number} over capacity`);
+  }
+  // The earliest generated semester is packed to the full five.
+  const first = scenario.plan.semesters.find((s) => s.courses.length > 0)!;
+  assert.equal(first.courses.length, 5);
+});
