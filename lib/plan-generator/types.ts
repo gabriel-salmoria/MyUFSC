@@ -10,9 +10,12 @@
 
 import type { Course } from "@/types/curriculum";
 import type { StudentInfo, StudentPlan } from "@/types/student-plan";
-import type { Professor } from "@/parsers/class-parser";
+import type { Professor, ClassSchedule } from "@/parsers/class-parser";
 import type { TurnoFilter } from "@/lib/schedule-conflict";
-import type { BottleneckCollision } from "@/lib/plan-generator/bottleneck";
+import type {
+  BottleneckCollision,
+  BottleneckClique,
+} from "@/lib/plan-generator/bottleneck";
 
 /** Student-adjustable knobs for a generation run. */
 export interface GeneratorConfig {
@@ -20,6 +23,24 @@ export interface GeneratorConfig {
   turno: TurnoFilter;
   /** Max credits allowed in a single generated semester. */
   creditCap: number;
+  /**
+   * Max number of night-only courses allowed to "spend an exception" and use a
+   * daytime section instead (Sprint 04). Default `0` = strict night. The
+   * comparison search explores budgets 0..this value.
+   */
+  daytimeExceptionBudget?: number;
+}
+
+/**
+ * A course promoted to a daytime section under a daytime-exception budget: the
+ * section it landed in and that section's slots (for the "manhã — Turma X" UI).
+ */
+export interface PromotedCourse {
+  courseId: string;
+  /** Section (turma) number it was placed in. */
+  classNumber: string;
+  /** That section's structured slots (day/time) — for the modal badge. */
+  slots: ClassSchedule[];
 }
 
 /**
@@ -92,6 +113,16 @@ export interface PlanScenario {
    * `bottleneck.ts`).
    */
   bottleneckCollisions: BottleneckCollision[];
+  /**
+   * Largest mutual-exclusion clique in the night conflict graph + the grid cell
+   * its members contend for (Task T1). `null` when nothing is mutually
+   * exclusive. This is the jam the daytime exception targets.
+   */
+  bottleneckClique: BottleneckClique | null;
+  /** How many daytime exceptions this scenario spent (0 = strict night). */
+  daytimeExceptionsUsed: number;
+  /** The courses promoted to a daytime section, with their section + slots. */
+  promotedCourses: PromotedCourse[];
   /**
    * Lower-bound minimum number of future semesters given prerequisite chains,
    * night capacity, and the detected collisions. A diagnostic lower bound

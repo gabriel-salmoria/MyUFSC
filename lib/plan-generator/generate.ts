@@ -62,14 +62,20 @@ import {
 import {
   analyzeBottlenecks,
   type BottleneckCollision,
+  type BottleneckClique,
 } from "@/lib/plan-generator/bottleneck";
-import { WEIGHT_STRATEGY, searchMinSemesters } from "@/lib/plan-generator/search";
+import {
+  WEIGHT_STRATEGY,
+  searchMinSemesters,
+  searchWithDaytimeExceptions,
+} from "@/lib/plan-generator/search";
 import type {
   GeneratorConfig,
   GeneratorInput,
   GeneratorResult,
   GraduationReminder,
   PlanScenario,
+  PromotedCourse,
   UnplacedCourse,
   UnplacedReason,
 } from "@/lib/plan-generator/types";
@@ -246,12 +252,73 @@ function memoLongest(
 }
 
 /**
+ * Clique-criticality per remaining course (Task T1). A clique member scores 1;
+ * every course scores its own clique flag PLUS the max criticality among its
+ * dependents (the courses it is a prerequisite for), so a prereq feeding a
+ * clique member inherits the urgency and is pulled forward with it. Computed by
+ * memoized descent over the dependents DAG (cycle-guarded, mirroring
+ * {@link memoLongest}).
+ */
+function computeCliqueCriticality(
+  remaining: Course[],
+  graph: PrecedenceGraph,
+  clique: BottleneckClique | null,
+): Map<string, number> {
+  const cliqueSet = new Set(clique?.courseIds ?? []);
+
+  // Reverse edges: prereq → the still-remaining courses that depend on it.
+  const dependents = new Map<string, Set<string>>();
+  for (const c of remaining) dependents.set(c.id, new Set());
+  for (const c of remaining) {
+    for (const p of graph.prereqs.get(c.id) ?? []) {
+      dependents.get(p)?.add(c.id);
+    }
+  }
+
+  const memo = new Map<string, number>();
+  const visiting = new Set<string>();
+  const walk = (id: string): number => {
+    const cached = memo.get(id);
+    if (cached !== undefined) return cached;
+    if (visiting.has(id)) return cliqueSet.has(id) ? 1 : 0; // cycle guard
+    visiting.add(id);
+    let maxDown = 0;
+    for (const d of dependents.get(id) ?? []) maxDown = Math.max(maxDown, walk(d));
+    visiting.delete(id);
+    const crit = (cliqueSet.has(id) ? 1 : 0) + maxDown;
+    memo.set(id, crit);
+    return crit;
+  };
+
+  const out = new Map<string, number>();
+  for (const c of remaining) out.set(c.id, walk(c.id));
+  return out;
+}
+
+/**
  * Inputs a {@link Strategy} sees when scoring one eligible course. `weight` and
  * `depth` come from the `remaining`-scoped {@link computeBottleneckWeights}.
  */
 export interface StrategyInputs {
   weight: number;
   depth: number;
+  /**
+   * Mutual-exclusion degree in the night conflict graph (Task T1) — how many
+   * other remaining courses this one can never share a semester with. Lets a
+   * most-constrained-first strategy schedule the highest-contention courses (the
+   * clique) as early as possible, which is how the search reaches the chromatic
+   * floor.
+   */
+  conflictDegree: number;
+  /**
+   * Clique-criticality (Task T1): how urgently this course must be scheduled to
+   * keep the mutual-exclusion clique flowing one-per-semester. A clique member
+   * scores 1; a course scores its own clique flag PLUS the max criticality of
+   * anything downstream, so a prereq that unblocks a clique member inherits the
+   * urgency (otherwise a clique member that is a leaf — like INE5625 — leaves its
+   * prereqs under-prioritized and the packer strands the chain a semester late).
+   */
+  cliqueCriticality: number;
 }
 
 /**
@@ -288,6 +355,23 @@ export interface GenerationContext {
   collisions: BottleneckCollision[];
   /** Admissible lower bound on future semesters (the early-stop target). */
   minSemestersFloor: number;
+  /** Largest mutual-exclusion clique + shared cell (Task T1). */
+  bottleneckClique: BottleneckClique | null;
+  /** Mutual-exclusion degree per remaining course (Task T1). */
+  conflictDegrees: Map<string, number>;
+  /**
+   * Clique-criticality per remaining course (Task T1): a clique member scores 1,
+   * and a prereq inherits its dependents' urgency (own flag + max downstream
+   * criticality), so the chain feeding a clique member is pulled forward too.
+   * Absent ids score 0.
+   */
+  cliqueCriticality: Map<string, number>;
+  /**
+   * Courses allowed to use ANY (day or night) section this run — they "spend" a
+   * daytime exception (Task T2). Non-promoted courses stay night-only + the
+   * INE5638 Saturday whitelist. Empty for a strict-night run.
+   */
+  promoted: ReadonlySet<string>;
 }
 
 /**
@@ -306,6 +390,7 @@ export interface GenerationContext {
 export function prepareGeneration(
   input: GeneratorInput,
   config: GeneratorConfig,
+  promoted: ReadonlySet<string> = new Set(),
 ): GenerationContext {
   const { studentInfo, courses, sections } = input;
   const equivMap = generateEquivalenceMap(courses);
@@ -321,15 +406,24 @@ export function prepareGeneration(
   const weights = computeBottleneckWeights(remaining);
   const courseById = new Map(remaining.map((c) => [c.id, c] as const));
 
-  // Collision + floor diagnostic. Config-dependent (turno) but strategy-
-  // independent, so it is computed once here and attached to every scenario;
-  // searchMinSemesters reads `minSemestersFloor` for its early-stop.
-  const { collisions, minSemestersFloor } = analyzeBottlenecks({
+  // Collision + clique + floor diagnostic. Computed against the strict NIGHT
+  // structure (promotion-independent) so the reported floor/clique stays the
+  // honest night-only bound the daytime exception is measured against; a
+  // promoted run's makespan may legitimately fall below it. searchMinSemesters
+  // reads `minSemestersFloor` for its early-stop.
+  const { collisions, minSemestersFloor, bottleneckClique, conflictDegrees } =
+    analyzeBottlenecks({
+      remaining,
+      sections,
+      turno: config.turno,
+      weights,
+    });
+
+  const cliqueCriticality = computeCliqueCriticality(
     remaining,
-    sections,
-    turno: config.turno,
-    weights,
-  });
+    graph,
+    bottleneckClique,
+  );
 
   return {
     input,
@@ -344,6 +438,10 @@ export function prepareGeneration(
     courseById,
     collisions,
     minSemestersFloor,
+    bottleneckClique,
+    conflictDegrees,
+    cliqueCriticality,
+    promoted,
   };
 }
 
@@ -418,7 +516,13 @@ export function packForward(
     if (!profs || profs.length === 0) {
       return { courseId: course.id, weight, credits, sections: [{ slots: [] }] };
     }
-    const valid = profs.filter((p) => isNightTurnoValid(course, p, config.turno));
+    // A promoted course (Task T2) spends a daytime exception: its section filter
+    // is bypassed so ANY section — day or night — is eligible. Non-promoted
+    // courses stay night-only + the INE5638 Saturday whitelist. Only the
+    // eligibility set changes; the packing/conflict math is untouched.
+    const valid = ctx.promoted.has(course.id)
+      ? profs
+      : profs.filter((p) => isNightTurnoValid(course, p, config.turno));
     if (valid.length === 0) return null;
     return {
       courseId: course.id,
@@ -446,8 +550,11 @@ export function packForward(
         1 + eligible.reduce((sum, c) => sum + c.weight, 0);
       for (const candidate of eligible) {
         const depth = weights.get(candidate.courseId)?.depth ?? 0;
+        const conflictDegree = ctx.conflictDegrees.get(candidate.courseId) ?? 0;
+        const cliqueCriticality =
+          ctx.cliqueCriticality.get(candidate.courseId) ?? 0;
         candidate.value = strategy.value(
-          { weight: candidate.weight, depth },
+          { weight: candidate.weight, depth, conflictDegree, cliqueCriticality },
           base,
         );
       }
@@ -462,6 +569,7 @@ export function packForward(
 
   // Materialize placements into the working plan.
   const placedWithoutSection: string[] = [];
+  const promotedCourses: PromotedCourse[] = [];
   let instanceCounter = 0;
   let lastPlacedN = startN - 1;
   for (const course of remaining) {
@@ -480,7 +588,24 @@ export function packForward(
     sem.totalCredits += credits;
     if (placement.noData) placedWithoutSection.push(course.id);
     if (placement.semester > lastPlacedN) lastPlacedN = placement.semester;
+
+    // A promoted course counts as spending an exception only when it actually
+    // landed on a daytime section (a night section it could have taken anyway
+    // spends nothing). Report the section + slots for the "manhã — Turma X" UI.
+    if (ctx.promoted.has(course.id) && placement.classNumber) {
+      const prof = (sections[course.id] ?? []).find(
+        (p) => p.classNumber === placement.classNumber,
+      );
+      if (prof && !isNightTurnoValid(course, prof, config.turno)) {
+        promotedCourses.push({
+          courseId: course.id,
+          classNumber: prof.classNumber,
+          slots: prof.slots,
+        });
+      }
+    }
   }
+  promotedCourses.sort((a, b) => a.courseId.localeCompare(b.courseId));
 
   // Anything still unplaced is genuinely unplaceable — report with a reason.
   const diagnosticPhase = maxN + 1;
@@ -521,6 +646,9 @@ export function packForward(
     unplaceable,
     usedPackingFallback,
     bottleneckCollisions: ctx.collisions,
+    bottleneckClique: ctx.bottleneckClique,
+    daytimeExceptionsUsed: promotedCourses.length,
+    promotedCourses,
     minSemestersFloor: ctx.minSemestersFloor,
     assumesReusedFutureSchedule,
     scheduleSnapshotSemester,
@@ -542,29 +670,11 @@ export function runGreedy(input: GeneratorInput, seed: RunSeed): PlanScenario {
 }
 
 /**
- * Lowest effective credit cap the "Carga leve" seed may drop to. Prevents that
- * seed from shrinking the cap so far it can't fit a normal mandatory course
- * (most UFSC courses are ≤6 credits, so a two-course floor is always packable).
+ * Default daytime-exception budget explored by {@link generatePlanScenarios}
+ * when the caller doesn't set `config.daytimeExceptionBudget`. The comparison
+ * always contrasts strict night (B=0) against 1 and 2 daytime courses.
  */
-const MIN_REASONABLE_CAP = 12;
-
-/** How much "Carga leve" lowers the cap versus S1 to spread the load. */
-const CARGA_LEVE_CAP_DELTA = 4;
-
-/**
- * Structural signature of a scenario: the multiset of `(courseId,
- * semesterNumber, classNumber)` placements plus the sorted set of unplaceable
- * ids. Identical signatures mean identical plans → the later one is a duplicate.
- */
-function scenarioSignature(scenario: PlanScenario): string {
-  const placements = scenario.plan.semesters
-    .flatMap((sem) =>
-      sem.courses.map((c) => `${c.courseId}@${sem.number}#${c.class ?? ""}`),
-    )
-    .sort();
-  const unplaceable = scenario.unplaceable.map((u) => u.courseId).sort();
-  return JSON.stringify({ placements, unplaceable });
-}
+const DEFAULT_DAYTIME_BUDGET = 2;
 
 /**
  * Re-label a scenario for a result card and re-key its generated instanceIds so
@@ -590,44 +700,55 @@ function withCardIdentity(
   return { ...scenario, id, label, plan };
 }
 
+/** Card label for a daytime-exception budget (Sprint 04 comparison). */
+function daytimeLabel(budget: number): string {
+  if (budget === 1) return "1 de manhã";
+  return `${budget} de manhã`;
+}
+
 /**
- * Public entry. The min-semester search (see `search.ts`) is the engine now:
+ * Public entry (Sprint 04). Returns the daytime-exception comparison the modal
+ * renders as scenario cards, all under the min-total-semesters objective:
  *
- * - **"Mais rápido"** — {@link searchMinSemesters} at the base cap: the
- *   fewest-total-semesters plan over the deterministic strategy set, tagged
- *   `isOptimal` when it hits `minSemestersFloor`. The headline card.
- * - **"Carga leve"** — the same search at a lower cap, so overflow rolls into
- *   more, lighter semesters. Included only when it can go lower AND yields a
- *   structurally different plan (the old dedupe).
+ * - **"Só à noite"** (B=0) — the strict-night plan from {@link searchMinSemesters}.
+ *   The honest baseline (6 future / 12 total for the maintainer, floor 6).
+ * - **"1 de manhã"** (best B=1) — the single most-valuable course promoted to a
+ *   daytime section, kept only if it strictly shortens the plan.
+ * - **"2 de manhã"** (best B=2) — kept only if it beats B=1.
  *
- * The old S1/S2/S3 seed fan-out (which deduped to near-duplicates) and the dead
- * "Outro mix" section-rotation seed are gone — the search explores multiple
- * genuinely-distinct packings internally.
+ * Each carries `daytimeExceptionsUsed` + `promotedCourses`. A higher-budget
+ * scenario is dropped when it doesn't improve on a lower one (no point showing a
+ * 2-exception plan that only matches the 1-exception plan). Determinism and the
+ * Sprint-02 `{placed} ∪ {unplaceable} == R` invariant are preserved by the
+ * underlying search. Budget defaults to {@link DEFAULT_DAYTIME_BUDGET}.
  */
 export function generatePlanScenarios(input: GeneratorInput): GeneratorResult {
-  const baseCap = input.config.creditCap;
-  const lightCap = Math.max(MIN_REASONABLE_CAP, baseCap - CARGA_LEVE_CAP_DELTA);
+  const budget = Math.max(
+    0,
+    input.config.daytimeExceptionBudget ?? DEFAULT_DAYTIME_BUDGET,
+  );
 
   const scenarios: PlanScenario[] = [];
-  const seen = new Set<string>();
 
-  const fastest = withCardIdentity(
+  // B=0 — strict night, the baseline every daytime plan is measured against.
+  const night = withCardIdentity(
     searchMinSemesters(input, input.config),
-    "s1",
-    "Mais rápido",
+    "s0",
+    "Só à noite",
   );
-  scenarios.push(fastest);
-  seen.add(scenarioSignature(fastest));
+  scenarios.push(night);
+  let bestMakespan = night.totalFutureSemesters;
 
-  if (lightCap < baseCap) {
-    const light = withCardIdentity(
-      searchMinSemesters(input, { ...input.config, creditCap: lightCap }),
-      "s2",
-      "Carga leve",
-    );
-    if (!seen.has(scenarioSignature(light))) {
-      scenarios.push(light);
-      seen.add(scenarioSignature(light));
+  // B=1..budget — best plan using ≤B daytime exceptions, shown only when it
+  // strictly shortens the plan versus the best lower-budget scenario.
+  for (let b = 1; b <= budget; b++) {
+    const candidate = searchWithDaytimeExceptions(input, input.config, b);
+    if (!candidate) break; // no viable promotion candidate at all
+    if (candidate.totalFutureSemesters < bestMakespan) {
+      scenarios.push(
+        withCardIdentity(candidate, `s${b}`, daytimeLabel(b)),
+      );
+      bestMakespan = candidate.totalFutureSemesters;
     }
   }
 

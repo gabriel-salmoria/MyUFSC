@@ -183,9 +183,9 @@ test("analyzeBottlenecks: a third Tue-only root is not a false-positive collisio
   );
 });
 
-// --- Task 4: minimum-semesters floor ----------------------------------------
+// --- Task T1: clique-aware minimum-semesters floor --------------------------
 
-test("analyzeBottlenecks: linear-chain floor equals chain length, +1 with a mutex pair", () => {
+test("analyzeBottlenecks: linear-chain floor equals chain length; a mutex pair is a 2-clique but the deeper chain dominates", () => {
   // Chain A→B→C→D on disjoint Tue/Fri blocks (4 semesters critical path).
   const a = course({ id: "A", name: "A" });
   const b = course({ id: "B", name: "B", prerequisites: ["A"] });
@@ -206,7 +206,9 @@ test("analyzeBottlenecks: linear-chain floor equals chain length, +1 with a mute
     weights: computeBottleneckWeights(chain),
   });
   assert.equal(chainOnly.components.criticalPathFloor, 4);
-  assert.equal(chainOnly.components.collisionAdjustment, 0);
+  // No two courses are mutually exclusive → no clique, chromaticFloor 0.
+  assert.equal(chainOnly.components.chromaticFloor, 0);
+  assert.equal(chainOnly.bottleneckClique, null);
   assert.equal(chainOnly.minSemestersFloor, 4);
 
   // Add a same-phase mutually-exclusive pair (Mon+Wed vs Wed+Thu, all share Wed).
@@ -229,6 +231,36 @@ test("analyzeBottlenecks: linear-chain floor equals chain length, +1 with a mute
     weights: computeBottleneckWeights(withPair),
   });
   assert.ok(withCollision.collisions.some((x) => x.a === "M" && x.b === "N"));
-  assert.equal(withCollision.components.collisionAdjustment, 1);
-  assert.equal(withCollision.minSemestersFloor, 5); // chain length + 1
+  // {M,N} is a 2-clique → chromaticFloor 2, but the depth-4 chain dominates the
+  // admissible floor (M/N schedule in parallel with the chain, not on top of it).
+  assert.equal(withCollision.components.chromaticFloor, 2);
+  assert.deepEqual(withCollision.bottleneckClique?.courseIds, ["M", "N"]);
+  assert.equal(withCollision.minSemestersFloor, 4);
+});
+
+test("analyzeBottlenecks: k courses sharing one night cell form a k-clique that sets the floor (SI Monday-18:30 case)", () => {
+  // Mirrors the maintainer's real jam: six mandatory courses offered ONLY
+  // Monday 18:30, each with a single section on that one cell → all mutually
+  // exclusive → a 6-clique. The clique number is the admissible floor (6), where
+  // the old pairwise `+1` under-reported it as 5.
+  const ids = ["INE5649", "INE5670", "INE5614", "INE5625", "INE5664", "INE5687"];
+  const courses = ids.map((id) => course({ id }));
+  const sections: Record<string, Professor[]> = Object.fromEntries(
+    ids.map((id) => [id, [section(id, [slot(0, "18:30", "19:20")])]]), // Mon cell 0:10
+  );
+
+  const analysis = analyzeBottlenecks({
+    remaining: courses,
+    sections,
+    turno: NIGHT,
+    weights: computeBottleneckWeights(courses),
+  });
+
+  assert.equal(analysis.components.chromaticFloor, 6);
+  assert.equal(analysis.minSemestersFloor, 6);
+  assert.deepEqual(analysis.bottleneckClique?.courseIds, [...ids].sort());
+  // The shared grid cell is Monday (day 0) 18:30 (slot index 10).
+  assert.equal(analysis.bottleneckClique?.cell, "0:10");
+  // Every member is mutually exclusive with the other five.
+  for (const id of ids) assert.equal(analysis.conflictDegrees.get(id), 5);
 });

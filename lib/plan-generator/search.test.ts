@@ -18,7 +18,10 @@ import {
   generatePlanScenarios,
   type RunSeed,
 } from "@/lib/plan-generator/generate";
-import { searchMinSemesters } from "@/lib/plan-generator/search";
+import {
+  searchMinSemesters,
+  searchWithDaytimeExceptions,
+} from "@/lib/plan-generator/search";
 import type { GeneratorInput, PlanScenario } from "@/lib/plan-generator/types";
 
 // --- fixture builders --------------------------------------------------------
@@ -150,27 +153,112 @@ test("search: isOptimal is true when the achieved makespan equals the floor", ()
 
 // --- (b') isOptimal false when the best makespan is above the floor ----------
 
-test("search: isOptimal is false when no strategy reaches the (loose) floor", () => {
-  // A triangle: three courses all sharing one night cell → mutually exclusive,
-  // so each needs its own semester (makespan 3). The floor is a loose lower
-  // bound of 2 (critical-path 1, +1 for the detected collision), which no
-  // packing can reach → isOptimal must be false.
-  const courses = ["T1", "T2", "T3"].map((id) => course({ id }));
+test("search: isOptimal is false when the makespan exceeds the (loose) clique floor", () => {
+  // A 5-cycle (pentagon) conflict graph: each course conflicts with its two
+  // neighbours, no triangle. An odd cycle needs 3 colours, so the minimum
+  // makespan is 3 — but its largest clique is only 2, so the clique-based floor
+  // is a loose 2 that no packing can reach → isOptimal must be false.
+  // Edge cells: AB=0:10, BC=0:11, CD=0:12, DE=1:10, EA=1:11.
+  const courses = ["A", "B", "C", "D", "E"].map((id) => course({ id }));
   const sections: Record<string, Professor[]> = {
-    T1: [prof("T1", "1", [cell10(0)])],
-    T2: [prof("T2", "1", [cell10(0)])],
-    T3: [prof("T3", "1", [cell10(0)])],
+    A: [prof("A", "1", [cell10(0), cell11(1)])], // AB, EA
+    B: [prof("B", "1", [cell10(0), cell11(0)])], // AB, BC
+    C: [prof("C", "1", [cell11(0), cell12(0)])], // BC, CD
+    D: [prof("D", "1", [cell12(0), cell10(1)])], // CD, DE
+    E: [prof("E", "1", [cell10(1), cell11(1)])], // DE, EA
   };
   const input = makeInput(courses, sections, NIGHT);
 
   const searched = searchMinSemesters(input, input.config);
   assert.equal(searched.totalFutureSemesters, 3);
+  assert.equal(searched.minSemestersFloor, 2);
   assert.ok(
     searched.minSemestersFloor < searched.totalFutureSemesters,
-    "floor is below the achievable makespan",
+    "clique floor is below the achievable makespan",
   );
   assert.equal(searched.isOptimal, false);
   assert.equal(searched.unplaceable.length, 0);
+});
+
+// --- Daytime-exception promotion search (Task T2/T3/T4) ---------------------
+
+/**
+ * Three courses offered ONLY Monday 18:30 at night → a mutually-exclusive
+ * 3-clique (strict-night makespan 3). Course X ALSO has a Monday-morning
+ * section, so spending one daytime exception on X breaks the clique: X runs in
+ * the morning alongside a night course and the makespan drops to 2. Y and Z have
+ * no daytime alternative, so they are never promotion candidates.
+ */
+function daytimeCliqueInput(daytimeExceptionBudget?: number): GeneratorInput {
+  const courses = ["X", "Y", "Z"].map((id) => course({ id }));
+  const sections: Record<string, Professor[]> = {
+    X: [
+      prof("X", "night", [slot(0, "18:30", "19:20")]), // Mon 18:30 (night)
+      prof("X", "morning", [slot(0, "08:20", "09:10")]), // Mon 08:20 (daytime)
+    ],
+    Y: [prof("Y", "night", [slot(0, "18:30", "19:20")])],
+    Z: [prof("Z", "night", [slot(0, "18:30", "19:20")])],
+  };
+  const input = makeInput(courses, sections, NIGHT);
+  if (daytimeExceptionBudget !== undefined) {
+    input.config = { ...input.config, daytimeExceptionBudget };
+  }
+  return input;
+}
+
+test("daytime exception: strict night is a 3-clique (makespan 3); promoting one course reaches makespan 2", () => {
+  const input = daytimeCliqueInput();
+
+  // B=0 — strict night: the 3-clique forces one course per semester.
+  const night = searchMinSemesters(input, input.config);
+  assert.equal(night.totalFutureSemesters, 3);
+  assert.equal(night.daytimeExceptionsUsed, 0);
+  assert.equal(night.promotedCourses.length, 0);
+  assert.equal(night.isOptimal, true); // matches the chromatic floor of 3
+
+  // B=1 — one daytime exception breaks the clique and saves a semester.
+  const promoted = searchWithDaytimeExceptions(input, input.config, 1);
+  assert.ok(promoted, "a viable promotion must exist");
+  assert.equal(promoted!.totalFutureSemesters, 2);
+  assert.equal(promoted!.daytimeExceptionsUsed, 1);
+  assert.deepEqual(
+    promoted!.promotedCourses.map((p) => p.courseId),
+    ["X"], // only X has a daytime alternative
+  );
+  assert.equal(promoted!.promotedCourses[0].classNumber, "morning");
+  assert.equal(promoted!.unplaceable.length, 0);
+});
+
+test("daytime exception: generatePlanScenarios contrasts night vs 1-de-manhã, drops a non-improving B=2", () => {
+  const result = generatePlanScenarios(daytimeCliqueInput(2));
+
+  // Two cards: the honest night baseline and the improving 1-exception plan.
+  assert.equal(result.scenarios.length, 2);
+
+  const [night, morning] = result.scenarios;
+  assert.equal(night.label, "Só à noite");
+  assert.equal(night.totalFutureSemesters, 3);
+  assert.equal(night.daytimeExceptionsUsed, 0);
+
+  assert.equal(morning.label, "1 de manhã");
+  assert.equal(morning.totalFutureSemesters, 2);
+  assert.equal(morning.daytimeExceptionsUsed, 1);
+  assert.deepEqual(
+    morning.promotedCourses.map((p) => p.courseId),
+    ["X"],
+  );
+  // B=2 cannot beat B=1 (only one course is promotable) → no third card.
+  assert.ok(
+    !result.scenarios.some((s) => s.label === "2 de manhã"),
+    "a non-improving 2-exception scenario must be dropped",
+  );
+});
+
+test("daytime exception: with budget 0 the comparison is night-only", () => {
+  const result = generatePlanScenarios(daytimeCliqueInput(0));
+  assert.equal(result.scenarios.length, 1);
+  assert.equal(result.scenarios[0].label, "Só à noite");
+  assert.equal(result.scenarios[0].daytimeExceptionsUsed, 0);
 });
 
 // --- (c) determinism ---------------------------------------------------------

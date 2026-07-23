@@ -24,6 +24,7 @@ import type {
   UnplacedReason,
 } from "@/lib/plan-generator/types";
 import { Sun, Sunset, Moon, Sparkles, AlertTriangle, Info } from "lucide-react";
+import type { ClassSchedule } from "@/parsers/class-parser";
 
 interface PlanGeneratorModalProps {
   open: boolean;
@@ -43,6 +44,16 @@ const REASON_LABEL: Record<UnplacedReason, string> = {
   "no-section-in-turno": "Sem turma no turno escolhido",
   conflict: "Conflito de horário",
 };
+
+/** Abbreviated PT-BR weekday for a slot's `day` (0 = Monday … 6 = Sunday). */
+const WEEKDAY_ABBR = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
+
+/** "seg 08:20 · qua 10:10" — the promoted section's day/time for the badge. */
+function formatSlots(slots: ClassSchedule[]): string {
+  return slots
+    .map((s) => `${WEEKDAY_ABBR[s.day] ?? "?"} ${s.startTime}`)
+    .join(" · ");
+}
 
 type TurnoKey = keyof TurnoFilter;
 
@@ -314,6 +325,15 @@ function ScenarioCard({
       <p className="mt-1 text-xs text-muted-foreground">
         Créditos por fase: {scenario.perSemesterCredits.join(" · ") || "—"}
       </p>
+      {scenario.daytimeExceptionsUsed > 0 && (
+        <p className="mt-2 text-xs font-medium text-amber-600 dark:text-amber-500">
+          <Sun className="mr-1 inline h-3.5 w-3.5" />
+          {scenario.daytimeExceptionsUsed}{" "}
+          {scenario.daytimeExceptionsUsed === 1
+            ? "disciplina de manhã"
+            : "disciplinas de manhã"}
+        </p>
+      )}
       {issues > 0 && (
         <p className="mt-2 text-xs text-amber-600 dark:text-amber-500">
           {issues} {issues === 1 ? "ressalva" : "ressalvas"}
@@ -333,6 +353,12 @@ function ScenarioPreview({
   const sectionlessSet = useMemo(
     () => new Set(scenario.placedWithoutSection),
     [scenario.placedWithoutSection],
+  );
+
+  // courseId → promoted (daytime) section, for the "manhã" badge on the grid.
+  const promotedMap = useMemo(
+    () => new Map(scenario.promotedCourses.map((p) => [p.courseId, p])),
+    [scenario.promotedCourses],
   );
 
   // Generated future semesters = those carrying planned courses.
@@ -396,6 +422,14 @@ function ScenarioPreview({
                             >
                               Sem turma
                             </Badge>
+                          ) : promotedMap.has(c.courseId) ? (
+                            <Badge
+                              variant="outline"
+                              className="border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-500"
+                            >
+                              <Sun className="mr-1 h-3 w-3" />
+                              Manhã · Turma {c.class}
+                            </Badge>
                           ) : c.class ? (
                             <Badge variant="secondary">Turma {c.class}</Badge>
                           ) : null}
@@ -409,6 +443,41 @@ function ScenarioPreview({
           </div>
         )}
       </div>
+
+      {/* Daytime exceptions — courses moved off the night jam (Sprint 04) */}
+      {scenario.promotedCourses.length > 0 && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+          <h4 className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            <Sun className="h-4 w-4 text-amber-500" />
+            Exceções de manhã ({scenario.promotedCourses.length})
+          </h4>
+          <p className="mb-2 text-xs text-muted-foreground">
+            Estas disciplinas usam uma turma diurna para sair do gargalo noturno
+            e encurtar o plano.
+          </p>
+          <ul className="space-y-1.5">
+            {scenario.promotedCourses.map((p) => (
+              <li
+                key={p.courseId}
+                className="flex flex-wrap items-center gap-2 text-xs"
+              >
+                <span className="font-medium text-foreground">
+                  {p.courseId}
+                </span>
+                <span className="text-muted-foreground">
+                  {courseName(p.courseId)}
+                </span>
+                <Badge
+                  variant="outline"
+                  className="border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-500"
+                >
+                  Manhã · Turma {p.classNumber} · {formatSlots(p.slots)}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Placed without a section */}
       {scenario.placedWithoutSection.length > 0 && (
