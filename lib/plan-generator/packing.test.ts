@@ -131,6 +131,42 @@ test("packMaxWeight: node-budget overflow falls back to greedy and sets the flag
   assert.ok(res.chosen.some((c) => c.courseId === "A"));
 });
 
+// --- value overrides weight → cardinality-primary packing -------------------
+
+test("packMaxWeight: an optional value overrides weight → the two-course packing wins", () => {
+  // H (weight 10) shares a cell with each of L1, L2 (weight 1 each); L1 and L2
+  // are mutually disjoint. Under weight the solver keeps H alone; under a
+  // cardinality value (BASE + weight, BASE = 1 + Σ weights, so one extra course
+  // always beats any weight delta) it packs {L1, L2}.
+  const h = candidate("H", 10, [
+    {
+      classNumber: "h",
+      slots: [slot(0, "18:30", "19:20"), slot(1, "18:30", "19:20")],
+    },
+  ]);
+  const l1 = candidate("L1", 1, [
+    { classNumber: "l1", slots: [slot(0, "18:30", "19:20")] }, // conflicts H (Mon)
+  ]);
+  const l2 = candidate("L2", 1, [
+    { classNumber: "l2", slots: [slot(1, "18:30", "19:20")] }, // conflicts H (Tue)
+  ]);
+
+  // Default (value absent) → maximize weight → H alone.
+  const byWeight = packMaxWeight([h, l1, l2]);
+  assert.deepEqual(byWeight.chosen.map((c) => c.courseId).sort(), ["H"]);
+  assert.equal(byWeight.totalWeight, 10);
+
+  // Cardinality value = BASE + weight.
+  const BASE = 1 + 10 + 1 + 1;
+  const cardinality = [h, l1, l2].map((c) => ({ ...c, value: BASE + c.weight }));
+  const byCardinality = packMaxWeight(cardinality);
+  assert.deepEqual(
+    byCardinality.chosen.map((c) => c.courseId).sort(),
+    ["L1", "L2"],
+  );
+  assertDisjoint(byCardinality.chosen);
+});
+
 // --- sectionless (no-data) course never conflicts ---------------------------
 
 test("packMaxWeight: a sectionless course (empty slots) is always packable", () => {

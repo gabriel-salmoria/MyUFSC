@@ -38,8 +38,20 @@ export interface PackingSection {
 /** A course eligible in the semester being packed, with its viable sections. */
 export interface PackingCandidate {
   courseId: string;
-  /** Bottleneck weight (Task 3) — the value the solver maximizes. */
+  /**
+   * Bottleneck weight (Task 3). Used as the maximized quantity when {@link value}
+   * is absent — the historical default that keeps single-strategy callers
+   * unchanged.
+   */
   weight: number;
+  /**
+   * Optional maximized quantity (Iteration 2). When present the solver maximizes
+   * `Σ value` instead of `Σ weight`; this is the single hook that lets a
+   * cardinality-primary strategy reuse the same branch-and-bound (it feeds
+   * `value = BASE + tiebreak`). Absent → the solver maximizes `weight`, so all
+   * prior behavior and tests are unchanged.
+   */
+  value?: number;
   credits: number;
   /**
    * Turno-valid sections only (the caller applies the night filter + whitelist).
@@ -59,6 +71,7 @@ export interface PackingChoice {
 
 export interface PackingResult {
   chosen: PackingChoice[];
+  /** Maximized quantity of the winning packing (`Σ value`, defaulting to weight). */
   totalWeight: number;
   /** True when the node budget overflowed and the greedy fallback was used. */
   usedFallback: boolean;
@@ -70,7 +83,8 @@ export const DEFAULT_NODE_BUDGET = 50000;
 /** A candidate with its sections' cells precomputed (Saturday stripped). */
 interface PreparedCandidate {
   courseId: string;
-  weight: number;
+  /** The maximized quantity — `PackingCandidate.value ?? weight`. */
+  value: number;
   credits: number;
   sections: { classNumber?: string; cells: Set<string> }[];
 }
@@ -79,7 +93,9 @@ interface PreparedCandidate {
 function prepare(candidates: PackingCandidate[]): PreparedCandidate[] {
   return candidates.map((c) => ({
     courseId: c.courseId,
-    weight: c.weight,
+    // `value ?? weight`: strategies (Iteration 2) override the maximized
+    // quantity; absent → maximize weight, the historical default.
+    value: c.value ?? c.weight,
     credits: c.credits,
     sections: c.sections.map((s) => ({
       classNumber: s.classNumber,
@@ -89,12 +105,12 @@ function prepare(candidates: PackingCandidate[]): PreparedCandidate[] {
 }
 
 /**
- * Deterministic strong-branch order: highest weight first, then fewer sections
+ * Deterministic strong-branch order: highest value first, then fewer sections
  * (more constrained → branch early), then course id.
  */
 function orderCandidates(prepared: PreparedCandidate[]): PreparedCandidate[] {
   return [...prepared].sort((a, b) => {
-    if (a.weight !== b.weight) return b.weight - a.weight;
+    if (a.value !== b.value) return b.value - a.value;
     if (a.sections.length !== b.sections.length) {
       return a.sections.length - b.sections.length;
     }
@@ -108,7 +124,7 @@ function fits(cells: Set<string>, occupied: Set<string>): boolean {
 }
 
 /**
- * Greedy-by-weight packing: take each candidate in weight order, pick its first
+ * Greedy-by-value packing: take each candidate in value order, pick its first
  * non-conflicting section that keeps credits under the cap. Always valid, not
  * necessarily optimal — the budget-overflow fallback.
  */
@@ -127,7 +143,7 @@ function greedy(
       if (fits(s.cells, occupied)) {
         for (const cell of s.cells) occupied.add(cell);
         credits += cand.credits;
-        totalWeight += cand.weight;
+        totalWeight += cand.value;
         chosen.push({
           courseId: cand.courseId,
           classNumber: s.classNumber,
@@ -152,11 +168,11 @@ export function packMaxWeight(
   const ordered = orderCandidates(prepare(candidates));
   const n = ordered.length;
 
-  // Suffix weight sums = admissible optimistic bound on remaining weight.
+  // Suffix value sums = admissible optimistic bound on remaining value.
   const suffix = new Array<number>(n + 1).fill(0);
-  for (let i = n - 1; i >= 0; i--) suffix[i] = suffix[i + 1] + ordered[i].weight;
+  for (let i = n - 1; i >= 0; i--) suffix[i] = suffix[i + 1] + ordered[i].value;
 
-  let bestWeight = -1;
+  let bestValue = -1;
   let bestChosen: PackingChoice[] = [];
   let nodes = 0;
   let overflow = false;
@@ -164,17 +180,17 @@ export function packMaxWeight(
   const occupied = new Set<string>();
   const stack: PackingChoice[] = [];
 
-  const dfs = (index: number, credits: number, weight: number): void => {
+  const dfs = (index: number, credits: number, value: number): void => {
     if (overflow) return;
     if (++nodes > nodeBudget) {
       overflow = true;
       return;
     }
     // Bound: even taking all remaining can't beat the incumbent → prune.
-    if (weight + suffix[index] <= bestWeight) return;
+    if (value + suffix[index] <= bestValue) return;
     if (index === n) {
-      if (weight > bestWeight) {
-        bestWeight = weight;
+      if (value > bestValue) {
+        bestValue = value;
         bestChosen = stack.map((c) => ({ ...c }));
       }
       return;
@@ -191,14 +207,14 @@ export function packMaxWeight(
           classNumber: s.classNumber,
           cells: s.cells,
         });
-        dfs(index + 1, credits + cand.credits, weight + cand.weight);
+        dfs(index + 1, credits + cand.credits, value + cand.value);
         stack.pop();
         for (const cell of s.cells) occupied.delete(cell);
         if (overflow) return;
       }
     }
     // Branch: skip this candidate.
-    dfs(index + 1, credits, weight);
+    dfs(index + 1, credits, value);
   };
 
   dfs(0, 0, 0);
@@ -210,7 +226,7 @@ export function packMaxWeight(
 
   return {
     chosen: bestChosen,
-    totalWeight: Math.max(0, bestWeight),
+    totalWeight: Math.max(0, bestValue),
     usedFallback: false,
   };
 }
