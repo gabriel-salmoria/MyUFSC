@@ -18,6 +18,7 @@ import type { StudentInfo } from "@/types/student-plan";
 import type { Professor } from "@/parsers/class-parser";
 import type { TurnoFilter } from "@/lib/schedule-conflict";
 import { runGreedy, type RunSeed } from "@/lib/plan-generator/generate";
+import { searchMinSemesters } from "@/lib/plan-generator/search";
 import type { GeneratorInput, PlanScenario } from "@/lib/plan-generator/types";
 
 // --- fixture builders --------------------------------------------------------
@@ -290,4 +291,24 @@ test("capacity: 7 no-prereq night courses spread across semesters ~5 at a time, 
   // The earliest generated semester is packed to the full five.
   const first = scenario.plan.semesters.find((s) => s.courses.length > 0)!;
   assert.equal(first.courses.length, 5);
+});
+
+// --- (i) min-semester search never regresses the single pass -----------------
+
+test("no-regression: the min-semester search is never worse than runGreedy", () => {
+  // The capacity-spread fixture: the search includes the weight strategy, so its
+  // makespan must be ≤ the single-pass baseline on the same input.
+  const ids = ["C1", "C2", "C3", "C4", "C5", "C6", "C7"];
+  const courses = ids.map((id) => course({ id, name: id, credits: 4 }));
+  const sections: Record<string, Professor[]> = {};
+  for (const id of ids) {
+    sections[id] = [0, 1, 2, 3, 4].map((day) =>
+      prof(id, `d${day}`, day, "18:30", "21:50"),
+    );
+  }
+  const input = makeInput(courses, sections, NIGHT_ONLY);
+
+  const baseline = runGreedy(input, seed(input.config)).totalFutureSemesters;
+  const searched = searchMinSemesters(input, input.config).totalFutureSemesters;
+  assert.ok(searched <= baseline, `search ${searched} must be ≤ baseline ${baseline}`);
 });

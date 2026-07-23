@@ -32,8 +32,13 @@
  * through to {@link classifyUnplaceable} with a reason, preserving the invariant
  * `{placed} ∪ {unplaceable} == R`.
  *
- * {@link runGreedy} is the single-run unit; {@link generatePlanScenarios} fans
- * it out across a few deterministic seeds (varied cap).
+ * {@link prepareGeneration} builds the per-config context (clone, remaining,
+ * weights, precedence, floor); {@link packForward} runs one forward packing pass
+ * under a priority {@link Strategy}. {@link runGreedy} is the single-pass unit
+ * (weight strategy) retained for the unit tests. {@link generatePlanScenarios}
+ * delegates to {@link searchMinSemesters} (see `search.ts`), which runs several
+ * deterministic strategies through {@link packForward} and keeps the
+ * minimum-makespan result — the minimum-total-semesters objective.
  */
 
 import type { Course } from "@/types/curriculum";
@@ -41,7 +46,11 @@ import type { StudentInfo, StudentPlan, StudentSemester } from "@/types/student-
 import { CourseStatus } from "@/types/student-plan";
 import type { Professor } from "@/parsers/class-parser";
 import type { TurnoFilter } from "@/lib/schedule-conflict";
-import { checkPrerequisites, computeBottleneckWeights } from "@/lib/prerequisites";
+import {
+  checkPrerequisites,
+  computeBottleneckWeights,
+  type BottleneckWeight,
+} from "@/lib/prerequisites";
 import { generateEquivalenceMap } from "@/parsers/curriculum-parser";
 import { buildRemainingCandidates, isTerminalStatus } from "@/lib/plan-generator/candidates";
 import { isNightTurnoValid } from "@/lib/plan-generator/night";
@@ -50,7 +59,11 @@ import {
   type PackingCandidate,
   type PackingChoice,
 } from "@/lib/plan-generator/packing";
-import { analyzeBottlenecks } from "@/lib/plan-generator/bottleneck";
+import {
+  analyzeBottlenecks,
+  type BottleneckCollision,
+} from "@/lib/plan-generator/bottleneck";
+import { WEIGHT_STRATEGY, searchMinSemesters } from "@/lib/plan-generator/search";
 import type {
   GeneratorConfig,
   GeneratorInput,
@@ -79,19 +92,14 @@ const GRADUATION_REMINDER: GraduationReminder = {
 const SAFETY_MAX_SPAN = 16;
 
 /**
- * A single deterministic run configuration. T3 re-invokes {@link runGreedy}
- * once per seed to fan out into distinct scenarios.
+ * A single deterministic run configuration for {@link runGreedy} (the retained
+ * single-pass unit). Just an id/label wrapper around an effective config.
  */
 export interface RunSeed {
   id: string;
   label: string;
-  /** Effective config for this run (the "Carga leve" seed lowers the cap, etc.). */
+  /** Effective config for this run. */
   config: GeneratorConfig;
-  /**
-   * Rotates the tie-broken order of turno-valid sections when picking one
-   * (the "Outro mix" seed). Defaults to 0 → first eligible section.
-   */
-  sectionRotation?: number;
 }
 
 /**
@@ -162,13 +170,6 @@ function classifyUnplaceable(
     return "no-section-in-turno";
   }
   return "conflict";
-}
-
-/** Mutable per-semester packing state. */
-interface SemState {
-  /** Cells of every section already placed here (for conflict tests). */
-  cells: Set<string>[];
-  credits: number;
 }
 
 /** A committed placement of one remaining course. */
@@ -245,58 +246,141 @@ function memoLongest(
 }
 
 /**
- * Run one deterministic pack. This is the unit {@link generatePlanScenarios}
- * re-invokes per seed. Never mutates `input`.
+ * Inputs a {@link Strategy} sees when scoring one eligible course. `weight` and
+ * `depth` come from the `remaining`-scoped {@link computeBottleneckWeights}.
  */
-export function runGreedy(input: GeneratorInput, seed: RunSeed): PlanScenario {
-  const { studentInfo, courses, sections } = input;
-  const config = seed.config;
+export interface StrategyInputs {
+  weight: number;
+  depth: number;
+}
 
+/**
+ * A deterministic priority rule. It changes ONLY the per-course `value` the
+ * packing solver maximizes each semester — never section eligibility, prereqs,
+ * or the night filter. `base` is the per-semester `BASE = 1 + Σ weights` a
+ * cardinality-primary rule adds so one extra course always outweighs any weight
+ * delta (see `search.ts`). The weight strategy ignores `base`.
+ */
+export interface Strategy {
+  id: string;
+  value(inputs: StrategyInputs, base: number): number;
+}
+
+/**
+ * Per-config generation context, built once by {@link prepareGeneration} and
+ * reused by every {@link packForward} strategy pass. Everything here is a pure
+ * function of the input + config; the only per-run mutation (materializing a
+ * plan) happens on a fresh clone inside {@link packForward}.
+ */
+export interface GenerationContext {
+  input: GeneratorInput;
+  config: GeneratorConfig;
+  equivMap: Map<string, Set<string>>;
+  /** Index of the plan being generated into `studentInfo.plans`. */
+  currentPlan: number;
+  remaining: Course[];
+  startN: number;
+  maxN: number;
+  graph: PrecedenceGraph;
+  weights: Map<string, BottleneckWeight>;
+  courseById: Map<string, Course>;
+  /** Collision diagnostic (config-dependent, strategy-independent). */
+  collisions: BottleneckCollision[];
+  /** Admissible lower bound on future semesters (the early-stop target). */
+  minSemestersFloor: number;
+}
+
+/**
+ * Build the per-config context: clone-to-history, remaining set, start/max
+ * semester bounds, precedence graph, `remaining`-scoped bottleneck weights, and
+ * the collision/floor diagnostic. Never mutates `input`.
+ *
+ * Weights MUST be computed over `remaining`, not the full curriculum: a
+ * bottleneck's value is how many *still-needed* future semesters delaying it
+ * would cascade. Counting already-completed downstream courses would keep an
+ * upstream course ranked high even after the student finished everything it
+ * unlocks — which mis-prioritizes two colliding roots (e.g. a student who has
+ * done the SO→Redes track should see INE5607 rank BELOW INE5614, whose whole
+ * Projetos chain is still ahead).
+ */
+export function prepareGeneration(
+  input: GeneratorInput,
+  config: GeneratorConfig,
+): GenerationContext {
+  const { studentInfo, courses, sections } = input;
   const equivMap = generateEquivalenceMap(courses);
 
-  // Clone the current plan and point a StudentInfo at the clone so
-  // checkPrerequisites (used for the unplaceable diagnosis) reads the history.
   const currentPlan = studentInfo.currentPlan;
-  const workingPlan = cloneToHistory(studentInfo.plans[currentPlan]);
-  const workingInfo: StudentInfo = {
-    ...studentInfo,
-    plans: studentInfo.plans.map((p, i) => (i === currentPlan ? workingPlan : p)),
-  };
+  const historyPlan = cloneToHistory(studentInfo.plans[currentPlan]);
 
-  const remaining = buildRemainingCandidates(courses, workingPlan, equivMap);
-  const startN = computeStartSemester(workingPlan);
+  const remaining = buildRemainingCandidates(courses, historyPlan, equivMap);
+  const startN = computeStartSemester(historyPlan);
   const maxN = startN + SAFETY_MAX_SPAN - 1;
 
   const graph = buildPrecedenceGraph(remaining, equivMap);
-  // Weights MUST be computed over `remaining`, not the full curriculum: a
-  // bottleneck's value is how many *still-needed* future semesters delaying it
-  // would cascade. Counting already-completed downstream courses would keep an
-  // upstream course ranked high even after the student finished everything it
-  // unlocks — which mis-prioritizes two colliding roots (e.g. a student who has
-  // done the SO→Redes track should see INE5607 rank BELOW INE5614, whose whole
-  // Projetos chain is still ahead).
   const weights = computeBottleneckWeights(remaining);
   const courseById = new Map(remaining.map((c) => [c.id, c] as const));
 
-  // Per-semester packing state (cells retained for parity/debug; conflict
-  // freedom is enforced inside the solver, not here).
-  const sems = new Map<number, SemState>();
-  const semState = (n: number): SemState => {
-    let s = sems.get(n);
-    if (!s) {
-      s = { cells: [], credits: 0 };
-      sems.set(n, s);
-    }
-    return s;
+  // Collision + floor diagnostic. Config-dependent (turno) but strategy-
+  // independent, so it is computed once here and attached to every scenario;
+  // searchMinSemesters reads `minSemestersFloor` for its early-stop.
+  const { collisions, minSemestersFloor } = analyzeBottlenecks({
+    remaining,
+    sections,
+    turno: config.turno,
+    weights,
+  });
+
+  return {
+    input,
+    config,
+    equivMap,
+    currentPlan,
+    remaining,
+    startN,
+    maxN,
+    graph,
+    weights,
+    courseById,
+    collisions,
+    minSemestersFloor,
+  };
+}
+
+/**
+ * Run one forward packing pass under `strategy`. Semester-by-semester list
+ * scheduler: at each semester pack the max-value conflict-free set of the
+ * currently-eligible courses (`value` supplied by the strategy), commit it,
+ * advance. A course not chosen this semester stays remaining and is re-evaluated
+ * next semester (where newly-committed prereqs may unlock more). A course never
+ * chosen by any semester up to the safety span falls through to
+ * {@link classifyUnplaceable}, preserving `{placed} ∪ {unplaceable} == R`.
+ *
+ * Returns a materialized {@link PlanScenario}; `id`/`label` are placeholders the
+ * caller overrides, and `isOptimal` is left `false` for the search to set.
+ * Never mutates the context or `input`.
+ */
+export function packForward(
+  ctx: GenerationContext,
+  strategy: Strategy,
+): PlanScenario {
+  const { input, config, remaining, weights, graph, startN, maxN } = ctx;
+  const { studentInfo, sections } = input;
+
+  // Fresh clone per pass so parallel strategies never stomp each other; the
+  // StudentInfo points at it so checkPrerequisites (unplaceable diagnosis) reads
+  // the materialized history.
+  const workingPlan = cloneToHistory(studentInfo.plans[ctx.currentPlan]);
+  const workingInfo: StudentInfo = {
+    ...studentInfo,
+    plans: studentInfo.plans.map((p, i) =>
+      i === ctx.currentPlan ? workingPlan : p,
+    ),
   };
 
   const placements = new Map<string, Placement>();
 
   const commit = (courseId: string, semester: number, choice: PackingChoice) => {
-    const course = courseById.get(courseId)!;
-    const sem = semState(semester);
-    sem.cells.push(choice.cells);
-    sem.credits += course.credits || 0;
     placements.set(courseId, {
       semester,
       classNumber: choice.classNumber,
@@ -321,10 +405,11 @@ export function runGreedy(input: GeneratorInput, seed: RunSeed): PlanScenario {
   };
 
   /**
-   * Packing candidate for an eligible course, or `null` when it has offering
-   * data but no turno-valid section (it can never be placed → falls through to
-   * {@link classifyUnplaceable}). A course with no offering data becomes a
-   * sectionless (empty-cells) candidate — placed "sem turma", zero capacity.
+   * Base packing candidate for an eligible course (weight only; the strategy
+   * `value` is layered on per semester). `null` when the course has offering
+   * data but no turno-valid section (never placeable → falls through to
+   * {@link classifyUnplaceable}). No offering data → a sectionless (empty-cells)
+   * candidate placed "sem turma" at zero capacity.
    */
   const buildCandidate = (course: Course): PackingCandidate | null => {
     const weight = weights.get(course.id)?.weight ?? 0;
@@ -343,10 +428,6 @@ export function runGreedy(input: GeneratorInput, seed: RunSeed): PlanScenario {
     };
   };
 
-  // Semester-by-semester list scheduler: at each semester pack the max-weight
-  // conflict-free set of currently-eligible courses, commit it, advance. A
-  // course not chosen this semester stays remaining and is re-evaluated next
-  // semester (where newly-committed prereqs may unlock more).
   let usedPackingFallback = false;
   for (let n = startN; n <= maxN; n++) {
     const eligible: PackingCandidate[] = [];
@@ -358,6 +439,19 @@ export function runGreedy(input: GeneratorInput, seed: RunSeed): PlanScenario {
     }
 
     if (eligible.length > 0) {
+      // BASE = 1 + Σ (weights of this semester's eligible set): guarantees a
+      // cardinality-primary strategy's per-course `value = BASE + tiebreak`
+      // makes one extra selected course beat any achievable tiebreak delta.
+      const base =
+        1 + eligible.reduce((sum, c) => sum + c.weight, 0);
+      for (const candidate of eligible) {
+        const depth = weights.get(candidate.courseId)?.depth ?? 0;
+        candidate.value = strategy.value(
+          { weight: candidate.weight, depth },
+          base,
+        );
+      }
+
       const packed = packMaxWeight(eligible, config.creditCap);
       if (packed.usedFallback) usedPackingFallback = true;
       for (const choice of packed.chosen) commit(choice.courseId, n, choice);
@@ -377,7 +471,7 @@ export function runGreedy(input: GeneratorInput, seed: RunSeed): PlanScenario {
     const credits = course.credits || 0;
     sem.courses.push({
       courseId: course.id,
-      instanceId: `gen-${seed.id}-${instanceCounter++}`,
+      instanceId: `gen-${strategy.id}-${instanceCounter++}`,
       credits,
       status: CourseStatus.PLANNED,
       class: placement.classNumber,
@@ -399,7 +493,7 @@ export function runGreedy(input: GeneratorInput, seed: RunSeed): PlanScenario {
         sections,
         config.turno,
         workingInfo,
-        equivMap,
+        ctx.equivMap,
         diagnosticPhase,
       ),
     }));
@@ -410,15 +504,6 @@ export function runGreedy(input: GeneratorInput, seed: RunSeed): PlanScenario {
     perSemesterCredits.push(ensureSemester(workingPlan, n).totalCredits);
   }
 
-  // Diagnostic bottleneck analysis over the remaining set (independent of the
-  // packing outcome — depends only on prereq structure + section data).
-  const { collisions, minSemestersFloor } = analyzeBottlenecks({
-    remaining,
-    sections,
-    turno: config.turno,
-    weights,
-  });
-
   // The first generated semester (startN) is assumed to be the snapshot
   // semester; any placement beyond it reuses the snapshot's offering for a
   // future calendar semester.
@@ -427,21 +512,33 @@ export function runGreedy(input: GeneratorInput, seed: RunSeed): PlanScenario {
   const assumesReusedFutureSchedule = lastPlacedN > startN;
 
   return {
-    id: seed.id,
-    label: seed.label,
+    id: strategy.id,
+    label: strategy.id,
     plan: workingPlan,
     totalFutureSemesters,
     perSemesterCredits,
     placedWithoutSection,
     unplaceable,
     usedPackingFallback,
-    bottleneckCollisions: collisions,
-    minSemestersFloor,
+    bottleneckCollisions: ctx.collisions,
+    minSemestersFloor: ctx.minSemestersFloor,
     assumesReusedFutureSchedule,
     scheduleSnapshotSemester,
     graduationReminder: GRADUATION_REMINDER,
+    isOptimal: false,
+    strategyId: strategy.id,
     config,
   };
+}
+
+/**
+ * Single-pass generation under the weight strategy (Iteration 1 behavior),
+ * retained as the unit the single-run tests exercise. Never mutates `input`.
+ */
+export function runGreedy(input: GeneratorInput, seed: RunSeed): PlanScenario {
+  const ctx = prepareGeneration(input, seed.config);
+  const scenario = packForward(ctx, WEIGHT_STRATEGY);
+  return { ...scenario, id: seed.id, label: seed.label };
 }
 
 /**
@@ -470,48 +567,68 @@ function scenarioSignature(scenario: PlanScenario): string {
 }
 
 /**
- * Public entry. Fans the pure engine out into a few deterministic seeds that
- * produce genuinely different plans, dedupes structurally-identical results,
- * and caps the list.
+ * Re-label a scenario for a result card and re-key its generated instanceIds so
+ * two cards can't collide on React keys (history instanceIds are left intact).
+ */
+function withCardIdentity(
+  scenario: PlanScenario,
+  id: string,
+  label: string,
+): PlanScenario {
+  let counter = 0;
+  const plan: StudentPlan = {
+    ...scenario.plan,
+    semesters: scenario.plan.semesters.map((sem) => ({
+      ...sem,
+      courses: sem.courses.map((c) =>
+        c.instanceId?.startsWith("gen-")
+          ? { ...c, instanceId: `gen-${id}-${counter++}` }
+          : c,
+      ),
+    })),
+  };
+  return { ...scenario, id, label, plan };
+}
+
+/**
+ * Public entry. The min-semester search (see `search.ts`) is the engine now:
  *
- * - **S1 "Mais rápido"** — the input config as-is (the grade-anchored plan).
- * - **S2 "Carga leve"** — a lower effective cap so overflow rolls into more,
- *   lighter semesters. Skipped if it can't actually go lower.
- * - **S3 "Outro mix"** — S1's cap with a rotated section tie-break, tending to
- *   pick different sections/times.
+ * - **"Mais rápido"** — {@link searchMinSemesters} at the base cap: the
+ *   fewest-total-semesters plan over the deterministic strategy set, tagged
+ *   `isOptimal` when it hits `minSemestersFloor`. The headline card.
+ * - **"Carga leve"** — the same search at a lower cap, so overflow rolls into
+ *   more, lighter semesters. Included only when it can go lower AND yields a
+ *   structurally different plan (the old dedupe).
+ *
+ * The old S1/S2/S3 seed fan-out (which deduped to near-duplicates) and the dead
+ * "Outro mix" section-rotation seed are gone — the search explores multiple
+ * genuinely-distinct packings internally.
  */
 export function generatePlanScenarios(input: GeneratorInput): GeneratorResult {
   const baseCap = input.config.creditCap;
   const lightCap = Math.max(MIN_REASONABLE_CAP, baseCap - CARGA_LEVE_CAP_DELTA);
 
-  const seeds: RunSeed[] = [
-    { id: "s1", label: "Mais rápido", config: input.config },
-  ];
-
-  if (lightCap < baseCap) {
-    seeds.push({
-      id: "s2",
-      label: "Carga leve",
-      config: { ...input.config, creditCap: lightCap },
-    });
-  }
-
-  seeds.push({
-    id: "s3",
-    label: "Outro mix",
-    config: input.config,
-    sectionRotation: 1,
-  });
-
   const scenarios: PlanScenario[] = [];
   const seen = new Set<string>();
-  for (const seed of seeds) {
-    const scenario = runGreedy(input, seed);
-    const signature = scenarioSignature(scenario);
-    if (seen.has(signature)) continue; // structurally identical → drop
-    seen.add(signature);
-    scenarios.push(scenario);
-    if (scenarios.length >= 4) break;
+
+  const fastest = withCardIdentity(
+    searchMinSemesters(input, input.config),
+    "s1",
+    "Mais rápido",
+  );
+  scenarios.push(fastest);
+  seen.add(scenarioSignature(fastest));
+
+  if (lightCap < baseCap) {
+    const light = withCardIdentity(
+      searchMinSemesters(input, { ...input.config, creditCap: lightCap }),
+      "s2",
+      "Carga leve",
+    );
+    if (!seen.has(scenarioSignature(light))) {
+      scenarios.push(light);
+      seen.add(scenarioSignature(light));
+    }
   }
 
   return { scenarios };

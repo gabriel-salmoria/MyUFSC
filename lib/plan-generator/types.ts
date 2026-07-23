@@ -109,6 +109,19 @@ export interface PlanScenario {
   scheduleSnapshotSemester: string;
   /** Static reminder of the non-discipline graduation requirements. */
   graduationReminder: GraduationReminder;
+  /**
+   * True when the achieved makespan (`totalFutureSemesters`) equals
+   * `minSemestersFloor` — provably optimal against our admissible lower bound.
+   * NOT a global feasibility proof: the floor is a top-K/reused-snapshot
+   * diagnostic (see `bottleneck.ts`), so the UI phrases this as "ótimo
+   * (estimado)".
+   */
+  isOptimal: boolean;
+  /**
+   * Id of the search strategy that produced this plan (`"weight"`,
+   * `"cardinality-weight"`, `"cardinality-depth"`) — debug/telemetry only.
+   */
+  strategyId: string;
   /** Cap + turno actually used for this scenario (shown in the preview). */
   config: GeneratorConfig;
 }
