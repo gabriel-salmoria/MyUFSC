@@ -8,8 +8,13 @@
 | Gate 1 (approval to build) | ✅ approved — anchor RELAXED (earliest-feasible critical-path) |
 | Run — engine (backend-engineer) | ⏳ in progress (steps 1–6 + spike) |
 | Run — modal render (frontend-engineer) | ⬜ pending (step 7) |
-| Review (build/test/code-review) | ⬜ pending |
-| Gate 2 (approval to open PR) | ⬜ pending |
+| Review (build/test/code-review) | ✅ engine reviewed; iterating |
+| Gate 2 (approval to open PR) | ⬜ pending maintainer |
+
+## Iteration 2 — minimum-semester search (in progress)
+- ✅ Fix: bottleneck weights over `remaining` (priority inversion INE5607/INE5614)
+- ⏳ Multi-strategy min-makespan search (S1 weight / S2+S3 cardinality), reuse packer
+- Objective: return fewest-total-semesters plan; `isOptimal` when floor reached
 
 ## Engine tasks
 1. ⬜ Bottleneck weighting (`computeBottleneckWeights`)

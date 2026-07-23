@@ -28,3 +28,21 @@
 
 - **Deferred to Sprint 04:** optativas 288h accounting, daytime-exception simulation,
   AND-of-OR data model.
+
+## Iteration 2 (2026-07-22) — minimum-semester search
+
+Maintainer feedback: the greedy per-semester packer still under-fills phases and does
+not minimize total semesters (their real SI case: manual = 11 phases, generator = 12).
+
+- **Root cause #1 (fixed, commit on branch):** bottleneck weights were computed over the
+  full curriculum, not `remaining` — inflating the weight of courses whose downstream is
+  already completed, causing a priority inversion between two colliding roots
+  (INE5607 scheduled before INE5614). Now `computeBottleneckWeights(remaining)`.
+- **Root cause #2 (this iteration):** a single greedy pass optimizing per-semester
+  bottleneck weight is a proxy, not the true objective. Maintainer decision: make the
+  generator **explicitly search for the schedule with the fewest total semesters** — try
+  several deterministic strategies/orderings and RETURN THE MIN-MAKESPAN result. This is
+  the maintainer's stated quality metric ("total semesters = what we minimize"). Robust to
+  the cardinality-vs-bottleneck tradeoff: the search tries both and keeps the shortest.
+- Architect to design: multi-strategy greedy vs. bounded beam search; the admissible
+  makespan lower bound (reuse `minSemestersFloor`); determinism; performance budget.

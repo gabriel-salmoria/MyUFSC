@@ -448,3 +448,260 @@ Steps 1–3 are independent and can land in parallel; 4 depends on 1–3; 5 depe
   weekday slot; night-only plan contains no daytime section; `bottleneckCollisions` reports
   `INE5614 × INE5607`; `minSemestersFloor` = nominal critical-path + 1; the assumption note
   and 360h/288h reminder render in the modal.
+
+---
+
+## Iteration 2 — minimum-semester search
+
+Iteration 1 shipped the night critical-path packer. Root cause #1 (weights over the full
+curriculum instead of `remaining`) is already fixed on `main` — `generate.ts:278` calls
+`computeBottleneckWeights(remaining)`. This iteration addresses root cause #2: a single
+greedy forward pass that optimizes **per-semester bottleneck weight** is a *proxy* for the
+maintainer's true objective ("o número total de semestres … é o que se quer minimizar").
+Max-weight-per-semester can under-fill (one high-weight course blocking two lighter ones)
+and can defer the wrong root. The fix: make the generator **explicitly search for the
+minimum-total-semesters plan** — run the existing packer under several deterministic
+priority rules and return the shortest.
+
+### Goal
+
+`generatePlanScenarios` returns, as "Mais rápido", the **minimum-makespan** plan the engine
+can find over a small fixed set of deterministic strategies, tagged `isOptimal` when it
+provably hits `minSemestersFloor`. Never worse than Iteration 1's single-pass result (the
+current strategy is one of the K searched), and ideally 12→11 for SI `238_20111`.
+
+### Affected files
+
+- **`lib/plan-generator/packing.ts`** — parameterize the maximized quantity. Add an optional
+  `value?: number` to `PackingCandidate`; the solver maximizes `Σ value` with `value ?? weight`
+  (so the bound `suffix[]`, the `orderCandidates` sort, and the greedy fallback all read
+  `value`). No algorithmic change — the same branch-and-bound, budget, and fallback. This is
+  the single hook that lets one strategy express "cardinality-primary" by reusing the solver
+  instead of writing a new one.
+- **`lib/plan-generator/search.ts`** (new) — the strategy set, the `packForward` strategy
+  runner (extracted from `runGreedy`'s per-semester loop), the makespan comparator, and
+  `searchMinSemesters(ctx, config)`.
+- **`lib/plan-generator/generate.ts`** — split `runGreedy` into (a) a config-independent
+  `prepareGeneration(input)` returning the shared context (clone, `workingInfo`, `remaining`,
+  `startN`, `maxN`, `graph`, `weights`, `courseById`, `equivMap`), and (b) `packForward(ctx,
+  config, valueOf)` — the current `for n in startN..maxN` pack loop, now taking a per-course
+  `valueOf` function, plus the materialization + `classifyUnplaceable` tail. `runGreedy`
+  becomes `packForward` under the weight strategy (kept for the existing single-run tests).
+  `generatePlanScenarios` calls `searchMinSemesters`.
+- **`lib/plan-generator/types.ts`** — add to `PlanScenario`: `isOptimal: boolean` (achieved
+  makespan == `minSemestersFloor`), `strategyId: string` (which rule won — debug/telemetry).
+  `minSemestersFloor` and `totalFutureSemesters` already exist and are the "vs floor" pair the
+  UI needs.
+- **`lib/plan-generator/search.test.ts`** (new) + cases in `generate.test.ts` — see Testing.
+
+### Search shape — recommendation: **multi-strategy greedy** (not beam)
+
+Compared the two:
+
+| | Multi-strategy greedy | Bounded beam |
+|---|---|---|
+| Cost | K × one forward pass | B × branches × semesters + heuristic + state dedup |
+| New machinery | a `valueOf` param + a K-way min | partial-plan state, per-semester *multi*-packing enumeration, makespan heuristic, beam pruning/dedup |
+| Reuse of Iteration-1 code | ~total (`packForward` = today's loop) | partial (packer must return N maximal packings, not one) |
+| Determinism | trivial (fixed strategy list) | needs a total order on partials |
+| Payoff at this size | attacks both failure modes directly | marginal — makespan is only ~9–12 deep |
+
+**Recommend multi-strategy greedy.** The current engine's weakness is not that greedy
+per-semester packing is bad — the 10-cell night capacity makes each semester's packing nearly
+exact already. The weakness is a *single fixed priority rule*. Trying a handful of
+deterministic rules and keeping the min-makespan directly attacks both documented failure
+modes (under-fill, wrong-root-deferral) while reusing `packMaxWeight` and the whole forward
+loop verbatim. Beam search adds a partial-state engine and a makespan heuristic for a problem
+that is ~9–12 semesters deep with ≤~12 eligible/semester — over-engineering for a hobby
+project, and it still can't guarantee the optimum without a large B. Per the brief: favor the
+simplest design that reliably matches/beats a hand plan.
+
+### Strategy set (declaration order = deterministic final tie-break)
+
+Each strategy differs **only** in the per-course `value` fed to the (unchanged) solver.
+For the cardinality strategies, `BASE = 1 + Σ(weights of the eligible candidates this
+semester)`; since one extra selected course adds `BASE > Σ weights`, maximizing `Σ value`
+maximizes **count first, then the tiebreak** — expressing "maximize cardinality, then X" in
+the existing summed-value solver with no new code.
+
+1. **S1 — weight-primary** `value = weight` *(current behavior)*. Keeps the deepest chain
+   roots when capacity binds; wins when a leaf and a root compete for the last slot and
+   deferring the root would cascade downstream (the INE5614/INE5607 shape). Including it
+   **guarantees the search never regresses** Iteration 1.
+2. **S2 — cardinality-primary, weight tiebreak** `value = BASE + weight`. Maximizes courses
+   per semester → fills under-filled phases (the maintainer's "mais disciplinas por fase").
+   Wins the primary reported failure mode: when one heavy course blocks two lighter
+   conflict-disjoint ones, packing the two uses the same night capacity yet advances more of
+   the plan, so the tail shortens by a semester.
+3. **S3 — cardinality-primary, depth tiebreak** `value = BASE + depth` (depth from the
+   weights map). Same fill as S2, but when several max-count packings tie it advances the
+   *deepest still-pending chain* first, scheduling the critical chain's next link as early as
+   possible. Wins when two equal-cardinality packings tie and only one keeps the long chain
+   progressing (avoiding a later stall).
+
+**Why not a separate pure critical-path-depth strategy?** `weight = depth·scale + dependents`
+already makes depth dominate dependents (`prerequisites.ts:98`), so a depth-primary rule is
+nearly identical to S1 and adds no diversity. Depth is genuinely distinct only as a
+*cardinality* tiebreak — which is exactly S3. Avoiding the redundant strategy keeps K minimal.
+
+**K = 3.** A 4th rule (weight-primary with a rotated candidate order, to shake
+ordering-induced ties) is cheap to add later *iff* a fixture demonstrates S1–S3 miss an
+optimum; do not ship it speculatively. The dead `sectionRotation` field on `RunSeed`
+(declared, never read by `runGreedy`) is superseded — the solver already picks the
+value-maximizing conflict-free section per course — and should be dropped or repurposed only
+if "Outro mix" is retained (see Scenario fan-out).
+
+### Objective & tie-break (fully deterministic)
+
+Compare scenarios by this chain, all ascending (smaller is better); first difference wins:
+
+1. `unplaceable.length` — place more of R (guards against a strategy "winning" by dumping
+   courses into `unplaceable`; in practice this set is strategy-invariant, see below).
+2. `totalFutureSemesters` — **the makespan; the primary objective.**
+3. `peakSemesterCredits` — flattest load among equal-length plans (nicer, and aligned with
+   the "carga leve" spirit).
+4. `Σ (placementSemester × bottleneckWeight)` over placed courses — earlier completion of
+   the critical chains.
+5. strategy declaration index (S1 < S2 < S3) — a stable final tiebreak so the result is
+   byte-for-byte deterministic (same input → same plan).
+
+`unplaceable` is structurally determined by prereq feasibility, night-turno availability, and
+whether a course can ever fit within the `SAFETY_MAX_SPAN` window — none of which the packing
+*order* changes for a healthy curriculum. So in practice all strategies place the same set and
+ranking collapses to makespan; keeping criterion 1 first is a cheap correctness guard.
+
+### Lower bound & early stop
+
+`minSemestersFloor` (from `analyzeBottlenecks`, `bottleneck.ts`) is an admissible lower bound
+on future semesters and is **config-dependent but strategy-independent** — compute it **once
+per config**, before running the strategies (hoisted out of the per-strategy path; today it
+runs inside each `runGreedy`). Then:
+
+- If a strategy's `totalFutureSemesters == minSemestersFloor`, it has hit the lower bound →
+  **provably optimal, stop early**, set `isOptimal = true`, skip the remaining strategies.
+- Otherwise run all K and set `isOptimal = (best.totalFutureSemesters == minSemestersFloor)`.
+
+Always attach both numbers so the modal can render "ótimo" when equal and "melhor encontrado
+(piso: N)" otherwise. Honesty caveat (already documented on `minSemestersFloor`): the floor is
+a top-K pairwise diagnostic against a reused snapshot, so `isOptimal` means "matched our
+admissible lower bound," not a global feasibility proof — acceptable, and strictly better
+information than today.
+
+### Invariants preserved (the search only *wraps* the packer)
+
+- **Relaxed anchor / earliest-feasible** — `packForward` reuses the identical `prereqsReadyBy`
+  eligibility; untouched.
+- **Night filter + INE5638 Saturday exception** — `buildCandidate` / `isNightTurnoValid`
+  reused verbatim; the strategy changes only `value`, never section eligibility.
+- **`remaining`-based weights** — weights still computed over `remaining` in
+  `prepareGeneration`; strategies derive `value` from them, never recompute over the full
+  curriculum.
+- **Sprint-02 invariant `{placed} ∪ {unplaceable} == R`** — each strategy materializes through
+  the existing tail; the search returns one materialized scenario, so the invariant holds for
+  the winner unchanged.
+- **Collision-floor diagnostic** — computed once per config, attached to the winner. Unchanged.
+- **Budget + fallback** — `packMaxWeight`'s node budget and `usedFallback` flag are untouched;
+  the winner's `usedPackingFallback` reflects its own run.
+
+### Performance budget
+
+- **Worst case:** `K × SAFETY_MAX_SPAN × DEFAULT_NODE_BUDGET` dfs calls =
+  `3 × 16 × 50 000 ≈ 2.4M` node visits, each a handful of set ops on ≤10-element cell sets —
+  still well under a second, and this bound is never approached because the 10-cell night
+  capacity collapses each semester's B&B to a few dozen nodes.
+- **Typical case (SI):** a few thousand node visits total across all three strategies.
+- **Hard cap / fallback:** the outer loop is a **fixed-length list** (K = 3, a compile-time
+  constant) so it cannot blow up combinatorially; the only unbounded surface is inside
+  `packMaxWeight`, which already caps at `DEFAULT_NODE_BUDGET` and degrades to greedy-by-value
+  with the observable flag. Early-stop on `== floor` usually ends the search after S1 or S2.
+  No new budget knob needed — mirror and reuse the existing pattern.
+
+### Scenario fan-out — recommendation: **search replaces the seed fan-out**
+
+Today `generatePlanScenarios` fans S1/S2/S3 seeds that now dedupe to essentially one plan
+(`generate.ts:483`). Replace that with:
+
+1. **"Mais rápido" = the min-semester search** over `input.config` (the K strategies).
+   Carries `isOptimal` + `minSemestersFloor`. This is the headline card and the whole point of
+   the iteration.
+2. **"Carga leve"** — re-run `searchMinSemesters` with the lowered `creditCap`
+   (`MIN_REASONABLE_CAP`/`CARGA_LEVE_CAP_DELTA` logic kept). A lower cap genuinely spreads load
+   into more, lighter semesters — a real trade-off card. Include **only if** its
+   `scenarioSignature` differs from "Mais rápido" (reuse the existing dedupe).
+3. **Drop "Outro mix"** (the section-rotation seed): it produced near-duplicates, and the
+   strategy search now explores multiple genuinely-distinct packings internally. Its
+   `sectionRotation` mechanism becomes dead and should be removed.
+
+Net: the outer fan-out shrinks from "3 seeds × 1 strategy" to "1–2 caps × K strategies," and
+the returned list is 1–2 truly-distinct cards (fastest, and optionally a lighter-load
+alternative) instead of three look-alikes. `scenarioSignature` dedupe + the `≤4` cap stay.
+
+### Steps (owner per step)
+
+1. **Parameterize the solver** (`backend-engineer`) — add `value?: number` to
+   `PackingCandidate`; solver/bound/sort/fallback read `value ?? weight`. Extend
+   `packing.test.ts`: a cardinality case (`value = BASE + weight`) picks the 2-course packing
+   over the 1 high-weight course; default (`value` absent) reproduces existing behavior.
+2. **Extract `prepareGeneration` + `packForward`** (`backend-engineer`) — split `runGreedy` in
+   `generate.ts`; `packForward(ctx, config, valueOf)` returns a materialized `PlanScenario`
+   (minus the search-only fields). `runGreedy` = `packForward` under S1's `valueOf` so existing
+   `generate.test.ts` keeps passing.
+3. **`search.ts`** (`backend-engineer`) — the strategy list (S1–S3 with their `valueOf` +
+   per-semester `BASE`), the comparator, `searchMinSemesters(input, config)` with floor
+   hoisting + early-stop, sets `isOptimal`/`strategyId`.
+4. **Rewire `generatePlanScenarios`** (`backend-engineer`) — Mais rápido = search(base cap);
+   Carga leve = search(light cap) if distinct; remove Outro mix + `sectionRotation`.
+5. **Types** (`backend-engineer`) — `isOptimal`, `strategyId` on `PlanScenario`.
+6. **Tests** (`backend-engineer`) — `search.test.ts` (below) + a `generate.test.ts`
+   no-regression assertion.
+7. **Modal** (`frontend-engineer`, ~2 lines) — render "ótimo" vs "melhor encontrado (piso: N)"
+   from `isOptimal`/`minSemestersFloor`. No logic change.
+
+Steps 1–2 are independent; 3 depends on 1–2; 4–5 on 3; 6 on 3–5; 7 on 5.
+
+### Testing
+
+- **Search finds a known-optimal instance where weight-greedy gives T+1** (`search.test.ts`).
+  Fixture: high-weight `H` (deep chain root) shares one night cell with each of `L1` and `L2`
+  (leaves), while `L1` and `L2` are mutually disjoint; set `weight(H) > weight(L1)+weight(L2)`.
+  - Assert **S1 in isolation** (`packForward` under weight `valueOf`) packs `{H}` alone in the
+    first semester → `L1,L2` roll forward → makespan `T+1`.
+  - Assert **`searchMinSemesters`** returns makespan `T` (S2 packs `{L1,L2}` first,
+    cardinality > 1) and `strategyId` is the cardinality strategy.
+  - Add a matching `H` chain so the min makespan is genuinely `T`, not incidentally equal.
+- **Never worse than baseline (the key invariant)** — over each existing `generate.test.ts`
+  fixture, assert `searchMinSemesters(...).totalFutureSemesters <=`
+  `runGreedy(...).totalFutureSemesters`. The search *includes* S1, so this must hold by
+  construction; the test locks it against future strategy edits. Covers the "never regresses
+  the fresh-SI 9-semester result" requirement without shipping the full SI curriculum as a
+  fixture (the SI shape reduces to the capacity-spread + collision fixtures already present).
+- **Early-stop / optimality flag** — a linear-chain fixture whose makespan equals its
+  `minSemestersFloor` → `isOptimal === true`; the H/L1/L2 fixture where the achieved makespan
+  is above the floor → `isOptimal === false`.
+- **Determinism** — run `generatePlanScenarios` twice on one input, assert identical
+  `scenarioSignature` for every returned scenario.
+
+### Risks
+
+- **Cardinality `BASE` must dominate.** `BASE = 1 + Σ eligible weights` is required each
+  semester; a too-small BASE lets weight leak past count and silently reverts S2/S3 to S1.
+  Unit-assert the cardinality pick directly (Step 1 test).
+- **Floor must be hoisted, not recomputed per strategy** — otherwise early-stop reads a
+  strategy-local floor. Compute once per config in `searchMinSemesters`.
+- **`isOptimal` honesty** — it means "matched the admissible top-K/reused-snapshot floor," not
+  a global proof; keep the existing floor caveats and let the modal phrase it as "ótimo
+  (estimado)".
+- **Don't reintroduce debt** — the search reuses `packMaxWeight`, `computeBottleneckWeights`,
+  `analyzeBottlenecks`, `isNightTurnoValid`, `schedule-conflict.ts` math; no new normalizers,
+  no second packer, no status-logic fork.
+
+### Verification
+
+- `pnpm run lint` clean; `pnpm run build` type-checks (catches dangling refs from the
+  `runGreedy` split).
+- `pnpm run test` green — new `search.test.ts`, extended `packing.test.ts`, the
+  never-worse-than-baseline assertion, and all retained Iteration-1 cases (esp. the Sprint-02
+  invariant and the INE5638 whitelist).
+- Manual dev spot-check on SI `238_20111`: "Mais rápido" reports **11** semesters (down from
+  12), phases fill more densely, `bottleneckCollisions` still surfaces INE5614×INE5607, and the
+  modal shows "ótimo" or "melhor encontrado (piso: N)".

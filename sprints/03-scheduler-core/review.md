@@ -44,3 +44,29 @@ placed Saturday consuming zero weekday capacity; no packing fallback; one honest
 ## Noted for Sprint 04 backlog (consequences, not defects)
 - **Scenario fan-out collapses to ~1.** `RunSeed.sectionRotation` is now inert (the packer picks sections) and the "Carga leve" cap rarely binds under slot packing, so "Outro mix"/"Carga leve" often dedupe away — the modal typically shows a single "Mais rápido" plan. Fine for a fewest-semesters night scheduler; revisit if multiple distinct options are wanted (ties into the daytime-exception simulation).
 - Optativas 288h accounting + daytime-exception simulation remain deferred (Sprint 04).
+
+---
+
+## Iteration 2 review — minimum-semester search
+
+Commits: `c97a3f0` (weights over remaining), `58939a9` (solver value param), `9a51ef3` (min-semester search).
+
+| Check | Result |
+|---|---|
+| `pnpm run build` | ✅ clean |
+| `pnpm run test` | ✅ 34/34 |
+| Constructed T-vs-T+1 fixture | ✅ naive weight-greedy → T+1; search → T (optimum) |
+| Fresh SI `238_20111` night-only | ✅ still 9 semesters, `isOptimal: true` (== floor) |
+| With-history sims (completed phases 1–2 / 1–3) | ✅ floor-optimal (9 total), well-packed [5,5,5,5,4,4,2] / [5,5,6,4,4,1] |
+| search.ts comparator / early-stop / determinism | ✅ sound; S1 always run → never regresses |
+| Sprint-02 invariant | ✅ preserved |
+
+**What's guaranteed now:** the generator returns the minimum-makespan plan among the
+strategy set, never worse than the old single pass, and flags `isOptimal` when it matches
+the admissible floor. Tail under-fill (e.g. `[...,4,4,1]`) is the linear Projetos→TCC
+critical chain — provably not pullable earlier, so it is optimal, not a packing defect.
+
+**Verification gap (honest):** the maintainer's specific "12 vs 11" case could NOT be
+reproduced — it depends on their actual completed-courses set, which was not available.
+Every constructible case (fresh + two histories) is now floor-optimal. To close: maintainer
+regenerates in-app, or shares their completed course codes to reproduce exactly.
