@@ -13,7 +13,10 @@ import type { Course } from "@/types/curriculum";
 import type { Professor, ClassSchedule } from "@/parsers/class-parser";
 import type { TurnoFilter } from "@/lib/schedule-conflict";
 import { computeBottleneckWeights } from "@/lib/prerequisites";
-import { analyzeBottlenecks } from "@/lib/plan-generator/bottleneck";
+import {
+  analyzeBottlenecks,
+  weekdayCellCapacity,
+} from "@/lib/plan-generator/bottleneck";
 
 const NIGHT: TurnoFilter = { morning: false, afternoon: false, night: true };
 
@@ -263,4 +266,65 @@ test("analyzeBottlenecks: k courses sharing one night cell form a k-clique that 
   assert.equal(analysis.bottleneckClique?.cell, "0:10");
   // Every member is mutually exclusive with the other five.
   for (const id of ids) assert.equal(analysis.conflictDegrees.get(id), 5);
+});
+
+// --- turno-aware capacity floor ---------------------------------------------
+
+test("weekdayCellCapacity scales with the turno filter, not a fixed night constant", () => {
+  // 14 TIME_SLOTS × 5 weekdays: 5 morning, 5 afternoon, 4 night rows.
+  assert.equal(weekdayCellCapacity(NIGHT), 20);
+  assert.equal(
+    weekdayCellCapacity({ morning: true, afternoon: false, night: false }),
+    25,
+  );
+  assert.equal(
+    weekdayCellCapacity({ morning: true, afternoon: false, night: true }),
+    45,
+  );
+  // All three or none == no preference == the whole weekday grid.
+  assert.equal(
+    weekdayCellCapacity({ morning: true, afternoon: true, night: true }),
+    70,
+  );
+  assert.equal(
+    weekdayCellCapacity({ morning: false, afternoon: false, night: false }),
+    70,
+  );
+});
+
+test("capacityFloor uses the filter's real capacity instead of over-stating it", () => {
+  // 30 single-cell courses spread across the whole weekday grid, no two of them
+  // mutually exclusive. Under an unrestricted filter that is 30 cells against a
+  // 70-cell week → one semester. Dividing by the old hardcoded 20 night cells
+  // would have claimed a floor of 2, and since searchMinSemesters early-stops
+  // on `makespan <= floor`, an inflated floor makes the search quit early.
+  const days = [0, 1, 2, 3, 4];
+  const times: [string, string][] = [
+    ["07:30", "08:20"],
+    ["08:20", "09:10"],
+    ["09:10", "10:10"],
+    ["13:30", "14:20"],
+    ["14:20", "15:10"],
+    ["18:30", "19:20"],
+  ];
+  const courses: Course[] = [];
+  const sections: Record<string, Professor[]> = {};
+  for (const day of days) {
+    for (const [start, end] of times) {
+      const id = `C${day}${start.replace(":", "")}`;
+      courses.push(course({ id }));
+      sections[id] = [section(id, [slot(day, start, end)])];
+    }
+  }
+  assert.equal(courses.length, 30);
+
+  const analysis = analyzeBottlenecks({
+    remaining: courses,
+    sections,
+    turno: { morning: true, afternoon: true, night: true },
+    weights: computeBottleneckWeights(courses),
+  });
+
+  assert.equal(analysis.components.capacityFloor, 1);
+  assert.equal(analysis.minSemestersFloor, 1);
 });

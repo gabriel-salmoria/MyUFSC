@@ -43,8 +43,10 @@ import {
   expandToCells,
   sectionsConflict,
   stripNeutralDays,
+  turnoOfSlot,
   type TurnoFilter,
 } from "@/lib/schedule-conflict";
+import { TIMETABLE_CONFIG } from "@/styles/course-theme";
 import { isNightTurnoValid, NIGHT_TURNO_EXCEPTIONS } from "@/lib/plan-generator/night";
 
 /** A detected pair of mutually-exclusive critical courses. */
@@ -102,11 +104,41 @@ export interface BottleneckAnalysis {
 /** How many top-weight critical roots are cross-checked for collisions. */
 export const CRITICAL_ROOTS_K = 8;
 
+/** Weekdays that count toward capacity — Saturday is neutral and excluded. */
+const WEEKDAY_COUNT = 5;
+
 /**
  * Weekly night capacity in grid cells: 5 weekdays × 4 night slots (18:30,
- * 19:20, 20:20, 21:10). Saturday is neutral and excluded.
+ * 19:20, 20:20, 21:10).
+ *
+ * Kept as the night-only reference value; the live floor uses
+ * {@link weekdayCellCapacity}, which respects the turno filter.
  */
 export const WEEKDAY_NIGHT_CELLS = 20;
+
+/**
+ * Weekly grid-cell capacity admitted by `turno`: weekdays × the TIME_SLOTS rows
+ * whose turno the filter accepts. Saturday is excluded (neutral).
+ *
+ * This used to be the hardcoded {@link WEEKDAY_NIGHT_CELLS}, applied whatever
+ * the user picked. For anything but a night-only filter that under-states
+ * capacity by up to 3.5× (there are 14 weekday slots, not 4), which inflates
+ * `capacityFloor` and therefore `minSemestersFloor` — and since
+ * `searchMinSemesters` early-stops as soon as a run matches the floor, an
+ * inflated floor made the search quit after its first strategy and report a
+ * worse plan as `isOptimal`.
+ */
+export function weekdayCellCapacity(turno: TurnoFilter): number {
+  const { morning, afternoon, night } = turno;
+  const noPreference =
+    (morning && afternoon && night) || (!morning && !afternoon && !night);
+
+  const slotsAdmitted = TIMETABLE_CONFIG.TIME_SLOTS.filter(
+    (slot) => noPreference || turno[turnoOfSlot(slot.id)],
+  ).length;
+
+  return slotsAdmitted * WEEKDAY_COUNT;
+}
 
 export interface BottleneckParams {
   /** Remaining mandatory schedulable courses (R). */
@@ -292,16 +324,17 @@ export function analyzeBottlenecks(params: BottleneckParams): BottleneckAnalysis
   for (const c of remaining) maxDepth = Math.max(maxDepth, weights.get(c.id)?.depth ?? 0);
   const criticalPathFloor = remaining.length === 0 ? 0 : maxDepth + 1;
 
-  // Capacity floor: cell-hours demanded / weekly night capacity. Each course
-  // demands the fewest weekday cells any of its turno-valid sections needs
-  // (admissible); Saturday-only and sectionless courses demand zero.
+  // Capacity floor: cell-hours demanded / the weekly capacity the chosen turno
+  // filter actually admits. Each course demands the fewest weekday cells any of
+  // its turno-valid sections needs (admissible); Saturday-only and sectionless
+  // courses demand zero.
   let cellDemand = 0;
   for (const c of remaining) {
     const sets = cells(c);
     if (sets.length === 0) continue;
     cellDemand += Math.min(...sets.map((s) => s.size));
   }
-  const capacityFloor = Math.ceil(cellDemand / WEEKDAY_NIGHT_CELLS);
+  const capacityFloor = Math.ceil(cellDemand / weekdayCellCapacity(turno));
 
   // --- Clique-aware floor (Task T1) ----------------------------------------
   // Full night conflict graph over ALL turno-valid remaining courses (a course
