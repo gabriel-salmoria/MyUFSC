@@ -23,7 +23,9 @@ import type {
   PlanScenario,
   UnplacedReason,
 } from "@/lib/plan-generator/types";
-import { Sun, Sunset, Moon, Sparkles, AlertTriangle, Info } from "lucide-react";
+// CalendarCog, not a wand/sparkle: the engine is a deterministic solver, and a
+// generative-AI-looking icon misrepresents what the button does.
+import { Sun, Sunset, Moon, CalendarCog, AlertTriangle, Info } from "lucide-react";
 import type { ClassSchedule } from "@/parsers/class-parser";
 
 interface PlanGeneratorModalProps {
@@ -160,7 +162,7 @@ export default function PlanGeneratorModal({
       <DialogContent className="max-w-3xl max-h-[88vh] flex flex-col gap-0 p-0">
         <DialogHeader className="p-6 pb-4 border-b border-border">
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
+            <CalendarCog className="h-5 w-5 text-primary" />
             Gerar plano automático
           </DialogTitle>
           <DialogDescription>
@@ -220,7 +222,7 @@ export default function PlanGeneratorModal({
             </div>
 
             <Button onClick={handleGenerate} disabled={!canGenerate}>
-              <Sparkles className="h-4 w-4 mr-2" />
+              <CalendarCog className="h-4 w-4 mr-2" />
               Gerar planos
             </Button>
           </div>

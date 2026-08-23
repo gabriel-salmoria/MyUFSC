@@ -5,7 +5,7 @@ import type { StudentInfo } from "@/types/student-plan";
 import type { Curriculum } from "@/types/curriculum";
 import type { ScheduleHookState } from "@/hooks/setup/UseSchedule";
 import { Switch } from "@/components/ui/switch";
-import { ChevronDown, Sparkles } from "lucide-react";
+import { CalendarCog, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import CurriculumVisualizer from "@/components/visualizers/curriculum-visualizer";
@@ -302,7 +302,7 @@ export default function Visualizations({
               size="sm"
               onClick={() => setPlanGenOpen(true)}
             >
-              <Sparkles className="h-4 w-4 mr-1.5" />
+              <CalendarCog className="h-4 w-4 mr-1.5" />
               Gerar plano automático
             </Button>
           </div>
