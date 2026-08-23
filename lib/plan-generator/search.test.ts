@@ -16,6 +16,8 @@ import type { TurnoFilter } from "@/lib/schedule-conflict";
 import {
   runGreedy,
   generatePlanScenarios,
+  baselineLabel,
+  exceptionLabel,
   type RunSeed,
 } from "@/lib/plan-generator/generate";
 import {
@@ -353,4 +355,67 @@ test("invariant: search winner places-or-reports every remaining discipline", ()
   assert.deepEqual(union, ["N100", "P100", "X100"]);
   assert.ok(placed.has("P100") && placed.has("X100"));
   assert.ok(unplaceable.has("N100"));
+});
+
+// --- turno-derived scenario labels ------------------------------------------
+
+test("baselineLabel reflects the chosen filter, not a hardcoded 'Só à noite'", () => {
+  assert.equal(baselineLabel(NIGHT), "Só à noite");
+  assert.equal(
+    baselineLabel({ morning: true, afternoon: false, night: false }),
+    "Só de manhã",
+  );
+  assert.equal(
+    baselineLabel({ morning: false, afternoon: true, night: false }),
+    "Só à tarde",
+  );
+  assert.equal(
+    baselineLabel({ morning: true, afternoon: false, night: true }),
+    "Manhã e Noite",
+  );
+  // All three or none both mean "no preference".
+  assert.equal(baselineLabel(NO_PREF), "Qualquer turno");
+  assert.equal(
+    baselineLabel({ morning: false, afternoon: false, night: false }),
+    "Qualquer turno",
+  );
+});
+
+test("exceptionLabel names the turno the promoted sections actually landed in", () => {
+  const promotedTo = (startTime: string) => [
+    { courseId: "X", classNumber: "1", slots: [slot(0, startTime, "09:10")] },
+  ];
+  assert.equal(exceptionLabel(promotedTo("08:20"), 1), "1 de manhã");
+  assert.equal(exceptionLabel(promotedTo("14:20"), 1), "1 à tarde");
+  // Mixed turnos across promotions → a neutral label, never a wrong one.
+  assert.equal(
+    exceptionLabel(
+      [
+        { courseId: "X", classNumber: "1", slots: [slot(0, "08:20", "09:10")] },
+        { courseId: "Y", classNumber: "1", slots: [slot(1, "14:20", "15:10")] },
+      ],
+      2,
+    ),
+    "2 fora do turno",
+  );
+  // Budget spent but nothing actually promoted → falls back to the budget.
+  assert.equal(exceptionLabel([], 2), "2 fora do turno");
+});
+
+test("an unrestricted filter yields exactly one scenario, and says so", () => {
+  // Same fixture as the clique test but with no turno restriction: the packer
+  // already sees every section, so there is nothing left to "promote" and the
+  // single card is correct — it just has to be labeled and explained honestly.
+  const input = daytimeCliqueInput(2);
+  input.config = { ...input.config, turno: NO_PREF };
+
+  const result = generatePlanScenarios(input);
+  assert.equal(result.scenarios.length, 1);
+  assert.equal(result.turnoIsUnrestricted, true);
+  assert.equal(result.scenarios[0].label, "Qualquer turno");
+
+  // A restricted filter is not flagged, and still gets its comparison card.
+  const restricted = generatePlanScenarios(daytimeCliqueInput(2));
+  assert.equal(restricted.turnoIsUnrestricted, false);
+  assert.equal(restricted.scenarios.length, 2);
 });

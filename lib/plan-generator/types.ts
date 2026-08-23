@@ -181,4 +181,12 @@ export interface PlanScenario {
 /** Result of {@link generatePlanScenarios}. */
 export interface GeneratorResult {
   scenarios: PlanScenario[];
+  /**
+   * True when the run's turno filter admitted every section (all three turnos
+   * picked, or none). In that case exactly one scenario exists by construction —
+   * a turno exception means taking a section the filter excludes, and this
+   * filter excludes nothing. The modal uses this to explain the single card
+   * instead of leaving it looking like a bug.
+   */
+  turnoIsUnrestricted: boolean;
 }

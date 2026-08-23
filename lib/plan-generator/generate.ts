@@ -45,7 +45,7 @@ import type { Course } from "@/types/curriculum";
 import type { StudentInfo, StudentPlan, StudentSemester } from "@/types/student-plan";
 import { CourseStatus } from "@/types/student-plan";
 import type { Professor } from "@/parsers/class-parser";
-import type { TurnoFilter } from "@/lib/schedule-conflict";
+import { turnoOfSlot, type Turno, type TurnoFilter } from "@/lib/schedule-conflict";
 import {
   checkPrerequisites,
   computeBottleneckWeights,
@@ -704,27 +704,93 @@ function withCardIdentity(
   return { ...scenario, id, label, plan };
 }
 
-/** Card label for a daytime-exception budget (Sprint 04 comparison). */
-function daytimeLabel(budget: number): string {
-  if (budget === 1) return "1 de manhã";
-  return `${budget} de manhã`;
+/** "Only this turno" phrasing per turno, for the baseline card. */
+const TURNO_ONLY_LABEL: Record<Turno, string> = {
+  morning: "Só de manhã",
+  afternoon: "Só à tarde",
+  night: "Só à noite",
+};
+
+/** Adverbial phrasing per turno, for the exception card ("2 de manhã"). */
+const TURNO_ADVERB: Record<Turno, string> = {
+  morning: "de manhã",
+  afternoon: "à tarde",
+  night: "à noite",
+};
+
+/** Title-cased turno name, for the multi-turno baseline label. */
+const TURNO_TITLE: Record<Turno, string> = {
+  morning: "Manhã",
+  afternoon: "Tarde",
+  night: "Noite",
+};
+
+const TURNO_KEYS: readonly Turno[] = ["morning", "afternoon", "night"];
+
+/**
+ * True when the filter admits every section — all three turnos selected, or
+ * none. Mirrors `sectionInTurno`'s "no preference" rule.
+ */
+export function isUnrestricted(turno: TurnoFilter): boolean {
+  const selected = TURNO_KEYS.filter((key) => turno[key]);
+  return selected.length === 0 || selected.length === 3;
 }
 
 /**
- * Public entry (Sprint 04). Returns the daytime-exception comparison the modal
+ * Baseline card label, derived from the turno filter the user actually picked.
+ *
+ * This was hardcoded to "Só à noite" — wrong for every filter except night-only,
+ * and most visibly wrong on the DEFAULT (no preference), where it was the only
+ * card the modal ever produced. See {@link generatePlanScenarios}.
+ */
+export function baselineLabel(turno: TurnoFilter): string {
+  if (isUnrestricted(turno)) return "Qualquer turno";
+  const selected = TURNO_KEYS.filter((key) => turno[key]);
+  if (selected.length === 1) return TURNO_ONLY_LABEL[selected[0]];
+  return selected.map((key) => TURNO_TITLE[key]).join(" e ");
+}
+
+/**
+ * Card label for a turno-exception scenario, derived from where the promoted
+ * sections actually landed rather than assuming "manhã" — a promotion off a
+ * night jam can just as easily be an afternoon section.
+ */
+export function exceptionLabel(
+  promoted: PromotedCourse[],
+  budget: number,
+): string {
+  if (promoted.length === 0) return `${budget} fora do turno`;
+  const turnos = new Set<Turno>();
+  for (const p of promoted) {
+    for (const slot of p.slots) turnos.add(turnoOfSlot(slot.startTime));
+  }
+  const suffix =
+    turnos.size === 1 ? TURNO_ADVERB[[...turnos][0]] : "fora do turno";
+  return `${promoted.length} ${suffix}`;
+}
+
+/**
+ * Public entry (Sprint 04). Returns the turno-exception comparison the modal
  * renders as scenario cards, all under the min-total-semesters objective:
  *
- * - **"Só à noite"** (B=0) — the strict-night plan from {@link searchMinSemesters}.
- *   The honest baseline (6 future / 12 total for the maintainer, floor 6).
- * - **"1 de manhã"** (best B=1) — the single most-valuable course promoted to a
- *   daytime section, kept only if it strictly shortens the plan.
- * - **"2 de manhã"** (best B=2) — kept only if it beats B=1.
+ * - **baseline** (B=0) — the plan under the chosen turno filter, from
+ *   {@link searchMinSemesters}. Labeled by {@link baselineLabel}.
+ * - **B=1..budget** — the most-valuable course(s) promoted to a section outside
+ *   the filter, each kept only if it strictly shortens the plan versus the best
+ *   lower budget. Labeled by {@link exceptionLabel} from where the promoted
+ *   sections actually landed.
  *
  * Each carries `daytimeExceptionsUsed` + `promotedCourses`. A higher-budget
  * scenario is dropped when it doesn't improve on a lower one (no point showing a
  * 2-exception plan that only matches the 1-exception plan). Determinism and the
  * Sprint-02 `{placed} ∪ {unplaceable} == R` invariant are preserved by the
  * underlying search. Budget defaults to {@link DEFAULT_DAYTIME_BUDGET}.
+ *
+ * **On an unrestricted filter there is exactly one scenario, by construction**:
+ * a "promotion" means using a section the filter excludes, and an unrestricted
+ * filter excludes nothing, so no candidate exists to promote. That is correct,
+ * but it used to surface as a single card mislabeled "Só à noite" with no
+ * explanation — hence `turnoIsUnrestricted`, which lets the modal say why.
  */
 export function generatePlanScenarios(input: GeneratorInput): GeneratorResult {
   const budget = Math.max(
@@ -740,17 +806,22 @@ export function generatePlanScenarios(input: GeneratorInput): GeneratorResult {
   // the fill only enriches the card that is kept.
   const equivMap = generateEquivalenceMap(input.courses);
 
-  // B=0 — strict night, the baseline every daytime plan is measured against.
-  const night = fillElectivesIntoScenario(
-    withCardIdentity(searchMinSemesters(input, input.config), "s0", "Só à noite"),
+  // B=0 — the baseline under the chosen filter, which every exception plan is
+  // measured against. Label derived from the filter, not hardcoded to night.
+  const baseline = fillElectivesIntoScenario(
+    withCardIdentity(
+      searchMinSemesters(input, input.config),
+      "s0",
+      baselineLabel(input.config.turno),
+    ),
     input,
     equivMap,
     "s0",
   );
-  scenarios.push(night);
-  let bestMakespan = night.totalFutureSemesters;
+  scenarios.push(baseline);
+  let bestMakespan = baseline.totalFutureSemesters;
 
-  // B=1..budget — best plan using ≤B daytime exceptions, shown only when it
+  // B=1..budget — best plan using ≤B turno exceptions, shown only when it
   // strictly shortens the plan versus the best lower-budget scenario.
   for (let b = 1; b <= budget; b++) {
     const candidate = searchWithDaytimeExceptions(input, input.config, b);
@@ -758,7 +829,11 @@ export function generatePlanScenarios(input: GeneratorInput): GeneratorResult {
     if (candidate.totalFutureSemesters < bestMakespan) {
       scenarios.push(
         fillElectivesIntoScenario(
-          withCardIdentity(candidate, `s${b}`, daytimeLabel(b)),
+          withCardIdentity(
+            candidate,
+            `s${b}`,
+            exceptionLabel(candidate.promotedCourses, b),
+          ),
           input,
           equivMap,
           `s${b}`,
@@ -768,5 +843,5 @@ export function generatePlanScenarios(input: GeneratorInput): GeneratorResult {
     }
   }
 
-  return { scenarios };
+  return { scenarios, turnoIsUnrestricted: isUnrestricted(input.config.turno) };
 }
