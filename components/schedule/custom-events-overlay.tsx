@@ -28,12 +28,25 @@ import {
 const TIME_COL_WIDTH = 80;
 // Pointer travel (px) before a press is treated as a drag rather than a click.
 const DRAG_THRESHOLD = 4;
-// A standard UFSC period is 50 min and occupies one grid row. We size event
-// boxes at this constant scale (px per minute) so a box's height reflects its
-// duration and never changes as it moves — unlike the grid's own rows, whose
-// time spans are irregular (60/70/80-min blocks and the lunch gap).
+// A standard UFSC period is 50 min and occupies one grid row.
 const SLOT_SPAN_MIN = 50;
 const MIN_EVENT_MIN = 15; // shortest event the user can resize to
+// Floor on a box's drawn height, expressed in rows so it scales with the grid.
+const MIN_BOX_ROWS = MIN_EVENT_MIN / SLOT_SPAN_MIN;
+
+// How many grid ROWS the interval [startMin, endMin) covers.
+//
+// Both the top edge and the height MUST come from this one mapping. The grid is
+// not a uniform time axis: TIME_SLOTS rows have irregular spans (09:10→10:10 is
+// 60 min, 17:10→18:30 is 80, and 11:00→13:30 is a 150-min lunch gap drawn as a
+// single row). Sizing a box at a constant px-per-minute while positioning it
+// through `minutesToRows` made the two disagree on every non-50-min row — an
+// 11:00–13:30 event was positioned on one row but drawn three rows tall, so its
+// bottom edge landed nowhere near 13:30. Deriving both from the row mapping
+// keeps a box's edges on the same grid lines as the times it claims.
+function rowsBetween(startMin: number, endMin: number): number {
+  return minutesToRows(endMin) - minutesToRows(startMin);
+}
 
 type GestureMode = "move" | "resize";
 
@@ -161,7 +174,6 @@ export default function CustomEventsOverlay({
   const dayCount = TIMETABLE.DAYS.length;
   const colWidth = geo ? (geo.width - TIME_COL_WIDTH) / dayCount : 0;
   const rowHeight = geo ? geo.height / TOTAL_ROWS : 0;
-  const pxPerMin = rowHeight / SLOT_SPAN_MIN;
 
   // Side-by-side layout (#33). Per weekday column, greedily pack that day's
   // overlapping boxes into sub-columns so they render next to each other instead
@@ -290,12 +302,16 @@ export default function CustomEventsOverlay({
 
       let next: Gesture;
       if (g.mode === "resize") {
-        // Bottom edge → change end time only, at the constant px/min scale.
-        const duration = Math.max(
-          MIN_EVENT_MIN,
-          snapMinutes(g.origEndMin - g.origStartMin + dy / pxPerMin, 5),
+        // Bottom edge → change end time only. Converted through the same row
+        // mapping the box is drawn with, so the edge tracks the pointer instead
+        // of drifting wherever a row's real span isn't 50 min.
+        const rawEnd = rowsToMinutes(
+          minutesToRows(g.origEndMin) + dy / rowHeight,
         );
-        const endMin = Math.min(GRID_END_MIN, g.origStartMin + duration);
+        const endMin = Math.max(
+          g.origStartMin + MIN_EVENT_MIN,
+          Math.min(GRID_END_MIN, snapMinutes(rawEnd, 5)),
+        );
         next = { ...g, endMin, moved: true };
       } else {
         // Body → move across times (grid rows); day-change is allowed only for
@@ -319,7 +335,7 @@ export default function CustomEventsOverlay({
       gestureRef.current = next;
       setGesture(next);
     },
-    [rowHeight, colWidth, pxPerMin, dayCount],
+    [rowHeight, colWidth, dayCount],
   );
 
   const handlePointerUp = useCallback(
@@ -369,11 +385,10 @@ export default function CustomEventsOverlay({
         const isDragging = gesture?.id === entry.id;
 
         const top = minutesToRows(startMin) * rowHeight;
-        // Height is a pure function of duration → constant while moving.
-        const height = Math.max(
-          pxPerMin * MIN_EVENT_MIN,
-          (endMin - startMin) * pxPerMin,
-        );
+        // Same mapping as `top` (see rowsBetween): the bottom edge lands on the
+        // grid line for `endMin`, whatever the rows in between actually span.
+        const height =
+          Math.max(MIN_BOX_ROWS, rowsBetween(startMin, endMin)) * rowHeight;
 
         // One box per weekday the event repeats on. While a single-day entry is
         // being dragged horizontally, its (single) box follows the active day;
@@ -427,7 +442,7 @@ export default function CustomEventsOverlay({
               <div className="text-[0.625rem] font-medium opacity-80 tabular-nums leading-tight truncate">
                 {toHHMM(startMin)}–{toHHMM(endMin)}
               </div>
-              {entry.subtitle && height > pxPerMin * 45 && (
+              {entry.subtitle && height > rowHeight * 0.9 && (
                 <div className="text-[0.7rem] leading-tight truncate opacity-90">
                   {entry.subtitle}
                 </div>
