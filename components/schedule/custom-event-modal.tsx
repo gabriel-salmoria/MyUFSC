@@ -143,7 +143,7 @@ export default function CustomEventModal({
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.2 }}
-        className="bg-background border border-border sm:rounded-lg shadow-xl w-full max-w-md p-6 relative"
+        className="bg-background border border-border sm:rounded-lg shadow-xl w-full max-w-lg p-6 relative"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close button */}
@@ -210,6 +210,13 @@ export default function CustomEventModal({
             {/* Dias */}
             <div className="grid gap-1.5">
               <Label>Dias</Label>
+              {/* `flex-auto` (basis: auto), not `flex-1` (basis: 0). With a
+                  0-basis plus an explicit `min-w`, every button got the SAME
+                  width regardless of its label and CSS's default
+                  `min-width: auto` was overridden — so "Segunda", the longest
+                  weekday, was squeezed and its text spilled past the border.
+                  Sizing from content lets each button be as wide as its label
+                  needs, and `flex-wrap` handles a narrow viewport. */}
               <div className="flex gap-1.5 flex-wrap">
                 {TIMETABLE.DAYS.map((d, i) => {
                   const selected = days.includes(i);
@@ -219,7 +226,7 @@ export default function CustomEventModal({
                       type="button"
                       aria-pressed={selected}
                       onClick={() => toggleDay(i)}
-                      className={`flex-1 min-w-[3rem] rounded-md border px-2 py-1.5 text-sm font-medium transition-colors ${
+                      className={`flex-auto whitespace-nowrap rounded-md border px-2 py-1.5 text-sm font-medium transition-colors ${
                         selected
                           ? "border-primary bg-primary text-primary-foreground"
                           : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground"
