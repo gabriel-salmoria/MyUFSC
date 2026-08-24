@@ -22,6 +22,7 @@ import {
 } from "@/parsers/curriculum-parser";
 import { checkPrerequisites, computeBlocksCounts } from "@/lib/prerequisites";
 import { computeCurriculumStatusMap } from "@/lib/curriculum-status";
+import { resolveSemesters } from "@/lib/semester-status";
 
 import { useStudentStore } from "@/lib/student-store";
 
@@ -38,6 +39,7 @@ export default function CurriculumVisualizer({
   highlightAvailableForPhase,
 }: CurriculumVisualizerProps) {
   const studentInfo = useStudentStore((s) => s.studentInfo);
+  const currentPhase = studentInfo?.currentPhase ?? 0;
   const containerRef = useRef<HTMLDivElement>(null);
   const [phaseWidth, setPhaseWidth] = useState<number>(PHASE.MIN_WIDTH);
   const [containerHeight, setContainerHeight] = useState<number | null>(null);
@@ -52,14 +54,22 @@ export default function CurriculumVisualizer({
   );
 
   // Create mapped course statuses and handle optional course hours accumulation mapped greedily against curriculum blocks
+  // Positional status first (lib/semester-status.ts): a course in a semester
+  // before the student's `currentPhase` reads as concluída even when it was
+  // never explicitly marked, so the curriculum grid agrees with Meu Progresso.
+  const resolvedSemesters = useMemo(
+    () => resolveSemesters(studentPlan.semesters, currentPhase),
+    [studentPlan.semesters, currentPhase],
+  );
+
   const mappedCurriculumCourses = useMemo(
     () =>
       computeCurriculumStatusMap(
         curriculum.courses,
-        studentPlan.semesters,
+        resolvedSemesters,
         equivalenceMap,
       ),
-    [curriculum.courses, studentPlan.semesters, equivalenceMap],
+    [curriculum.courses, resolvedSemesters, equivalenceMap],
   );
 
   const phaseCount = curriculum.totalPhases || phases.length || 1;

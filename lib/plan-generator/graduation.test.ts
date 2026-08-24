@@ -1,7 +1,7 @@
 /**
  * Tests for the remaining graduation-requirement hours computation
  * (`computeGraduationReminder`): elective (optativas) + non-discipline
- * (complementares) buckets, status gating, and floor clamping.
+ * status gating, and floor clamping.
  *
  * Pure-function tests, run with Node's built-in `node:test` via `tsx`
  * (`pnpm run test`). No React/store/DB — plain `Course[]` / `StudentInfo`
@@ -46,7 +46,7 @@ function infoWith(courses: StudentCourse[]): StudentInfo {
     interestedDegrees: [],
     name: "Test",
     currentPlan: 0,
-    currentSemester: "20251",
+    currentPhase: 1,
     plans: [
       {
         semesters: [{ number: 1, courses, totalCredits: 0 }],
@@ -71,7 +71,8 @@ const placeholder = course({
   workload: 72,
 });
 
-// A non-discipline graduation requirement — complementares bucket. 120h.
+// A non-discipline graduation requirement — must never count as an optativa,
+// even once issue #11 re-tags it off `mandatory` and it reads as `optional`.
 const complementar = course({
   id: "INE7011",
   name: "Atividades Complementares 1",
@@ -79,7 +80,7 @@ const complementar = course({
   workload: 120,
 });
 
-// An ordinary mandatory discipline — counts toward neither bucket.
+// An ordinary mandatory discipline — never counts toward optativas.
 const mandatory = course({
   id: "INE5401",
   name: "Programação Orientada a Objetos",
@@ -89,21 +90,19 @@ const mandatory = course({
 
 const allCourses = [elective, placeholder, complementar, mandatory];
 
-test("zero progress → full remaining requirements", () => {
+test("zero progress → the full elective budget remains", () => {
   const info = infoWith([]);
   assert.deepEqual(computeGraduationReminder(info, allCourses), {
-    complementaresHours: 360,
     optativasHours: 288,
   });
 });
 
-test("partial progress subtracts earned hours from each bucket", () => {
+test("partial progress subtracts earned elective hours", () => {
   const info = infoWith([
     sc(elective.id, CourseStatus.COMPLETED), // 72h optativas
-    sc(complementar.id, CourseStatus.COMPLETED), // 120h complementares
+    sc(complementar.id, CourseStatus.COMPLETED), // not an optativa
   ]);
   assert.deepEqual(computeGraduationReminder(info, allCourses), {
-    complementaresHours: 360 - 120,
     optativasHours: 288 - 72,
   });
 });
@@ -124,7 +123,6 @@ test("over-earning clamps to 0 (never negative)", () => {
 test("EXEMPTED counts the same as COMPLETED", () => {
   const info = infoWith([sc(elective.id, CourseStatus.EXEMPTED)]);
   assert.deepEqual(computeGraduationReminder(info, allCourses), {
-    complementaresHours: 360,
     optativasHours: 288 - 72,
   });
 });
@@ -136,15 +134,13 @@ test("PLANNED / IN_PROGRESS / FAILED do NOT count", () => {
     sc(elective.id, CourseStatus.FAILED),
   ]);
   assert.deepEqual(computeGraduationReminder(info, allCourses), {
-    complementaresHours: 360,
     optativasHours: 288,
   });
 });
 
-test("mandatory disciplines do NOT count toward either bucket", () => {
+test("mandatory disciplines do NOT count toward optativas", () => {
   const info = infoWith([sc(mandatory.id, CourseStatus.COMPLETED)]);
   assert.deepEqual(computeGraduationReminder(info, allCourses), {
-    complementaresHours: 360,
     optativasHours: 288,
   });
 });
@@ -152,7 +148,6 @@ test("mandatory disciplines do NOT count toward either bucket", () => {
 test("generic elective placeholders do NOT count toward optativas", () => {
   const info = infoWith([sc(placeholder.id, CourseStatus.COMPLETED)]);
   assert.deepEqual(computeGraduationReminder(info, allCourses), {
-    complementaresHours: 360,
     optativasHours: 288,
   });
 });

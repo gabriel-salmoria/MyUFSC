@@ -18,11 +18,9 @@ condensed map; read the relevant doc file for exhaustive detail before large cha
 - **Commit style: Conventional Commits.** See the **`commit-conventions`** skill for the
   allowed types, scope vocabulary, and examples. Contributor workflow lives in
   `CONTRIBUTING.md`.
-- **AI team & workflow.** Role agents live in `.claude/agents/` (`architect`,
-  `backend-engineer`, `frontend-engineer`, `design`, `product-owner`, `scrum-master`).
-  Sprint commands live in `.claude/commands/` — `/sprint-plan`, `/sprint-run`,
-  `/sprint-review`, and `/sprint-cycle` (all three chained). Sprint artifacts are written
-  under `sprints/`.
+- **Tests: `pnpm test`** (`node:test` via `tsx`, no test framework dependency). Typecheck
+  with `pnpm exec tsc --noEmit` — `pnpm run lint` does not do it. CI runs lint, typecheck
+  and tests on every PR to `main`.
 - **Before changing code**, reuse existing utilities and respect the known tech debt listed
   at the bottom of this file — don't reintroduce the duplication called out there.
 
@@ -79,12 +77,36 @@ on every degree-set change → see `docs/data-loading-hooks.md`.
 
 Only `studentInfo: StudentInfo | null` is persisted to `localStorage` key
 `"student-storage"`; everything else (auth flags, selections, caches) resets on load.
-`StudentInfo` = `{ currentDegree, interestedDegrees[], name, currentPlan, plans[], customScheduleEntries? }`.
+`StudentInfo` = `{ currentDegree, interestedDegrees[], name, currentPlan, currentPhase, plans[], customScheduleEntries? }`.
 `StudentCourse` stores only `{ courseId, credits, status, grade?, class?, phase? }` —
 full `Course` objects are resolved at render time via `useCourseMap` + `curriculumCache`.
 
 `CourseStatus`: `pending | inProgress | completed | failed | exempted | planned | default`
 (`default` = curriculum slot with nothing planned, UI-only, never persisted).
+
+## Course status is POSITIONAL — `lib/semester-status.ts`
+
+A student is enrolled in a *semester*, not in a scattered set of courses, so
+`StudentInfo.currentPhase` (1-based) drives status for the whole plan:
+`semester < currentPhase` → COMPLETED, `=== currentPhase` → IN_PROGRESS,
+`> currentPhase` → PLANNED. Marking a phase current back-fills every earlier one.
+
+`resolveCourseStatus` / `resolveSemesters` / `resolvePlan` apply this. **Stored status
+still wins** where present: the three outcomes (completed/failed/exempted) and the two
+manual per-course overrides the details panel writes (inProgress/planned). `PENDING`
+means "no explicit status — derive from position", and is what `addCourseToSemester`
+stores for a dragged course. `currentPhase < 1` disables derivation entirely.
+
+Every consumer resolves *before* reading `.status`: `CurriculumVisualizer` and
+`GridVisualizer` (before their status engines), `ProgressVisualizer` (per box),
+`cloneToHistory` + `computeGraduationReminder` in the plan generator. `resolveSemesters`
+returns the same reference when nothing changed, so it is memo-safe. The generator's
+`computeStartSemester` reads `currentPhase + 1` — except when that phase is empty, which
+means it is still open to be filled. `Timetable` opens on `currentPhase` (lazy init).
+
+Legacy data is migrated in the persist `merge()`: `currentSemester: "1"` (a dead field)
+→ an inferred `currentPhase`, and stored `planned`/`inProgress` are reset to `pending` so
+position can take over. Outcomes and grades are never touched.
 
 Key actions (all via Immer `produce`, all call `updateView` after): `addCourseToSemester`,
 `moveCourse`, `removeCourse`, `changeCourseStatus`, `setCourseGrade` (rounds to 0.5,

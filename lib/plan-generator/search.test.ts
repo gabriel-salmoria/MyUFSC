@@ -77,7 +77,7 @@ function makeInput(
     interestedDegrees: [],
     name: "Test",
     currentPlan: 0,
-    currentSemester: "20251",
+    currentPhase: 1,
     plans: [{ semesters: [] }],
   };
   return { studentInfo, courses, sections, config: { turno, creditCap } };
@@ -231,16 +231,17 @@ test("daytime exception: strict night is a 3-clique (makespan 3); promoting one 
   assert.equal(promoted!.unplaceable.length, 0);
 });
 
-test("daytime exception: generatePlanScenarios contrasts night vs 1-de-manhã, drops a non-improving B=2", () => {
+test("daytime exception: generatePlanScenarios contrasts the baseline vs 1-de-manhã, drops a non-improving B=2", () => {
   const result = generatePlanScenarios(daytimeCliqueInput(2));
 
-  // Two cards: the honest night baseline and the improving 1-exception plan.
+  // Every course here is 4 credits and mutually exclusive at night, so the
+  // credit cap never binds and all three load variants collapse to one card.
   assert.equal(result.scenarios.length, 2);
 
-  const [night, morning] = result.scenarios;
-  assert.equal(night.label, "Só à noite");
-  assert.equal(night.totalFutureSemesters, 3);
-  assert.equal(night.daytimeExceptionsUsed, 0);
+  const [baseline, morning] = result.scenarios;
+  assert.equal(baseline.label, "Máximo");
+  assert.equal(baseline.totalFutureSemesters, 3);
+  assert.equal(baseline.daytimeExceptionsUsed, 0);
 
   assert.equal(morning.label, "1 de manhã");
   assert.equal(morning.totalFutureSemesters, 2);
@@ -256,11 +257,75 @@ test("daytime exception: generatePlanScenarios contrasts night vs 1-de-manhã, d
   );
 });
 
-test("daytime exception: with budget 0 the comparison is night-only", () => {
+test("daytime exception: with budget 0 only the load baseline is offered", () => {
   const result = generatePlanScenarios(daytimeCliqueInput(0));
   assert.equal(result.scenarios.length, 1);
-  assert.equal(result.scenarios[0].label, "Só à noite");
+  assert.equal(result.scenarios[0].label, "Máximo");
   assert.equal(result.scenarios[0].daytimeExceptionsUsed, 0);
+});
+
+// --- load variants -----------------------------------------------------------
+
+/**
+ * 12 conflict-free 4-credit courses across distinct night cells, so the CREDIT
+ * CAP — not the schedule — is what decides how many fit per semester. That is
+ * the situation the speed-vs-load comparison exists for.
+ */
+function loadVariantInput(creditCap: number): GeneratorInput {
+  const courses: Course[] = [];
+  const sections: Record<string, Professor[]> = {};
+  const cells = [cell10, cell11, cell12];
+  let i = 0;
+  for (let day = 0; day < 4; day++) {
+    for (const cell of cells) {
+      const id = `L${i++}`;
+      courses.push(course({ id }));
+      sections[id] = [prof(id, "1", [cell(day)])];
+    }
+  }
+  return makeInput(courses, sections, NIGHT, creditCap);
+}
+
+test("load variants offer a real speed-vs-load trade-off", () => {
+  const result = generatePlanScenarios(loadVariantInput(30));
+  const byLabel = new Map(result.scenarios.map((s) => [s.label, s]));
+
+  assert.ok(byLabel.has("Máximo"));
+  assert.ok(byLabel.has("Equilibrado"));
+  assert.ok(byLabel.has("Carga leve"));
+
+  const max = byLabel.get("Máximo")!;
+  const balanced = byLabel.get("Equilibrado")!;
+  const light = byLabel.get("Carga leve")!;
+
+  // Caps are 30 / 21 / 15 → 7 / 5 / 3 courses per semester over 12 courses.
+  assert.equal(max.config.creditCap, 30);
+  assert.equal(balanced.config.creditCap, 21);
+  assert.equal(light.config.creditCap, 15);
+
+  // Lighter load strictly costs semesters — that IS the trade-off.
+  assert.ok(max.totalFutureSemesters < balanced.totalFutureSemesters);
+  assert.ok(balanced.totalFutureSemesters < light.totalFutureSemesters);
+
+  // …and buys a lower peak per-semester load.
+  const peak = (s: (typeof max)) => Math.max(...s.perSemesterCredits);
+  assert.ok(peak(light) < peak(balanced));
+  assert.ok(peak(balanced) < peak(max));
+});
+
+test("load variants that render identically are collapsed to one card", () => {
+  // The clique fixture is schedule-bound, not credit-bound, so every cap
+  // produces the same plan — showing it three times would be noise.
+  const result = generatePlanScenarios(daytimeCliqueInput(0));
+  assert.equal(result.scenarios.length, 1);
+  assert.equal(result.scenarios[0].label, "Máximo");
+});
+
+test("a tiny credit cap does not emit duplicate variants", () => {
+  // cap 10 → variants floor at MIN_VARIANT_CAP (8), so 10/8/8 dedupes to 10/8.
+  const result = generatePlanScenarios(loadVariantInput(10));
+  const caps = result.scenarios.map((s) => s.config.creditCap);
+  assert.deepEqual([...new Set(caps)], caps, "each card must use a distinct cap");
 });
 
 // --- (c) determinism ---------------------------------------------------------
@@ -402,20 +467,23 @@ test("exceptionLabel names the turno the promoted sections actually landed in", 
   assert.equal(exceptionLabel([], 2), "2 fora do turno");
 });
 
-test("an unrestricted filter yields exactly one scenario, and says so", () => {
+test("an unrestricted filter gets no turno-exception card, and says why", () => {
   // Same fixture as the clique test but with no turno restriction: the packer
-  // already sees every section, so there is nothing left to "promote" and the
-  // single card is correct — it just has to be labeled and explained honestly.
+  // already sees every section, so there is nothing left to "promote". The
+  // modal needs the flag to explain that instead of looking broken.
   const input = daytimeCliqueInput(2);
   input.config = { ...input.config, turno: NO_PREF };
 
   const result = generatePlanScenarios(input);
-  assert.equal(result.scenarios.length, 1);
   assert.equal(result.turnoIsUnrestricted, true);
-  assert.equal(result.scenarios[0].label, "Qualquer turno");
+  assert.equal(
+    result.scenarios.every((s) => s.daytimeExceptionsUsed === 0),
+    true,
+    "an unrestricted filter can produce no turno exception",
+  );
 
   // A restricted filter is not flagged, and still gets its comparison card.
   const restricted = generatePlanScenarios(daytimeCliqueInput(2));
   assert.equal(restricted.turnoIsUnrestricted, false);
-  assert.equal(restricted.scenarios.length, 2);
+  assert.ok(restricted.scenarios.some((s) => s.daytimeExceptionsUsed > 0));
 });

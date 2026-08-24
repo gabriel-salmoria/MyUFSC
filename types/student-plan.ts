@@ -3,12 +3,17 @@
  * Represents the status of a course in a student's plan
  */
 export enum CourseStatus {
-  PENDING = "pending", // Not started yet
-  IN_PROGRESS = "inProgress", // Currently taking
+  /**
+   * No explicit status — the course's status is DERIVED from which semester it
+   * sits in relative to `StudentInfo.currentPhase`. This is what a dragged or
+   * newly-added course stores. See `lib/semester-status.ts`.
+   */
+  PENDING = "pending",
+  IN_PROGRESS = "inProgress", // Currently taking (derived, or a manual override)
   COMPLETED = "completed", // Successfully completed
   FAILED = "failed", // Failed and needs to retake
   EXEMPTED = "exempted", // Exempted/credited from another institution
-  PLANNED = "planned", // Planned for a future semester
+  PLANNED = "planned", // Planned for a future semester (derived, or a manual override)
   DEFAULT = "default",
 }
 
@@ -59,7 +64,19 @@ export interface StudentInfo {
   interestedDegrees: string[];
   name: string;
   currentPlan: number;
-  currentSemester: string;
+  /**
+   * The plan semester the student is enrolled in right now (1-based).
+   *
+   * A student is in a semester — not in a scattered set of individual courses —
+   * so this single number drives inProgress/planned/completed for the whole
+   * plan (`lib/semester-status.ts`). Marking a semester as the current one
+   * back-fills every earlier semester as concluída and pushes later ones to
+   * planejada; explicit per-course outcomes still win.
+   *
+   * Replaces the old `currentSemester: string`, which was hardcoded to `"1"` at
+   * every creation site and never updated.
+   */
+  currentPhase: number;
   plans: StudentPlan[];
   customScheduleEntries?: CustomScheduleEntry[];
 }

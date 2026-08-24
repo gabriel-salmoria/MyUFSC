@@ -70,7 +70,7 @@ function makeInput(
     interestedDegrees: [],
     name: "Test",
     currentPlan: 0,
-    currentSemester: "20251",
+    currentPhase: 1,
     plans: [{ semesters: [] }],
   };
   return { studentInfo, courses, sections, config: { turno, creditCap } };

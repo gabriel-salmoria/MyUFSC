@@ -41,6 +41,8 @@ Useful scripts:
 |---|---|
 | `pnpm run dev` | Start the Next.js dev server (PGlite) |
 | `pnpm run lint` | Lint |
+| `pnpm exec tsc --noEmit` | Typecheck (lint does **not** cover this) |
+| `pnpm test` | Unit tests (`node:test` via `tsx`) |
 | `pnpm run build` | Production build (must pass before a PR) |
 
 ## How we work
@@ -80,7 +82,8 @@ docs: document the loading-hook waterfall
 
 1. Push your branch: `git push -u origin <branch>`
 2. Open a PR **into `main`** and fill out the template.
-3. Make sure `pnpm run lint` and `pnpm run build` pass.
+3. Make sure `pnpm run lint`, `pnpm exec tsc --noEmit`, `pnpm test` and
+   `pnpm run build` pass. CI runs the first three on every PR.
 4. Link the issue you're addressing (`Closes #123`).
 5. A maintainer reviews and merges — please don't merge your own PR.
 

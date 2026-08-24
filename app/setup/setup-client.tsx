@@ -169,7 +169,7 @@ export default function SetupClient() {
           interestedDegrees,
           name: transcriptData.studentName ?? "Visitante",
           currentPlan: 0,
-          currentSemester: "1",
+          currentPhase: 1,
           plans: [plan],
         });
       }
@@ -180,7 +180,7 @@ export default function SetupClient() {
         interestedDegrees,
         name: "Visitante",
         currentPlan: 0,
-        currentSemester: "1",
+        currentPhase: 1,
         plans: [plan],
       });
     }

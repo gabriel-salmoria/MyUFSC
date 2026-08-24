@@ -98,17 +98,40 @@ function generateReadableSchedule(times: ClassSchedule[]): string {
 }
 
 /**
- * Converts MatrUFSC data into our timetable format
+ * Memo for {@link parsescheduleData}, keyed by the raw blob's object identity.
+ *
+ * Four components parse the SAME schedule blob — the timetable, the details
+ * panel, the electives grid and the plan-generator modal — and it is a full
+ * synchronous scan of every course/section in the campus. Re-running it on each
+ * mount put that work on the main thread exactly when a panel was trying to
+ * animate in. The blob is a stable object held in `scheduleState` and only
+ * replaced by a refetch, so identity is a sound key and a new fetch naturally
+ * misses the cache. A WeakMap lets a replaced blob be collected.
+ *
+ * The cached value is SHARED — callers must treat the result as read-only.
  */
+const scheduleParseCache = new WeakMap<object, ScheduleData>();
 
 /**
- * Converts MatrUFSC data into our timetable format
+ * Converts MatrUFSC data into our timetable format. Memoized per blob; see
+ * {@link scheduleParseCache}.
  */
 export function parsescheduleData(data: any): ScheduleData {
   // Basic validation of input data
   if (!data || typeof data !== 'object') {
     return { professors: {} };
   }
+
+  const cached = scheduleParseCache.get(data);
+  if (cached) return cached;
+
+  const parsed = parseScheduleDataUncached(data);
+  scheduleParseCache.set(data, parsed);
+  return parsed;
+}
+
+/** The actual scan. Always call through {@link parsescheduleData}. */
+function parseScheduleDataUncached(data: any): ScheduleData {
 
   const result: ScheduleData = {
     professors: {}

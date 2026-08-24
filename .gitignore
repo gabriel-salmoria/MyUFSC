@@ -45,3 +45,6 @@ data/
 # Local project config override (use myufsc.config.json for committed defaults)
 myufsc.config.local.json
 .pglite
+
+# Per-developer Claude Code overrides (the shared config is .claude/settings.json)
+.claude/settings.local.json

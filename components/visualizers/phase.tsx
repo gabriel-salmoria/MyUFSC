@@ -2,7 +2,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { MousePointerClick } from "lucide-react";
+import { CircleDot, MousePointerClick } from "lucide-react";
 import type { ViewStudentCourse } from "@/types/visualization";
 import { COURSE_BOX, PHASE } from "@/styles/visualization";
 import CourseBox from "@/components/visualizers/course-box";
@@ -15,6 +15,10 @@ interface PhaseProps {
   width?: number;
   isFromCurriculum?: boolean;
   totalSlots?: number;
+  /** This is the semester the student is enrolled in right now. */
+  isCurrentPhase?: boolean;
+  /** Declare this semester the current one. Omitted in the curriculum grid. */
+  onMarkCurrentPhase?: () => void;
   onHeaderClick?: () => void;
 }
 
@@ -24,6 +28,8 @@ export default function Phase({
   width = PHASE.MIN_WIDTH,
   isFromCurriculum = true,
   totalSlots: explicitTotalSlots,
+  isCurrentPhase = false,
+  onMarkCurrentPhase,
   onHeaderClick,
 }: PhaseProps) {
   const boxWidth = useMemo(() => {
@@ -75,7 +81,7 @@ export default function Phase({
     // a user-resized panel, or a taller sibling phase). The top/bottom/left
     // frame around the whole grid lives on the row itself, one level up.
     <div
-      className="relative border-r border-border"
+      className="group/phase relative border-r border-border"
       style={{ width: `${width}px`, minHeight: `${phaseHeight}px` }}
     >
       {/* Phase header */}
@@ -95,6 +101,43 @@ export default function Phase({
         <span className="font-medium">Fase {semesterNumber}</span>
         {onHeaderClick && (
           <MousePointerClick className="w-3.5 h-3.5 opacity-40 group-hover:opacity-100 transition-opacity" />
+        )}
+        {/* Current-phase marker. Rendered for EVERY phase (invisible via opacity
+            when it isn't the current one) rather than conditionally, so it
+            always occupies its slot and "Fase N" sits at the same x in every
+            column — a conditional icon would nudge the label sideways on
+            whichever phase happens to be current. */}
+        {onMarkCurrentPhase && (
+          <button
+            type="button"
+            aria-pressed={isCurrentPhase}
+            aria-label={
+              isCurrentPhase
+                ? `Fase ${semesterNumber} é a fase que você está cursando`
+                : `Marcar a fase ${semesterNumber} como a que estou cursando`
+            }
+            onClick={(e) => {
+              e.stopPropagation();
+              onMarkCurrentPhase();
+            }}
+            title={
+              isCurrentPhase
+                ? "Fase que você está cursando"
+                : "Marcar como a fase que estou cursando"
+            }
+            className={cn(
+              // Opacity is driven by the column hover, colour by the button's
+              // own hover — two different properties, so neither has to
+              // out-specify the other (no `!important`, which Tailwind v4 spells
+              // as a suffix anyway).
+              "shrink-0 rounded-full transition-all",
+              isCurrentPhase
+                ? "text-primary opacity-100"
+                : "text-muted-foreground opacity-0 hover:text-primary group-hover/phase:opacity-60 focus-visible:opacity-100",
+            )}
+          >
+            <CircleDot className="h-3.5 w-3.5" />
+          </button>
         )}
       </div>
 

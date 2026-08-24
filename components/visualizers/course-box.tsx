@@ -51,6 +51,10 @@ const MAX_SPEED = 20;
 // hovering over it (which sits near the bottom of the screen) doesn't also
 // drag the page down.
 const TRASH_EXCLUSION_MARGIN = 60;
+// Window in which a second click on the SAME box counts as a double-click.
+// Only a fallback for UAs that don't increment `MouseEvent.detail` — it never
+// delays the first click.
+const DOUBLE_CLICK_MS = 250;
 
 interface CourseBoxProps {
   position: CoursePosition;
@@ -77,17 +81,9 @@ const CourseBox = memo(function CourseBox({
   // A drag that just ended fires a synthetic click right after pointerup;
   // this suppresses that one click so dragging doesn't also open the details panel.
   const suppressClickRef = useRef(false);
-  // Pending single-click timer. We detect a double-click manually (the box's
-  // pointerdown preventDefault suppresses the browser's synthesized dblclick) and
-  // defer the single-click action briefly so that when it turns out to be a
-  // double-click we can cancel it — the details panel never flashes open.
-  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (clickTimerRef.current !== null) clearTimeout(clickTimerRef.current);
-    };
-  }, []);
+  // Timestamp of this box's last click, for the double-click fallback in
+  // `handleCourseClick`. No timer: the single click must not be deferred.
+  const lastClickAtRef = useRef(0);
 
   const statusClass = useMemo(() => {
     if (isEmpty) return STATUS_CLASSES.EMPTY;
@@ -286,20 +282,32 @@ const CourseBox = memo(function CourseBox({
     /OPT/i.test(studentCourse.course.id) ||
     /optativa/i.test(studentCourse.course.name ?? "");
 
-  const handleCourseClick = () => {
+  const handleCourseClick = (e: React.MouseEvent) => {
     if (suppressClickRef.current) return;
     if (isEmpty || isStub) return;
 
     // Manual double-click detection (React's onDoubleClick never fires: the box's
     // pointerdown preventDefault, needed by the custom drag engine, suppresses the
     // browser's synthesized dblclick — while pointer-generated click events still
-    // fire). A second click while the single-click is still pending is a
-    // double-click → cancel the pending details-panel open (so it doesn't flash)
-    // and open the course's dependency tree instead, via a window event that
-    // app/page.tsx — which owns the dependency-tree state — handles.
-    if (clickTimerRef.current !== null) {
-      clearTimeout(clickTimerRef.current);
-      clickTimerRef.current = null;
+    // fire).
+    //
+    // This used to DEFER the single click by 250ms to see whether a second one
+    // followed, which meant the details panel could never open in under 250ms —
+    // every single click paid the full double-click window before the slide-in
+    // even started. Detect the second click from signals already available at
+    // click time instead, and open the panel synchronously:
+    //   - `MouseEvent.detail` is the UA's click counter (2 on a double-click);
+    //   - the elapsed-time fallback covers UAs that don't increment `detail`
+    //     for pointer-generated clicks. The ref is per box, so clicking two
+    //     different courses in quick succession is never read as a double.
+    // On a double click `app/page.tsx` clears the selection as it opens the
+    // tree, so the panel closes itself.
+    const now = Date.now();
+    const isSecondClick =
+      e.detail >= 2 || now - lastClickAtRef.current < DOUBLE_CLICK_MS;
+    lastClickAtRef.current = now;
+
+    if (isSecondClick) {
       window.dispatchEvent(
         new CustomEvent("open-dependency-tree", {
           detail: { course: studentCourse.course },
@@ -307,12 +315,8 @@ const CourseBox = memo(function CourseBox({
       );
       return;
     }
-    // First click: defer opening the details panel briefly to see if a second
-    // click (double-click) follows.
-    clickTimerRef.current = setTimeout(() => {
-      clickTimerRef.current = null;
-      selectCourse(studentCourse, studentCourse.course);
-    }, 250);
+
+    selectCourse(studentCourse, studentCourse.course);
   };
 
   return (

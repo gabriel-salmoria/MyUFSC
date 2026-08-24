@@ -55,10 +55,13 @@ export default function Home() {
     isProfileLoading,
   });
 
-  // Preload the dependency tree bundle while the browser is idle
+  // Preload the lazily-loaded overlays while the browser is idle. Both open on
+  // a course click, so without this the FIRST click also waits on a chunk
+  // fetch before the panel can even start animating in.
   useEffect(() => {
     const id = setTimeout(() => {
       import("@/components/dependency-tree/dependency-tree");
+      import("@/components/details-panel");
     }, 1500);
     return () => clearTimeout(id);
   }, []);

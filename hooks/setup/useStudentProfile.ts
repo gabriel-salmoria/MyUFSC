@@ -68,7 +68,12 @@ export function useStudentProfile({
                 });
               }
 
-              // Hydrate Schedule Cache
+              // Hydrate Schedule Cache. Each value is the SAME envelope
+              // /api/schedule returns — `{ fetchedSemester, availableSemesters,
+              // [degreeId]: blob }` — because these entries are served verbatim
+              // to `fetchClassSchedule` callers on a cache hit. Priming a bare
+              // schedule blob here would leave `useSchedule` unable to resolve
+              // the semester (see the profile route for the full note).
               if (schedules) {
                 Object.entries(schedules).forEach(([degreeId, scheduleData]: [string, any]) => {
                   primeScheduleCache(degreeId, undefined, scheduleData);

@@ -139,7 +139,12 @@ export default function Timetable({
     }));
   };
 
-  const [selectedPhase, setSelectedPhase] = useState<number>(1);
+  // Open on the semester the student is actually enrolled in, not a hardcoded
+  // Fase 1. Lazy initializer, so later phase changes stay user-driven — this
+  // only picks the landing phase. Falls back to 1 for a profile with no phase.
+  const [selectedPhase, setSelectedPhase] = useState<number>(
+    () => studentInfo?.currentPhase ?? 1,
+  );
 
   // Same reasoning as onSemesterChange: a course selected in one phase isn't
   // meaningful once you've switched to viewing a different phase's courses.

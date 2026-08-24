@@ -52,6 +52,7 @@ import {
   type BottleneckWeight,
 } from "@/lib/prerequisites";
 import { generateEquivalenceMap } from "@/parsers/curriculum-parser";
+import { resolvePlan } from "@/lib/semester-status";
 import { buildRemainingCandidates, isTerminalStatus } from "@/lib/plan-generator/candidates";
 import { computeGraduationReminder } from "@/lib/plan-generator/graduation";
 import { fillElectivesIntoScenario } from "@/lib/plan-generator/electives";
@@ -106,10 +107,15 @@ export interface RunSeed {
  * failed, pending) are dropped so the generator regenerates the entire future
  * from scratch, never double-placing a course that was already planned.
  */
-function cloneToHistory(plan: StudentPlan): StudentPlan {
+function cloneToHistory(plan: StudentPlan, currentPhase?: number): StudentPlan {
+  // Resolve positional status first: a course sitting in a semester before
+  // `currentPhase` is completed history even when nothing was ever clicked on
+  // it, and must be retained rather than regenerated. `currentPhase` unset
+  // (0) disables derivation and preserves the old stored-status behavior.
+  const resolved = resolvePlan(plan, currentPhase ?? 0);
   return {
-    ...plan,
-    semesters: plan.semesters.map((s) => {
+    ...resolved,
+    semesters: resolved.semesters.map((s) => {
       const courses = s.courses
         .filter((c) => isTerminalStatus(c.status))
         .map((c) => ({ ...c }));
@@ -123,11 +129,27 @@ function cloneToHistory(plan: StudentPlan): StudentPlan {
 }
 
 /**
- * Start semester = one past the last semester holding any terminal (fixed
- * history) course. Since the clone strips planned/failed work, the generated
- * future is packed from `startN` onward.
+ * Start semester = the first semester the generator may fill.
+ *
+ * The student's declared `currentPhase` is authoritative: they are enrolled in
+ * it right now, so the generated future starts at `currentPhase + 1`. Inferring
+ * this from scattered per-course statuses (one past the last semester holding a
+ * terminal course) mis-reads any plan where a past semester was left unmarked,
+ * and is exactly the per-course/per-semester confusion `currentPhase` removes.
+ * The inference is kept only as a fallback for a profile with no phase set.
  */
-function computeStartSemester(plan: StudentPlan): number {
+function computeStartSemester(plan: StudentPlan, currentPhase?: number): number {
+  if (Number.isFinite(currentPhase) && (currentPhase as number) >= 1) {
+    const phase = currentPhase as number;
+    // `plan` is the history clone, so a semester is non-empty only if it holds
+    // fixed work (completed/exempted, or the enrolled courses of the current
+    // phase). A student enrolled in a phase they have already filled in keeps
+    // it untouched and the plan starts after it. But a phase with nothing in it
+    // — a fresh guest whose `currentPhase` is just the default 1 — is still
+    // open, and skipping it would silently waste a whole semester.
+    const current = plan.semesters.find((s) => s.number === phase);
+    return current && current.courses.length > 0 ? phase + 1 : phase;
+  }
   let last = 0;
   for (const semester of plan.semesters) {
     const anchored = semester.courses.some((c) => isTerminalStatus(c.status));
@@ -395,10 +417,13 @@ export function prepareGeneration(
   const equivMap = generateEquivalenceMap(courses);
 
   const currentPlan = studentInfo.currentPlan;
-  const historyPlan = cloneToHistory(studentInfo.plans[currentPlan]);
+  const historyPlan = cloneToHistory(
+    studentInfo.plans[currentPlan],
+    studentInfo.currentPhase,
+  );
 
   const remaining = buildRemainingCandidates(courses, historyPlan, equivMap);
-  const startN = computeStartSemester(historyPlan);
+  const startN = computeStartSemester(historyPlan, studentInfo.currentPhase);
   const maxN = startN + SAFETY_MAX_SPAN - 1;
 
   const graph = buildPrecedenceGraph(remaining, equivMap);
@@ -470,7 +495,10 @@ export function packForward(
   // Fresh clone per pass so parallel strategies never stomp each other; the
   // StudentInfo points at it so checkPrerequisites (unplaceable diagnosis) reads
   // the materialized history.
-  const workingPlan = cloneToHistory(studentInfo.plans[ctx.currentPlan]);
+  const workingPlan = cloneToHistory(
+    studentInfo.plans[ctx.currentPlan],
+    studentInfo.currentPhase,
+  );
   const workingInfo: StudentInfo = {
     ...studentInfo,
     plans: studentInfo.plans.map((p, i) =>
@@ -634,8 +662,7 @@ export function packForward(
   // The first generated semester (startN) is assumed to be the snapshot
   // semester; any placement beyond it reuses the snapshot's offering for a
   // future calendar semester.
-  const scheduleSnapshotSemester =
-    input.scheduleSnapshotSemester ?? studentInfo.currentSemester ?? "";
+  const scheduleSnapshotSemester = input.scheduleSnapshotSemester ?? "";
   const assumesReusedFutureSchedule = lastPlacedN > startN;
 
   return {
@@ -770,27 +797,52 @@ export function exceptionLabel(
 }
 
 /**
- * Public entry (Sprint 04). Returns the turno-exception comparison the modal
- * renders as scenario cards, all under the min-total-semesters objective:
+ * Per-semester load variants explored, as a fraction of the credit cap the
+ * student declared. The whole point of the comparison: finishing sooner and
+ * carrying a lighter semester are the two things actually in tension, and the
+ * student is the only one who can pick between them.
+ */
+const LOAD_VARIANTS: readonly { id: string; label: string; factor: number }[] = [
+  { id: "max", label: "Máximo", factor: 1 },
+  { id: "bal", label: "Equilibrado", factor: 0.7 },
+  { id: "light", label: "Carga leve", factor: 0.5 },
+];
+
+/** Floor on a derived variant cap — below this nothing meaningful fits. */
+const MIN_VARIANT_CAP = 8;
+
+/**
+ * Card-visible fingerprint of a scenario. Two variants that agree on it render
+ * as indistinguishable cards, so only the first is kept.
+ */
+function scenarioShape(scenario: PlanScenario): string {
+  return `${scenario.totalFutureSemesters}|${scenario.perSemesterCredits.join(",")}`;
+}
+
+/**
+ * Public entry. Returns the scenario cards the modal renders, all under the
+ * min-total-semesters objective, along two axes:
  *
- * - **baseline** (B=0) — the plan under the chosen turno filter, from
- *   {@link searchMinSemesters}. Labeled by {@link baselineLabel}.
- * - **B=1..budget** — the most-valuable course(s) promoted to a section outside
- *   the filter, each kept only if it strictly shortens the plan versus the best
- *   lower budget. Labeled by {@link exceptionLabel} from where the promoted
- *   sections actually landed.
+ * - **Load variants** — the same search re-run at {@link LOAD_VARIANTS}
+ *   fractions of the declared credit cap ("Máximo" / "Equilibrado" /
+ *   "Carga leve"). This is the real trade-off: fewer semesters vs. a lighter
+ *   one. Variants whose card would look identical to an earlier one (same
+ *   makespan and per-semester credits, e.g. when the schedule binds before the
+ *   credit cap does) are dropped rather than shown twice.
+ * - **Turno exceptions** — on the primary (full-cap) variant only, the most
+ *   valuable course(s) promoted to a section outside the chosen filter, each
+ *   kept only if it strictly shortens the plan versus the best lower budget.
+ *   Labeled by {@link exceptionLabel} from where the sections actually landed.
  *
- * Each carries `daytimeExceptionsUsed` + `promotedCourses`. A higher-budget
- * scenario is dropped when it doesn't improve on a lower one (no point showing a
- * 2-exception plan that only matches the 1-exception plan). Determinism and the
- * Sprint-02 `{placed} ∪ {unplaceable} == R` invariant are preserved by the
- * underlying search. Budget defaults to {@link DEFAULT_DAYTIME_BUDGET}.
+ * Determinism and the Sprint-02 `{placed} ∪ {unplaceable} == R` invariant are
+ * preserved by the underlying search. Budget defaults to
+ * {@link DEFAULT_DAYTIME_BUDGET}.
  *
- * **On an unrestricted filter there is exactly one scenario, by construction**:
- * a "promotion" means using a section the filter excludes, and an unrestricted
- * filter excludes nothing, so no candidate exists to promote. That is correct,
- * but it used to surface as a single card mislabeled "Só à noite" with no
- * explanation — hence `turnoIsUnrestricted`, which lets the modal say why.
+ * A single card is still possible and still legitimate — a plan pinned by
+ * prerequisites and section clashes rather than by credits doesn't change when
+ * you vary the load, and an unrestricted turno filter has no excluded turno to
+ * promote into. `turnoIsUnrestricted` lets the modal explain that rather than
+ * leave it looking broken.
  */
 export function generatePlanScenarios(input: GeneratorInput): GeneratorResult {
   const budget = Math.max(
@@ -802,44 +854,77 @@ export function generatePlanScenarios(input: GeneratorInput): GeneratorResult {
 
   // Elective post-pass shares one equivalence map (identity for the "already
   // earned" exclusion). Adding electives never changes a scenario's makespan, so
-  // the daytime-comparison below still compares the mandatory plans as before —
-  // the fill only enriches the card that is kept.
+  // the comparisons below still compare the mandatory plans — the fill only
+  // enriches the cards that are kept. Opt-in: the elective budget it fills
+  // toward has no per-degree source, so it must not silently lengthen a plan.
   const equivMap = generateEquivalenceMap(input.courses);
+  const withElectives = (
+    scenario: PlanScenario,
+    variantInput: GeneratorInput,
+    cardId: string,
+  ): PlanScenario =>
+    input.config.fillElectives
+      ? fillElectivesIntoScenario(scenario, variantInput, equivMap, cardId)
+      : { ...scenario, optativasPlacedHours: 0, electiveOnlySemesters: 0 };
 
-  // B=0 — the baseline under the chosen filter, which every exception plan is
-  // measured against. Label derived from the filter, not hardcoded to night.
-  const baseline = fillElectivesIntoScenario(
-    withCardIdentity(
-      searchMinSemesters(input, input.config),
-      "s0",
-      baselineLabel(input.config.turno),
-    ),
-    input,
-    equivMap,
-    "s0",
-  );
-  scenarios.push(baseline);
-  let bestMakespan = baseline.totalFutureSemesters;
+  // --- Load variants -------------------------------------------------------
+  const baseCap = input.config.creditCap;
+  const seenCaps = new Set<number>();
+  const seenShapes = new Set<string>();
+  let primary: { scenario: PlanScenario; input: GeneratorInput } | null = null;
 
-  // B=1..budget — best plan using ≤B turno exceptions, shown only when it
-  // strictly shortens the plan versus the best lower-budget scenario.
-  for (let b = 1; b <= budget; b++) {
-    const candidate = searchWithDaytimeExceptions(input, input.config, b);
-    if (!candidate) break; // no viable promotion candidate at all
-    if (candidate.totalFutureSemesters < bestMakespan) {
-      scenarios.push(
-        fillElectivesIntoScenario(
-          withCardIdentity(
-            candidate,
-            `s${b}`,
-            exceptionLabel(candidate.promotedCourses, b),
-          ),
-          input,
-          equivMap,
-          `s${b}`,
-        ),
+  for (const variant of LOAD_VARIANTS) {
+    const cap =
+      variant.factor === 1
+        ? baseCap
+        : Math.max(MIN_VARIANT_CAP, Math.round(baseCap * variant.factor));
+    // A tiny declared cap collapses the fractions onto the same number.
+    if (seenCaps.has(cap)) continue;
+    seenCaps.add(cap);
+
+    const config: GeneratorConfig = { ...input.config, creditCap: cap };
+    const variantInput: GeneratorInput = { ...input, config };
+    const raw = searchMinSemesters(variantInput, config);
+
+    // The full-cap run is the primary: it anchors the turno-exception
+    // comparison below, and is kept even if a later variant matches its shape.
+    if (!primary) primary = { scenario: raw, input: variantInput };
+    else if (seenShapes.has(scenarioShape(raw))) continue;
+    seenShapes.add(scenarioShape(raw));
+
+    scenarios.push(
+      withElectives(
+        withCardIdentity(raw, variant.id, variant.label),
+        variantInput,
+        variant.id,
+      ),
+    );
+  }
+
+  // --- Turno exceptions, measured against the primary variant --------------
+  if (primary) {
+    let bestMakespan = primary.scenario.totalFutureSemesters;
+    for (let b = 1; b <= budget; b++) {
+      const candidate = searchWithDaytimeExceptions(
+        primary.input,
+        primary.input.config,
+        b,
       );
-      bestMakespan = candidate.totalFutureSemesters;
+      if (!candidate) break; // no viable promotion candidate at all
+      if (candidate.totalFutureSemesters < bestMakespan) {
+        scenarios.push(
+          withElectives(
+            withCardIdentity(
+              candidate,
+              `x${b}`,
+              exceptionLabel(candidate.promotedCourses, b),
+            ),
+            primary.input,
+            `x${b}`,
+          ),
+        );
+        bestMakespan = candidate.totalFutureSemesters;
+      }
     }
   }
 

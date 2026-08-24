@@ -137,6 +137,17 @@ export async function GET(
     const offset = Math.max(0, parseIntParam(searchParams.get("offset"), 0));
     const limit = Math.min(MAX_LIMIT, Math.max(1, parseIntParam(searchParams.get("limit"), DEFAULT_LIMIT)));
 
+    // Kick the page-independent stats off FIRST, without awaiting, so it runs
+    // alongside the review page + vote queries. Splitting the old single
+    // `Promise.all` into two sequential awaits put `statsPerCourse` — the
+    // per-discipline panel the dialog renders at the top — behind the entire
+    // review page, adding a round-trip to every first open.
+    // The bare `.catch` only registers a handler so an early rejection isn't
+    // reported as unhandled; the awaited copy below still throws into the
+    // outer try/catch.
+    const statsPromise = offset === 0 ? getCachedStats(normalizedId) : null;
+    statsPromise?.catch(() => {});
+
     // Page-keyed cache under the shared professor tag; only votes are user-specific.
     const { baseReviews, baseReplies, hasMore } = await getCachedReviewPage(normalizedId, offset, limit);
 
@@ -173,8 +184,8 @@ export async function GET(
     const replies = baseReplies.map((r) => ({ ...r, ...(voteMap[r.id] ?? zero) }));
 
     // First page bundles page-independent stats; later pages omit them entirely.
-    if (offset === 0) {
-      const { statsPerCourse } = await getCachedStats(normalizedId);
+    if (statsPromise) {
+      const { statsPerCourse } = await statsPromise;
       return NextResponse.json({ statsPerCourse, reviews, replies, hasMore });
     }
 

@@ -29,6 +29,17 @@ export interface GeneratorConfig {
    * comparison search explores budgets 0..this value.
    */
   daytimeExceptionBudget?: number;
+  /**
+   * Fill leftover slots with real optativas (`electives.ts`). **Opt-in.**
+   *
+   * The fill aims at a hardcoded elective-hours budget that has no per-degree
+   * source in the curriculum data, and it appends elective-only semesters to
+   * reach it — so leaving it always-on silently lengthened every plan toward a
+   * number the app cannot actually know. It is also a choice that belongs to
+   * the student: which optativas to take is precisely the free part of a
+   * degree.
+   */
+  fillElectives?: boolean;
 }
 
 /**
@@ -66,15 +77,17 @@ export interface GeneratorInput {
 }
 
 /**
- * Graduation requirements beyond the mandatory disciplines, surfaced as a
- * reminder on every scenario. Both fields are **remaining** hours after the
- * student's completed/exempted history AND (for optativas) whatever this
- * scenario's elective post-pass managed to schedule — so `optativasHours` is the
- * shortfall still not covered. Complementares are reported-only (no schedulable
- * sections). See `graduation.ts` + `electives.ts`.
+ * Elective demand carried on every scenario: **remaining** hours after the
+ * student's completed/exempted history AND whatever this scenario's elective
+ * post-pass managed to schedule — so `optativasHours` is the shortfall still not
+ * covered. See `graduation.ts` + `electives.ts`.
+ *
+ * An `atividades complementares` figure used to live here too. It was computed
+ * from a hardcoded 360h total with no source in the curriculum data, and its
+ * only consumer was a "para se formar ainda faltam Xh" line in the modal; both
+ * were removed rather than keep asserting a number the app cannot know.
  */
 export interface GraduationReminder {
-  complementaresHours: number;
   optativasHours: number;
 }
 

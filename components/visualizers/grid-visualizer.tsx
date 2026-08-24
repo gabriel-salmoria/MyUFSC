@@ -16,6 +16,7 @@ import { useStudentStore } from "@/lib/student-store";
 import { checkPrerequisites } from "@/lib/prerequisites";
 import { generateEquivalenceMap } from "@/parsers/curriculum-parser";
 import { parsescheduleData } from "@/parsers/class-parser";
+import { resolveSemesters } from "@/lib/semester-status";
 
 // config
 import { COURSE_BOX, GRID } from "@/styles/visualization";
@@ -56,7 +57,10 @@ export default function GridVisualizer({
       const currentPlan = studentInfo.plans[studentInfo.currentPlan];
 
       if (currentPlan && currentPlan.semesters) {
-        currentPlan.semesters
+        // Resolve positional status (lib/semester-status.ts) before mapping, so
+        // an elective taken in a semester before `currentPhase` shows concluída
+        // here and not as an unmarked slot.
+        resolveSemesters(currentPlan.semesters, studentInfo.currentPhase ?? 0)
           .flatMap((semester) => semester.courses)
           .forEach((sc) => {
             map.set(sc.courseId, sc);

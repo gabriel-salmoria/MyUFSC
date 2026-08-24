@@ -155,7 +155,7 @@ export default function RegisterClient() {
         interestedDegrees: formData.interestedDegrees ?? [],
         name: formData.name || "Student",
         currentPlan: 0,
-        currentSemester: "1",
+        currentPhase: 1,
         plans: studentPlans,
       };
     }

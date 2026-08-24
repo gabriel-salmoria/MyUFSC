@@ -77,21 +77,32 @@ const noEquiv = new Map<string, Set<string>>();
 function makeInput(
   courses: Course[],
   sections: Record<string, Professor[]>,
-  opts: { creditCap?: number; history?: StudentPlan; turno?: TurnoFilter } = {},
+  opts: {
+    creditCap?: number;
+    history?: StudentPlan;
+    turno?: TurnoFilter;
+    fillElectives?: boolean;
+  } = {},
 ): GeneratorInput {
   const studentInfo: StudentInfo = {
     currentDegree: "TEST",
     interestedDegrees: [],
     name: "Test",
     currentPlan: 0,
-    currentSemester: "20251",
+    currentPhase: 1,
     plans: [opts.history ?? { semesters: [] }],
   };
   return {
     studentInfo,
     courses,
     sections,
-    config: { turno: opts.turno ?? NO_PREF, creditCap: opts.creditCap ?? 30 },
+    config: {
+      turno: opts.turno ?? NO_PREF,
+      creditCap: opts.creditCap ?? 30,
+      // This file exercises the elective post-pass, which is opt-in on the
+      // public entry point (see GeneratorConfig.fillElectives).
+      fillElectives: opts.fillElectives ?? true,
+    },
   };
 }
 

@@ -10,6 +10,7 @@ import type {
 } from "@/types/student-plan";
 import { CourseStatus } from "@/types/student-plan";
 import type { Course, Curriculum } from "@/types/curriculum";
+import { inferCurrentPhase } from "@/lib/semester-status";
 import type { PlanScenario } from "@/lib/plan-generator/types";
 import { PHASE_DIMENSIONS } from "@/styles/course-theme";
 
@@ -92,6 +93,17 @@ export interface StudentStore {
   // Actions
   setStudentInfo: (info: StudentInfo | null) => void;
   setStudentName: (name: string) => void;
+  /**
+   * Declare which plan semester the student is enrolled in right now.
+   *
+   * This is the ONLY thing that decides concluída/cursando/planejada for
+   * courses without an explicit status: everything before `phase` back-fills as
+   * concluída, `phase` itself is cursando, everything after is planejada. No
+   * course statuses are rewritten — the derivation is applied at render
+   * (`lib/semester-status.ts`), so changing the phase is fully reversible and
+   * never destroys a recorded grade or a reprovação.
+   */
+  setCurrentPhase: (phase: number) => void;
   setCurrentDegree: (degreeId: string) => void;
   setInterestedDegrees: (degrees: string[]) => void;
   forceUpdate: () => void;
@@ -306,6 +318,15 @@ export const useStudentStore = create<StudentStore>()(
           }),
         ),
 
+      setCurrentPhase: (phase: number) =>
+        set(
+          produce((state: StudentStore) => {
+            if (!state.studentInfo) return;
+            if (!Number.isFinite(phase)) return;
+            state.studentInfo.currentPhase = Math.max(1, Math.floor(phase));
+          }),
+        ),
+
       setCurrentDegree: (degreeId: string) =>
         set(
           produce((state: StudentStore) => {
@@ -359,7 +380,12 @@ export const useStudentStore = create<StudentStore>()(
               courseId: course.id,
               instanceId: newInstanceId(),
               credits: course.credits || 0,
-              status: CourseStatus.PLANNED,
+              // PENDING, not PLANNED: status is positional now. Hardcoding
+              // PLANNED here would pin every dragged course as "planejada" even
+              // when dropped into a past or the current semester, which is
+              // exactly the per-course/semester incoherence `currentPhase`
+              // removes. See lib/semester-status.ts.
+              status: CourseStatus.PENDING,
               phase: semesterNumber,
             };
 
@@ -805,6 +831,33 @@ export const useStudentStore = create<StudentStore>()(
             delete e.day;
           });
         }
+
+        // Migrate to positional status: `currentSemester: "1"` (a dead field,
+        // hardcoded at every creation site) → a real `currentPhase: number`.
+        //
+        // Legacy plans stored PLANNED on every dragged course and IN_PROGRESS
+        // on whatever the student clicked, which would override the new
+        // positional derivation everywhere and leave the model unchanged. So we
+        // read the old statuses ONCE to infer the phase, then clear those two
+        // back to PENDING so position takes over. Real outcomes
+        // (completed/failed/exempted) and their grades are never touched.
+        const legacyInfo = migrated?.studentInfo;
+        if (legacyInfo && typeof legacyInfo.currentPhase !== "number") {
+          const plan = legacyInfo.plans?.[legacyInfo.currentPlan ?? 0];
+          const semesters: StudentSemester[] = plan?.semesters ?? [];
+          legacyInfo.currentPhase = inferCurrentPhase(semesters);
+          for (const semester of semesters) {
+            for (const sc of semester.courses ?? []) {
+              if (
+                sc.status === CourseStatus.PLANNED ||
+                sc.status === CourseStatus.IN_PROGRESS
+              ) {
+                sc.status = CourseStatus.PENDING;
+              }
+            }
+          }
+        }
+        delete legacyInfo?.currentSemester;
         return {
           ...currentState,
           ...(migrated as object),
