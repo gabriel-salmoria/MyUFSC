@@ -160,7 +160,9 @@ export default function ConnectionLines({
 
         return (
           <line
-            key={`${connection.from}-${connection.to}`}
+            // Matches the dedupe key in `useDependencyGraph` exactly, so the
+            // uniqueness guarantee lives in one place.
+            key={`${connection.direction}:${connection.from}->${connection.to}`}
             x1={x1}
             y1={y1}
             x2={x2}

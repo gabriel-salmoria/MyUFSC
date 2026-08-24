@@ -12,10 +12,25 @@ import type { Course } from "@/types/curriculum";
 import type { StudentInfo, StudentPlan } from "@/types/student-plan";
 import type { Professor, ClassSchedule } from "@/parsers/class-parser";
 import type { TurnoFilter } from "@/lib/schedule-conflict";
-import type {
-  BottleneckCollision,
-  BottleneckClique,
-} from "@/lib/plan-generator/bottleneck";
+
+/** A detected pair of mutually-exclusive critical courses. */
+export interface BottleneckCollision {
+  /** Course ids, ordered deterministically. */
+  a: string;
+  b: string;
+  /** Grid cells (`"day:slot"`) shared across every section pair — the message. */
+  sharedCells: string[];
+  /** Semesters this exclusion forces onto the floor (1 per pair). */
+  floorImpact: number;
+}
+
+/** The largest set of courses that are pairwise unschedulable together. */
+export interface BottleneckClique {
+  /** Grid cell(s) (`"day:slot"`, comma-joined) shared by every clique member. */
+  cell: string;
+  /** Course ids in the clique, sorted deterministically. */
+  courseIds: string[];
+}
 
 /** Student-adjustable knobs for a generation run. */
 export interface GeneratorConfig {
@@ -30,7 +45,7 @@ export interface GeneratorConfig {
    */
   daytimeExceptionBudget?: number;
   /**
-   * Fill leftover slots with real optativas (`electives.ts`). **Opt-in.**
+   * Fill leftover slots with real optativas (the elective post-pass). **Opt-in.**
    *
    * The fill aims at a hardcoded elective-hours budget that has no per-degree
    * source in the curriculum data, and it appends elective-only semesters to
@@ -80,7 +95,7 @@ export interface GeneratorInput {
  * Elective demand carried on every scenario: **remaining** hours after the
  * student's completed/exempted history AND whatever this scenario's elective
  * post-pass managed to schedule — so `optativasHours` is the shortfall still not
- * covered. See `graduation.ts` + `electives.ts`.
+ * covered. See `engine.ts`.
  *
  * An `atividades complementares` figure used to live here too. It was computed
  * from a hardcoded 360h total with no source in the curriculum data, and its
@@ -127,7 +142,7 @@ export interface PlanScenario {
   /**
    * Mutually-exclusive pairs among the critical roots — two central courses no
    * section pairing can co-schedule (diagnostic; pairwise/top-K only, see
-   * `bottleneck.ts`).
+   * the bottleneck diagnostics in `engine.ts`).
    */
   bottleneckCollisions: BottleneckCollision[];
   /**
@@ -144,7 +159,7 @@ export interface PlanScenario {
    * Lower-bound minimum number of future semesters given prerequisite chains,
    * night capacity, and the detected collisions. A diagnostic lower bound
    * computed against the reused schedule snapshot — NOT a proof it is
-   * achievable (see `bottleneck.ts` for the full list of limits).
+   * achievable (see the bottleneck section for the full list of limits).
    */
   minSemestersFloor: number;
   /**
@@ -159,7 +174,7 @@ export interface PlanScenario {
   graduationReminder: GraduationReminder;
   /**
    * Elective (optativas) credit-hours this scenario actually scheduled into its
-   * generated future semesters (the elective post-pass — `electives.ts`). `0`
+   * generated future semesters (the elective post-pass). `0`
    * when the student had no remaining optativa demand or the offered pool could
    * not fit any elective. `optativasPlacedHours` + `graduationReminder.optativasHours`
    * accounts for the demand at generation time.
@@ -168,7 +183,7 @@ export interface PlanScenario {
   /**
    * Number of extra semesters this scenario appended that schedule ONLY
    * optativas (no mandatory disciplines) to reach the elective-hour target when
-   * the generated mandatory semesters had no free capacity left (`electives.ts`).
+   * the generated mandatory semesters had no free capacity left.
    * `0` when nothing was appended. These are NOT counted in
    * {@link totalFutureSemesters} (the mandatory makespan) — they are surfaced
    * separately so the daytime-card comparison and makespan label stay stable.
@@ -178,7 +193,7 @@ export interface PlanScenario {
    * True when the achieved makespan (`totalFutureSemesters`) equals
    * `minSemestersFloor` — provably optimal against our admissible lower bound.
    * NOT a global feasibility proof: the floor is a top-K/reused-snapshot
-   * diagnostic (see `bottleneck.ts`), so the UI phrases this as "ótimo
+   * diagnostic (see the bottleneck section), so the UI phrases this as "ótimo
    * (estimado)".
    */
   isOptimal: boolean;

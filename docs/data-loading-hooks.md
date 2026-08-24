@@ -91,15 +91,14 @@ The profile endpoint (`GET /api/user/profile/:userId`) reads a cookie `ufsc_pref
 
 5. **Prefetch cookie** — writes `ufsc_prefetch_degrees=<sorted_degree_ids>` to `document.cookie` so the next profile load can bundle curriculum data.
 
-6. Updates `curriculumState`:
-   - `curriculumsCache` — the full `Curriculum` objects (for the hook's consumers)
+6. Caches each fetched `Curriculum` in the store (`cacheCurriculum`), then updates `curriculumState`:
    - `curriculum` — the curriculum currently being viewed
    - `currentCurriculum` — the student's primary degree curriculum
    - `viewingDegreeId` — which degree is in the viewport
 
 **State exposed:** `{ curriculumState, setCurriculumState, isCurriculumLoading, setViewingDegreeId }`
 
-`setViewingDegreeId(id)` switches the displayed curriculum immediately if it's already in `curriculumsCache`.
+`setViewingDegreeId(id)` switches the displayed curriculum immediately if it's already in the store's `curriculumCache`.
 
 ---
 

@@ -17,13 +17,13 @@
  * of matched rows, is idempotent, and never mutates its input.
  *
  * NOTE: re-tagging to `optional` makes an Atividades Complementares row read as
- * an elective to `isRealElective`. `graduation.ts` and `electives.ts` check
+ * an elective to `isRealElective`. the graduation and elective sections check
  * {@link isNonDisciplineRequirement} first / exclude it, so the hours still
  * bucket as complementares and it is never scheduled as an optativa.
  */
 
 import type { Course } from "@/types/curriculum";
-import { isNonDisciplineRequirement } from "@/lib/plan-generator/candidates";
+import { isNonDisciplineRequirement } from "@/lib/plan-generator/engine";
 
 /** The type index in the compact-array course encoding. */
 const COMPACT_TYPE_INDEX = 7;

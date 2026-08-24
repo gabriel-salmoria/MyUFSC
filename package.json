@@ -10,7 +10,7 @@
     "start": "next start",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "node --import tsx --test lib/*.test.ts lib/plan-generator/*.test.ts",
+    "test": "node --import tsx --test tests/*.test.ts",
     "db:setup:programs": "python database/programs/setup.py",
     "db:setup:curriculum": "python database/curriculum/setup.py",
     "db:setup:schedule": "python database/schedule/setup.py",

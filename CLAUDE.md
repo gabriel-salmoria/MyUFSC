@@ -45,12 +45,14 @@ Pages (app/) → Components (components/) → Custom hooks (hooks/setup/) → fe
   → Neon or PGlite
 ```
 
-Cold load on `/` runs 4 hooks **sequentially** (known perf debt, not yet fixed):
-`useCheckAuth` → `useStudentProfile` → `useCurriculum` → `useSchedule`. Each hook
-internally parallelizes its own fetches but waits for the previous hook to finish.
-The profile endpoint can short-circuit this by bundling curriculum+schedule as
-`prefetched` data, keyed off a `ufsc_prefetch_degrees` cookie written by `useCurriculum`
-on every degree-set change → see `docs/data-loading-hooks.md`.
+Cold load on `/`: `useCheckAuth` → `useStudentProfile` → (`useCurriculum` ∥ `useSchedule`)
+— **3** sequential round-trips. Curriculum and schedule start in the same tick; only the
+profile gate remains (known perf debt). The profile endpoint can short-circuit even that
+by bundling curriculum+schedule as `prefetched` data, keyed off a `ufsc_prefetch_degrees`
+cookie written by `useCurriculum` on every degree-set change. That bundle must carry the
+**same envelope** `/api/schedule` returns (`{fetchedSemester, availableSemesters,
+[degreeId]: blob}`) — it is primed straight into the client fetch cache → see
+`docs/data-loading-hooks.md`.
 
 ## Directory map
 
@@ -65,9 +67,10 @@ on every degree-set change → see `docs/data-loading-hooks.md`.
 | `components/layout/` | `Header` (nav, degree selector, import popover, theme, logout), `Visualizations` (curriculum/electives tab toggle) |
 | `components/transcript/` | `transcript-uploader.tsx` — PDF upload UI |
 | `components/ui/` | shadcn/radix primitives (generated, don't hand-edit patterns — use `components.json`) |
-| `hooks/setup/` | `CheckAuth`, `useStudentProfile`, `UseCurriculum`, `UseSchedule` — the sequential loading waterfall |
+| `hooks/setup/` | `CheckAuth`, `useStudentProfile`, `UseCurriculum`, `UseSchedule` — the loading waterfall (curriculum ∥ schedule) |
 | `hooks/` (root) | `useCourseMap` (resolves course IDs via `parsers/curriculum-parser.ts`'s `courseMap`), `useDependencyGraph`, `useDashboardRef`, `use-mobile` |
-| `lib/` | `student-store.ts` (Zustand), `prerequisites.ts` (`checkPrerequisites`), `professors.ts`/`professors-client.ts` (normalization, pseudonyms, moderation), `user-identity.ts` (`getAnonymousUserId`) |
+| `lib/` | `student-store.ts` (Zustand), `semester-status.ts` (positional course status), `curriculum-status.ts` (shared status engine), `prerequisites.ts` (`checkPrerequisites`, bottleneck weights), `schedule-conflict.ts` (the single cell/turno math), `timetable-time.ts` (grid geometry), `plan-generator/` (`engine.ts` + `types.ts` — the deterministic plan solver), `professors.ts`/`professors-client.ts` (normalization, pseudonyms, moderation), `user-identity.ts` (`getAnonymousUserId`) |
+| `tests/` | All unit tests (`node:test` via `tsx`). `pnpm test` globs `tests/*.test.ts`, so a new file is picked up automatically. |
 | `crypto/client/`, `crypto/server/` | `crypto.ts` — AES-256-CBC E2E encryption (see Security below) |
 | `database/` | `ready.ts` (adapter: `executeQuery`/`executeTransaction`, Neon vs PGlite switch), `local-setup.ts` (schema DDL + auto-seed), `{curriculum,programs,schedule,users}/db-*.ts` (query modules) |
 | `parsers/` | `curriculum-parser.ts` (courseMap, phases, equivalence graph), `class-parser.ts` (MatrUFSC JSON → timetable data), `transcript-parser.ts` (PDF → completed/in-progress courses), `transcript-integration.ts` (merges into `StudentInfo`) |
@@ -332,5 +335,6 @@ ingestion.
 
 `architecture.md` (system overview + full tech-debt table) · `authentication-security.md`
 · `curriculum-system.md` · `database-layer.md` · `data-loading-hooks.md` ·
-`data-pipeline.md` · `professor-rating.md` + `professor-rating-architecture-issues.md` ·
-`schedule-timetable.md` · `state-management.md` · `transcript-import.md`.
+`data-pipeline.md` · `plan-generator.md` · `professor-rating.md` +
+`professor-rating-architecture-issues.md` · `schedule-timetable.md` · `state-management.md` ·
+`transcript-import.md`.

@@ -32,6 +32,23 @@ export const useDependencyGraph = (
     // graph, so ids from the two traversals never collide here.
     const depthMap = new Map<string, number>();
 
+    /**
+     * Record an edge once. The traversals below re-walk a node whenever they
+     * reach it by a shorter path, and two courses can share a prerequisite, so
+     * the same `from → to` pair is reached repeatedly — emitting it every time
+     * produced duplicate `key={from-to}` entries in `ConnectionLines` (React:
+     * "Encountered two children with the same key") and stacked identical SVG
+     * lines on top of each other. The first sighting wins; later ones are the
+     * same line anyway.
+     */
+    const seenEdges = new Set<string>();
+    const addConnection = (connection: Connection) => {
+      const edge = `${connection.direction}:${connection.from}->${connection.to}`;
+      if (seenEdges.has(edge)) return;
+      seenEdges.add(edge);
+      newConnections.push(connection);
+    };
+
     // ---- Backward: prerequisites this course requires ----
     const prerequisites: Course[] = [];
     const visitedBackward = new Set<string>();
@@ -47,7 +64,7 @@ export const useDependencyGraph = (
         const prereqCourse = courseMap.get(prereqId);
         if (!prereqCourse) return;
 
-        newConnections.push({
+        addConnection({
           from: currentCourse.id,
           to: prereqCourse.id,
           depth,
@@ -87,7 +104,7 @@ export const useDependencyGraph = (
       if (!dependentsOfCurrent || dependentsOfCurrent.length === 0) return;
 
       dependentsOfCurrent.forEach((dependentCourse) => {
-        newConnections.push({
+        addConnection({
           from: currentCourse.id,
           to: dependentCourse.id,
           depth,

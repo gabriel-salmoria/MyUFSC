@@ -17,7 +17,7 @@ import { useCourseMap } from "@/hooks/useCourseMap";
 import { parsescheduleData } from "@/parsers/class-parser";
 import { CourseStatus } from "@/types/student-plan";
 import { turnoOfSlot, type Turno, type TurnoFilter } from "@/lib/schedule-conflict";
-import { baselineLabel, generatePlanScenarios } from "@/lib/plan-generator/generate";
+import { baselineLabel, generatePlanScenarios } from "@/lib/plan-generator/engine";
 import type {
   GeneratorResult,
   PlanScenario,
