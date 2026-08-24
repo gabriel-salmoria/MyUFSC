@@ -10,7 +10,11 @@ import type {
 } from "@/types/student-plan";
 import { CourseStatus } from "@/types/student-plan";
 import type { Course, Curriculum } from "@/types/curriculum";
-import { inferCurrentPhase } from "@/lib/semester-status";
+import {
+  PASSING_GRADE,
+  clearDerivedStatus,
+  inferCurrentPhase,
+} from "@/lib/semester-status";
 import type { PlanScenario } from "@/lib/plan-generator/types";
 import { PHASE_DIMENSIONS } from "@/styles/course-theme";
 
@@ -231,17 +235,31 @@ export const useStudentStore = create<StudentStore>()(
             // Deep clone to prevent "read-only" errors if `info` contains frozen objects
             state.studentInfo = JSON.parse(JSON.stringify(info));
 
+            // A profile decrypted from the server arrives here directly (see
+            // app/login/login-client.tsx) and NEVER passes through the persist
+            // `merge()` where the positional-status migration lives. So legacy
+            // PLANNED/IN_PROGRESS had to be normalised here too, or a
+            // logged-in user's courses kept their old status forever — the
+            // resolver also ignores those now, this keeps the stored data
+            // honest. `currentPhase` is inferred when the profile predates it.
+            if (typeof state.studentInfo!.currentPhase !== "number") {
+              state.studentInfo!.currentPhase = inferCurrentPhase(
+                state.studentInfo!.plans?.[state.studentInfo!.currentPlan]
+                  ?.semesters ?? [],
+              );
+            }
+
             // Migrate old StudentCourse formats → { courseId, credits, ... }
             state.studentInfo!.plans?.forEach((plan: any) => {
               plan.semesters?.forEach((semester: any) => {
                 semester.courses = (semester.courses || []).map((sc: any) => {
                   if (sc.course && !sc.courseId) {
-                    return { courseId: sc.course.id || sc.id || "", credits: sc.course.credits || 0, status: sc.status, grade: sc.grade, class: sc.class, phase: sc.phase };
+                    return clearDerivedStatus({ courseId: sc.course.id || sc.id || "", credits: sc.course.credits || 0, status: sc.status, grade: sc.grade, class: sc.class, phase: sc.phase });
                   }
                   if (!sc.courseId && sc.id) {
-                    return { courseId: sc.id, credits: sc.credits || 0, status: sc.status, grade: sc.grade, class: sc.class, phase: sc.phase };
+                    return clearDerivedStatus({ courseId: sc.id, credits: sc.credits || 0, status: sc.status, grade: sc.grade, class: sc.class, phase: sc.phase });
                   }
-                  return sc;
+                  return clearDerivedStatus(sc);
                 });
               });
             });
@@ -429,6 +447,18 @@ export const useStudentStore = create<StudentStore>()(
               );
               if (targetSemester) {
                 movedCourse.phase = targetSemesterNumber;
+                // A move re-derives the status of THIS course, and only this
+                // course. Dragging is an explicit statement about when the
+                // student takes it, so it outranks whatever the course was
+                // marked as: drop a concluída into a future semester and it
+                // becomes planejada, drop it back and it reads concluída again.
+                //
+                // Note this is stronger than `clearDerivedStatus` (used on the
+                // load/apply paths), which keeps recorded outcomes. Those paths
+                // are passive — they must not rewrite history nobody touched —
+                // whereas this one is the user physically moving the course.
+                // The grade is kept, so nothing is destroyed by a mis-drop.
+                movedCourse.status = CourseStatus.PENDING;
                 targetSemester.courses.push(movedCourse);
                 targetSemester.totalCredits =
                   (targetSemester.totalCredits || 0) +
@@ -530,8 +560,10 @@ export const useStudentStore = create<StudentStore>()(
 
             if (courseInStore) {
               courseInStore.grade = roundedGrade;
+              // Same threshold the positional derivation uses, so entering a
+              // grade and inferring one from position can never disagree.
               courseInStore.status =
-                roundedGrade >= 6.0
+                roundedGrade >= PASSING_GRADE
                   ? CourseStatus.COMPLETED
                   : CourseStatus.FAILED;
 
@@ -577,7 +609,7 @@ export const useStudentStore = create<StudentStore>()(
             const newSemesters: StudentSemester[] = scenario.plan.semesters.map(
               (semester) => {
                 const courses = semester.courses.map((c) => ({
-                  ...c,
+                  ...clearDerivedStatus(c),
                   // Fresh, store-consistent instanceId so nothing collides with
                   // history entries and every slot is uniquely addressable —
                   // matching the newInstanceId() convention used by
@@ -665,7 +697,9 @@ export const useStudentStore = create<StudentStore>()(
               const rounded = Math.round(grade * 2) / 2;
               courseInStore.grade = rounded;
               courseInStore.status =
-                rounded >= 6.0 ? CourseStatus.COMPLETED : CourseStatus.FAILED;
+                rounded >= PASSING_GRADE
+                  ? CourseStatus.COMPLETED
+                  : CourseStatus.FAILED;
             }
 
             if (

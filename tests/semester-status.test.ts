@@ -11,10 +11,13 @@ import assert from "node:assert/strict";
 import type { StudentCourse, StudentSemester } from "@/types/student-plan";
 import { CourseStatus } from "@/types/student-plan";
 import {
+  PASSING_GRADE,
+  clearDerivedStatus,
   inferCurrentPhase,
   isExplicitStatus,
   resolveCourseStatus,
   resolveSemesters,
+  resolveStudentCourse,
 } from "@/lib/semester-status";
 
 function sc(
@@ -70,18 +73,50 @@ test("a recorded outcome survives wherever the course sits", () => {
   );
 });
 
-test("manual per-course overrides win too", () => {
+test("a stored IN_PROGRESS/PLANNED never beats position", () => {
+  // Regression: a course dragged out of the current semester used to carry its
+  // old status into the new one and keep reading "cursando" there. These two
+  // are OUTPUTS of the rules, never inputs, so position always re-derives them.
   assert.equal(
     resolveCourseStatus(CourseStatus.IN_PROGRESS, 9, 5),
-    CourseStatus.IN_PROGRESS,
+    CourseStatus.PLANNED,
   );
   assert.equal(
     resolveCourseStatus(CourseStatus.PLANNED, 1, 5),
-    CourseStatus.PLANNED,
+    CourseStatus.COMPLETED,
   );
+  assert.equal(
+    resolveCourseStatus(CourseStatus.PLANNED, 5, 5),
+    CourseStatus.IN_PROGRESS,
+  );
+
+  assert.equal(isExplicitStatus(CourseStatus.IN_PROGRESS), false);
+  assert.equal(isExplicitStatus(CourseStatus.PLANNED), false);
   assert.equal(isExplicitStatus(CourseStatus.PENDING), false);
   assert.equal(isExplicitStatus(CourseStatus.DEFAULT), false);
   assert.equal(isExplicitStatus(undefined), false);
+  assert.equal(isExplicitStatus(CourseStatus.COMPLETED), true);
+  assert.equal(isExplicitStatus(CourseStatus.FAILED), true);
+  assert.equal(isExplicitStatus(CourseStatus.EXEMPTED), true);
+});
+
+test("clearDerivedStatus strips positional statuses but keeps outcomes", () => {
+  assert.equal(
+    clearDerivedStatus(sc("A", CourseStatus.IN_PROGRESS)).status,
+    CourseStatus.PENDING,
+  );
+  assert.equal(
+    clearDerivedStatus(sc("A", CourseStatus.PLANNED)).status,
+    CourseStatus.PENDING,
+  );
+  // Outcomes and their grades survive a move untouched.
+  const graded = sc("A", CourseStatus.COMPLETED, 8.5);
+  assert.equal(clearDerivedStatus(graded), graded);
+  assert.equal(clearDerivedStatus(graded).grade, 8.5);
+  assert.equal(
+    clearDerivedStatus(sc("A", CourseStatus.FAILED)).status,
+    CourseStatus.FAILED,
+  );
 });
 
 test("an undeclared phase derives nothing", () => {
@@ -155,4 +190,92 @@ test("inferCurrentPhase reads the phase out of legacy per-course statuses", () =
   // Nothing to go on → phase 1.
   assert.equal(inferCurrentPhase([]), 1);
   assert.equal(inferCurrentPhase([sem(1, [sc("A", CourseStatus.PLANNED)])]), 1);
+});
+
+// --- moving a course re-derives it ------------------------------------------
+
+test("a moved course is re-derived from its new semester, outcome included", () => {
+  // Dragging a concluída into a future semester must turn it planejada. This
+  // is what `moveCourse` encodes by resetting the status to PENDING, and it is
+  // deliberately stronger than `clearDerivedStatus`: a move is the user saying
+  // when they take the course, so it outranks the recorded outcome.
+  const moved = { ...sc("A", CourseStatus.COMPLETED, 8.5), status: CourseStatus.PENDING };
+
+  assert.equal(resolveCourseStatus(moved.status, 9, 5), CourseStatus.PLANNED);
+  // …and dropping it back into a past semester reads concluída again.
+  assert.equal(resolveCourseStatus(moved.status, 2, 5), CourseStatus.COMPLETED);
+  // The grade is never destroyed by a mis-drop.
+  assert.equal(moved.grade, 8.5);
+});
+
+test("a course NOT moved keeps its outcome wherever the back-fill runs", () => {
+  // The passive paths (load, apply-plan, phase back-fill) must not rewrite
+  // history nobody touched — only an explicit move does.
+  assert.equal(
+    resolveCourseStatus(CourseStatus.COMPLETED, 9, 5),
+    CourseStatus.COMPLETED,
+  );
+  assert.equal(
+    resolveCourseStatus(CourseStatus.FAILED, 2, 5),
+    CourseStatus.FAILED,
+  );
+});
+
+// --- the grade decides WHICH outcome a finished course got -------------------
+
+test("a failing grade in a past semester derives reprovado, not concluído", () => {
+  // Regression: the back-fill derived a bare COMPLETED for everything behind
+  // `currentPhase`, so a course the student failed came out as a green tick
+  // the moment its stored FAILED was cleared (by a drag, say).
+  assert.equal(
+    resolveCourseStatus(CourseStatus.PENDING, 3, 8, 4.5),
+    CourseStatus.FAILED,
+  );
+  assert.equal(
+    resolveCourseStatus(CourseStatus.PENDING, 3, 8, 8.5),
+    CourseStatus.COMPLETED,
+  );
+  // No grade recorded → still concluída; position is all we have to go on.
+  assert.equal(
+    resolveCourseStatus(CourseStatus.PENDING, 3, 8),
+    CourseStatus.COMPLETED,
+  );
+});
+
+test("the passing threshold is exactly 6.0 and is shared with setCourseGrade", () => {
+  assert.equal(PASSING_GRADE, 6.0);
+  assert.equal(
+    resolveCourseStatus(CourseStatus.PENDING, 1, 5, PASSING_GRADE),
+    CourseStatus.COMPLETED,
+  );
+  assert.equal(
+    resolveCourseStatus(CourseStatus.PENDING, 1, 5, PASSING_GRADE - 0.5),
+    CourseStatus.FAILED,
+  );
+});
+
+test("current and future semesters ignore a stale grade", () => {
+  // A failed course dragged forward is being RETAKEN — its old grade is stale,
+  // not a verdict on the new attempt.
+  assert.equal(
+    resolveCourseStatus(CourseStatus.PENDING, 5, 5, 3.0),
+    CourseStatus.IN_PROGRESS,
+  );
+  assert.equal(
+    resolveCourseStatus(CourseStatus.PENDING, 9, 5, 3.0),
+    CourseStatus.PLANNED,
+  );
+});
+
+test("resolveStudentCourse threads the course's own grade through", () => {
+  const failed = sc("A", CourseStatus.PENDING, 4.0);
+  assert.equal(
+    resolveStudentCourse(failed, 2, 8).status,
+    CourseStatus.FAILED,
+  );
+  const passed = sc("B", CourseStatus.PENDING, 7.0);
+  assert.equal(
+    resolveStudentCourse(passed, 2, 8).status,
+    CourseStatus.COMPLETED,
+  );
 });

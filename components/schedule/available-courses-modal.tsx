@@ -105,7 +105,9 @@ export default function AvailableCoursesModal({ open, onClose, targetPhase }: Av
                 className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-accent cursor-pointer transition-colors"
                 onClick={() => {
                   selectCourse(
-                    { courseId: course.id, credits: course.credits || 0, status: CourseStatus.PLANNED, phase: targetPhase },
+                    // PENDING, not PLANNED — status is positional, so it is
+                    // derived from `targetPhase` vs the student's current one.
+                    { courseId: course.id, credits: course.credits || 0, status: CourseStatus.PENDING, phase: targetPhase },
                     course,
                   );
                   onClose();

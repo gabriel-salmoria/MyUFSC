@@ -156,7 +156,22 @@ export function useCurriculum({
         const degreesToFetch = Array.from(distinctDegrees).sort();
         const degreesSignature = degreesToFetch.join(",");
 
-        if (degreesSignature === fetchedForDegreeRef.current) {
+        // Skip the refetch only when the data is ACTUALLY still cached — not
+        // merely because this hook instance remembers fetching it.
+        //
+        // The ref lives on the component; the curricula live in the Zustand
+        // store, which resets `curriculumCache` to `{}` in several places
+        // (initial state, `reset()`, and the persist merge, since it is
+        // deliberately not hydrated). Those two can desync — most visibly under
+        // Fast Refresh, which keeps component refs while re-creating the store
+        // module. The ref then claims "already fetched", the cache is never
+        // refilled, `useCourseMap` comes back empty, and every course box falls
+        // back to rendering its id as its name. Checking the cache makes it
+        // self-healing however the desync happened.
+        const cached = useStudentStore.getState().curriculumCache;
+        const cacheIsComplete = degreesToFetch.every((id) => cached[id]);
+
+        if (degreesSignature === fetchedForDegreeRef.current && cacheIsComplete) {
           setIsCurriculumLoading(false);
           setCurriculumState((prev) => ({ ...prev, degreePrograms: programs }));
           return;
