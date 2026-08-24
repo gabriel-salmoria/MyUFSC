@@ -21,6 +21,10 @@ condensed map; read the relevant doc file for exhaustive detail before large cha
 - **Tests: `pnpm test`** (`node:test` via `tsx`, no test framework dependency). Typecheck
   with `pnpm exec tsc --noEmit` — `pnpm run lint` does not do it. CI runs lint, typecheck
   and tests on every PR to `main`.
+- **Dependency overrides go in `pnpm-workspace.yaml`, never `package.json`.** pnpm 10
+  reads neither the npm-style `overrides` nor `pnpm.overrides` from `package.json`; both
+  used to sit there and were silently ignored. Every override is commented with the
+  advisory that forced it — delete it once the parent package's own range catches up.
 - **Before changing code**, reuse existing utilities and respect the known tech debt listed
   at the bottom of this file — don't reintroduce the duplication called out there.
 
