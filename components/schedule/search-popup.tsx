@@ -105,7 +105,7 @@ export default function SearchPopup({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onClose, searchResults, activeIndex, selectCourse, handleAddWithCheck, selectedPhase]);
+  }, [onClose, searchResults, activeIndex, selectCourse, handleAddWithCheck, selectedPhase, availableCourses]);
 
   // Extract current courses from the student info
   const currentCourses = useMemo(() => {
@@ -161,6 +161,7 @@ export default function SearchPopup({
         });
       });
 
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- deferred: avoidable derived-state effect, tracked in #31
       setSearchResults(results);
       return;
     }
@@ -213,6 +214,7 @@ export default function SearchPopup({
 
   // Initialize local search term on initial prop change
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- deferred: avoidable derived-state effect, tracked in #31
     setLocalSearchTerm(initialSearchTerm);
   }, [initialSearchTerm]);
 
@@ -332,7 +334,7 @@ export default function SearchPopup({
               </div>
             ) : (
               <div className="p-8 text-center text-muted-foreground">
-                Nenhuma disciplina encontrada para "{localSearchTerm}"
+                Nenhuma disciplina encontrada para &quot;{localSearchTerm}&quot;
               </div>
             )}
           </div>

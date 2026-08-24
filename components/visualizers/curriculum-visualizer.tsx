@@ -4,8 +4,8 @@ import type React from "react";
 import { useRef, useState, useEffect, useMemo } from "react";
 
 // tipos de dados
-import type { Curriculum, Course } from "@/types/curriculum";
-import type { StudentPlan, StudentCourse } from "@/types/student-plan";
+import type { Curriculum } from "@/types/curriculum";
+import type { StudentPlan } from "@/types/student-plan";
 import { CourseStatus } from "@/types/student-plan";
 import type { ViewStudentCourse } from "@/types/visualization";
 
@@ -21,6 +21,8 @@ import {
   generateEquivalenceMap,
 } from "@/parsers/curriculum-parser";
 import { checkPrerequisites, computeBlocksCounts } from "@/lib/prerequisites";
+import { computeCurriculumStatusMap } from "@/lib/curriculum-status";
+import { resolveSemesters } from "@/lib/semester-status";
 
 import { useStudentStore } from "@/lib/student-store";
 
@@ -37,6 +39,7 @@ export default function CurriculumVisualizer({
   highlightAvailableForPhase,
 }: CurriculumVisualizerProps) {
   const studentInfo = useStudentStore((s) => s.studentInfo);
+  const currentPhase = studentInfo?.currentPhase ?? 0;
   const containerRef = useRef<HTMLDivElement>(null);
   const [phaseWidth, setPhaseWidth] = useState<number>(PHASE.MIN_WIDTH);
   const [containerHeight, setContainerHeight] = useState<number | null>(null);
@@ -51,126 +54,23 @@ export default function CurriculumVisualizer({
   );
 
   // Create mapped course statuses and handle optional course hours accumulation mapped greedily against curriculum blocks
-  const mappedCurriculumCourses = useMemo(() => {
-    const optionalPools = {
-      [CourseStatus.COMPLETED]: 0,
-      [CourseStatus.IN_PROGRESS]: 0,
-      [CourseStatus.PLANNED]: 0,
-    };
+  // Positional status first (lib/semester-status.ts): a course in a semester
+  // before the student's `currentPhase` reads as concluída even when it was
+  // never explicitly marked, so the curriculum grid agrees with Meu Progresso.
+  const resolvedSemesters = useMemo(
+    () => resolveSemesters(studentPlan.semesters, currentPhase),
+    [studentPlan.semesters, currentPhase],
+  );
 
-    const allStudentCourses = studentPlan.semesters.flatMap((s) => s.courses);
-
-    // Helper to safely determine if a course definition is optional
-    const isDefOptional = (def: Course) =>
-      def.type === "optional" ||
-      (def as any).type === false ||
-      String((def as any).type).toLowerCase() === "false";
-
-    // Helper to determine if a course is a generic generic placeholder (optativa) in the curriculum
-    const isGenericPlaceholder = (def: Course) => {
-      // It must be an elective
-      if (!isDefOptional(def)) return false;
-      // It's a placeholder if its ID contains "OPT" or its name is literally "Optativa..."
-      const hasOptInId = /OPT/i.test(def.id);
-      const hasOptInName = /optativa/i.test(def.name || "");
-      // Or if it simply has a designated phase (valid real electives from UFSC usually have phase 0 or null)
-      const hasPhase = def.phase && def.phase > 0;
-
-      return hasOptInId || hasOptInName;
-    };
-
-    // Sum up optional hours from the student's progress strictly based on the current curriculum's rules
-    allStudentCourses.forEach((sc) => {
-      // Lookup how THIS specific curriculum classifies the course the student took
-      const curriculumDef = curriculum.courses.find(
-        (c) => c.id === sc.courseId,
-      );
-
-      // A course is a valid elective (Optativa) if it exists in the curriculum as 'optional'
-      // and is NOT a generic placeholder itself
-      if (
-        curriculumDef &&
-        isDefOptional(curriculumDef) &&
-        !isGenericPlaceholder(curriculumDef)
-      ) {
-        // UFSC usually counts 18h per credit
-        const hours =
-          curriculumDef.workload ||
-          (curriculumDef.credits ? curriculumDef.credits * 18 : 0);
-
-        if (
-          sc.status === CourseStatus.COMPLETED ||
-          sc.status === CourseStatus.EXEMPTED
-        ) {
-          optionalPools[CourseStatus.COMPLETED] += hours;
-        } else if (sc.status === CourseStatus.IN_PROGRESS) {
-          optionalPools[CourseStatus.IN_PROGRESS] += hours;
-        } else if (sc.status === CourseStatus.PLANNED) {
-          optionalPools[CourseStatus.PLANNED] += hours;
-        }
-      }
-    });
-
-    const statusMap = new Map<
-      string,
-      { status: CourseStatus; grade?: number; studentCourse?: StudentCourse }
-    >();
-    const sortedCurriculumCourses = [...curriculum.courses].sort(
-      (a, b) => a.phase - b.phase,
-    );
-
-    sortedCurriculumCourses.forEach((course) => {
-      let status = CourseStatus.DEFAULT;
-      let grade: number | undefined = undefined;
-      let matchedStudentCourse: StudentCourse | undefined = undefined;
-
-      const equivalents = equivalenceMap.get(course.id);
-
-      // Generic curriculum placeholders (like "Optativa I" or "OPT0004")
-      if (isGenericPlaceholder(course)) {
-        // Optional courses map strictly greedily via their explicit workload limits, left-to-right (1st semester -> nth semester)
-        const courseHours =
-          course.workload || (course.credits ? course.credits * 18 : 72);
-
-        if (optionalPools[CourseStatus.COMPLETED] >= courseHours) {
-          optionalPools[CourseStatus.COMPLETED] -= courseHours;
-          status = CourseStatus.COMPLETED;
-        } else if (optionalPools[CourseStatus.IN_PROGRESS] >= courseHours) {
-          optionalPools[CourseStatus.IN_PROGRESS] -= courseHours;
-          status = CourseStatus.IN_PROGRESS;
-        } else if (optionalPools[CourseStatus.PLANNED] >= courseHours) {
-          optionalPools[CourseStatus.PLANNED] -= courseHours;
-          status = CourseStatus.PLANNED;
-        }
-      } else {
-        // Standard courses check via exact Match or Equivalence rules
-        const matchingStudentCourse = allStudentCourses.find((sc) =>
-          equivalents
-            ? equivalents.has(sc.courseId)
-            : sc.courseId === course.id,
-        );
-
-        if (matchingStudentCourse) {
-          status = matchingStudentCourse.status;
-          grade = matchingStudentCourse.grade;
-          matchedStudentCourse = matchingStudentCourse;
-        }
-      }
-
-      statusMap.set(course.id, { status, grade, studentCourse: matchedStudentCourse });
-    });
-
-    return statusMap;
-  }, [curriculum.courses, studentPlan.semesters, equivalenceMap]);
-
-  // Safeguard against rendering with invalid data
-  if (!curriculum) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-muted-foreground">Loading curriculum data...</p>
-      </div>
-    );
-  }
+  const mappedCurriculumCourses = useMemo(
+    () =>
+      computeCurriculumStatusMap(
+        curriculum.courses,
+        resolvedSemesters,
+        equivalenceMap,
+      ),
+    [curriculum.courses, resolvedSemesters, equivalenceMap],
+  );
 
   const phaseCount = curriculum.totalPhases || phases.length || 1;
 
@@ -274,6 +174,18 @@ export default function CurriculumVisualizer({
     }
     return result;
   }, [phases, curriculum.courses, mappedCurriculumCourses, highlightAvailableForPhase, studentInfo, equivalenceMap, blocksCounts]);
+
+  // Safeguard against rendering with invalid data. Placed after every hook (not
+  // between them) so no hook is called conditionally (rules-of-hooks). In
+  // practice this never fires today — earlier hooks already dereference
+  // `curriculum`, so a null would have thrown first.
+  if (!curriculum) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-muted-foreground">Loading curriculum data...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col w-full h-full">

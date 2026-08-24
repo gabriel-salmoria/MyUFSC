@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Connection } from "@/hooks/useDependencyGraph";
 
 // Color gradient for prerequisite (backward) depths
@@ -30,10 +31,47 @@ export default function ConnectionLines({
   courseElements,
 }: ConnectionLinesProps) {
   const svgRef = useRef<SVGSVGElement>(null);
+  // The SVG is portaled INTO the `.dashboard-content` scroll-content container
+  // that holds the course boxes, and endpoints are computed relative to that
+  // container. So the lines share the boxes' coordinate space and scroll with
+  // them natively in BOTH directions — the panels scroll internally via
+  // overflow-auto, so window scroll offsets don't capture horizontal movement.
+  // No per-frame JS, so the lines stay perfectly locked (no jitter). Only a
+  // resize needs a recompute (layout reflow moves the boxes).
+  const [, setTick] = useState(0);
+  // Once the initial draw animation has played, later re-renders paint the lines
+  // fully drawn (no re-animation flicker on a recompute).
+  const [hasAnimated, setHasAnimated] = useState(false);
+
+  useEffect(() => {
+    let raf = 0;
+    const reposition = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => setTick((t) => t + 1));
+    };
+    window.addEventListener("resize", reposition);
+    // Longest line animation = depth*0.2s delay + 0.2s draw; settle after ~1s.
+    const doneId = setTimeout(() => setHasAnimated(true), 1000);
+    return () => {
+      window.removeEventListener("resize", reposition);
+      cancelAnimationFrame(raf);
+      clearTimeout(doneId);
+    };
+  }, []);
+
+  // The scroll-content container the course boxes live in. All connected boxes
+  // share one `.dashboard-content` (per useDashboardRef, which scopes the tree
+  // to a single dashboard panel). Portaling the SVG here makes it scroll with them.
+  const firstEl = courseElements.values().next().value?.[0] as
+    | Element
+    | undefined;
+  const container =
+    (firstEl?.closest(".dashboard-content") as HTMLElement | null) ?? null;
 
   // Calculate connection line positions
   const calculateConnectionLines = () => {
-    if (courseElements.size === 0) return null;
+    if (!container || courseElements.size === 0) return null;
+    const containerRect = container.getBoundingClientRect();
 
     const lines = connections
       .map((connection, index) => {
@@ -56,11 +94,18 @@ export default function ConnectionLines({
         const colorIndex = Math.min(connection.depth, palette.length - 1);
         const strokeColor = palette[colorIndex];
 
-        // Calculate centers
-        const sourceCenterX = sourceRect.left + sourceRect.width / 2;
-        const sourceCenterY = sourceRect.top + sourceRect.height / 2;
-        const targetCenterX = targetRect.left + targetRect.width / 2;
-        const targetCenterY = targetRect.top + targetRect.height / 2;
+        // Calculate centers relative to the container's content box. Both rects
+        // are viewport-relative and shift together on scroll, so the difference
+        // is the box's stable offset within `.dashboard-content` — where the
+        // portaled SVG is anchored, so lines track the boxes under any scroll.
+        const sourceCenterX =
+          sourceRect.left - containerRect.left + sourceRect.width / 2;
+        const sourceCenterY =
+          sourceRect.top - containerRect.top + sourceRect.height / 2;
+        const targetCenterX =
+          targetRect.left - containerRect.left + targetRect.width / 2;
+        const targetCenterY =
+          targetRect.top - containerRect.top + targetRect.height / 2;
 
         // Calculate vector between centers
         const dx = targetCenterX - sourceCenterX;
@@ -115,18 +160,22 @@ export default function ConnectionLines({
 
         return (
           <line
-            key={`${connection.from}-${connection.to}`}
+            // Matches the dedupe key in `useDependencyGraph` exactly, so the
+            // uniqueness guarantee lives in one place.
+            key={`${connection.direction}:${connection.from}->${connection.to}`}
             x1={x1}
             y1={y1}
             x2={x2}
             y2={y2}
             stroke={strokeColor}
             strokeWidth={lineWidth}
-            strokeDasharray={length}
-            strokeDashoffset={length}
+            strokeDasharray={hasAnimated ? undefined : length}
+            strokeDashoffset={hasAnimated ? 0 : length}
             style={{
               opacity: 0.4,
-              animation: `drawLine 0.2s ease-out ${connection.depth * 0.2}s forwards`,
+              animation: hasAnimated
+                ? undefined
+                : `drawLine 0.2s ease-out ${connection.depth * 0.2}s forwards`,
             }}
           />
         );
@@ -136,15 +185,19 @@ export default function ConnectionLines({
     return lines;
   };
 
-  return (
+  if (!container) return null;
+
+  return createPortal(
     <svg
-      className="fixed inset-0 pointer-events-none z-[15]"
-      style={{ width: "100vw", height: "100vh" }}
+      ref={svgRef}
+      className="absolute top-0 left-0 pointer-events-none z-[15]"
+      style={{ width: "100%", height: "100%", overflow: "visible" }}
     >
       <defs>
         <style>{`@keyframes drawLine { to { stroke-dashoffset: 0; } }`}</style>
       </defs>
       {calculateConnectionLines()}
-    </svg>
+    </svg>,
+    container,
   );
 }

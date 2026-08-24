@@ -15,6 +15,8 @@ import AvailableCoursesModal from "@/components/schedule/available-courses-modal
 // config
 import { PHASE } from "@/styles/visualization";
 import { useCourseMap } from "@/hooks/useCourseMap";
+import { useStudentStore } from "@/lib/student-store";
+import { resolveStudentCourse } from "@/lib/semester-status";
 
 interface ProgressVisualizerProps {
   studentPlan: StudentPlan;
@@ -29,6 +31,8 @@ export default function ProgressVisualizer({
   onPhaseClick,
 }: ProgressVisualizerProps) {
   const courseMap = useCourseMap();
+  const currentPhase = useStudentStore((s) => s.studentInfo?.currentPhase ?? 0);
+  const setCurrentPhase = useStudentStore((s) => s.setCurrentPhase);
   const containerRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [phaseWidth, setPhaseWidth] = useState<number>(PHASE.MIN_WIDTH);
@@ -69,20 +73,9 @@ export default function ProgressVisualizer({
 
   // Update lastUpdate when studentPlan changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- deferred: avoidable derived-state effect, tracked in #31
     setLastUpdate(Date.now().toString());
   }, [studentPlan, displayedSemesters.length]);
-
-  // Safeguard against rendering with invalid data
-  if (
-    !studentPlan ||
-    !studentPlan.semesters
-  ) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-muted-foreground">Carregando plano de estudos...</p>
-      </div>
-    );
-  }
 
   // Calculate dynamic phase width/height based on the actual container box.
   // Height is measured here (rather than left to a `h-full` percentage chain
@@ -138,16 +131,33 @@ export default function ProgressVisualizer({
     return Math.max(PHASE.BOXES_PER_COLUMN || 6, maxCourses + 1);
   }, [displayedSemesters]);
 
-  // Resolve StudentCourse → ViewStudentCourse outside of JSX to avoid per-render allocations
+  // Resolve StudentCourse → ViewStudentCourse outside of JSX to avoid per-render
+  // allocations. Status is resolved positionally first (lib/semester-status.ts):
+  // semesters before `currentPhase` read as concluída, `currentPhase` itself as
+  // cursando, later ones as planejada — unless the course carries an explicit
+  // status of its own.
   const viewSemesters = useMemo(() => {
     return displayedSemesters.map((semester) => ({
       ...semester,
-      viewCourses: semester.courses.map((sc): ViewStudentCourse => {
+      viewCourses: semester.courses.map((raw): ViewStudentCourse => {
+        const sc = resolveStudentCourse(raw, semester.number, currentPhase);
         const resolved = courseMap.get(sc.courseId);
         return { ...sc, course: resolved ?? { id: sc.courseId, name: sc.courseId, credits: sc.credits, phase: sc.phase ?? 0 } };
       }),
     }));
-  }, [displayedSemesters, courseMap]);
+  }, [displayedSemesters, courseMap, currentPhase]);
+
+  // Safeguard against rendering with invalid data. Placed after every hook (not
+  // between them) so no hook is called conditionally (rules-of-hooks). In
+  // practice this never fires today — earlier hooks already dereference
+  // `studentPlan`, so a null would have thrown first.
+  if (!studentPlan || !studentPlan.semesters) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-muted-foreground">Carregando plano de estudos...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col w-full h-full">
@@ -184,6 +194,8 @@ export default function ProgressVisualizer({
                 width={phaseWidth}
                 isFromCurriculum={false}
                 totalSlots={globalTotalSlots}
+                isCurrentPhase={semester.number === currentPhase}
+                onMarkCurrentPhase={() => setCurrentPhase(semester.number)}
                 onHeaderClick={() => onPhaseClick && onPhaseClick(semester.number)}
               />
             ))}

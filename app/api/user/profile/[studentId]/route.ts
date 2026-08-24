@@ -3,7 +3,11 @@ import { cookies } from "next/headers";
 import { unstable_cache } from "next/cache";
 import { getUserByHashedUsername } from "@/database/users/db-user";
 import { getCurriculumByProgramId } from "@/database/curriculum/db-curriculum";
-import { getScheduleByProgramAndSemester, getLatestSemester } from "@/database/schedule/db-schedule";
+import {
+  getScheduleByProgramAndSemester,
+  getLatestSemester,
+  getAvailableSemesters,
+} from "@/database/schedule/db-schedule";
 
 // Mirror the same cache keys used by the dedicated curriculum/schedule routes so
 // prefetch calls share their cache rather than hitting the DB independently.
@@ -27,6 +31,14 @@ function getCachedSchedule(programId: string, semester: string) {
   return unstable_cache(
     () => getScheduleByProgramAndSemester(programId, semester),
     [`schedule-${programId}-${semester}`],
+    { revalidate: 3600 },
+  )();
+}
+
+function getCachedAvailableSemesters(programId: string) {
+  return unstable_cache(
+    () => getAvailableSemesters(programId),
+    [`schedule-semesters-${programId}`],
     { revalidate: 3600 },
   )();
 }
@@ -63,13 +75,31 @@ export async function GET(
           degreesToFetch.map((id) => getCachedCurriculum(id).catch(() => null))
         );
 
-        // Fetch schedules — uses the same unstable_cache as /api/schedule
+        // Fetch schedules — uses the same unstable_cache as /api/schedule.
+        //
+        // The payload MUST be the same envelope /api/schedule returns
+        // (`{ fetchedSemester, availableSemesters, [degreeId]: blob }`), because
+        // the client primes it straight into the `fetchClassSchedule` cache
+        // (see hooks/setup/useStudentProfile.ts). It used to prime the bare
+        // `scheduleJson`, so a prefetch cache hit left `useSchedule` with no
+        // `fetchedSemester` and no `availableSemesters` — the semester picker
+        // came up empty and `selectedSemester` stayed "" until a reload.
         const schedules = await Promise.all(
           degreesToFetch.map(async (id) => {
             try {
               const latest = await getCachedLatestSemester(id);
               if (!latest) return null;
-              return await getCachedSchedule(id, latest);
+              const [schedule, availableSemesters] = await Promise.all([
+                getCachedSchedule(id, latest),
+                getCachedAvailableSemesters(id).catch(() => [] as string[]),
+              ]);
+              if (!schedule) return null;
+              return {
+                fetchedSemester: latest,
+                availableSemesters:
+                  availableSemesters.length > 0 ? availableSemesters : [latest],
+                [id]: schedule,
+              };
             } catch {
               return null;
             }

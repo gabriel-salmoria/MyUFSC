@@ -92,6 +92,7 @@ export function useCurriculum({
 
   useEffect(() => {
     if (isProfileLoading) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- external async sync, not derivable in render
       setIsCurriculumLoading(true);
       fetchedForDegreeRef.current = null;
       return;
@@ -216,6 +217,7 @@ export function useCurriculum({
 
     loadData();
     return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: signature-guarded fetch, extra deps would refetch
   }, [studentInfo, isProfileLoading]);
 
   return { curriculumState, setCurriculumState, isCurriculumLoading, setViewingDegreeId };

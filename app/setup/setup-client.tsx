@@ -64,6 +64,7 @@ export default function SetupClient() {
   // Filter programs when search term changes
   useEffect(() => {
     if (!searchTerm.trim()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- deferred: avoidable derived-state effect, tracked in #31
       setFilteredPrograms(degreePrograms);
       return;
     }
@@ -168,7 +169,7 @@ export default function SetupClient() {
           interestedDegrees,
           name: transcriptData.studentName ?? "Visitante",
           currentPlan: 0,
-          currentSemester: "1",
+          currentPhase: 1,
           plans: [plan],
         });
       }
@@ -179,7 +180,7 @@ export default function SetupClient() {
         interestedDegrees,
         name: "Visitante",
         currentPlan: 0,
-        currentSemester: "1",
+        currentPhase: 1,
         plans: [plan],
       });
     }

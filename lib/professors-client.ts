@@ -15,8 +15,10 @@ const _detailsInFlight = new Map<string, Promise<any>>();
 export async function fetchProfessorDetails(
   professorId: string,
   voterHash?: string,
+  offset: number = 0,
+  limit: number = 20,
 ) {
-  const key = `${professorId}:${voterHash ?? ""}`;
+  const key = `${professorId}:${voterHash ?? ""}:${offset}:${limit}`;
 
   const inflight = _detailsInFlight.get(key);
   if (inflight) return inflight;
@@ -26,6 +28,8 @@ export async function fetchProfessorDetails(
     window.location.origin,
   );
   if (voterHash) url.searchParams.set("voterHash", voterHash);
+  url.searchParams.set("offset", String(offset));
+  url.searchParams.set("limit", String(limit));
 
   const request = fetch(url.toString())
     .then(async (res) => {

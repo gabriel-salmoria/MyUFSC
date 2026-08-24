@@ -11,8 +11,11 @@ import { useRef } from "react";
  */
 export function useStableValue<T>(value: T): T {
   const ref = useRef(value);
+  // eslint-disable-next-line react-hooks/refs -- deep-equal ref cache: reading the previous value in render is intentional and the crux of this hook
   if (JSON.stringify(ref.current) !== JSON.stringify(value)) {
+    // eslint-disable-next-line react-hooks/refs -- update the cached reference only when content actually changed; safe idempotent write during render
     ref.current = value;
   }
+  // eslint-disable-next-line react-hooks/refs -- returning the stabilized cached reference is the whole purpose of this hook
   return ref.current;
 }

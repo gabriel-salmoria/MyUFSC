@@ -498,8 +498,8 @@ function ReplyThread({
   handleVote,
   replyingTo,
   setReplyingTo,
-  replyText,
-  setReplyText,
+  replyDrafts,
+  setDraft,
   handleReplySubmit,
   handleDelete,
   editingReply,
@@ -519,8 +519,8 @@ function ReplyThread({
   handleVote: (id: string, v: 1 | -1) => void;
   replyingTo: string | null;
   setReplyingTo: (id: string | null) => void;
-  replyText: string;
-  setReplyText: (text: string) => void;
+  replyDrafts: Record<string, string>;
+  setDraft: (id: string, value: string) => void;
   handleReplySubmit: (id: string) => void;
   handleDelete: (id: string) => void;
   editingReply: string | null;
@@ -566,8 +566,8 @@ function ReplyThread({
               onVote={(v) => handleVote(reply.id, v)}
               onReply={() => setReplyingTo(reply.id)}
               isReplyOpen={replyingTo === reply.id}
-              replyText={replyText}
-              onReplyTextChange={setReplyText}
+              replyText={replyDrafts[reply.id] ?? ""}
+              onReplyTextChange={(v) => setDraft(reply.id, v)}
               onReplySubmit={() => handleReplySubmit(reply.id)}
               onReplyCancel={() => setReplyingTo(null)}
               isAuthenticated={isAuthenticated}
@@ -599,8 +599,8 @@ function ReplyThread({
                 handleVote={handleVote}
                 replyingTo={replyingTo}
                 setReplyingTo={setReplyingTo}
-                replyText={replyText}
-                setReplyText={setReplyText}
+                replyDrafts={replyDrafts}
+                setDraft={setDraft}
                 handleReplySubmit={handleReplySubmit}
                 handleDelete={handleDelete}
                 editingReply={editingReply}
@@ -622,6 +622,9 @@ function ReplyThread({
 }
 
 type Scores = { overall: number; difficulty: number; didactics: number };
+
+// Server page size for the paginated professor-details reviews endpoint.
+const REVIEWS_PAGE_SIZE = 20;
 
 /**
  * Iteratively removes soft-deleted nodes ([removido]) that have no children.
@@ -706,6 +709,11 @@ function ProfessorDetailsSection({
   const [stats, setStats] = useState<Record<string, Stats>>({});
   const [reviews, setReviews] = useState<Review[]>([]);
   const [replies, setReplies] = useState<ReplyObj[]>([]);
+  // Pagination: only the very first (offset=0) page carries statsPerCourse;
+  // "Carregar mais" fetches later pages and appends them additively.
+  const [nextOffset, setNextOffset] = useState(REVIEWS_PAGE_SIZE);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const { toast } = useToast();
 
   const myHash = useMemo(() => getAnonymousUserId(userId), [userId]);
@@ -721,7 +729,7 @@ function ProfessorDetailsSection({
     return map;
   }, [curriculumCache]);
 
-  const [replyText, setReplyText] = useState("");
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [editingReply, setEditingReply] = useState<string | null>(null);
   const [editReplyText, setEditReplyText] = useState("");
@@ -743,6 +751,7 @@ function ProfessorDetailsSection({
 
   // Refs for debounced voting — stable across renders
   const voteStateRef = useRef(voteState);
+  // eslint-disable-next-line react-hooks/refs -- mirror latest state into a ref so the debounced vote callbacks read fresh values without re-subscribing
   voteStateRef.current = voteState; // Always up-to-date
   const pendingVotes = useRef<Record<string, 0 | 1 | -1>>({});
   const voteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -753,6 +762,7 @@ function ProfessorDetailsSection({
   // Clear all pending vote timers when the dialog unmounts
   useEffect(() => {
     return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- unmount-only cleanup; reading voteTimers.current at unmount clears whatever timers are pending then (capturing at mount would be empty)
       for (const timer of Object.values(voteTimers.current)) clearTimeout(timer);
     };
   }, []);
@@ -880,6 +890,7 @@ function ProfessorDetailsSection({
 
   useEffect(() => {
     let mounted = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- external sync: loading flag for async professor-details fetch
     setLoading(true);
 
     fetchProfessorDetails(professorId, myHash)
@@ -906,6 +917,8 @@ function ProfessorDetailsSection({
         );
         setReviews(cleaned.reviews);
         setReplies(cleaned.replies);
+        setHasMore(Boolean(data.hasMore));
+        setNextOffset(REVIEWS_PAGE_SIZE);
 
         // Initialize vote state from API (includes myVote)
         const initialVoteState: Record<
@@ -940,6 +953,73 @@ function ProfessorDetailsSection({
       mounted = false;
     };
   }, [professorId, myHash]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // "Carregar mais": fetch the next page and append it as a pure local-state
+  // patch — no stats refetch (statsPerCourse only ever comes from offset=0),
+  // no full reload/remount. Reviews and replies are merged deduped by id.
+  const handleLoadMore = async () => {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const data = await fetchProfessorDetails(
+        professorId,
+        myHash,
+        nextOffset,
+        REVIEWS_PAGE_SIZE,
+      );
+      const newReviews: Review[] = data.reviews || [];
+      const newReplies: ReplyObj[] = data.replies || [];
+
+      // Merge deduped by id (keep existing entries so local edits/vote patches
+      // aren't clobbered by a re-fetched copy), then re-run the orphaned
+      // soft-deleted cleanup over the full merged reply set.
+      const existingReviewIds = new Set(reviews.map((r) => r.id));
+      const mergedReviews = [
+        ...reviews,
+        ...newReviews.filter((r) => !existingReviewIds.has(r.id)),
+      ];
+      const existingReplyIds = new Set(replies.map((r) => r.id));
+      const mergedReplies = [
+        ...replies,
+        ...newReplies.filter((r) => !existingReplyIds.has(r.id)),
+      ];
+      const cleaned = cleanupOrphanedSoftDeleted(mergedReplies, mergedReviews);
+      setReviews(cleaned.reviews);
+      setReplies(cleaned.replies);
+
+      // Patch vote state for newly-loaded ids only — never overwrite an entry
+      // already present locally (it may hold a pending optimistic vote).
+      setVoteState((prev) => {
+        const next = { ...prev };
+        for (const item of [...newReviews, ...newReplies] as Array<{
+          id: string;
+          upvotes?: number;
+          downvotes?: number;
+          myVote?: 1 | -1 | 0;
+        }>) {
+          if (!(item.id in next)) {
+            next[item.id] = {
+              upvotes: item.upvotes ?? 0,
+              downvotes: item.downvotes ?? 0,
+              myVote: (item.myVote ?? 0) as 1 | -1 | 0,
+            };
+          }
+        }
+        return next;
+      });
+
+      setNextOffset((o) => o + REVIEWS_PAGE_SIZE);
+      setHasMore(Boolean(data.hasMore));
+    } catch (err: any) {
+      toast({
+        title: "Erro ao carregar mais avaliações",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const handleDeleteTopLevelReview = async (reviewId: string) => {
     const target = reviews.find((r) => r.id === reviewId);
@@ -1026,16 +1106,21 @@ function ProfessorDetailsSection({
   };
 
   const handleReplySubmit = async (parentId: string) => {
-    if (!replyText.trim()) return;
+    const draft = replyDrafts[parentId] ?? "";
+    if (!draft.trim()) return;
     try {
-      const result = await submitReply(parentId, myHash, replyText);
+      const result = await submitReply(parentId, myHash, draft);
       setReplies((prev) => [...prev, result.reply]);
       setVoteState((s) => ({
         ...s,
         [result.reply.id]: { upvotes: 0, downvotes: 0, myVote: 0 },
       }));
       setReplyingTo(null);
-      setReplyText("");
+      setReplyDrafts((d) => {
+        const next = { ...d };
+        delete next[parentId];
+        return next;
+      });
       toast({ title: "Resposta enviada" });
     } catch (err: any) {
       toast({
@@ -1158,11 +1243,6 @@ function ProfessorDetailsSection({
       setSubmittingReview(false);
     }
   };
-
-  // Clear reply text when switching which reply box is open
-  useEffect(() => {
-    setReplyText("");
-  }, [replyingTo]);
 
   const overallStats = useMemo(() => {
     let totalRev = 0,
@@ -1523,8 +1603,13 @@ function ProfessorDetailsSection({
                                       : undefined
                                   }
                                   isReplyOpen={replyingTo === review.id}
-                                  replyText={replyText}
-                                  onReplyTextChange={setReplyText}
+                                  replyText={replyDrafts[review.id] ?? ""}
+                                  onReplyTextChange={(v) =>
+                                    setReplyDrafts((d) => ({
+                                      ...d,
+                                      [review.id]: v,
+                                    }))
+                                  }
                                   onReplySubmit={() =>
                                     handleReplySubmit(review.id)
                                   }
@@ -1541,8 +1626,10 @@ function ProfessorDetailsSection({
                                     handleVote={handleVote}
                                     replyingTo={replyingTo}
                                     setReplyingTo={setReplyingTo}
-                                    replyText={replyText}
-                                    setReplyText={setReplyText}
+                                    replyDrafts={replyDrafts}
+                                    setDraft={(id, v) =>
+                                      setReplyDrafts((d) => ({ ...d, [id]: v }))
+                                    }
                                     handleReplySubmit={handleReplySubmit}
                                     handleDelete={handleDeleteReply}
                                     editingReply={editingReply}
@@ -1566,6 +1653,27 @@ function ProfessorDetailsSection({
                   </>
                 );
               })()}
+
+              {/* Load-more: additive pagination, never a full reload */}
+              {hasMore && (
+                <div className="flex justify-center pt-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleLoadMore}
+                    disabled={loadingMore}
+                  >
+                    {loadingMore ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" />
+                        Carregando...
+                      </>
+                    ) : (
+                      "Carregar mais"
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>
           </motion.div>
         )}

@@ -189,9 +189,10 @@ Small colored badge showing the overall rating. Color coding:
 - `< 3.0` → red
 - No reviews → neutral/gray
 
-### `WriteReviewDialog` — `components/professors/write-review-dialog.tsx`
+### Review compose — inline in `ProfessorDetailsSection`
 
-Dialog for submitting a new review. Contains:
+There is no `WriteReviewDialog` (it was removed; inline compose is the only path).
+Submitting a new review happens inline in the details dialog. Contains:
 - Course selector (filtered to courses the student has taken AND the professor teaches)
 - Three 1-5 star sliders: overall, difficulty, didactics
 - Textarea with live character count (0/500)

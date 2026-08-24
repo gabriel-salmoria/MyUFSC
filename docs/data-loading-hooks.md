@@ -1,6 +1,6 @@
 # Data Loading Hooks
 
-Data fetching on the main page (`app/page.tsx`) is organized into four custom hooks that run sequentially — each waits for the previous one before it can start. This is a known waterfall. Within each hook, parallel fetches are used where possible.
+Data fetching on the main page (`app/page.tsx`) is organized into four custom hooks. Auth and profile are true dependencies and run sequentially, but **curriculum and schedule fetch concurrently** — both derive their degree set from the same `studentInfo`, so neither waits on the other. Within each hook, parallel fetches are used where possible.
 
 ---
 
@@ -11,13 +11,15 @@ useCheckAuth()
   └─ determines isAuthenticated + userId
        └─ useStudentProfile()
             └─ fetches + decrypts profile; hydrates caches
-                 └─ useCurriculum()
-                      └─ fetches degree programs + all curriculum JSONs (parallel)
-                           └─ useSchedule()
-                                └─ fetches schedule JSONs (parallel per degree)
+                 ├─ useCurriculum()   ─┐  (run concurrently off studentInfo)
+                 │    fetches degree   │
+                 │    programs + all   │
+                 │    curriculum JSONs │
+                 └─ useSchedule()     ─┘
+                      fetches schedule JSONs (parallel per degree)
 ```
 
-On a cold authenticated load this is 4+ sequential network round-trips before the UI is interactive.
+Both `useCurriculum` and `useSchedule` gate on `!isProfileLoading` + a non-null `studentInfo` only. `useSchedule` no longer waits on `isCurriculumLoading` — that was a false dependency (it consumes no curriculum-hook output), so the two now start in the same render tick. On a cold authenticated load this is **3** sequential round-trips (auth → profile → curriculum ∥ schedule); guest/warm loads collapse further since `studentInfo` is already in the persisted store.
 
 ---
 
@@ -89,15 +91,14 @@ The profile endpoint (`GET /api/user/profile/:userId`) reads a cookie `ufsc_pref
 
 5. **Prefetch cookie** — writes `ufsc_prefetch_degrees=<sorted_degree_ids>` to `document.cookie` so the next profile load can bundle curriculum data.
 
-6. Updates `curriculumState`:
-   - `curriculumsCache` — the full `Curriculum` objects (for the hook's consumers)
+6. Caches each fetched `Curriculum` in the store (`cacheCurriculum`), then updates `curriculumState`:
    - `curriculum` — the curriculum currently being viewed
    - `currentCurriculum` — the student's primary degree curriculum
    - `viewingDegreeId` — which degree is in the viewport
 
 **State exposed:** `{ curriculumState, setCurriculumState, isCurriculumLoading, setViewingDegreeId }`
 
-`setViewingDegreeId(id)` switches the displayed curriculum immediately if it's already in `curriculumsCache`.
+`setViewingDegreeId(id)` switches the displayed curriculum immediately if it's already in the store's `curriculumCache`.
 
 ---
 
@@ -105,7 +106,7 @@ The profile endpoint (`GET /api/user/profile/:userId`) reads a cookie `ufsc_pref
 
 **Purpose:** Fetch class schedule data for all degrees.
 
-**Trigger:** Runs when `studentInfo` changes, **and after** both `isProfileLoading` and `isCurriculumLoading` are `false`.
+**Trigger:** Runs when `studentInfo` changes, **and after** `isProfileLoading` is `false`. It does **not** wait on `useCurriculum` — it derives its degree set directly from `studentInfo.currentDegree` + `interestedDegrees`, so it runs concurrently with the curriculum fetch.
 
 **Behavior:**
 

@@ -3,9 +3,12 @@ import { unstable_cache } from "next/cache";
 import { executeQuery } from "@/database/ready";
 import { generatePseudonym, normalizeProfessorId } from "@/lib/professors";
 
-// Fetches stats, reviews, and replies — nothing user-specific here.
-async function fetchProfessorCore(professorId: string) {
-  const [aggResult, coursesResult, reviewsResult] = await Promise.all([
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 50;
+
+// Aggregate stats + taught courses — page-independent, no user-specific data.
+async function fetchStats(professorId: string) {
+  const [aggResult, coursesResult] = await Promise.all([
     executeQuery(
       `SELECT
         "courseId",
@@ -20,14 +23,6 @@ async function fetchProfessorCore(professorId: string) {
     ),
     executeQuery(
       `SELECT "courseId" FROM professor_courses WHERE "professorId" = $1`,
-      [professorId],
-    ),
-    executeQuery(
-      `SELECT id, "courseId", "authorHash", text, scores, "createdAt", "updatedAt"
-       FROM reviews
-       WHERE "professorId" = $1 AND "parentId" IS NULL
-       ORDER BY "createdAt" DESC
-       LIMIT 20`,
       [professorId],
     ),
   ]);
@@ -45,7 +40,24 @@ async function fetchProfessorCore(professorId: string) {
     };
   }
 
-  const baseReviews = reviewsResult.rows.map((r: any) => ({
+  return { statsPerCourse };
+}
+
+// One page of top-level reviews + the reply CTE scoped to just that page's ids.
+async function fetchReviewPage(professorId: string, offset: number, limit: number) {
+  const reviewsResult = await executeQuery(
+    `SELECT id, "courseId", "authorHash", text, scores, "createdAt", "updatedAt"
+     FROM reviews
+     WHERE "professorId" = $1 AND "parentId" IS NULL
+     ORDER BY "createdAt" DESC, id DESC
+     LIMIT $2 OFFSET $3`,
+    [professorId, limit + 1, offset],
+  );
+
+  const pageRows = reviewsResult.rows.slice(0, limit);
+  const hasMore = reviewsResult.rows.length > limit;
+
+  const baseReviews = pageRows.map((r: any) => ({
     id: r.id,
     courseId: r.courseId,
     authorHash: r.authorHash,
@@ -81,15 +93,31 @@ async function fetchProfessorCore(professorId: string) {
     }));
   }
 
-  return { statsPerCourse, baseReviews, baseReplies };
+  return { baseReviews, baseReplies, hasMore };
 }
 
-function getCachedProfessorCore(professorId: string) {
+function getCachedStats(professorId: string) {
   return unstable_cache(
-    () => fetchProfessorCore(professorId),
-    [`prof-details-${professorId}`],
+    () => fetchStats(professorId),
+    [`prof-stats-${professorId}`],
     { revalidate: 300, tags: [`professor-${professorId}`] },
   )();
+}
+
+// offset/limit MUST be explicit key parts, or Next.js serves page 0 for every page.
+function getCachedReviewPage(professorId: string, offset: number, limit: number) {
+  return unstable_cache(
+    () => fetchReviewPage(professorId, offset, limit),
+    [`prof-reviews-${professorId}`, String(offset), String(limit)],
+    { revalidate: 300, tags: [`professor-${professorId}`] },
+  )();
+}
+
+function parseIntParam(value: string | null, fallback: number): number {
+  if (value === null) return fallback;
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed)) return fallback;
+  return parsed;
 }
 
 export async function GET(
@@ -106,9 +134,24 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const voterHash = searchParams.get("voterHash") ?? "";
 
-    // Core data is cached for 5 minutes — only votes are user-specific and fetched fresh.
-    const { statsPerCourse, baseReviews, baseReplies } = await getCachedProfessorCore(normalizedId);
+    const offset = Math.max(0, parseIntParam(searchParams.get("offset"), 0));
+    const limit = Math.min(MAX_LIMIT, Math.max(1, parseIntParam(searchParams.get("limit"), DEFAULT_LIMIT)));
 
+    // Kick the page-independent stats off FIRST, without awaiting, so it runs
+    // alongside the review page + vote queries. Splitting the old single
+    // `Promise.all` into two sequential awaits put `statsPerCourse` — the
+    // per-discipline panel the dialog renders at the top — behind the entire
+    // review page, adding a round-trip to every first open.
+    // The bare `.catch` only registers a handler so an early rejection isn't
+    // reported as unhandled; the awaited copy below still throws into the
+    // outer try/catch.
+    const statsPromise = offset === 0 ? getCachedStats(normalizedId) : null;
+    statsPromise?.catch(() => {});
+
+    // Page-keyed cache under the shared professor tag; only votes are user-specific.
+    const { baseReviews, baseReplies, hasMore } = await getCachedReviewPage(normalizedId, offset, limit);
+
+    // Votes are computed fresh per-request, scoped to just this page's reviews + replies.
     const allIds = [...baseReviews.map((r) => r.id), ...baseReplies.map((r) => r.id)];
     const voteMap: Record<string, { upvotes: number; downvotes: number; myVote: 1 | -1 | 0 }> = {};
 
@@ -140,7 +183,13 @@ export async function GET(
     const reviews = baseReviews.map((r) => ({ ...r, ...(voteMap[r.id] ?? zero) }));
     const replies = baseReplies.map((r) => ({ ...r, ...(voteMap[r.id] ?? zero) }));
 
-    return NextResponse.json({ statsPerCourse, reviews, replies });
+    // First page bundles page-independent stats; later pages omit them entirely.
+    if (statsPromise) {
+      const { statsPerCourse } = await statsPromise;
+      return NextResponse.json({ statsPerCourse, reviews, replies, hasMore });
+    }
+
+    return NextResponse.json({ reviews, replies, hasMore });
   } catch (error) {
     console.error("Error fetching professor details:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

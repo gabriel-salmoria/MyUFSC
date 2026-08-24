@@ -104,6 +104,20 @@ export function buildStudentInfoFromTranscript(
   const semesterToIndex = new Map<string, number>();
   sortedSemesters.forEach((sem, idx) => semesterToIndex.set(sem, idx + 1));
 
+  // Seed `StudentInfo.currentPhase` — which semester the student is actually
+  // in. Prefer the plan index of the semester holding their in-progress
+  // courses; with none, the transcript's last semester is finished, so they are
+  // in the one after it.
+  const inProgressPhases = transcript.inProgress
+    .map((pc) => (pc.semester ? semesterToIndex.get(pc.semester) : undefined))
+    .filter((idx): idx is number => typeof idx === "number");
+  const currentPhase =
+    inProgressPhases.length > 0
+      ? Math.max(...inProgressPhases)
+      : sortedSemesters.length > 0
+        ? sortedSemesters.length + 1
+        : 1;
+
   // Build student courses grouped by phase
   const phaseMap = new Map<number, StudentCourse[]>();
   const addedCourseIds = new Set<string>();
@@ -130,11 +144,13 @@ export function buildStudentInfoFromTranscript(
     );
   }
 
+  // Stored PENDING, not IN_PROGRESS: these courses are "cursando" because of
+  // WHICH semester they sit in, and `currentPhase` (computed below) points at
+  // that semester. Pinning an explicit IN_PROGRESS would freeze them there —
+  // when the student later advances a phase they would still read "cursando"
+  // instead of rolling into the completed back-fill.
   for (const pc of transcript.inProgress) {
-    addToPhase(
-      toStudentCourse(resolve(pc), CourseStatus.IN_PROGRESS),
-      pc.semester,
-    );
+    addToPhase(toStudentCourse(resolve(pc), CourseStatus.PENDING), pc.semester);
   }
 
   for (const pc of transcript.exempted) {
@@ -226,7 +242,7 @@ export function buildStudentInfoFromTranscript(
       ]),
     ),
     currentPlan: 0,
-    currentSemester: "1",
+    currentPhase,
     plans: [plan],
   };
 }

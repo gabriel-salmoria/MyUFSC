@@ -79,9 +79,19 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body className={inter.className}>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+        {/* JSON-LD structured data. Rendered as the innerHTML of a wrapper
+            <div> rather than as a React <script> element: React 19 warns when it
+            renders a <script> tag directly (it can't hoist an inline one), but
+            the browser still parses this string into a real
+            <script type="application/ld+json"> in the DOM for crawlers — it just
+            never executes, which is exactly right for data. The escaped "<"
+            prevents a "</script>" inside the data from breaking out of the tag. */}
+        <div
+          dangerouslySetInnerHTML={{
+            __html: `<script type="application/ld+json">${JSON.stringify(
+              websiteJsonLd,
+            ).replace(/</g, "\\u003c")}</script>`,
+          }}
         />
         <ThemeProvider
           attribute="class"

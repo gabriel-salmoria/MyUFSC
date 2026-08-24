@@ -37,6 +37,7 @@ export function useStudentProfile({
   useEffect(() => {
     // Case 0: Data missing but we have a user ID -> FETCH IT
     if (!storeStudentInfo && !studentInfo && userId && setStoreStudentInfo) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- external async sync, not derivable in render
       setIsProfileLoading(true);
 
       const loadData = async () => {
@@ -67,7 +68,12 @@ export function useStudentProfile({
                 });
               }
 
-              // Hydrate Schedule Cache
+              // Hydrate Schedule Cache. Each value is the SAME envelope
+              // /api/schedule returns — `{ fetchedSemester, availableSemesters,
+              // [degreeId]: blob }` — because these entries are served verbatim
+              // to `fetchClassSchedule` callers on a cache hit. Priming a bare
+              // schedule blob here would leave `useSchedule` unable to resolve
+              // the semester (see the profile route for the full note).
               if (schedules) {
                 Object.entries(schedules).forEach(([degreeId, scheduleData]: [string, any]) => {
                   primeScheduleCache(degreeId, undefined, scheduleData);
@@ -126,6 +132,7 @@ export function useStudentProfile({
 
     // Update previous storeStudentInfo for the next render
     prevStoreStudentInfoRef.current = storeStudentInfo;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: signature-guarded fetch, extra deps would refetch
   }, [storeStudentInfo, isProfileLoading, userId, setStoreStudentInfo, authCheckCompleted]); // router removed as it's not directly used in this effect's logic now
 
   return { studentInfo, setStudentInfo, isProfileLoading };

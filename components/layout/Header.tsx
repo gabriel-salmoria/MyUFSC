@@ -111,6 +111,7 @@ export default function Header({
   const [savingDots, setSavingDots] = useState(1);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- deferred: avoidable derived-state effect, tracked in #31
     if (!isSaving) { setSavingDots(1); return; }
     const interval = setInterval(() => setSavingDots((d) => (d % 3) + 1), 400);
     return () => clearInterval(interval);

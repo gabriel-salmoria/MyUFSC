@@ -12,7 +12,11 @@ try {
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   serverExternalPackages: ["pdf-parse", "pdfjs-dist", "pg"],
-  instrumentationHook: true,
+  // NOTE: no `instrumentationHook`. It was an `experimental` flag in Next 13/14
+  // and is a stable, always-on feature since 15 — Next 16 rejects the key
+  // outright ("Unrecognized key(s) in object"). It was also sitting at the top
+  // level rather than under `experimental`, so it never did anything here.
+  // `instrumentation.ts` is picked up automatically.
 
   typescript: {
     ignoreBuildErrors: true,

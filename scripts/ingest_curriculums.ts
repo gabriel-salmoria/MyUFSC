@@ -4,6 +4,7 @@ import path from "path";
 import * as dotenv from "dotenv";
 import { execSync } from "child_process";
 import { parsePDF } from "../scrapers/curriculum/parser.js";
+import { retagNonDisciplineRequirements } from "../lib/curriculum-tagging";
 
 dotenv.config();
 
@@ -190,6 +191,12 @@ async function ingest() {
       // Override ID and version to ensure consistency
       curriculumData.id = parseInt(courseIdRaw);
       curriculumData.version = parseInt(versionRaw);
+
+      // Re-tag non-discipline requirements (Atividades Complementares) off
+      // `mandatory` so consumers see correct data (issue #11).
+      curriculumData.courses = retagNonDisciplineRequirements(
+        curriculumData.courses,
+      );
 
       // Attempt to get name from course_names.json, fallback to parsed.name
       let rawProgramName = courseNames[courseIdRaw];

@@ -1,2 +1,48 @@
+# pnpm 10 reads dependency settings from HERE, not from package.json.
+# Both an npm-style `overrides` and a `pnpm.overrides` block used to sit in
+# package.json; pnpm silently ignored both (it warns on the latter), so the
+# postcss pin they were meant to enforce never actually applied.
+
+# Postinstall scripts we deliberately do NOT run. Listing them here records the
+# decision; leaving them unlisted makes pnpm print an "Ignored build scripts …
+# run pnpm approve-builds" warning on every clean install, including CI.
 ignoredBuiltDependencies:
+  # Optional next/image dependency this app never uses (see the sharp override).
   - sharp
+  # Both ship prebuilt native binaries via their own optional platform packages,
+  # which pnpm installs from the lockfile — the postinstall only re-verifies
+  # them. Verified: `pnpm test` (tsx -> esbuild) and `pnpm run lint`
+  # (eslint-config-next -> unrs-resolver) both pass with these skipped.
+  - esbuild
+  - unrs-resolver
+
+overrides:
+  # Security. Each entry exists only because the parent package's own range
+  # still points at a vulnerable version — drop the override once the parent
+  # catches up.
+  #
+  # sharp: next 16.2.11 still declares `sharp@^0.34.5`, which excludes the
+  # 0.35.0 that patches the inherited libvips CVEs (GHSA-f88m-g3jw-g9cj).
+  # sharp is an OPTIONAL dep used only for `next/image` optimization, which this
+  # app does not use anywhere, and its build is skipped above — so forcing the
+  # patched major is safe here.
+  sharp: ^0.35.0
+  # postcss: bumping the direct devDependency is not enough — next declares its
+  # OWN `postcss@8.4.31`, and that nested copy is what drags in the vulnerable
+  # nanoid. This is the pin the dead package.json block was reaching for.
+  # Patched postcss requires `nanoid@^3.3.17`, which resolves to the fixed
+  # 3.3.18, so nanoid needs no override of its own.
+  postcss: ^8.5.23
+  # esbuild: reached only through tsx (dev-only, used by `pnpm test`). The
+  # advisory is a Windows-only path traversal in esbuild's own dev server, which
+  # tsx never starts, but the patched version is a drop-in.
+  esbuild: ^0.28.1
+  # ESLint's dependency tree, dev-only. Two majors of brace-expansion are in
+  # play (1.x under eslint>minimatch, 5.x under typescript-eslint), and both
+  # lines have a patched release, so each is pinned by range.
+  brace-expansion@1: ^1.1.18
+  brace-expansion@>=4: ^5.0.9
+  js-yaml@4: ^4.3.1
+  # Carried over from the dead package.json block: keeps recharts and friends on
+  # the React 19 copy of react-is instead of resolving a second, older one.
+  react-is: ^19.0.0

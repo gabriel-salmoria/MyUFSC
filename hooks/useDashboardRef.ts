@@ -10,6 +10,7 @@ export const useDashboardRef = (course: Course | null, isVisible: boolean) => {
 
   useEffect(() => {
     if (!course || !isVisible) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- measure-and-store: reset flag before DOM course-element measurement
       setIsReady(false);
       return;
     }

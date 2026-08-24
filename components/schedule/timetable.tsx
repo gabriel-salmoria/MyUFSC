@@ -15,6 +15,9 @@ import {
   STATUS_CLASSES,
 } from "@/styles/course-theme";
 import { parsescheduleData } from "@/parsers/class-parser";
+import type { ClassSchedule } from "@/parsers/class-parser";
+import { expandToCells } from "@/lib/schedule-conflict";
+import { coveredSlotIndexes, toMinutes } from "@/lib/timetable-time";
 import { useStudentStore } from "@/lib/student-store";
 import { useCourseMap } from "@/hooks/useCourseMap";
 import { useStableValue } from "@/hooks/useStableValue";
@@ -24,6 +27,7 @@ import TimetableGrid from "./timetable-grid";
 import CustomEventModal from "./custom-event-modal";
 import { ProfessorDetailsDialog } from "@/components/professors/professor-details-dialog";
 import { fetchProfessorAggregates } from "@/lib/professors-client";
+import { normalizeProfessorId } from "@/lib/professors";
 import { CalendarPlus2 } from "lucide-react";
 
 const TIMETABLE_COLORS = TIMETABLE_COLOR_CLASSES;
@@ -49,6 +53,7 @@ type ProfessorOverride = {
   courseId: string;
   professorId: string;
   schedule: ScheduleEntry[];
+  slots: ClassSchedule[];
   classNumber: string;
   location: string;
 };
@@ -58,6 +63,7 @@ interface Professor {
   name: string;
   classNumber: string;
   schedule: string;
+  slots: ClassSchedule[];
   enrolledStudents: number;
   maxStudents: number;
 }
@@ -105,7 +111,10 @@ export default function Timetable({
   const setCourseClass = useStudentStore((s) => s.setCourseClass);
   const clearSchedule = useStudentStore((s) => s.clearSchedule);
 
-  const customScheduleEntries = studentInfo?.customScheduleEntries || [];
+  const customScheduleEntries = useMemo(
+    () => studentInfo?.customScheduleEntries || [],
+    [studentInfo?.customScheduleEntries],
+  );
 
   const {
     scheduleData,
@@ -130,7 +139,12 @@ export default function Timetable({
     }));
   };
 
-  const [selectedPhase, setSelectedPhase] = useState<number>(1);
+  // Open on the semester the student is actually enrolled in, not a hardcoded
+  // Fase 1. Lazy initializer, so later phase changes stay user-driven — this
+  // only picks the landing phase. Falls back to 1 for a profile with no phase.
+  const [selectedPhase, setSelectedPhase] = useState<number>(
+    () => studentInfo?.currentPhase ?? 1,
+  );
 
   // Same reasoning as onSemesterChange: a course selected in one phase isn't
   // meaningful once you've switched to viewing a different phase's courses.
@@ -160,7 +174,7 @@ export default function Timetable({
     setModalState({
       open: true,
       editing: false,
-      prefill: { day, startTime: slotId },
+      prefill: { days: [day], startTime: slotId },
     });
   }, []);
 
@@ -215,14 +229,7 @@ export default function Timetable({
 
   const knownTaughtCourses = useMemo(() => {
     if (!detailsProfessorId || !timetableData?.professors) return [];
-    const norm = (s: string) =>
-      s
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .toUpperCase()
-        .replace(/\s+/g, " ")
-        .trim();
-    const targetNorm = norm(detailsProfessorId);
+    const targetNorm = normalizeProfessorId(detailsProfessorId);
     const courses = [];
     for (const [courseId, profs] of Object.entries(timetableData.professors)) {
       if (
@@ -231,7 +238,9 @@ export default function Timetable({
           // p.name may be "Prof A, Prof B" for multi-teacher classes
           const names = p.name.split(",").map((n: string) => n.trim());
           return names.some(
-            (n: string) => n === detailsProfessorId || norm(n) === targetNorm,
+            (n: string) =>
+              n === detailsProfessorId ||
+              normalizeProfessorId(n) === targetNorm,
           );
         })
       ) {
@@ -241,47 +250,28 @@ export default function Timetable({
     return courses;
   }, [detailsProfessorId, timetableData]);
 
+  // Build the override straight from the section's structured `slots`
+  // (parsers/class-parser.ts) instead of regex-reparsing the human-readable
+  // `professor.schedule` string. `ClassSchedule` and `ScheduleEntry` share a
+  // shape, so this is a direct map — and it keeps a single source of truth for
+  // per-section times (also feeding lib/schedule-conflict.ts).
   const parseScheduleForProfessor = (
     professorData: Professor,
     course: StudentCourse,
   ): ProfessorOverride | null => {
-    const scheduleText = professorData.schedule;
-    const scheduleEntries: ScheduleEntry[] = [];
-    const courseId = course.courseId;
-
-    if (scheduleText) {
-      const timeSlots = scheduleText.split(",").map((s) => s.trim());
-      timeSlots.forEach((timeSlot) => {
-        const daysAndTimeMatch = timeSlot.match(
-          /^(.+?) (\d+:\d+-\d+:\d+)(.*)$/,
-        );
-        if (daysAndTimeMatch) {
-          const [_, daysStr, timeRange, locationPart] = daysAndTimeMatch;
-          const days = daysStr.split("/");
-          const [startTime, endTime] = timeRange.split("-");
-          const slotLocation = locationPart ? locationPart.trim() : "";
-
-          days.forEach((dayName) => {
-            const dayIndex =
-              TIMETABLE.DAYS_MAP[
-                dayName.trim() as keyof typeof TIMETABLE.DAYS_MAP
-              ];
-            if (dayIndex === undefined || !startTime || !endTime) return;
-            scheduleEntries.push({
-              day: dayIndex,
-              startTime,
-              endTime,
-              location: slotLocation,
-            });
-          });
-        }
-      });
-    }
+    const slots = professorData.slots ?? [];
+    const scheduleEntries: ScheduleEntry[] = slots.map((slot) => ({
+      day: slot.day,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      location: slot.location ?? "",
+    }));
 
     return {
-      courseId,
+      courseId: course.courseId,
       professorId: professorData.professorId,
       schedule: scheduleEntries,
+      slots,
       classNumber: professorData.classNumber,
       location: scheduleEntries[scheduleEntries.length - 1]?.location || "",
     };
@@ -341,7 +331,6 @@ export default function Timetable({
         .then((data) => setProfessorAggregates(data))
         .catch(console.error);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPhaseCourseIdsKey, aggregatesRefreshKey]);
 
   const handleProfessorSelect = (
@@ -358,7 +347,7 @@ export default function Timetable({
     }
   };
 
-  // ─── Build course schedule grid (now includes customEntries per cell) ──────
+  // ─── Build course schedule grid (courses + custom events, per cell) ────────
   const courseSchedule = useMemo(() => {
     const schedule: Record<
       string,
@@ -370,7 +359,7 @@ export default function Timetable({
             isConflicting: boolean;
             location?: string;
           }[];
-          customEntries: CustomScheduleEntry[];
+          customEntries: { entry: CustomScheduleEntry }[];
         }
       >
     > = {};
@@ -382,41 +371,31 @@ export default function Timetable({
       });
     });
 
-    // Place course overrides
+    // Place course overrides. Cell expansion (which grid cells a section spans)
+    // is delegated to lib/schedule-conflict.ts so the timetable and the plan
+    // generator share one boundary rule. We expand per slot to keep each cell's
+    // location metadata for rendering.
     professorOverrides.forEach((override) => {
       const course = selectedPhaseCourses.find(
         (c) => c.courseId === override.courseId,
       );
       if (!course) return;
 
-      override.schedule.forEach((entry) => {
-        const { day, startTime, endTime, location } = entry;
-        if (!endTime) return;
+      const resolvedCourse = courseMap.get(course.courseId);
+      if (!resolvedCourse) return;
+      const viewCourse: ViewStudentCourse = { ...course, course: resolvedCourse };
 
-        const startSlotIndex = TIMETABLE.TIME_SLOTS.findIndex(
-          (slot) => slot.id === startTime,
-        );
-        if (startSlotIndex === -1) return;
-
-        const endSlotIndex = TIMETABLE.TIME_SLOTS.findIndex((slot) => {
-          const slotTime = parseInt(slot.id.replace(":", ""));
-          const eTime = parseInt(endTime.replace(":", ""));
-          return slotTime >= eTime;
-        });
-        const lastSlotIndex =
-          endSlotIndex === -1 ? TIMETABLE.TIME_SLOTS.length : endSlotIndex;
-
-        const resolvedCourse = courseMap.get(course.courseId);
-        if (!resolvedCourse) return;
-        const viewCourse: ViewStudentCourse = { ...course, course: resolvedCourse };
-        for (let i = startSlotIndex; i < lastSlotIndex; i++) {
-          const slotId = TIMETABLE.TIME_SLOTS[i].id;
+      override.slots.forEach((slot) => {
+        expandToCells([slot]).forEach((cell) => {
+          const [dayStr, slotIndexStr] = cell.split(":");
+          const day = parseInt(dayStr, 10);
+          const slotId = TIMETABLE.TIME_SLOTS[parseInt(slotIndexStr, 10)].id;
           schedule[slotId][day].courses.push({
             course: viewCourse,
             isConflicting: false,
-            location,
+            location: slot.location,
           });
-        }
+        });
       });
     });
 
@@ -430,31 +409,33 @@ export default function Timetable({
       });
     });
 
-    // Place custom entries
+    // Custom events occupy whole cells, exactly like class sections. The
+    // previous free-positioned overlay drew each event as one continuous card
+    // spanning start→end, which cannot be right on a grid with gaps: an event
+    // running past 11:50 stretched across the unrepresented lunch break.
+    // `coveredSlotIndexes` overlap-tests each row's real 50-minute period, so
+    // the gap is skipped instead of papered over. The stored start/end times
+    // are untouched — the .ics export still emits one continuous VEVENT.
     visibleCustomEntries.forEach((entry) => {
-      const startSlotIndex = TIMETABLE.TIME_SLOTS.findIndex(
-        (slot) => slot.id === entry.startTime,
-      );
-      if (startSlotIndex === -1) return;
-
-      const endSlotIndex = TIMETABLE.TIME_SLOTS.findIndex((slot) => {
-        const slotTime = parseInt(slot.id.replace(":", ""));
-        const eTime = parseInt(entry.endTime.replace(":", ""));
-        return slotTime >= eTime;
+      const startMin = toMinutes(entry.startTime);
+      const endMin = toMinutes(entry.endTime);
+      const covered = coveredSlotIndexes(startMin, endMin);
+      entry.days.forEach((day) => {
+        if (day < 0 || day >= TIMETABLE.DAYS.length) return;
+        covered.forEach((slotIndex) => {
+          const slotId = TIMETABLE.TIME_SLOTS[slotIndex].id;
+          schedule[slotId][day].customEntries.push({ entry });
+        });
       });
-      const lastSlotIndex =
-        endSlotIndex === -1 ? TIMETABLE.TIME_SLOTS.length : endSlotIndex;
-
-      for (let i = startSlotIndex; i < lastSlotIndex; i++) {
-        const slotId = TIMETABLE.TIME_SLOTS[i].id;
-        if (schedule[slotId]?.[entry.day]) {
-          schedule[slotId][entry.day].customEntries.push(entry);
-        }
-      }
     });
 
     return schedule;
-  }, [selectedPhaseCourses, professorOverrides, visibleCustomEntries]);
+  }, [
+    selectedPhaseCourses,
+    professorOverrides,
+    courseMap,
+    visibleCustomEntries,
+  ]);
 
   const courseColorMap = useMemo(() => {
     selectedPhaseCourses.forEach((course) => {
@@ -561,16 +542,18 @@ export default function Timetable({
       });
     });
 
-    // Export custom entries
+    // Export custom entries — one VEVENT per weekday the event repeats on.
     visibleCustomEntries.forEach((entry) => {
-      addEvent(
-        entry.title,
-        entry.subtitle || "",
-        entry.day,
-        entry.startTime,
-        entry.endTime,
-        "",
-      );
+      entry.days.forEach((day) => {
+        addEvent(
+          entry.title,
+          entry.subtitle || "",
+          day,
+          entry.startTime,
+          entry.endTime,
+          "",
+        );
+      });
     });
 
     icsContent += "END:VCALENDAR\r\n";

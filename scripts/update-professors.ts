@@ -1,5 +1,6 @@
 import { Client } from "pg";
 import * as dotenv from "dotenv";
+import { normalizeProfessorId } from "@/lib/professors";
 
 dotenv.config();
 
@@ -9,14 +10,7 @@ if (!DB_CONNECTION_STRING) {
   process.exit(1);
 }
 
-export function normalizeProfessorName(name: string): string {
-  return name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toUpperCase()
-    .replace(/\s+/g, " ")
-    .trim();
-}
+const normalizeProfessorName = normalizeProfessorId;
 
 async function updateProfessors() {
   const client = new Client({

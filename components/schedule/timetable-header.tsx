@@ -34,15 +34,24 @@ export default function TimetableHeader({
     return `${sem.substring(0, 4)}.${sem.substring(4)}`;
   };
 
+  const hasSemesterOptions =
+    (availableSemesters?.length ?? 0) > 0 || !!selectedSemester;
+
   return (
     <div className="flex items-center justify-between mb-6">
       <div className="flex items-center gap-4">
         <h2 className="section-heading">Cronograma Semanal</h2>
         <div className="flex items-center gap-2">
+          {/* With no semesters AND no selection the fallback <option> used to
+              render an empty string, i.e. a blank box that looks like a broken
+              control. Show a placeholder and disable the select instead — there
+              is nothing to pick until the schedule resolves. */}
           <select
             value={selectedSemester}
             onChange={(e) => onSemesterChange(e.target.value)}
-            className="bg-background border border-border rounded px-3 py-1 text-sm text-foreground"
+            disabled={!hasSemesterOptions}
+            aria-label="Semestre"
+            className="bg-background border border-border rounded px-3 py-1 text-sm text-foreground disabled:opacity-60"
           >
             {availableSemesters && availableSemesters.length > 0 ? (
               availableSemesters.map((sem) => (
@@ -52,7 +61,7 @@ export default function TimetableHeader({
               ))
             ) : (
               <option value={selectedSemester}>
-                {formatSemester(selectedSemester)}
+                {selectedSemester ? formatSemester(selectedSemester) : "—"}
               </option>
             )}
           </select>

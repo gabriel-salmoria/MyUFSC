@@ -151,6 +151,7 @@ export function DegreeSelector({
     // Sync input with selection when not open
     React.useEffect(() => {
         if (!open && selectedProgram) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- deferred: avoidable derived-state effect, tracked in #31
             setInputValue(parseProgramName(selectedProgram.name).baseName);
         }
     }, [open, selectedProgram]);

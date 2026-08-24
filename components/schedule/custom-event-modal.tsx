@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TIMETABLE } from "@/styles/visualization";
 import { TIMETABLE_COLOR_CLASSES } from "@/styles/course-theme";
@@ -8,26 +8,29 @@ import type { CustomScheduleEntry } from "@/types/student-plan";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Copy, Trash2, X } from "lucide-react";
+import { PERIOD_MINUTES, toHHMM, toMinutes } from "@/lib/timetable-time";
 
 function generateId() {
   return `custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-// Returns the slot id immediately after the given slot id (stays at last if already there)
-function nextSlotId(slotId: string): string {
-  const idx = TIMETABLE.TIME_SLOTS.findIndex((s) => s.id === slotId);
-  if (idx === -1 || idx >= TIMETABLE.TIME_SLOTS.length - 1)
-    return TIMETABLE.TIME_SLOTS[Math.max(0, idx)].id;
-  return TIMETABLE.TIME_SLOTS[idx + 1].id;
+/** Every period start on the grid, 24h — "07:30" … "21:10". */
+const PERIOD_STARTS: string[] = TIMETABLE.TIME_SLOTS.map((s) => s.id);
+
+/**
+ * Every period END, 24h. A period is 50 minutes, so these are the slot starts
+ * shifted by one period — including 11:50 (end of the pre-lunch block) and
+ * 22:00 (end of the last one), neither of which is a slot start.
+ */
+const PERIOD_ENDS: string[] = PERIOD_STARTS.map((t) =>
+  toHHMM(toMinutes(t) + PERIOD_MINUTES),
+);
+
+/** Default end = the end of the period the event starts in. */
+function defaultEnd(startTime: string): string {
+  return toHHMM(toMinutes(startTime) + PERIOD_MINUTES);
 }
 
 interface CustomEventModalProps {
@@ -52,37 +55,49 @@ export default function CustomEventModal({
   const defaultStart = initialEntry?.startTime ?? TIMETABLE.TIME_SLOTS[0].id;
   const [title, setTitle] = useState(initialEntry?.title ?? "");
   const [subtitle, setSubtitle] = useState(initialEntry?.subtitle ?? "");
-  const [day, setDay] = useState<number>(initialEntry?.day ?? 0);
+  const [days, setDays] = useState<number[]>(initialEntry?.days ?? []);
   const [startTime, setStartTime] = useState(defaultStart);
   const [endTime, setEndTime] = useState(
-    initialEntry?.endTime ?? nextSlotId(defaultStart),
+    initialEntry?.endTime ?? defaultEnd(defaultStart),
   );
   const [color, setColor] = useState(
     initialEntry?.color ?? TIMETABLE_COLOR_CLASSES[0],
   );
-  const [recurring, setRecurring] = useState(initialEntry?.recurring ?? true);
+  // Default OFF: a personal event belongs to the semester you are living
+  // through, not to every phase of the whole degree. Repeating it forever is
+  // the exception, so it should be the deliberate choice.
+  const [recurring, setRecurring] = useState(initialEntry?.recurring ?? false);
+
+  // Only ends after the chosen start. Keeps the stored value visible even when
+  // it is a legacy free-form time that isn't on a period boundary.
+  const endOptions = useMemo(() => {
+    const startMin = toMinutes(startTime);
+    const options = PERIOD_ENDS.filter((t) => toMinutes(t) > startMin);
+    return options.includes(endTime)
+      ? options
+      : [endTime, ...options].sort((a, b) => toMinutes(a) - toMinutes(b));
+  }, [startTime, endTime]);
 
   useEffect(() => {
     if (open) {
       const newStart = initialEntry?.startTime ?? TIMETABLE.TIME_SLOTS[0].id;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- deferred: avoidable derived-state effect, tracked in #31
       setTitle(initialEntry?.title ?? "");
       setSubtitle(initialEntry?.subtitle ?? "");
-      setDay(initialEntry?.day ?? 0);
+      setDays(initialEntry?.days ?? []);
       setStartTime(newStart);
-      // Default end = next slot after start (unless editing an existing entry)
-      setEndTime(initialEntry?.endTime ?? nextSlotId(newStart));
+      // Default end = end of the starting period (unless editing an entry)
+      setEndTime(initialEntry?.endTime ?? defaultEnd(newStart));
       setColor(initialEntry?.color ?? TIMETABLE_COLOR_CLASSES[0]);
-      setRecurring(initialEntry?.recurring ?? true);
+      setRecurring(initialEntry?.recurring ?? false);
     }
   }, [open, initialEntry]);
 
   // When user changes start time, auto-bump end time if it's now <= start
   const handleStartTimeChange = (newStart: string) => {
     setStartTime(newStart);
-    const startIdx = TIMETABLE.TIME_SLOTS.findIndex((s) => s.id === newStart);
-    const endIdx = TIMETABLE.TIME_SLOTS.findIndex((s) => s.id === endTime);
-    if (endIdx <= startIdx) {
-      setEndTime(nextSlotId(newStart));
+    if (toMinutes(endTime) <= toMinutes(newStart)) {
+      setEndTime(defaultEnd(newStart));
     }
   };
 
@@ -93,15 +108,28 @@ export default function CustomEventModal({
     if (lastEntry.color) setColor(lastEntry.color);
   };
 
+  const toggleDay = (d: number) => {
+    setDays((prev) =>
+      prev.includes(d)
+        ? prev.filter((x) => x !== d)
+        : [...prev, d].sort((a, b) => a - b),
+    );
+  };
+
   const handleSave = () => {
-    if (!title.trim()) return;
+    if (!title.trim() || days.length < 1) return;
+    // Free time inputs allow end <= start; keep at least a 30-min block.
+    const safeEnd =
+      toMinutes(endTime) > toMinutes(startTime)
+        ? endTime
+        : toHHMM(toMinutes(startTime) + 30);
     onSave({
       id: initialEntry?.id ?? generateId(),
       title: title.trim(),
       subtitle: subtitle.trim() || undefined,
-      day,
+      days,
       startTime,
-      endTime,
+      endTime: safeEnd,
       color,
       recurring,
       scopedToPhase: recurring ? undefined : currentPhase,
@@ -139,7 +167,7 @@ export default function CustomEventModal({
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.2 }}
-        className="bg-background border border-border sm:rounded-lg shadow-xl w-full max-w-md p-6 relative"
+        className="bg-background border border-border sm:rounded-lg shadow-xl w-full max-w-lg p-6 relative"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close button */}
@@ -203,57 +231,75 @@ export default function CustomEventModal({
               />
             </div>
 
-            {/* Dia */}
+            {/* Dias */}
             <div className="grid gap-1.5">
-              <Label>Dia</Label>
-              <Select
-                value={String(day)}
-                onValueChange={(v) => setDay(Number(v))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIMETABLE.DAYS.map((d, i) => (
-                    <SelectItem key={i} value={String(i)}>
+              <Label>Dias</Label>
+              {/* `flex-auto` (basis: auto), not `flex-1` (basis: 0). With a
+                  0-basis plus an explicit `min-w`, every button got the SAME
+                  width regardless of its label and CSS's default
+                  `min-width: auto` was overridden — so "Segunda", the longest
+                  weekday, was squeezed and its text spilled past the border.
+                  Sizing from content lets each button be as wide as its label
+                  needs, and `flex-wrap` handles a narrow viewport. */}
+              <div className="flex gap-1.5 flex-wrap">
+                {TIMETABLE.DAYS.map((d, i) => {
+                  const selected = days.includes(i);
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => toggleDay(i)}
+                      className={`flex-auto whitespace-nowrap rounded-md border px-2 py-1.5 text-sm font-medium transition-colors ${
+                        selected
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      }`}
+                    >
                       {d}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Início / Fim */}
+            {/* Início / Fim — the grid's own period slots, in 24h.
+                Previously two native <input type="time">: those render in the
+                browser's locale, so a pt-BR user got a segmented "10:10 AM /
+                01:-- PM" that cannot be forced to 24h from HTML, and every
+                edit meant tabbing through HH / MM / AM-PM. Selects show exactly
+                "17:10", and picking real period boundaries is also what makes
+                the event land cleanly on grid cells. */}
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
-                <Label>Início</Label>
-                <Select value={startTime} onValueChange={handleStartTimeChange}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIMETABLE.TIME_SLOTS.map((slot) => (
-                      <SelectItem key={slot.id} value={slot.id}>
-                        {slot.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="ce-start">Início</Label>
+                <select
+                  id="ce-start"
+                  value={startTime}
+                  onChange={(e) => handleStartTimeChange(e.target.value)}
+                  className="bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground tabular-nums"
+                >
+                  {PERIOD_STARTS.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="grid gap-1.5">
-                <Label>Fim</Label>
-                <Select value={endTime} onValueChange={setEndTime}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIMETABLE.TIME_SLOTS.map((slot) => (
-                      <SelectItem key={slot.id} value={slot.id}>
-                        {slot.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="ce-end">Fim</Label>
+                <select
+                  id="ce-end"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  className="bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground tabular-nums"
+                >
+                  {endOptions.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -317,7 +363,10 @@ export default function CustomEventModal({
               <Button variant="outline" onClick={onClose}>
                 Cancelar
               </Button>
-              <Button onClick={handleSave} disabled={!title.trim()}>
+              <Button
+                onClick={handleSave}
+                disabled={!title.trim() || days.length < 1}
+              >
                 {isEditing ? "Salvar" : "Adicionar"}
               </Button>
             </div>

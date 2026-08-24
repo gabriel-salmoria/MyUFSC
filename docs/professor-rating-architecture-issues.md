@@ -19,6 +19,8 @@ When a review is submitted via `ProfessorDetailsDialog`, `onReviewChanged` fires
 
 More importantly: the `ProfessorSearch` component (the search modal in the sidebar) shows professor rating badges fetched at search time and cached locally in `useState`. These **never** get invalidated after a review is submitted. If you close the dialog and re-open the search, you see the old rating until you re-type the query.
 
+**Status:** RESOLVED (Sprint 08). The `ProfessorSearch` staleness half of this is fixed — see item 4.3. `onReviewChanged` in `timetable.tsx` now bumps a `searchRefreshTrigger` that clears `ProfessorSearch`'s cached results. (The aggregates-badge re-fetch delay described in the first paragraph is by design and remains as-is.)
+
 ---
 
 ## 2. Data / Correctness Bugs
@@ -39,12 +41,16 @@ Fix: change to `SET text = $1, scores = $2, "updatedAt" = NOW()`.
 ### 2.2 User's own vote not persisted anywhere
 `voteState` lives entirely in component state inside `ProfessorDetailsSection`. When the dialog closes and reopens, `voteState` resets to `{}`. The `/api/professors/[id]/details` endpoint returns total `upvotes`/`downvotes` per review but **no `myVote` field**. So on reopen, the user sees all vote buttons as neutral even if they voted previously. The server has the data (`review_votes` table with `voterHash`), but it's never queried with the user's hash.
 
+**Status:** RESOLVED. The details route now queries `review_votes` with the caller's `voterHash` (`MAX(CASE WHEN "voterHash" = $2 ...) AS "myVote"`) and returns `myVote` per review; `ProfessorDetailsSection` initializes `voteState` from that on load, so vote highlighting survives reopen. (Same fix closes item 4.1.)
+
 ### 2.3 `WriteReviewDialog` missing `onReviewChanged`
 **File:** `components/schedule/timetable.tsx`, line 669–676
 
 `WriteReviewDialog` is rendered without any `onReviewChanged` callback. Submitting a review through it does not trigger `aggregatesRefreshKey++`, so the timetable's professor badges don't update.
 
 Additionally, the `onWriteReview` prop received by `ProfessorDetailsSection` (which is supposed to open this dialog) is **never called anywhere inside the component**. The dialog is effectively unreachable from its intended path — it's orphaned dead code.
+
+**Status:** RESOLVED. `WriteReviewDialog` and the `onWriteReview` prop/plumbing have been removed entirely (no file, no references remain). The inline compose box in `ProfessorDetailsSection` is now the single review-compose path. This also closes items 3.5 (two parallel compose implementations) and 6.2 (`onWriteReview` prop unused).
 
 ---
 
@@ -61,6 +67,8 @@ Every mutation (submit review, edit review, delete review, submit reply, edit re
 
 Better: patch local state on mutation success (add the new review to `reviews[]`, update the stats object), and only re-fetch in the background to sync.
 
+**Status:** RESOLVED. The `refreshKey` full-reload pattern is gone (`professor-details-dialog.tsx` no longer defines or increments a `refreshKey`). Mutations now patch local state directly: submit/reply append the new node to `reviews[]`/`replies[]` and seed its `voteState`; deletes/edits patch in place. Sprint 08's US-1 "carregar mais" also appends later pages additively via local patch rather than reloading.
+
 ### 3.2 Vote counts fetched in multiple separate queries
 **File:** `app/api/professors/[id]/details/route.ts`
 
@@ -73,13 +81,19 @@ The same normalization logic (NFD → strip accents → uppercase → trim) is c
 
 It's also duplicated in `professor-selector.tsx` as `normalizeProfName`. Should live in a single shared utility.
 
+**Status:** RESOLVED. All three sites now import `normalizeProfessorId` from `@/lib/professors`: the details route, the reviews route, and `professor-selector.tsx` (the local `normalizeProfName` copy is gone). The normalization logic lives in a single shared utility.
+
 ### 3.4 No pagination
 **File:** `app/api/professors/[id]/details/route.ts`, line 51
 
 Reviews are fetched with `LIMIT 20` and no offset or cursor. Reviews older than the 20th are permanently invisible. There's no "load more" on the frontend either. As usage grows, this will silently discard data.
 
+**Status:** ADDRESSED — Sprint 08 US-1 (T5 backend, commit 904d462; T6 frontend, commit 4b22f82). The details route now takes `?offset`/`?limit`, detects `hasMore` via `LIMIT limit+1`, and page-keys the `unstable_cache` entry by offset+limit under the shared `professor-${id}` tag. The dialog renders a "Carregar mais" button that appends later pages via local patch. **Remaining gap (accepted, out of scope):** a user's own review that lands on a later page is not surfaced/pinned on first open — pre-existing behavior, tracked separately.
+
 ### 3.5 Two parallel implementations of the review compose form
 `ProfessorDetailsSection` has a full inline compose box (stars + textarea + submit). `WriteReviewDialog` is a separate dialog with its own star rating component (`StarRating` vs `StarColumn`), its own validation, its own submit handler. They do the same thing with different UX and no shared code. The dialog one doesn't support editing existing reviews. One should be removed or both refactored to share a base component.
+
+**Status:** RESOLVED. `WriteReviewDialog` was removed (see item 2.3); the inline compose box in `ProfessorDetailsSection` is now the only implementation.
 
 ---
 
@@ -87,6 +101,8 @@ Reviews are fetched with `LIMIT 20` and no offset or cursor. Reviews older than 
 
 ### 4.1 `voteState` resets on dialog close
 When the user closes `ProfessorDetailsDialog` and reopens it, all optimistic vote state is gone. The reviews re-load with the correct server totals, but the user's own vote buttons (which button is highlighted) appear unvoted. This is because `myVote` is never retrieved from the server.
+
+**Status:** RESOLVED (same fix as item 2.2). `myVote` is now returned by the details route and used to seed `voteState`, so the correct vote button stays highlighted across dialog reopen.
 
 ### 4.2 `replyText` shared across all reply boxes
 **File:** `components/professors/professor-details-dialog.tsx`
@@ -101,6 +117,8 @@ Fix: either reset `replyText` when `replyingTo` changes, or move text state into
 Search results are stored in local `useState<ProfessorSearchResult[]>` and are only refreshed when the user types a new query. The `ProfessorSearch` component has no way to receive an external "invalidate" signal. After rating a professor:
 - The rating badge in the search results still shows the old overall score.
 - The review count is still the old count.
+
+**Status:** RESOLVED. `ProfessorSearch` now accepts a `refreshTrigger` prop; a bump clears its cached `results` so the next query re-fetches. It is wired via `course-stats.tsx` from the dialog's `onReviewChanged`, which increments `searchRefreshTrigger` on every review submit.
 
 ### 4.4 `getAnonymousUserId` called repeatedly per render
 **Files:** `professor-details-dialog.tsx`
@@ -166,6 +184,8 @@ The search API returns `LIMIT 20` results. The frontend slices to 50. The keyboa
 
 `ProfessorDetailsSection` accepts an `onWriteReview` prop in its signature but never calls it. The prop is passed through from `ProfessorDetailsDialog` all the way from `timetable.tsx`, but the actual compose box is inline in `ProfessorDetailsSection` itself. The prop and all its plumbing can be removed.
 
+**Status:** RESOLVED. The `onWriteReview` prop and its plumbing have been removed (see item 2.3).
+
 ### 6.3 `handleDeleteReview` reused as reply delete handler
 **File:** `professor-details-dialog.tsx`, line 1308
 
@@ -175,28 +195,30 @@ The search API returns `LIMIT 20` results. The frontend slices to 50. The keyboa
 
 ## Summary Table
 
-| # | Issue | Severity | Type |
-|---|-------|----------|------|
-| 1.1 | Vote optimistic update — rapid clicks | Low | UX |
-| 1.2 | Professor badge stale in search after rating | Medium | UX / Bug |
-| 2.1 | `createdAt` reset on edit, `updatedAt` never set | High | Bug |
-| 2.2 | `myVote` not returned from API, lost on reopen | Medium | Bug |
-| 2.3 | `WriteReviewDialog` orphaned, no `onReviewChanged` | Medium | Bug |
-| 3.1 | Full re-fetch on every mutation | High | Architecture |
-| 3.2 | Vote counts in 2 extra queries per load | Medium | Performance |
-| 3.3 | `normalizeId` duplicated in 3+ places | Low | Code quality |
-| 3.4 | No pagination (LIMIT 20, no cursor) | High | Architecture |
-| 3.5 | Two parallel compose form implementations | Medium | Code quality |
-| 4.1 | `voteState` reset on dialog close | Medium | UX |
-| 4.2 | `replyText` shared across all reply boxes | Low | UX / Bug |
-| 4.3 | `ProfessorSearch` results never invalidated | Medium | UX |
-| 4.4 | `getAnonymousUserId` called many times per render | Low | Performance |
-| 4.5 | `getOverallStats` not memoized | Low | Performance |
-| 5.1 | No loading state for reply/edit/delete | Low | UX |
-| 5.2 | Soft-deleted reviews clutter the mural | Low | UX |
-| 5.3 | `VoteSidebar.disabled` always false | Low | Code quality |
-| 5.4 | Dual input elements in `ProfessorSearch` | Low | UX |
-| 5.5 | Search slice to 50, API returns max 20 | Low | Code quality |
-| 6.1 | 17-prop drilling in `ReplyThread` | Medium | Code quality |
-| 6.2 | `onWriteReview` prop accepted but never called | Low | Code quality |
-| 6.3 | Reply delete triggers `onReviewChanged` unnecessarily | Low | Bug |
+Status legend: blank = still open · **RESOLVED** = fixed in code · **ADDRESSED (S08)** = fixed by Sprint 08 with a documented remaining gap.
+
+| # | Issue | Severity | Type | Status |
+|---|-------|----------|------|--------|
+| 1.1 | Vote optimistic update — rapid clicks | Low | UX | |
+| 1.2 | Professor badge stale in search after rating | Medium | UX / Bug | RESOLVED (search half) |
+| 2.1 | `createdAt` reset on edit, `updatedAt` never set | High | Bug | |
+| 2.2 | `myVote` not returned from API, lost on reopen | Medium | Bug | RESOLVED |
+| 2.3 | `WriteReviewDialog` orphaned, no `onReviewChanged` | Medium | Bug | RESOLVED |
+| 3.1 | Full re-fetch on every mutation | High | Architecture | RESOLVED |
+| 3.2 | Vote counts in 2 extra queries per load | Medium | Performance | |
+| 3.3 | `normalizeId` duplicated in 3+ places | Low | Code quality | RESOLVED |
+| 3.4 | No pagination (LIMIT 20, no cursor) | High | Architecture | ADDRESSED (S08) |
+| 3.5 | Two parallel compose form implementations | Medium | Code quality | RESOLVED |
+| 4.1 | `voteState` reset on dialog close | Medium | UX | RESOLVED |
+| 4.2 | `replyText` shared across all reply boxes | Low | UX / Bug | |
+| 4.3 | `ProfessorSearch` results never invalidated | Medium | UX | RESOLVED |
+| 4.4 | `getAnonymousUserId` called many times per render | Low | Performance | |
+| 4.5 | `getOverallStats` not memoized | Low | Performance | |
+| 5.1 | No loading state for reply/edit/delete | Low | UX | |
+| 5.2 | Soft-deleted reviews clutter the mural | Low | UX | |
+| 5.3 | `VoteSidebar.disabled` always false | Low | Code quality | |
+| 5.4 | Dual input elements in `ProfessorSearch` | Low | UX | |
+| 5.5 | Search slice to 50, API returns max 20 | Low | Code quality | |
+| 6.1 | 17-prop drilling in `ReplyThread` | Medium | Code quality | |
+| 6.2 | `onWriteReview` prop accepted but never called | Low | Code quality | RESOLVED |
+| 6.3 | Reply delete triggers `onReviewChanged` unnecessarily | Low | Bug | |

@@ -18,7 +18,7 @@ interface StudentInfo {
   interestedDegrees: string[];    // Additional degrees being tracked
   name: string;
   currentPlan: number;            // Index into plans[]
-  currentSemester: string;
+  currentPhase: number;           // The plan semester the student is enrolled in NOW
   plans: StudentPlan[];
   customScheduleEntries?: CustomScheduleEntry[];
 }
@@ -45,11 +45,11 @@ interface StudentCourse {
 |---|---|---|
 | `selectedCourse` | `Course \| null` | Currently focused course for the details panel |
 | `selectedStudentCourse` | `StudentCourse \| null` | Paired `StudentCourse` for the selected course |
-| `selectedSchedule` / `selectedStudentSchedule` | same | Parallel selection state — currently unused |
+| `selectedSchedule` / `selectedStudentSchedule` | same | Timetable's professor-selection state — set by `selectSchedule`/`clearSchedule` when a course row is clicked in `CourseList`, read by `CourseStats` to drive the live professor-stats panel |
 | `isAuthenticated` | `boolean` | Whether the user has a valid session |
 | `userId` | `string \| null` | The hashed username (server-side user ID) |
 | `authCheckCompleted` | `boolean` | Whether the auth check API call has returned |
-| `curriculumCache` | `Record<string, Course[]>` | In-memory map of degree ID → parsed `Course[]` |
+| `curriculumCache` | `Record<string, Curriculum>` | In-memory map of degree ID → full parsed `Curriculum` (the single, unified curriculum cache) |
 
 ---
 
@@ -71,7 +71,9 @@ All course mutations use Immer's `produce` to write immutable updates. Each acti
 
 ### `addCourseToSemester(course, semesterNumber)`
 - Guards against duplicates by scanning all semesters.
-- Creates a `StudentCourse` with `CourseStatus.PLANNED`.
+- Creates a `StudentCourse` with `CourseStatus.PENDING` — status is positional
+  (see *Positional course status* below), so hardcoding `PLANNED` would pin a
+  course dropped into a past or current semester as "planejada".
 - Appends to the target semester and updates `totalCredits`.
 
 ### `moveCourse(studentCourse, targetSemesterNumber)`
@@ -101,13 +103,13 @@ All course mutations use Immer's `produce` to write immutable updates. Each acti
 
 ## Curriculum Cache
 
-`curriculumCache: Record<string, Course[]>` maps degree IDs to their parsed `Course[]` arrays. It serves as the in-memory lookup used by `useCourseMap` to resolve course IDs to full `Course` objects at render time.
+`curriculumCache: Record<string, Curriculum>` maps degree IDs to their full parsed `Curriculum` objects. It is the single in-memory lookup used by `useCourseMap` (via `curriculum.courses`) to resolve course IDs to full `Course` objects at render time.
 
-The `cacheCurriculum(degreeId, courses)` action:
+The `cacheCurriculum(degreeId, curriculum)` action:
 1. Writes the new entry.
 2. Evicts any entries whose degree IDs are no longer in `studentInfo.currentDegree` or `interestedDegrees`, preventing stale cache growth when the student changes their degree selection.
 
-Note: `useCurriculum` maintains a parallel cache of full `Curriculum` objects (not just `Course[]`) in its own local state (`curriculumsCache`). The two caches serve different consumers: the Zustand cache is consumed by visualizers and timetable for fast course lookups; the hook cache is consumed by the curriculum header, degree selector, and for re-rendering the phase grid.
+There is **no** parallel curriculum cache. `useCurriculum` (`hooks/setup/UseCurriculum.ts`) and every consumer — visualizers, timetable, curriculum header, degree selector, `available-courses-modal`, `plan-generator-modal`, `search-popup`, `professor-details-dialog`, `useCourseMap` — read and write this one Zustand cache. (A previous `curriculumsCache` in the hook's local state has been removed; the store cache is the sole source of truth.)
 
 ---
 
@@ -139,14 +141,54 @@ Actions: `addCustomScheduleEntry`, `removeCustomScheduleEntry`, `updateCustomSch
 
 ```ts
 enum CourseStatus {
-  PENDING    = "pending",      // Not started, not yet planned
-  IN_PROGRESS = "inProgress",  // Currently enrolled this semester
+  PENDING    = "pending",      // No explicit status — DERIVE it from position
+  IN_PROGRESS = "inProgress",  // Currently enrolled (derived, or a manual override)
   COMPLETED  = "completed",    // Passed
   FAILED     = "failed",       // Failed, needs retake
   EXEMPTED   = "exempted",     // Credited from another institution
-  PLANNED    = "planned",      // Added to a future semester in the plan
+  PLANNED    = "planned",      // Still ahead (derived, or a manual override)
   DEFAULT    = "default",      // Not in plan — used by visualizers for unplanned curriculum slots
 }
 ```
 
 `DEFAULT` is never stored in `StudentCourse`. It's used only by the curriculum visualizer for courses that exist in the curriculum but are not in the student's plan at all.
+
+---
+
+## Positional course status — `lib/semester-status.ts`
+
+A student is enrolled in a **semester**, not in a scattered set of individual
+courses. `StudentInfo.currentPhase` is the one semester they are in right now,
+and every course's status follows from where it sits relative to it:
+
+```
+semester <  currentPhase  ->  COMPLETED    (back-filled)
+semester === currentPhase ->  IN_PROGRESS
+semester >  currentPhase  ->  PLANNED
+```
+
+`resolveCourseStatus` / `resolveSemesters` / `resolvePlan` apply this.
+**A stored status still wins** where present: the three real outcomes
+(`completed` / `failed` / `exempted`) and the two manual per-course overrides
+the details panel can write. `PENDING` means "no explicit status — derive from
+position"; `currentPhase < 1` disables derivation entirely.
+
+Consumers resolve **before** reading `.status`: `CurriculumVisualizer` and
+`GridVisualizer` (ahead of their status engines), `ProgressVisualizer` (per
+box), and `cloneToHistory` + `computeGraduationReminder` in the plan generator.
+`resolveSemesters` returns the same reference when nothing changed, so it is
+memo-safe.
+
+`setCurrentPhase(n)` is the only writer. The details panel's three status
+buttons are semester-level shortcuts around it — *Cursando* sets `n`,
+*Concluído* sets `n + 1`, *Planejado* sets `n - 1` — and the "Estou aqui"
+marker on each Meu Progresso column calls it directly. Nothing rewrites course
+statuses, so changing phase is fully reversible and never destroys a grade.
+
+**Migration.** `currentSemester: string` (a dead field, hardcoded `"1"` at every
+creation site) becomes `currentPhase: number` in the persist `merge()`, inferred
+from the legacy per-course statuses by `inferCurrentPhase`. Stored
+`planned`/`inProgress` are then reset to `pending` so position can take over —
+without that, legacy data would override the derivation everywhere and nothing
+would change. Outcomes and grades are never touched.
+Tests: `lib/semester-status.test.ts`.

@@ -10,6 +10,8 @@ import type {
 } from "@/types/student-plan";
 import { CourseStatus } from "@/types/student-plan";
 import type { Course, Curriculum } from "@/types/curriculum";
+import { inferCurrentPhase } from "@/lib/semester-status";
+import type { PlanScenario } from "@/lib/plan-generator/types";
 import { PHASE_DIMENSIONS } from "@/styles/course-theme";
 
 /** Generate a short random ID for a new course enrollment slot. */
@@ -91,6 +93,17 @@ export interface StudentStore {
   // Actions
   setStudentInfo: (info: StudentInfo | null) => void;
   setStudentName: (name: string) => void;
+  /**
+   * Declare which plan semester the student is enrolled in right now.
+   *
+   * This is the ONLY thing that decides concluída/cursando/planejada for
+   * courses without an explicit status: everything before `phase` back-fills as
+   * concluída, `phase` itself is cursando, everything after is planejada. No
+   * course statuses are rewritten — the derivation is applied at render
+   * (`lib/semester-status.ts`), so changing the phase is fully reversible and
+   * never destroys a recorded grade or a reprovação.
+   */
+  setCurrentPhase: (phase: number) => void;
   setCurrentDegree: (degreeId: string) => void;
   setInterestedDegrees: (degrees: string[]) => void;
   forceUpdate: () => void;
@@ -110,6 +123,18 @@ export interface StudentStore {
   changeCourseStatus: (course: StudentCourse, status: CourseStatus) => void;
   setCourseGrade: (course: StudentCourse, grade: number) => void;
   setCourseClass: (course: StudentCourse, classId: string) => void;
+  /**
+   * Applies a fully-generated {@link PlanScenario} to the current plan.
+   *
+   * This is the ONLY write in the auto-plan-generator flow — the engine that
+   * produces scenarios is side-effect-free, so nothing changes until the user
+   * hits "Apply" and this action runs. Full-repack model: the scenario's `plan`
+   * already contains the retained terminal history (completed/exempted/in-
+   * progress) plus the regenerated future as PLANNED courses (with `class` +
+   * `phase`), so this is a wholesale swap of the current plan's semesters — not
+   * a per-course merge. The current plan's identity (`id`/`name`) is preserved.
+   */
+  applyPlanScenario: (scenario: PlanScenario) => void;
   /**
    * Sets status (and optionally grade) on a course that may or may not be in
    * the plan yet.  If the course is already in the plan it is updated in-place
@@ -293,6 +318,15 @@ export const useStudentStore = create<StudentStore>()(
           }),
         ),
 
+      setCurrentPhase: (phase: number) =>
+        set(
+          produce((state: StudentStore) => {
+            if (!state.studentInfo) return;
+            if (!Number.isFinite(phase)) return;
+            state.studentInfo.currentPhase = Math.max(1, Math.floor(phase));
+          }),
+        ),
+
       setCurrentDegree: (degreeId: string) =>
         set(
           produce((state: StudentStore) => {
@@ -346,7 +380,12 @@ export const useStudentStore = create<StudentStore>()(
               courseId: course.id,
               instanceId: newInstanceId(),
               credits: course.credits || 0,
-              status: CourseStatus.PLANNED,
+              // PENDING, not PLANNED: status is positional now. Hardcoding
+              // PLANNED here would pin every dragged course as "planejada" even
+              // when dropped into a past or the current semester, which is
+              // exactly the per-course/semester incoherence `currentPhase`
+              // removes. See lib/semester-status.ts.
+              status: CourseStatus.PENDING,
               phase: semesterNumber,
             };
 
@@ -521,6 +560,49 @@ export const useStudentStore = create<StudentStore>()(
                 return;
               }
             }
+          }),
+        ),
+
+      applyPlanScenario: (scenario: PlanScenario) =>
+        set(
+          produce((state: StudentStore) => {
+            const plan = CheckStudentInfo(state.studentInfo);
+            if (!plan) return;
+
+            // Wholesale swap of the plan body. The scenario already carries the
+            // retained terminal history + regenerated PLANNED future, so we
+            // rebuild the semesters array from it wholesale. Deep-clone so the
+            // scenario object (which the modal may still hold/render) is never
+            // mutated by later store edits.
+            const newSemesters: StudentSemester[] = scenario.plan.semesters.map(
+              (semester) => {
+                const courses = semester.courses.map((c) => ({
+                  ...c,
+                  // Fresh, store-consistent instanceId so nothing collides with
+                  // history entries and every slot is uniquely addressable —
+                  // matching the newInstanceId() convention used by
+                  // addCourseToSemester/commitCourseStatus.
+                  instanceId: newInstanceId(),
+                }));
+                return {
+                  number: semester.number,
+                  courses,
+                  // Recompute from the courses; never trust the scenario's
+                  // possibly-stale per-semester totalCredits.
+                  totalCredits: courses.reduce(
+                    (sum, c) => sum + (c.credits || 0),
+                    0,
+                  ),
+                };
+              },
+            );
+
+            // Preserve the current plan's identity/name and any other
+            // plan-level fields — only the semesters change.
+            plan.semesters = newSemesters;
+
+            // Single updateView pass keeps the ≥12 / trailing-empty invariant.
+            updateView(plan.semesters);
           }),
         ),
 
@@ -740,6 +822,42 @@ export const useStudentStore = create<StudentStore>()(
             });
           });
         }
+        // Migrate legacy custom events: single `day` → `days: number[]`.
+        if (Array.isArray(migrated?.studentInfo?.customScheduleEntries)) {
+          migrated.studentInfo.customScheduleEntries.forEach((e: any) => {
+            if (!Array.isArray(e.days)) {
+              e.days = typeof e.day === "number" ? [e.day] : [];
+            }
+            delete e.day;
+          });
+        }
+
+        // Migrate to positional status: `currentSemester: "1"` (a dead field,
+        // hardcoded at every creation site) → a real `currentPhase: number`.
+        //
+        // Legacy plans stored PLANNED on every dragged course and IN_PROGRESS
+        // on whatever the student clicked, which would override the new
+        // positional derivation everywhere and leave the model unchanged. So we
+        // read the old statuses ONCE to infer the phase, then clear those two
+        // back to PENDING so position takes over. Real outcomes
+        // (completed/failed/exempted) and their grades are never touched.
+        const legacyInfo = migrated?.studentInfo;
+        if (legacyInfo && typeof legacyInfo.currentPhase !== "number") {
+          const plan = legacyInfo.plans?.[legacyInfo.currentPlan ?? 0];
+          const semesters: StudentSemester[] = plan?.semesters ?? [];
+          legacyInfo.currentPhase = inferCurrentPhase(semesters);
+          for (const semester of semesters) {
+            for (const sc of semester.courses ?? []) {
+              if (
+                sc.status === CourseStatus.PLANNED ||
+                sc.status === CourseStatus.IN_PROGRESS
+              ) {
+                sc.status = CourseStatus.PENDING;
+              }
+            }
+          }
+        }
+        delete legacyInfo?.currentSemester;
         return {
           ...currentState,
           ...(migrated as object),

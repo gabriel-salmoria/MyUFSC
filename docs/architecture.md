@@ -83,7 +83,7 @@ The single source of truth for all persistent student data. Persists only `stude
 
 ### Local hook state
 
-`useCurriculum` maintains its own `curriculumsCache: Record<string, Curriculum>` (full curriculum objects) in addition to the store's `curriculumCache` (parsed `Course[]` arrays). These two caches are parallel and serve different consumers; their relationship is not documented.
+`useCurriculum` holds only view state (`curriculum`, `currentCurriculum`, `degreePrograms`, `viewingDegreeId`). Curriculum data itself lives in the store's single `curriculumCache: Record<degreeId, Curriculum>` — the hook-local `curriculumsCache` that used to shadow it has been removed.
 
 ---
 
@@ -127,7 +127,7 @@ Fetches class schedules for all degrees. Uses the same ref-based signature guard
 - Supporting: `CourseList`, `TimetableGrid`, `TimetableHeader`, `SearchInput`, `CreditsSummary`, `AvailableCoursesModal`, `ProfessorSelector`.
 
 ### `components/professors/`
-- `ProfessorSearch` → `ProfessorDetailsDialog` → `WriteReviewDialog`. Review CRUD is handled here via direct fetch calls inside components.
+- `ProfessorSearch` → `ProfessorDetailsDialog`; review compose/CRUD is the inline box in `ProfessorDetailsSection` (the separate `WriteReviewDialog` was removed). Handled via direct fetch calls inside components with optimistic local-state patches.
 
 ### `components/selector/`
 - **`DegreeSelector`** / **`DegreeMultiSelector`** — shared cmdk-based degree pickers with accent-insensitive filter and recent-curriculum pruning.
@@ -234,9 +234,7 @@ All student academic data is encrypted client-side before being stored on the se
 
 | Issue | Location | Description |
 |---|---|---|
-| Sequential hook waterfall | `app/page.tsx:18-61` | 4 hooks run serially; curriculum + schedule can't start until profile is done |
-| `StudentCourse` field duplication | `types/student-plan.ts:19-38` | `id`, `name`, `credits`, etc. exist on both `StudentCourse.course` and `StudentCourse` itself |
-| Two parallel curriculum caches | `lib/student-store.ts:101` + `hooks/setup/UseCurriculum.ts:13` | `curriculumCache` (store, `Course[]`) and `curriculumsCache` (hook, `Curriculum`) serve different consumers with no coordination |
+| Sequential hook waterfall | `app/page.tsx:18-61` | auth -> profile -> (curriculum ∥ schedule): 3 sequential round-trips on a cold authenticated load. Curriculum and schedule now start in the same tick; the profile gate is what remains |
 | `scheduleState` typed as `any` | `components/layout/Visualizations.tsx:29` | Loses all type safety for schedule data passed into visualizers |
 | Setter passed inside data object | `app/page.tsx:234` | `scheduleState={{ ...scheduleState, setScheduleState }}` mixes data with mutator |
 | `migrate()` duplicated | `hooks/setup/UseCurriculum.ts:122` | Client-side ID migration replicates server-side `resolveCurriculumId` logic |

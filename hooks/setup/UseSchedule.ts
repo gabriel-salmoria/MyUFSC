@@ -19,13 +19,11 @@ export interface UseScheduleResult {
 interface UseScheduleProps {
   studentInfo: StudentInfo | null;
   isProfileLoading: boolean;
-  isCurriculumLoading: boolean;
 }
 
 export function useSchedule({
   studentInfo,
   isProfileLoading,
-  isCurriculumLoading,
 }: UseScheduleProps): UseScheduleResult {
   const [scheduleState, setScheduleState] = useState<ScheduleHookState>({
     scheduleData: null,
@@ -38,7 +36,8 @@ export function useSchedule({
   const fetchedForDegreeRef_Schedule = useRef<string | null | undefined>(null);
 
   useEffect(() => {
-    if (isProfileLoading || isCurriculumLoading) {
+    if (isProfileLoading) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- external async sync, not derivable in render
       setIsScheduleLoading(true);
       fetchedForDegreeRef_Schedule.current = null;
       return;
@@ -62,6 +61,9 @@ export function useSchedule({
 
     if (degreesSignature !== fetchedForDegreeRef_Schedule.current) {
       let active = true;
+      // Whether this run got far enough to legitimately own `degreesSignature`
+      // on the ref. See the cleanup below.
+      let committed = false;
       const fetchScheduleData = async () => {
         const isInitialLoad = !fetchedForDegreeRef_Schedule.current;
         if (isInitialLoad) {
@@ -70,13 +72,14 @@ export function useSchedule({
 
         setScheduleState((prev) => ({ ...prev, isLoading: true }));
         fetchedForDegreeRef_Schedule.current = degreesSignature;
-        
+
         try {
           const results = await Promise.all(
             degreesToFetch.map(degree => fetchClassSchedule(degree, scheduleState.selectedSemester || undefined))
           );
 
           if (active) {
+            committed = true;
             const successfulResults = results.filter(r => r !== null);
 
             if (successfulResults.length === 0) {
@@ -130,6 +133,7 @@ export function useSchedule({
           }
         } catch (error) {
           if (active) {
+            committed = true;
             console.error("An error occurred while loading class schedules.", error);
             fetchedForDegreeRef_Schedule.current = null;
             setScheduleState((prev) => ({ ...prev, scheduleData: null }));
@@ -143,14 +147,42 @@ export function useSchedule({
       };
 
       fetchScheduleData();
-      return () => { active = false; };
+      return () => {
+        active = false;
+        // A superseded run stamps `degreesSignature` onto the ref BEFORE it
+        // awaits, but then writes no result and skips its `finally` (both are
+        // `active`-guarded). Left alone, that claim is a lie: the very next
+        // effect run — which computes the SAME signature whenever only the
+        // studentInfo object identity churned, not the degrees — takes the
+        // "already fetched" branch, so nothing ever clears
+        // `scheduleState.isLoading` and the timetable header hangs on
+        // "(Carregando...)" with an empty semester selector. Roll it back so
+        // the successor actually refetches (the client cache makes a repeat
+        // cheap).
+        if (
+          !committed &&
+          fetchedForDegreeRef_Schedule.current === degreesSignature
+        ) {
+          fetchedForDegreeRef_Schedule.current = null;
+        }
+      };
     } else {
-      if (isScheduleLoading) setIsScheduleLoading(false);
+      // This signature is already satisfied by a completed fetch. Clear BOTH
+      // loading flags: `isScheduleLoading` gates the whole dashboard, while
+      // `scheduleState.isLoading` drives the header's "(Carregando...)".
+      // Clearing only the first is what let the two diverge — page rendered,
+      // header stuck loading forever.
+      setIsScheduleLoading(false);
+      setScheduleState((prev) =>
+        prev.isLoading ? { ...prev, isLoading: false } : prev,
+      );
     }
+    // Deps are complete now that the effect no longer reads `isScheduleLoading`
+    // out of a stale closure — the signature ref, not a dep list, is what keeps
+    // this from refetching.
   }, [
     studentInfo,
     isProfileLoading,
-    isCurriculumLoading,
     scheduleState.selectedSemester,
   ]);
 

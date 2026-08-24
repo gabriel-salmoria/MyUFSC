@@ -54,6 +54,7 @@ export default function ResizablePanel({
     const stored = window.localStorage.getItem(storageKey);
     const parsed = stored ? parseInt(stored, 10) : NaN;
     if (!Number.isNaN(parsed)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- external sync: hydrate persisted height from localStorage
       setHeight(Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, parsed)));
     }
   }, [storageKey]);
@@ -74,6 +75,7 @@ export default function ResizablePanel({
       return h;
     });
     document.removeEventListener("pointermove", handlePointerMove);
+    // eslint-disable-next-line react-hooks/immutability -- self-referential removeEventListener cleanup, intentional
     document.removeEventListener("pointerup", handlePointerUp);
     document.body.style.cursor = "";
     document.body.style.userSelect = "";

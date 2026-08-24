@@ -1,0 +1,737 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { useStudentStore } from "@/lib/student-store";
+import { useCourseMap } from "@/hooks/useCourseMap";
+import { parsescheduleData } from "@/parsers/class-parser";
+import { CourseStatus } from "@/types/student-plan";
+import { turnoOfSlot, type Turno, type TurnoFilter } from "@/lib/schedule-conflict";
+import { baselineLabel, generatePlanScenarios } from "@/lib/plan-generator/engine";
+import type {
+  GeneratorResult,
+  PlanScenario,
+  PromotedCourse,
+  UnplacedReason,
+} from "@/lib/plan-generator/types";
+// CalendarCog, not a wand/sparkle: the engine is a deterministic solver, and a
+// generative-AI-looking icon misrepresents what the button does.
+import {
+  Sun,
+  Sunset,
+  Moon,
+  Clock,
+  CalendarCog,
+  AlertTriangle,
+  Info,
+} from "lucide-react";
+import type { ClassSchedule } from "@/parsers/class-parser";
+
+interface PlanGeneratorModalProps {
+  open: boolean;
+  onClose: () => void;
+  /** Raw MatrUFSC schedule blob the Timetable already resolved. May be null. */
+  scheduleData: unknown;
+  /** Semester the offering snapshot was fetched for (e.g. "20262"), reused for
+   *  future semesters. Drives the "horários estimados" note. */
+  snapshotSemester?: string;
+}
+
+const DEFAULT_CREDIT_CAP = 28;
+const CREDIT_CAP_STORAGE_KEY = "myufsc:plan-gen:credit-cap";
+
+const REASON_LABEL: Record<UnplacedReason, string> = {
+  prereq: "Pré-requisito não atendido",
+  "no-section-in-turno": "Sem turma no turno escolhido",
+  conflict: "Conflito de horário",
+};
+
+/** Abbreviated PT-BR weekday for a slot's `day` (0 = Monday … 6 = Sunday). */
+const WEEKDAY_ABBR = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
+
+/** "seg 08:20 · qua 10:10" — the promoted section's day/time for the badge. */
+function formatSlots(slots: ClassSchedule[]): string {
+  return slots
+    .map((s) => `${WEEKDAY_ABBR[s.day] ?? "?"} ${s.startTime}`)
+    .join(" · ");
+}
+
+type TurnoKey = keyof TurnoFilter;
+
+const TURNO_OPTIONS: { key: TurnoKey; label: string; icon: typeof Sun }[] = [
+  { key: "morning", label: "Manhã", icon: Sun },
+  { key: "afternoon", label: "Tarde", icon: Sunset },
+  { key: "night", label: "Noite", icon: Moon },
+];
+
+const TURNO_TITLE: Record<Turno, string> = {
+  morning: "Manhã",
+  afternoon: "Tarde",
+  night: "Noite",
+};
+
+const TURNO_ADVERB: Record<Turno, string> = {
+  morning: "de manhã",
+  afternoon: "à tarde",
+  night: "à noite",
+};
+
+const TURNO_ICON: Record<Turno, typeof Sun> = {
+  morning: Sun,
+  afternoon: Sunset,
+  night: Moon,
+};
+
+/**
+ * The single turno a set of slots falls in, or `null` when it straddles more
+ * than one (or there are none).
+ *
+ * Promotion copy used to be hardcoded to "manhã"/"Manhã · Turma X". A promotion
+ * just means taking a section the turno filter excludes — for a night student
+ * that is as likely to be an afternoon section as a morning one.
+ */
+function turnoOfSlots(slots: ClassSchedule[]): Turno | null {
+  const seen = new Set<Turno>();
+  for (const slot of slots) seen.add(turnoOfSlot(slot.startTime));
+  return seen.size === 1 ? [...seen][0] : null;
+}
+
+/** The one turno every promoted section shares, or `null` when mixed/empty. */
+function promotedTurno(promoted: PromotedCourse[]): Turno | null {
+  return turnoOfSlots(promoted.flatMap((p) => p.slots));
+}
+
+export default function PlanGeneratorModal({
+  open,
+  onClose,
+  scheduleData,
+  snapshotSemester,
+}: PlanGeneratorModalProps) {
+  const studentInfo = useStudentStore((s) => s.studentInfo);
+  const curriculumCache = useStudentStore((s) => s.curriculumCache);
+  const applyPlanScenario = useStudentStore((s) => s.applyPlanScenario);
+  const courseMap = useCourseMap();
+
+  const [turno, setTurno] = useState<TurnoFilter>({
+    morning: false,
+    afternoon: false,
+    night: false,
+  });
+  const [creditCap, setCreditCap] = useState<number>(DEFAULT_CREDIT_CAP);
+  // Opt-in: which optativas to take is the student's call, and the budget the
+  // fill aims at has no per-degree source. Off by default.
+  const [fillElectives, setFillElectives] = useState(false);
+  const [result, setResult] = useState<GeneratorResult | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Restore last-used cap (cheap persistence, per decision #3).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem(CREDIT_CAP_STORAGE_KEY);
+    const parsed = stored ? Number(stored) : NaN;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- external sync: hydrate persisted credit cap from localStorage
+    if (Number.isFinite(parsed) && parsed > 0) setCreditCap(parsed);
+  }, []);
+
+  // Reset generated scenarios whenever the modal is reopened, so a stale
+  // preview never lingers after the plan changed underneath it.
+  useEffect(() => {
+    if (!open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- deferred: avoidable derived-state effect, tracked in #31
+      setResult(null);
+      setSelectedId(null);
+    }
+  }, [open]);
+
+  const courses = useMemo(() => {
+    const degree = studentInfo?.currentDegree;
+    if (!degree) return null;
+    return curriculumCache[degree]?.courses ?? null;
+  }, [studentInfo?.currentDegree, curriculumCache]);
+
+  const sections = useMemo(
+    () => (scheduleData ? parsescheduleData(scheduleData).professors : {}),
+    [scheduleData],
+  );
+
+  const hasCurriculum = !!courses && courses.length > 0;
+  const hasSchedule = Object.keys(sections).length > 0;
+  const canGenerate = !!studentInfo && hasCurriculum;
+
+  const toggleTurno = (key: TurnoKey) =>
+    setTurno((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  const noTurnoPreference =
+    (!turno.morning && !turno.afternoon && !turno.night) ||
+    (turno.morning && turno.afternoon && turno.night);
+
+  const handleGenerate = () => {
+    if (!studentInfo || !courses) return;
+    const cap =
+      Number.isFinite(creditCap) && creditCap > 0
+        ? creditCap
+        : DEFAULT_CREDIT_CAP;
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(CREDIT_CAP_STORAGE_KEY, String(cap));
+    }
+    const generated = generatePlanScenarios({
+      studentInfo,
+      courses,
+      sections,
+      config: { turno, creditCap: cap, fillElectives },
+      scheduleSnapshotSemester: snapshotSemester,
+    });
+    setResult(generated);
+    setSelectedId(generated.scenarios[0]?.id ?? null);
+  };
+
+  const selectedScenario =
+    result?.scenarios.find((s) => s.id === selectedId) ?? null;
+
+  const handleApply = () => {
+    if (!selectedScenario) return;
+    applyPlanScenario(selectedScenario);
+    onClose();
+  };
+
+  const courseName = (id: string) => courseMap.get(id)?.name ?? id;
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => (!o ? onClose() : null)}>
+      <DialogContent className="max-w-3xl max-h-[88vh] flex flex-col gap-0 p-0">
+        <DialogHeader className="p-6 pb-4 border-b border-border">
+          <DialogTitle className="flex items-center gap-2">
+            <CalendarCog className="h-5 w-5 text-primary" />
+            Gerar plano automático
+          </DialogTitle>
+          <DialogDescription>
+            Escolha suas preferências e gere possibilidades de plano que
+            respeitam pré-requisitos, horários e o limite de créditos.
+          </DialogDescription>
+          <p className="mt-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            O SisACAD já oferece um plano recomendado oficial até a formação.
+            Use este gerador como alternativa para explorar cenários que cabem
+            na sua rotina — ele não substitui o plano recomendado do curso.
+          </p>
+        </DialogHeader>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Filters */}
+          <div className="space-y-4">
+            <div className="grid gap-2">
+              <Label>Turno preferido</Label>
+              <div className="flex flex-wrap gap-2">
+                {TURNO_OPTIONS.map(({ key, label, icon: Icon }) => {
+                  const active = turno[key];
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => toggleTurno(key)}
+                      aria-pressed={active}
+                      className={`flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+                        active
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-background text-foreground hover:bg-accent"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {noTurnoPreference
+                  ? "Sem preferência — qualquer turno é considerado."
+                  : "Apenas turmas inteiramente nos turnos selecionados."}
+              </p>
+            </div>
+
+            <div className="grid gap-2 max-w-xs">
+              <Label htmlFor="pg-cap">Máximo de créditos por semestre</Label>
+              <Input
+                id="pg-cap"
+                type="number"
+                min={4}
+                max={40}
+                value={Number.isFinite(creditCap) ? creditCap : ""}
+                onChange={(e) => setCreditCap(Number(e.target.value))}
+              />
+              <p className="text-xs text-muted-foreground">
+                O gerador também monta versões mais leves a partir deste
+                limite, para você comparar.
+              </p>
+            </div>
+
+            <label className="flex max-w-md cursor-pointer items-start gap-3 rounded-lg border border-border p-3">
+              <input
+                type="checkbox"
+                checked={fillElectives}
+                onChange={(e) => setFillElectives(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--primary)]"
+              />
+              <span className="grid gap-0.5">
+                <span className="text-sm font-medium text-foreground">
+                  Escolher optativas por mim
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  Preenche os horários livres com optativas ofertadas. Desligado,
+                  o plano traz só as obrigatórias e você escolhe as optativas.
+                </span>
+              </span>
+            </label>
+
+            <Button onClick={handleGenerate} disabled={!canGenerate}>
+              <CalendarCog className="h-4 w-4 mr-2" />
+              Gerar planos
+            </Button>
+          </div>
+
+          {/* Guard / empty states */}
+          {!canGenerate && (
+            <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+              <Info className="h-5 w-5 shrink-0 text-muted-foreground" />
+              <p>
+                Não há dados de currículo carregados para o curso atual. Selecione
+                um curso e aguarde o carregamento para gerar um plano.
+              </p>
+            </div>
+          )}
+
+          {/* Disclaimer — always shown once the data is ready */}
+          {canGenerate && (
+            <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
+              <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500" />
+              <p className="text-foreground/80">
+                Semestres futuros assumem que a{" "}
+                <strong>oferta mais recente se repete</strong> (mesmas turmas e
+                horários). A oferta de <strong>optativas</strong> muda a cada
+                semestre, então horários em fases distantes são apenas uma
+                estimativa.
+                {!hasSchedule &&
+                  " Nenhum horário foi carregado, então as disciplinas serão alocadas sem turma."}
+              </p>
+            </div>
+          )}
+
+          {/* Results */}
+          {result &&
+            (result.scenarios.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-6">
+                Não foi possível gerar um plano com estes filtros. Tente
+                aumentar o limite de créditos ou liberar mais turnos.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {/* The turno applies to every card, so it belongs here once
+                    rather than repeated in each label. */}
+                <p className="text-xs text-muted-foreground">
+                  Cenários para{" "}
+                  <strong className="text-foreground">
+                    {baselineLabel(turno).toLowerCase()}
+                  </strong>
+                  , até {result.scenarios[0]?.config.creditCap ?? creditCap}{" "}
+                  créditos por semestre.
+                </p>
+
+                {/* Scenario picker */}
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {result.scenarios.map((scenario) => (
+                    <ScenarioCard
+                      key={scenario.id}
+                      scenario={scenario}
+                      selected={scenario.id === selectedId}
+                      onSelect={() => setSelectedId(scenario.id)}
+                    />
+                  ))}
+                </div>
+
+                {/* A lone card is a legitimate outcome, but on its own it reads
+                    like the comparison silently failed. Say why. */}
+                {result.scenarios.length === 1 && (
+                  <p className="text-xs text-muted-foreground">
+                    Só um cenário: baixar a carga por semestre não muda este
+                    plano — ele é limitado pelos horários das turmas e pelos
+                    pré-requisitos, não pelo limite de créditos.
+                    {result.turnoIsUnrestricted
+                      ? " E, sem restrição de turno, o gerador já considera todas as turmas, então não há nenhuma exceção de turno para comparar — escolha um turno acima para ver alternativas."
+                      : " Abrir exceções fora do turno escolhido também não o encurtaria."}
+                  </p>
+                )}
+
+                {selectedScenario && (
+                  <ScenarioPreview
+                    scenario={selectedScenario}
+                    courseName={courseName}
+                  />
+                )}
+              </div>
+            ))}
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-2 border-t border-border p-4">
+          <Button variant="outline" onClick={onClose}>
+            Descartar
+          </Button>
+          <Button onClick={handleApply} disabled={!selectedScenario}>
+            Aplicar plano
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ScenarioCard({
+  scenario,
+  selected,
+  onSelect,
+}: {
+  scenario: PlanScenario;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const issues =
+    scenario.placedWithoutSection.length + scenario.unplaceable.length;
+  const peakCredits = scenario.perSemesterCredits.length
+    ? Math.max(...scenario.perSemesterCredits)
+    : 0;
+  const peakCourses = scenario.plan.semesters.reduce(
+    (max, s) =>
+      Math.max(
+        max,
+        s.courses.filter((c) => c.status === CourseStatus.PLANNED).length,
+      ),
+    0,
+  );
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      className={`text-left rounded-lg border p-4 transition-colors ${
+        selected
+          ? "border-primary ring-1 ring-primary bg-primary/5"
+          : "border-border bg-background hover:bg-accent"
+      }`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-semibold text-foreground">{scenario.label}</span>
+        {selected && <Badge variant="secondary">Selecionado</Badge>}
+      </div>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {scenario.totalFutureSemesters}{" "}
+        {scenario.totalFutureSemesters === 1
+          ? "semestre restante"
+          : "semestres restantes"}
+      </p>
+      {/* The load side of the trade-off. Peak credits and the busiest semester
+          are what actually distinguishes one card from another, so they lead;
+          the full per-phase breakdown is secondary. */}
+      <p className="mt-1 text-xs text-muted-foreground">
+        até {peakCredits} cr · {peakCourses}{" "}
+        {peakCourses === 1 ? "disciplina" : "disciplinas"} na fase mais cheia
+      </p>
+      <p className="mt-0.5 text-xs text-muted-foreground/70">
+        Créditos por fase: {scenario.perSemesterCredits.join(" · ") || "—"}
+      </p>
+      {scenario.daytimeExceptionsUsed > 0 &&
+        (() => {
+          const turno = promotedTurno(scenario.promotedCourses);
+          const Icon = turno ? TURNO_ICON[turno] : Clock;
+          return (
+            <p className="mt-2 text-xs font-medium text-amber-600 dark:text-amber-500">
+              <Icon className="mr-1 inline h-3.5 w-3.5" />
+              {scenario.daytimeExceptionsUsed}{" "}
+              {scenario.daytimeExceptionsUsed === 1
+                ? "disciplina"
+                : "disciplinas"}{" "}
+              {turno ? TURNO_ADVERB[turno] : "fora do turno"}
+            </p>
+          );
+        })()}
+      {issues > 0 && (
+        <p className="mt-2 text-xs text-amber-600 dark:text-amber-500">
+          {issues} {issues === 1 ? "ressalva" : "ressalvas"}
+        </p>
+      )}
+    </button>
+  );
+}
+
+function ScenarioPreview({
+  scenario,
+  courseName,
+}: {
+  scenario: PlanScenario;
+  courseName: (id: string) => string;
+}) {
+  const sectionlessSet = useMemo(
+    () => new Set(scenario.placedWithoutSection),
+    [scenario.placedWithoutSection],
+  );
+
+  // courseId → promoted (daytime) section, for the "manhã" badge on the grid.
+  const promotedMap = useMemo(
+    () => new Map(scenario.promotedCourses.map((p) => [p.courseId, p])),
+    [scenario.promotedCourses],
+  );
+
+  // Generated future semesters = those carrying planned courses.
+  const futureSemesters = useMemo(
+    () =>
+      scenario.plan.semesters
+        .filter((s) =>
+          s.courses.some((c) => c.status === CourseStatus.PLANNED),
+        )
+        .sort((a, b) => a.number - b.number),
+    [scenario.plan.semesters],
+  );
+
+  return (
+    <div className="space-y-5">
+      {/* Placed courses, grouped by semester */}
+      <div>
+        <h3 className="mb-2 text-sm font-semibold text-foreground">
+          Plano proposto
+        </h3>
+        {futureSemesters.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Nenhuma disciplina futura para alocar — seu plano já está completo.
+          </p>
+        ) : (
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {futureSemesters.map((semester) => {
+              const planned = semester.courses.filter(
+                (c) => c.status === CourseStatus.PLANNED,
+              );
+              return (
+                <div
+                  key={semester.number}
+                  className="min-w-[180px] flex-1 rounded-lg border border-border bg-muted/30 p-3"
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-foreground">
+                      Fase {semester.number}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {semester.totalCredits} cr
+                    </span>
+                  </div>
+                  <ul className="space-y-1.5">
+                    {planned.map((c) => (
+                      <li
+                        key={c.instanceId}
+                        className="rounded-md bg-background px-2 py-1.5 text-xs"
+                      >
+                        <div className="font-medium text-foreground">
+                          {c.courseId}
+                        </div>
+                        <div className="truncate text-muted-foreground">
+                          {courseName(c.courseId)}
+                        </div>
+                        <div className="mt-1">
+                          {sectionlessSet.has(c.courseId) ? (
+                            <Badge
+                              variant="outline"
+                              className="border-amber-500/40 text-amber-600 dark:text-amber-500"
+                            >
+                              Sem turma
+                            </Badge>
+                          ) : promotedMap.has(c.courseId) ? (
+                            (() => {
+                              const slots =
+                                promotedMap.get(c.courseId)?.slots ?? [];
+                              const turno = turnoOfSlots(slots);
+                              const Icon = turno ? TURNO_ICON[turno] : Clock;
+                              return (
+                                <Badge
+                                  variant="outline"
+                                  className="border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-500"
+                                >
+                                  <Icon className="mr-1 h-3 w-3" />
+                                  {turno
+                                    ? TURNO_TITLE[turno]
+                                    : "Fora do turno"}{" "}
+                                  · Turma {c.class}
+                                </Badge>
+                              );
+                            })()
+                          ) : c.class ? (
+                            <Badge variant="secondary">Turma {c.class}</Badge>
+                          ) : null}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Turno exceptions — courses moved off the jam onto a section the
+          chosen filter excludes (Sprint 04) */}
+      {scenario.promotedCourses.length > 0 &&
+        (() => {
+          const headerTurno = promotedTurno(scenario.promotedCourses);
+          const HeaderIcon = headerTurno ? TURNO_ICON[headerTurno] : Clock;
+          return (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+              <h4 className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                <HeaderIcon className="h-4 w-4 text-amber-500" />
+                Exceções de turno ({scenario.promotedCourses.length})
+              </h4>
+              <p className="mb-2 text-xs text-muted-foreground">
+                Estas disciplinas usam uma turma fora do turno escolhido para
+                sair do gargalo e encurtar o plano.
+              </p>
+              <ul className="space-y-1.5">
+                {scenario.promotedCourses.map((p) => {
+                  const turno = turnoOfSlots(p.slots);
+                  return (
+                    <li
+                      key={p.courseId}
+                      className="flex flex-wrap items-center gap-2 text-xs"
+                    >
+                      <span className="font-medium text-foreground">
+                        {p.courseId}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {courseName(p.courseId)}
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className="border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-500"
+                      >
+                        {turno ? TURNO_TITLE[turno] : "Fora do turno"} · Turma{" "}
+                        {p.classNumber} · {formatSlots(p.slots)}
+                      </Badge>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          );
+        })()}
+
+      {/* Placed without a section */}
+      {scenario.placedWithoutSection.length > 0 && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+          <h4 className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
+            Alocadas sem turma ({scenario.placedWithoutSection.length})
+          </h4>
+          <p className="mb-2 text-xs text-muted-foreground">
+            Sem oferta conhecida no horário — a turma precisará ser escolhida
+            manualmente quando for divulgada.
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {scenario.placedWithoutSection.map((id) => (
+              <Badge key={id} variant="outline">
+                {id} · {courseName(id)}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Unplaceable */}
+      {scenario.unplaceable.length > 0 && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+          <h4 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+            Não foi possível encaixar ({scenario.unplaceable.length})
+          </h4>
+          <ul className="space-y-1">
+            {scenario.unplaceable.map((u) => (
+              <li
+                key={u.courseId}
+                className="flex flex-wrap items-center gap-2 text-xs"
+              >
+                <span className="font-medium text-foreground">
+                  {u.courseId}
+                </span>
+                <span className="text-muted-foreground">
+                  {courseName(u.courseId)}
+                </span>
+                <Badge variant="destructive">{REASON_LABEL[u.reason]}</Badge>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Bottleneck-collision floor diagnostic */}
+      {scenario.bottleneckCollisions.length > 0 && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+          <h4 className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
+            Piso mínimo: {scenario.minSemestersFloor} semestres
+          </h4>
+          <ul className="space-y-1.5">
+            {scenario.bottleneckCollisions.map((collision) => (
+              <li
+                key={`${collision.a}-${collision.b}`}
+                className="text-xs text-muted-foreground"
+              >
+                As disciplinas{" "}
+                <span className="font-medium text-foreground">
+                  {courseName(collision.a)}
+                </span>{" "}
+                e{" "}
+                <span className="font-medium text-foreground">
+                  {courseName(collision.b)}
+                </span>{" "}
+                não cabem no mesmo semestre (mesmo horário:{" "}
+                {collision.sharedCells.join(", ") || "—"}), o que adiciona +
+                {collision.floorImpact}{" "}
+                {collision.floorImpact === 1 ? "semestre" : "semestres"}.
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Future-schedule assumption note */}
+      {scenario.assumesReusedFutureSchedule && (
+        <p className="text-xs text-muted-foreground">
+          Horários de semestres futuros são estimados a partir da oferta de{" "}
+          {scenario.scheduleSnapshotSemester}.
+        </p>
+      )}
+
+      {/* Optativas this plan schedules. We deliberately do NOT tell the student
+          how many hours are still missing to graduate: the curriculum data has
+          no per-degree total for optativas or atividades complementares, so the
+          old "ainda faltam 360h de atividades complementares" line was a
+          hardcoded guess presented as fact. Report only what the plan does. */}
+      {scenario.optativasPlacedHours > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Este plano já agenda {scenario.optativasPlacedHours}h de optativas
+          {scenario.electiveOnlySemesters > 0
+            ? `, incluindo ${scenario.electiveOnlySemesters} ${
+                scenario.electiveOnlySemesters === 1
+                  ? "semestre só de optativas"
+                  : "semestres só de optativas"
+              }`
+            : ""}
+          . Confira as horas exigidas pelo seu curso no SisACAD.
+        </p>
+      )}
+    </div>
+  );
+}

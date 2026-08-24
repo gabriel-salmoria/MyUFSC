@@ -38,6 +38,7 @@ export default function useEncryptedData({
     if (typeof window !== "undefined") {
       const storedPassword = localStorage.getItem("enc_pwd");
       if (storedPassword) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- external async sync, not derivable in render
         setPassword(storedPassword);
       }
     }

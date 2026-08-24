@@ -26,6 +26,60 @@ export default function CourseHighlighter({
   const timerIds = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
+    // Helpers live inside the effect: they are only used here, so keeping them
+    // in effect scope means they are declared before use (react-hooks/immutability)
+    // and never become effect dependencies (react-hooks/exhaustive-deps).
+    function addHighlightStyles() {
+      if (document.getElementById("dependency-tree-highlight-styles")) return;
+      const style = document.createElement("style");
+      style.id = "dependency-tree-highlight-styles";
+      style.textContent = `
+        .course-transition { transition: all 0.3s ease !important; }
+        .course-highlight-main { z-index: 30 !important; transform: scale(1.03) !important; }
+        .course-highlight-prereq { z-index: 20 !important; transform: scale(1.02) !important; }
+        .course-highlight-dependent { z-index: 20 !important; transform: scale(1.02) !important; }
+        .course-highlight-dimmed { opacity: 0.15 !important; pointer-events: none !important; }
+      `;
+      document.head.appendChild(style);
+    }
+
+    function removeHighlightStyles() {
+      document.getElementById("dependency-tree-highlight-styles")?.remove();
+    }
+
+    function addOverlay() {
+      if (!dashboardRef.current || document.getElementById("dependency-tree-overlay")) return;
+      const contentArea =
+        dashboardRef.current.querySelector(".dashboard-content") ?? dashboardRef.current;
+      const overlay = document.createElement("div");
+      overlay.id = "dependency-tree-overlay";
+      overlay.className =
+        "absolute inset-0 bg-background/80 z-[5] transition-opacity duration-300 pointer-events-none backdrop-blur-[1px]";
+      contentArea.appendChild(overlay);
+    }
+
+    function removeOverlay() {
+      document.getElementById("dependency-tree-overlay")?.remove();
+    }
+
+    function applyTransitions() {
+      dashboardRef.current?.querySelectorAll("[data-course-id]").forEach((el) => {
+        if (el instanceof HTMLElement) el.classList.add("course-transition");
+      });
+    }
+
+    function cleanupHighlights() {
+      document.querySelectorAll("[data-course-id]").forEach((el) => {
+        el.classList.remove(
+          "course-highlight-main",
+          "course-highlight-prereq",
+          "course-highlight-dependent",
+          "course-highlight-dimmed",
+          "course-transition",
+        );
+      });
+    }
+
     if (!dashboardRef.current || courseElements.size === 0) return;
 
     addHighlightStyles();
@@ -84,58 +138,17 @@ export default function CourseHighlighter({
       removeHighlightStyles();
       removeOverlay();
     };
-  }, [dashboardRef.current, courseElements, course.id, prerequisiteCourses, dependentCourses]);
-
-  const addHighlightStyles = () => {
-    if (document.getElementById("dependency-tree-highlight-styles")) return;
-    const style = document.createElement("style");
-    style.id = "dependency-tree-highlight-styles";
-    style.textContent = `
-      .course-transition { transition: all 0.3s ease !important; }
-      .course-highlight-main { z-index: 30 !important; transform: scale(1.03) !important; }
-      .course-highlight-prereq { z-index: 20 !important; transform: scale(1.02) !important; }
-      .course-highlight-dependent { z-index: 20 !important; transform: scale(1.02) !important; }
-      .course-highlight-dimmed { opacity: 0.15 !important; pointer-events: none !important; }
-    `;
-    document.head.appendChild(style);
-  };
-
-  const removeHighlightStyles = () => {
-    document.getElementById("dependency-tree-highlight-styles")?.remove();
-  };
-
-  const addOverlay = () => {
-    if (!dashboardRef.current || document.getElementById("dependency-tree-overlay")) return;
-    const contentArea =
-      dashboardRef.current.querySelector(".dashboard-content") ?? dashboardRef.current;
-    const overlay = document.createElement("div");
-    overlay.id = "dependency-tree-overlay";
-    overlay.className =
-      "absolute inset-0 bg-background/80 z-[5] transition-opacity duration-300 pointer-events-none backdrop-blur-[1px]";
-    contentArea.appendChild(overlay);
-  };
-
-  const removeOverlay = () => {
-    document.getElementById("dependency-tree-overlay")?.remove();
-  };
-
-  const applyTransitions = () => {
-    dashboardRef.current?.querySelectorAll("[data-course-id]").forEach((el) => {
-      if (el instanceof HTMLElement) el.classList.add("course-transition");
-    });
-  };
-
-  const cleanupHighlights = () => {
-    document.querySelectorAll("[data-course-id]").forEach((el) => {
-      el.classList.remove(
-        "course-highlight-main",
-        "course-highlight-prereq",
-        "course-highlight-dependent",
-        "course-highlight-dimmed",
-        "course-transition",
-      );
-    });
-  };
+    // `dashboardRef` is a ref (stable identity); `coursesDepth` changes together
+    // with the prerequisite/dependent lists (same `useDependencyGraph` output),
+    // so the effect re-runs exactly when the highlight target changes.
+  }, [
+    dashboardRef,
+    courseElements,
+    course.id,
+    coursesDepth,
+    prerequisiteCourses,
+    dependentCourses,
+  ]);
 
   return null;
 }

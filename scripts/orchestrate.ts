@@ -4,6 +4,7 @@ import * as path from "path";
 import { promisify } from "util";
 import { Client } from "pg";
 import * as dotenv from "dotenv";
+import { retagNonDisciplineRequirements } from "../lib/curriculum-tagging";
 
 dotenv.config();
 
@@ -284,6 +285,12 @@ async function updateDatabase() {
             DO UPDATE SET "name" = $2;
         `,
       [programId, pName],
+    );
+
+    // Re-tag non-discipline requirements (Atividades Complementares) off
+    // `mandatory` so consumers see correct data (issue #11).
+    curriculumData.courses = retagNonDisciplineRequirements(
+      curriculumData.courses,
     );
 
     logger.substep(`Upserting Curriculum (Program ID: ${programId})`);

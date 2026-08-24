@@ -1,30 +1,41 @@
----
-name: myufsc
-description: >
-  Reference for the MyUFSC codebase — a Next.js semester planner for UFSC students
-  (curriculum grid, drag-and-drop plan builder, weekly timetable, professor ratings,
-  transcript import). Use whenever working in this repository: implementing features,
-  fixing bugs, understanding data flow, touching the DB schema, the crypto layer, the
-  scrapers/pipeline, or any file under app/, components/, hooks/, lib/, database/,
-  parsers/, scrapers/, scripts/, types/. Load this before making changes so existing
-  patterns, known tech debt, and cross-file duplication are not repeated.
----
-
 # MyUFSC
 
 Semester planner for UFSC (Universidade Federal de Santa Catarina) students. Pick a
 degree → see curriculum laid out by phase → drag courses into a personal plan → track
 grades/status → view the live MatrUFSC class schedule → rate professors. Anonymous
 "guest" mode needs no account. Hobby project, GPL-3.0, deployed on Vercel + Neon.
-Full narrative docs live in `docs/*.md` (one file per subsystem) — this skill is the
+Full narrative docs live in `docs/*.md` (one file per subsystem) — this file is the
 condensed map; read the relevant doc file for exhaustive detail before large changes.
 
-Stack: Next.js 16 (App Router) + React 19 + TypeScript, Tailwind + shadcn/radix UI,
+## Working in this repo
+
+- **Package manager: `pnpm`.** Dev: `pnpm run dev` (local PGlite DB auto-seeds from prod
+  on first boot — no server or `.env` needed for a basic run). Copy `.env.example` if you
+  need Neon/Gemini. Lint: `pnpm run lint`. Build: `pnpm run build`.
+- **Never commit to `main`.** This is an open-source project — all work lands on a feature
+  branch (`<type>/<slug>`) and merges via a pull request. Use the **`commit`** skill, which
+  branches off `main` automatically, formats the message, and can open the PR.
+- **Commit style: Conventional Commits.** See the **`commit-conventions`** skill for the
+  allowed types, scope vocabulary, and examples. Contributor workflow lives in
+  `CONTRIBUTING.md`.
+- **Tests: `pnpm test`** (`node:test` via `tsx`, no test framework dependency). Typecheck
+  with `pnpm exec tsc --noEmit` — `pnpm run lint` does not do it. CI runs lint, typecheck
+  and tests on every PR to `main`.
+- **Dependency overrides go in `pnpm-workspace.yaml`, never `package.json`.** pnpm 10
+  reads neither the npm-style `overrides` nor `pnpm.overrides` from `package.json`; both
+  used to sit there and were silently ignored. Every override is commented with the
+  advisory that forced it — delete it once the parent package's own range catches up.
+- **Before changing code**, reuse existing utilities and respect the known tech debt listed
+  at the bottom of this file — don't reintroduce the duplication called out there.
+
+## Stack
+
+Next.js 16 (App Router) + React 19 + TypeScript, Tailwind + shadcn/radix UI,
 Zustand (+persist+immer) for client state, Neon Postgres (prod) / PGlite-in-WASM (dev,
 zero-config, auto-seeds from prod `/api/public/seed`), crypto-js + bcryptjs for
 client-side E2E encryption, a custom Pointer Events-based drag-and-drop engine
 (`lib/course-drag.ts` + `CourseBox`, see below — not a library), Rust scraper for MatrUFSC,
-Gemini AI for PDF curriculum parsing. Package manager: **pnpm**. Dev: `pnpm run dev`.
+Gemini AI for PDF curriculum parsing.
 
 ## Request/render flow (top to bottom)
 
@@ -34,12 +45,14 @@ Pages (app/) → Components (components/) → Custom hooks (hooks/setup/) → fe
   → Neon or PGlite
 ```
 
-Cold load on `/` runs 4 hooks **sequentially** (known perf debt, not yet fixed):
-`useCheckAuth` → `useStudentProfile` → `useCurriculum` → `useSchedule`. Each hook
-internally parallelizes its own fetches but waits for the previous hook to finish.
-The profile endpoint can short-circuit this by bundling curriculum+schedule as
-`prefetched` data, keyed off a `ufsc_prefetch_degrees` cookie written by `useCurriculum`
-on every degree-set change → see `docs/data-loading-hooks.md`.
+Cold load on `/`: `useCheckAuth` → `useStudentProfile` → (`useCurriculum` ∥ `useSchedule`)
+— **3** sequential round-trips. Curriculum and schedule start in the same tick; only the
+profile gate remains (known perf debt). The profile endpoint can short-circuit even that
+by bundling curriculum+schedule as `prefetched` data, keyed off a `ufsc_prefetch_degrees`
+cookie written by `useCurriculum` on every degree-set change. That bundle must carry the
+**same envelope** `/api/schedule` returns (`{fetchedSemester, availableSemesters,
+[degreeId]: blob}`) — it is primed straight into the client fetch cache → see
+`docs/data-loading-hooks.md`.
 
 ## Directory map
 
@@ -49,14 +62,15 @@ on every degree-set change → see `docs/data-loading-hooks.md`.
 | `components/visualizers/` | `CurriculumVisualizer` (phase grid), `GridVisualizer` (electives, duplicates status logic), `ProgressVisualizer` (semester lanes), `CourseBox`/`GhostBox`/`TrashDropZone` (custom pointer-drag primitives, see Drag-and-drop below) |
 | `components/dependency-tree/` | Prerequisite-chain overlay: `useDependencyGraph`, `useDashboardRef`, `ConnectionLines` (SVG via portal), `CourseHighlighter`, `InfoBanner` |
 | `components/schedule/` | `Timetable` (heaviest component: rendering + conflict detection + custom events + prof ratings + ICS export), `TimetableGrid`, `TimetableHeader`, `CourseList`, `CourseStats`, `ProfessorSelector`, `AvailableCoursesModal`, `SearchInput`/`SearchPopup`, `CustomEventModal`, `CreditsSummary` |
-| `components/professors/` | `ProfessorSearch`, `ProfessorDetailsDialog` (refreshKey full-reload pattern), `ProfessorRatingBadge`, `WriteReviewDialog` |
+| `components/professors/` | `ProfessorSearch`, `ProfessorDetailsDialog` (optimistic local-state patches on mutate — no full reload), `ProfessorRatingBadge`; inline compose in `ProfessorDetailsSection` is the only review-compose path (no `WriteReviewDialog`) |
 | `components/selector/` | `DegreeSelector`/`DegreeMultiSelector` — cmdk combobox, accent-insensitive, recent-curriculum pruning |
 | `components/layout/` | `Header` (nav, degree selector, import popover, theme, logout), `Visualizations` (curriculum/electives tab toggle) |
 | `components/transcript/` | `transcript-uploader.tsx` — PDF upload UI |
 | `components/ui/` | shadcn/radix primitives (generated, don't hand-edit patterns — use `components.json`) |
-| `hooks/setup/` | `CheckAuth`, `useStudentProfile`, `UseCurriculum`, `UseSchedule` — the sequential loading waterfall |
+| `hooks/setup/` | `CheckAuth`, `useStudentProfile`, `UseCurriculum`, `UseSchedule` — the loading waterfall (curriculum ∥ schedule) |
 | `hooks/` (root) | `useCourseMap` (resolves course IDs via `parsers/curriculum-parser.ts`'s `courseMap`), `useDependencyGraph`, `useDashboardRef`, `use-mobile` |
-| `lib/` | `student-store.ts` (Zustand), `prerequisites.ts` (`checkPrerequisites`), `professors.ts`/`professors-client.ts` (normalization, pseudonyms, moderation), `user-identity.ts` (`getAnonymousUserId`) |
+| `lib/` | `student-store.ts` (Zustand), `semester-status.ts` (positional course status), `curriculum-status.ts` (shared status engine), `prerequisites.ts` (`checkPrerequisites`, bottleneck weights), `schedule-conflict.ts` (the single cell/turno math), `timetable-time.ts` (grid geometry), `plan-generator/` (`engine.ts` + `types.ts` — the deterministic plan solver), `professors.ts`/`professors-client.ts` (normalization, pseudonyms, moderation), `user-identity.ts` (`getAnonymousUserId`) |
+| `tests/` | All unit tests (`node:test` via `tsx`). `pnpm test` globs `tests/*.test.ts`, so a new file is picked up automatically. |
 | `crypto/client/`, `crypto/server/` | `crypto.ts` — AES-256-CBC E2E encryption (see Security below) |
 | `database/` | `ready.ts` (adapter: `executeQuery`/`executeTransaction`, Neon vs PGlite switch), `local-setup.ts` (schema DDL + auto-seed), `{curriculum,programs,schedule,users}/db-*.ts` (query modules) |
 | `parsers/` | `curriculum-parser.ts` (courseMap, phases, equivalence graph), `class-parser.ts` (MatrUFSC JSON → timetable data), `transcript-parser.ts` (PDF → completed/in-progress courses), `transcript-integration.ts` (merges into `StudentInfo`) |
@@ -70,12 +84,36 @@ on every degree-set change → see `docs/data-loading-hooks.md`.
 
 Only `studentInfo: StudentInfo | null` is persisted to `localStorage` key
 `"student-storage"`; everything else (auth flags, selections, caches) resets on load.
-`StudentInfo` = `{ currentDegree, interestedDegrees[], name, currentPlan, plans[], customScheduleEntries? }`.
+`StudentInfo` = `{ currentDegree, interestedDegrees[], name, currentPlan, currentPhase, plans[], customScheduleEntries? }`.
 `StudentCourse` stores only `{ courseId, credits, status, grade?, class?, phase? }` —
 full `Course` objects are resolved at render time via `useCourseMap` + `curriculumCache`.
 
 `CourseStatus`: `pending | inProgress | completed | failed | exempted | planned | default`
 (`default` = curriculum slot with nothing planned, UI-only, never persisted).
+
+## Course status is POSITIONAL — `lib/semester-status.ts`
+
+A student is enrolled in a *semester*, not in a scattered set of courses, so
+`StudentInfo.currentPhase` (1-based) drives status for the whole plan:
+`semester < currentPhase` → COMPLETED, `=== currentPhase` → IN_PROGRESS,
+`> currentPhase` → PLANNED. Marking a phase current back-fills every earlier one.
+
+`resolveCourseStatus` / `resolveSemesters` / `resolvePlan` apply this. **Stored status
+still wins** where present: the three outcomes (completed/failed/exempted) and the two
+manual per-course overrides the details panel writes (inProgress/planned). `PENDING`
+means "no explicit status — derive from position", and is what `addCourseToSemester`
+stores for a dragged course. `currentPhase < 1` disables derivation entirely.
+
+Every consumer resolves *before* reading `.status`: `CurriculumVisualizer` and
+`GridVisualizer` (before their status engines), `ProgressVisualizer` (per box),
+`cloneToHistory` + `computeGraduationReminder` in the plan generator. `resolveSemesters`
+returns the same reference when nothing changed, so it is memo-safe. The generator's
+`computeStartSemester` reads `currentPhase + 1` — except when that phase is empty, which
+means it is still open to be filled. `Timetable` opens on `currentPhase` (lazy init).
+
+Legacy data is migrated in the persist `merge()`: `currentSemester: "1"` (a dead field)
+→ an inferred `currentPhase`, and stored `planned`/`inProgress` are reset to `pending` so
+position can take over. Outcomes and grades are never touched.
 
 Key actions (all via Immer `produce`, all call `updateView` after): `addCourseToSemester`,
 `moveCourse`, `removeCourse`, `changeCourseStatus`, `setCourseGrade` (rounds to 0.5,
@@ -83,11 +121,10 @@ Key actions (all via Immer `produce`, all call `updateView` after): `addCourseTo
 `addCustomScheduleEntry`/`remove`/`update`. `updateView` keeps semesters array ≥12 long
 with exactly one trailing empty slot as a DnD drop target.
 
-`curriculumCache: Record<degreeId, Course[]>` — evicted for degrees no longer in
-`studentInfo` on every `cacheCurriculum` call. **Note:** a second, parallel cache
-(`curriculumsCache: Record<degreeId, Curriculum>`, full objects) lives in the
-`useCurriculum` hook's local state — different shape, different consumers, no
-coordination between the two. See `docs/state-management.md`.
+`curriculumCache: Record<degreeId, Curriculum>` — full `Curriculum` objects, evicted for
+degrees no longer in `studentInfo` on every `cacheCurriculum` call. This is the **single,
+unified** curriculum cache: `useCurriculum` and every consumer read `.courses` off this one
+Zustand cache; there is no parallel hook-local cache. See `docs/state-management.md`.
 
 ## Curriculum system
 
@@ -239,12 +276,15 @@ uppercase → collapse whitespace → trim. `isTextClean(text)` = hardcoded PT-B
 profanity/hate-speech wordlist, word-boundary regex, checked server-side before insert.
 
 Known architecture issues (don't repeat these when extending — see
-`docs/professor-rating-architecture-issues.md` for full list, 20+ items): full
-`refreshKey` reload on every mutation instead of local patch; `myVote` sometimes not
-threaded through so vote state resets on dialog close; `ProfessorSearch` results never
-invalidated after a review is submitted; no pagination on reviews (`LIMIT 20` hard cap);
-two independent review-compose implementations (`ProfessorDetailsSection` inline form
-vs orphaned `WriteReviewDialog`).
+`docs/professor-rating-architecture-issues.md` for full list, 20+ items). Resolved:
+the `refreshKey` full-reload pattern (mutations now local-patch), `myVote` threading
+(returned by the details route, seeded into `voteState`), `ProfessorSearch` staleness
+(a `refreshTrigger` clears cached results on review submit), and the orphaned
+`WriteReviewDialog` / dual-compose-form duplication (removed — inline compose is the only
+path). Reviews pagination (formerly a `LIMIT 20` hard cap) is now addressed by Sprint 08
+US-1: the details route takes `?offset`/`?limit` (page-keyed cache under the
+`professor-${id}` tag) and the dialog has a "Carregar mais" load-more; one accepted gap
+remains (a user's own review on a later page isn't surfaced on first open).
 
 ## Transcript import (`parsers/transcript-parser.ts`)
 
@@ -278,13 +318,16 @@ ingestion.
 - Sequential hook waterfall on `/` (4 round-trips minimum) — `app/page.tsx`.
 - `StudentCourse` had a legacy shape with duplicated flattened fields; `student-store.ts`'s
   persist `merge()` migrates old-format entries in place on hydration.
-- Two parallel curriculum caches with no coordination (Zustand `curriculumCache` vs
-  hook `curriculumsCache`).
+- The curriculum cache is now **unified** as `curriculumCache: Record<degreeId, Curriculum>`
+  in the Zustand store — don't reintroduce a parallel hook-local `curriculumsCache`.
 - Course-status/equivalence logic duplicated between `CurriculumVisualizer` and
   `GridVisualizer`.
-- `normalizeProfessorId`/`normalizeId` duplicated across 3 files instead of importing
-  from `lib/professors.ts`.
-- `selectedSchedule`/`selectedStudentSchedule` in the store appear to have no consumers.
+- `normalizeProfessorId`/`normalizeId` duplication is RESOLVED — the details route,
+  reviews route, and `professor-selector.tsx` all now import `normalizeProfessorId` from
+  `lib/professors.ts`; don't reintroduce a local copy.
+- `selectedSchedule`/`selectedStudentSchedule` are **live** — they drive the timetable's
+  professor-selection stats panel (`selectSchedule`/`clearSchedule` ↔ `CourseList`/`CourseStats`);
+  not dead state, don't remove them.
 - Full file-level detail and more items: `docs/architecture.md` §11,
   `docs/professor-rating-architecture-issues.md`.
 
@@ -292,5 +335,6 @@ ingestion.
 
 `architecture.md` (system overview + full tech-debt table) · `authentication-security.md`
 · `curriculum-system.md` · `database-layer.md` · `data-loading-hooks.md` ·
-`data-pipeline.md` · `professor-rating.md` + `professor-rating-architecture-issues.md` ·
-`schedule-timetable.md` · `state-management.md` · `transcript-import.md`.
+`data-pipeline.md` · `plan-generator.md` · `professor-rating.md` +
+`professor-rating-architecture-issues.md` · `schedule-timetable.md` · `state-management.md` ·
+`transcript-import.md`.
