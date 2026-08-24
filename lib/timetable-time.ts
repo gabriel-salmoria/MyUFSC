@@ -64,3 +64,34 @@ export const GRID_END_MIN = slotSpan(N - 1)[1];
 export function snapMinutes(min: number, step = 5): number {
   return Math.round(min / step) * step;
 }
+
+// A UFSC class period is 50 minutes. A grid row represents exactly that period —
+// NOT the span up to the next row. Those differ wherever the timetable has a
+// gap: the 11:00 row is the 11:00–11:50 period, and 11:50 → 13:30 is lunch,
+// which the grid simply does not represent.
+export const PERIOD_MINUTES = 50;
+
+/**
+ * Indices of the grid rows that an arbitrary `[startMin, endMin)` interval
+ * actually overlaps.
+ *
+ * Gap-aware, and that is the whole point. Treating the grid as contiguous — as
+ * a single absolutely-positioned card spanning from the start row to the end
+ * row does — silently swallows the lunch gap: a 10:10–12:20 event looks like it
+ * runs to mid-afternoon, because 11:50–12:20 has no rows to occupy and the card
+ * stretches across the void anyway. Overlap-testing each row against its real
+ * 50-minute period instead means such an event covers the 10:10 and 11:00 rows
+ * and stops, and an event living entirely inside a gap covers nothing.
+ *
+ * The full `[startMin, endMin)` range is still what gets persisted and
+ * exported, so an .ics consumer with a continuous time axis renders it whole.
+ */
+export function coveredSlotIndexes(startMin: number, endMin: number): number[] {
+  const covered: number[] = [];
+  for (let i = 0; i < N; i++) {
+    const slotStart = SLOT_MINUTES[i];
+    const slotEnd = slotStart + PERIOD_MINUTES;
+    if (startMin < slotEnd && endMin > slotStart) covered.push(i);
+  }
+  return covered;
+}

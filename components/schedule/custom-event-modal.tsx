@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TIMETABLE } from "@/styles/visualization";
 import { TIMETABLE_COLOR_CLASSES } from "@/styles/course-theme";
@@ -10,16 +10,27 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Copy, Trash2, X } from "lucide-react";
-import { toHHMM, toMinutes } from "@/lib/timetable-time";
+import { PERIOD_MINUTES, toHHMM, toMinutes } from "@/lib/timetable-time";
 
 function generateId() {
   return `custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-// Default end = one hour after the start (events are free-time now, not snapped
-// to the UFSC period slots).
+/** Every period start on the grid, 24h — "07:30" … "21:10". */
+const PERIOD_STARTS: string[] = TIMETABLE.TIME_SLOTS.map((s) => s.id);
+
+/**
+ * Every period END, 24h. A period is 50 minutes, so these are the slot starts
+ * shifted by one period — including 11:50 (end of the pre-lunch block) and
+ * 22:00 (end of the last one), neither of which is a slot start.
+ */
+const PERIOD_ENDS: string[] = PERIOD_STARTS.map((t) =>
+  toHHMM(toMinutes(t) + PERIOD_MINUTES),
+);
+
+/** Default end = the end of the period the event starts in. */
 function defaultEnd(startTime: string): string {
-  return toHHMM(toMinutes(startTime) + 60);
+  return toHHMM(toMinutes(startTime) + PERIOD_MINUTES);
 }
 
 interface CustomEventModalProps {
@@ -52,7 +63,20 @@ export default function CustomEventModal({
   const [color, setColor] = useState(
     initialEntry?.color ?? TIMETABLE_COLOR_CLASSES[0],
   );
-  const [recurring, setRecurring] = useState(initialEntry?.recurring ?? true);
+  // Default OFF: a personal event belongs to the semester you are living
+  // through, not to every phase of the whole degree. Repeating it forever is
+  // the exception, so it should be the deliberate choice.
+  const [recurring, setRecurring] = useState(initialEntry?.recurring ?? false);
+
+  // Only ends after the chosen start. Keeps the stored value visible even when
+  // it is a legacy free-form time that isn't on a period boundary.
+  const endOptions = useMemo(() => {
+    const startMin = toMinutes(startTime);
+    const options = PERIOD_ENDS.filter((t) => toMinutes(t) > startMin);
+    return options.includes(endTime)
+      ? options
+      : [endTime, ...options].sort((a, b) => toMinutes(a) - toMinutes(b));
+  }, [startTime, endTime]);
 
   useEffect(() => {
     if (open) {
@@ -62,10 +86,10 @@ export default function CustomEventModal({
       setSubtitle(initialEntry?.subtitle ?? "");
       setDays(initialEntry?.days ?? []);
       setStartTime(newStart);
-      // Default end = one hour after start (unless editing an existing entry)
+      // Default end = end of the starting period (unless editing an entry)
       setEndTime(initialEntry?.endTime ?? defaultEnd(newStart));
       setColor(initialEntry?.color ?? TIMETABLE_COLOR_CLASSES[0]);
-      setRecurring(initialEntry?.recurring ?? true);
+      setRecurring(initialEntry?.recurring ?? false);
     }
   }, [open, initialEntry]);
 
@@ -239,28 +263,43 @@ export default function CustomEventModal({
               </div>
             </div>
 
-            {/* Início / Fim — free times (any minute), no longer snapped to
-                the UFSC period slots. */}
+            {/* Início / Fim — the grid's own period slots, in 24h.
+                Previously two native <input type="time">: those render in the
+                browser's locale, so a pt-BR user got a segmented "10:10 AM /
+                01:-- PM" that cannot be forced to 24h from HTML, and every
+                edit meant tabbing through HH / MM / AM-PM. Selects show exactly
+                "17:10", and picking real period boundaries is also what makes
+                the event land cleanly on grid cells. */}
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
                 <Label htmlFor="ce-start">Início</Label>
-                <Input
+                <select
                   id="ce-start"
-                  type="time"
-                  step={300}
                   value={startTime}
                   onChange={(e) => handleStartTimeChange(e.target.value)}
-                />
+                  className="bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground tabular-nums"
+                >
+                  {PERIOD_STARTS.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="ce-end">Fim</Label>
-                <Input
+                <select
                   id="ce-end"
-                  type="time"
-                  step={300}
                   value={endTime}
                   onChange={(e) => setEndTime(e.target.value)}
-                />
+                  className="bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground tabular-nums"
+                >
+                  {endOptions.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 

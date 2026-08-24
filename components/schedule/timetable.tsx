@@ -17,7 +17,7 @@ import {
 import { parsescheduleData } from "@/parsers/class-parser";
 import type { ClassSchedule } from "@/parsers/class-parser";
 import { expandToCells } from "@/lib/schedule-conflict";
-import { toMinutes } from "@/lib/timetable-time";
+import { coveredSlotIndexes, toMinutes } from "@/lib/timetable-time";
 import { useStudentStore } from "@/lib/student-store";
 import { useCourseMap } from "@/hooks/useCourseMap";
 import { useStableValue } from "@/hooks/useStableValue";
@@ -191,19 +191,6 @@ export default function Timetable({
     setLastEntry(entry);
   };
 
-  // Persist a drag: the overlay hands back the new weekdays + start/end times.
-  const handleCustomEntryMove = useCallback(
-    (
-      entry: CustomScheduleEntry,
-      days: number[],
-      startTime: string,
-      endTime: string,
-    ) => {
-      updateCustomScheduleEntry({ ...entry, days, startTime, endTime });
-    },
-    [updateCustomScheduleEntry],
-  );
-
   // ─── Derive visible custom entries for the current phase ──────────────────
   const visibleCustomEntries = useMemo(
     () =>
@@ -320,25 +307,6 @@ export default function Timetable({
     return newOverrides;
   }, [selectedPhaseCourses, timetableData]);
 
-  // Occupied class-section time ranges per weekday (day 0 = Monday), derived
-  // from the picked sections. Handed to the timetable grid → custom-events
-  // overlay so a custom event overlapping a class is packed into a narrower
-  // column beside it (#33) instead of covering it. The class table cell itself
-  // stays full-width underneath — only the overlay side narrows.
-  const classIntervalsByDay = useMemo(() => {
-    const map: Record<number, { startMin: number; endMin: number }[]> = {};
-    professorOverrides.forEach((override) => {
-      override.schedule.forEach((entry) => {
-        if (!entry.endTime) return;
-        (map[entry.day] ??= []).push({
-          startMin: toMinutes(entry.startTime),
-          endMin: toMinutes(entry.endTime),
-        });
-      });
-    });
-    return map;
-  }, [professorOverrides]);
-
   const [aggregatesRefreshKey, setAggregatesRefreshKey] = useState(0);
 
   // Fetch ratings for every course in the *currently viewed phase*, not just
@@ -379,7 +347,7 @@ export default function Timetable({
     }
   };
 
-  // ─── Build course schedule grid (now includes customEntries per cell) ──────
+  // ─── Build course schedule grid (courses + custom events, per cell) ────────
   const courseSchedule = useMemo(() => {
     const schedule: Record<
       string,
@@ -391,6 +359,7 @@ export default function Timetable({
             isConflicting: boolean;
             location?: string;
           }[];
+          customEntries: { entry: CustomScheduleEntry }[];
         }
       >
     > = {};
@@ -398,7 +367,7 @@ export default function Timetable({
     TIMETABLE.TIME_SLOTS.forEach((slot) => {
       schedule[slot.id] = {};
       TIMETABLE.DAYS.forEach((_, dayIndex) => {
-        schedule[slot.id][dayIndex] = { courses: [] };
+        schedule[slot.id][dayIndex] = { courses: [], customEntries: [] };
       });
     });
 
@@ -440,10 +409,33 @@ export default function Timetable({
       });
     });
 
-    // Custom events are no longer placed in cells — they render in the
-    // free-positioned, draggable overlay (see CustomEventsOverlay).
+    // Custom events occupy whole cells, exactly like class sections. The
+    // previous free-positioned overlay drew each event as one continuous card
+    // spanning start→end, which cannot be right on a grid with gaps: an event
+    // running past 11:50 stretched across the unrepresented lunch break.
+    // `coveredSlotIndexes` overlap-tests each row's real 50-minute period, so
+    // the gap is skipped instead of papered over. The stored start/end times
+    // are untouched — the .ics export still emits one continuous VEVENT.
+    visibleCustomEntries.forEach((entry) => {
+      const startMin = toMinutes(entry.startTime);
+      const endMin = toMinutes(entry.endTime);
+      const covered = coveredSlotIndexes(startMin, endMin);
+      entry.days.forEach((day) => {
+        if (day < 0 || day >= TIMETABLE.DAYS.length) return;
+        covered.forEach((slotIndex) => {
+          const slotId = TIMETABLE.TIME_SLOTS[slotIndex].id;
+          schedule[slotId][day].customEntries.push({ entry });
+        });
+      });
+    });
+
     return schedule;
-  }, [selectedPhaseCourses, professorOverrides, courseMap]);
+  }, [
+    selectedPhaseCourses,
+    professorOverrides,
+    courseMap,
+    visibleCustomEntries,
+  ]);
 
   const courseColorMap = useMemo(() => {
     selectedPhaseCourses.forEach((course) => {
@@ -623,12 +615,9 @@ export default function Timetable({
 
           <TimetableGrid
             courseSchedule={courseSchedule}
-            customEntries={visibleCustomEntries}
-            classIntervalsByDay={classIntervalsByDay}
             getCourseColor={getCourseColor}
             onEmptyCellClick={openNewEntry}
             onCustomEntryClick={openEditEntry}
-            onCustomEntryMove={handleCustomEntryMove}
           />
         </div>
 

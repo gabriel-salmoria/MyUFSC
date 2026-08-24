@@ -33,17 +33,6 @@ export default function StudentCourseDetailsPanel({
   const studentCourse = useStudentStore((s) => s.selectedStudentCourse);
   const clearSelection = useStudentStore((s) => s.clearSelection);
   const commitCourseStatus = useStudentStore((s) => s.commitCourseStatus);
-  const removeCourse = useStudentStore((s) => s.removeCourse);
-
-  // Unmark = the inverse of marking a status. Marking a curriculum-grid course
-  // *adds* it to the plan (see commitCourseStatus), so undoing it removes the
-  // course from the plan — it returns to a plain unmarked slot in the grid and
-  // leaves "Meu Progresso" (same effect as dropping it on the trash). The panel
-  // is closed since its selected course no longer exists.
-  const handleUnmark = (sc: StudentCourse) => {
-    removeCourse(sc);
-    clearSelection();
-  };
 
   const isOpen = !!(course && studentCourse);
 
@@ -105,7 +94,6 @@ export default function StudentCourseDetailsPanel({
             scheduleData={scheduleData}
             onClose={clearSelection}
             onCommitStatus={commitCourseStatus}
-            onUnmark={handleUnmark}
             onViewDependencies={(c) => {
               setDependencyState({
                 showDependencyTree: true,
@@ -137,7 +125,6 @@ function PanelContent({
   scheduleData,
   onClose,
   onCommitStatus,
-  onUnmark,
   onViewDependencies,
 }: {
   course: Course;
@@ -145,7 +132,6 @@ function PanelContent({
   scheduleData?: any;
   onClose: () => void;
   onCommitStatus: (course: Course, sc: StudentCourse, status: CourseStatus, grade?: number) => void;
-  onUnmark: (sc: StudentCourse) => void;
   onViewDependencies: (c: Course) => void;
 }) {
   const [gradeInput, setGradeInput] = useState(
@@ -171,6 +157,48 @@ function PanelContent({
     }
     return false;
   }, [courseMap, course.id]);
+
+  // ── Semester the status buttons act on ────────────────────────────────────
+  const studentInfo = useStudentStore((s) => s.studentInfo);
+  const setCurrentPhase = useStudentStore((s) => s.setCurrentPhase);
+  const currentPhase = studentInfo?.currentPhase ?? 0;
+
+  /**
+   * Which plan semester this course sits in. Read from the plan rather than
+   * from `studentCourse.phase`, which the curriculum grid fills with the
+   * *recommended* phase — that is not necessarily where the student actually
+   * scheduled it. `null` when the course isn't in the plan at all.
+   */
+  const planSemester = useMemo(() => {
+    const plan = studentInfo?.plans?.[studentInfo.currentPlan];
+    if (!plan) return null;
+    for (const semester of plan.semesters) {
+      const found = semester.courses.some((c) =>
+        c.instanceId && studentCourse.instanceId
+          ? c.instanceId === studentCourse.instanceId
+          : c.courseId === studentCourse.courseId,
+      );
+      if (found) return semester.number;
+    }
+    return null;
+  }, [studentInfo, studentCourse.instanceId, studentCourse.courseId]);
+
+  const semesterNumber = planSemester ?? Math.max(1, course.phase ?? 1);
+
+  /**
+   * Move the student to `phase`, first pulling the course into the plan if it
+   * is only in the curriculum grid — otherwise the buttons would silently do
+   * nothing visible to a course that has no slot yet. PENDING is used so the
+   * new entry stays positional; an existing entry is never touched, which is
+   * what keeps a recorded concluído/reprovado intact.
+   */
+  const markSemester = (phase: number) => {
+    if (planSemester === null) {
+      onCommitStatus(course, studentCourse, CourseStatus.PENDING);
+    }
+    setCurrentPhase(Math.max(1, phase));
+    setIsEditing(false);
+  };
 
   useEffect(() => {
     if (isEditing) gradeInputRef.current?.focus({ preventScroll: true });
@@ -382,50 +410,41 @@ function PanelContent({
                 <GitGraph className="h-4 w-4" /> Ver Árvore de Dependências
               </Button>
             )}
-            {/* Each button toggles: clicking the already-active status unmarks
-                the course (removes it from the plan) instead of being a no-op. */}
+            {/* These act on the SEMESTER, not the course. You are enrolled in
+                a semester as a whole — you cannot be taking one of its courses
+                and not the others — so each button just moves
+                `studentInfo.currentPhase`, and every course's status follows
+                from where it sits relative to it (lib/semester-status.ts).
+                Courses with a recorded outcome (concluído / reprovado /
+                dispensado) keep it: an explicit status always beats position.
+                Per-course outcomes come from the "Nota" field above. */}
             <ActionButton
-              active={studentCourse.status === CourseStatus.IN_PROGRESS}
+              active={currentPhase === semesterNumber}
               label="Marcar como Cursando"
-              activeLabel="Desmarcar Cursando"
-              onClick={() => {
-                if (studentCourse.status === CourseStatus.IN_PROGRESS) {
-                  onUnmark(studentCourse);
-                  return;
-                }
-                onCommitStatus(course, studentCourse, CourseStatus.IN_PROGRESS);
-                setGradeInput("");
-                setIsEditing(false);
-              }}
+              hint="(Semestre)"
+              title={`Você está cursando a fase ${semesterNumber}`}
+              onClick={() => markSemester(semesterNumber)}
             />
             <ActionButton
-              active={studentCourse.status === CourseStatus.COMPLETED}
+              active={currentPhase > semesterNumber}
               label="Marcar como Concluído"
-              activeLabel="Desmarcar Concluído"
-              onClick={() => {
-                if (studentCourse.status === CourseStatus.COMPLETED) {
-                  onUnmark(studentCourse);
-                  return;
-                }
-                // Grade is optional — completing doesn't require entering one.
-                // The "Nota" card above still lets the user add one afterwards.
-                onCommitStatus(course, studentCourse, CourseStatus.COMPLETED);
-                setIsEditing(false);
-              }}
+              hint="(Semestre)"
+              title={`A fase ${semesterNumber} e todas as anteriores estão concluídas`}
+              onClick={() => markSemester(semesterNumber + 1)}
             />
             <ActionButton
-              active={studentCourse.status === CourseStatus.PLANNED}
+              active={currentPhase < semesterNumber}
               label="Marcar como Planejado"
-              activeLabel="Desmarcar Planejado"
-              onClick={() => {
-                if (studentCourse.status === CourseStatus.PLANNED) {
-                  onUnmark(studentCourse);
-                  return;
-                }
-                onCommitStatus(course, studentCourse, CourseStatus.PLANNED);
-                setGradeInput("");
-                setIsEditing(false);
-              }}
+              hint="(Semestre)"
+              // Nothing sits before phase 1, so there is no phase to move to
+              // that would leave phase 1 still ahead of the student.
+              disabled={semesterNumber <= 1}
+              title={
+                semesterNumber <= 1
+                  ? "A fase 1 não pode ser planejada — é o início do curso"
+                  : `A fase ${semesterNumber} ainda está por vir`
+              }
+              onClick={() => markSemester(semesterNumber - 1)}
             />
           </div>
         </TabsContent>
@@ -466,11 +485,23 @@ function PanelContent({
                           >
                             {name}
                             {rating && (
-                              <span className="inline-flex items-center gap-0.5 text-xs text-yellow-600 font-semibold">
+                              <span
+                                className="inline-flex items-center gap-1 text-xs text-yellow-600 font-semibold"
+                                title={
+                                  rating.specific
+                                    ? `Média em ${course.id}`
+                                    : "Média geral do professor — ainda não há avaliações nesta disciplina"
+                                }
+                              >
                                 <Star className="w-3 h-3 fill-current" />
                                 {rating.score.toFixed(1)}
+                                {/* Spelled out: this used to render the bare
+                                    letter "g", which reads as a typo rather
+                                    than as "geral". */}
                                 {!rating.specific && (
-                                  <span className="text-muted-foreground font-normal">g</span>
+                                  <span className="text-muted-foreground font-normal">
+                                    geral
+                                  </span>
                                 )}
                               </span>
                             )}
@@ -571,30 +602,32 @@ function ListBlock({ title, items }: { title: string; items?: string[] }) {
 
 function ActionButton({
   label,
-  activeLabel,
+  hint,
   active,
+  disabled,
+  title,
   onClick,
 }: {
   label: string;
-  activeLabel?: string;
+  /** Dimmed suffix marking the button's scope, e.g. "(Semestre)". */
+  hint?: string;
   active: boolean;
+  disabled?: boolean;
+  title?: string;
   onClick: () => void;
 }) {
   return (
     <Button
-      className="w-full group"
+      className="w-full gap-1.5"
       variant={active ? "default" : "outline"}
+      disabled={disabled}
+      title={title}
+      aria-pressed={active}
       onClick={onClick}
     >
-      {/* When active, the button turns into an "unmark" toggle — surface that
-          on hover so it doesn't look like a dead/no-op selected state. */}
-      {active && activeLabel ? (
-        <>
-          <span className="group-hover:hidden">{label}</span>
-          <span className="hidden group-hover:inline">{activeLabel}</span>
-        </>
-      ) : (
-        label
+      {label}
+      {hint && (
+        <span className="text-xs font-normal opacity-60">{hint}</span>
       )}
     </Button>
   );
