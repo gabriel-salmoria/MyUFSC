@@ -5,6 +5,11 @@ import * as dotenv from "dotenv";
 import { execSync } from "child_process";
 import { parsePDF } from "../scrapers/curriculum/parser.js";
 import { retagNonDisciplineRequirements } from "../lib/curriculum-tagging";
+import {
+  campusFromProgramName,
+  listScheduleFiles,
+  type Campus,
+} from "./schedule-files";
 
 dotenv.config();
 
@@ -60,43 +65,16 @@ function titleCase(str: string): string {
     .join(" ");
 }
 
-function getCampusCode(rawName: string): string {
-  const lower = rawName.toLowerCase();
-  if (lower.includes("ararangu")) return "ARA";
-  if (lower.includes("blumenau")) return "BLN";
-  if (lower.includes("curitibanos")) return "CBS";
-  if (lower.includes("joinville")) return "JOI";
-  return "FLO";
-}
-
+/** Latest non-empty schedule file of a campus (skips bogus/empty scrapes). */
 function getLatestSchedule(
-  campusCode: string,
+  campusCode: Campus,
 ): { file: string; semester: string } | null {
-  const SCHEDULE_DIR = path.join(process.cwd(), "data/schedule");
-  if (!fs.existsSync(SCHEDULE_DIR)) return null;
-  const files = fs.readdirSync(SCHEDULE_DIR);
-  const semesterFiles = files
-    .filter((f) => f.endsWith(`-${campusCode}.json`))
-    .map((f) => {
-      const match = f.match(/^(\d{4})(\d)-[A-Z]{3}\.json$/);
-      if (!match) return null;
-      const year = parseInt(match[1]);
-      const semester = parseInt(match[2]);
-      return {
-        file: path.join(SCHEDULE_DIR, f),
-        year,
-        semester,
-        fullCode: `${year}${semester}`,
-      };
-    })
-    .filter((f) => f !== null && f.year <= 2030);
-
-  if (semesterFiles.length === 0) return null;
-  semesterFiles.sort((a, b) => {
-    if (a!.year !== b!.year) return b!.year - a!.year;
-    return b!.semester - a!.semester;
-  });
-  return { file: semesterFiles[0]!.file, semester: semesterFiles[0]!.fullCode };
+  const dir = path.join(process.cwd(), "data/schedule");
+  for (const { semester, files } of listScheduleFiles(dir)) {
+    const file = files[campusCode];
+    if (file) return { file, semester };
+  }
+  return null;
 }
 
 function formatProgramName(
@@ -241,7 +219,7 @@ async function ingest() {
         console.log(` -> Added successfully as testing.`);
 
         // Schedule Processing
-        const campusCode = getCampusCode(rawProgramName);
+        const campusCode = campusFromProgramName(rawProgramName);
         const scheduleInfo = getLatestSchedule(campusCode);
 
         if (scheduleInfo) {

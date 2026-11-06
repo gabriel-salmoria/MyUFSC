@@ -49,6 +49,21 @@ impl fmt::Display for Semester {
     }
 }
 
+impl Semester {
+    /// A real term: YYYY + 1/2/3, at most next year. CAGR's dropdown also lists
+    /// bogus codes (26261, 20264) that always come back empty and used to take
+    /// two of the three scraped slots.
+    fn is_plausible(&self) -> bool {
+        use chrono::Datelike;
+        let code = self.0.as_bytes();
+        let next_year = chrono::Local::now().year() + 1;
+        code.len() == 5
+            && code.iter().all(u8::is_ascii_digit)
+            && matches!(code[4], b'1' | b'2' | b'3')
+            && self.0[..4].parse::<i32>().is_ok_and(|year| year <= next_year)
+    }
+}
+
 fn form_data(
     semester: &Semester,
     campus: &Campus,
@@ -114,14 +129,39 @@ impl Scraper {
 
         for page_index in 1..=page_count {
             log::info!("Fetching page {page_index} for {campus} on {semester}");
-            let response = self
-                .client
-                .post(CAGR_URL)
-                .form(&form_data(semester, campus, page_index))
-                .send()
-                .await?;
 
-            let contents = response.text().await?;
+            // CAGR sometimes answers a page without the results table. Retry it;
+            // if the LAST page still has none, treat it as the end instead of
+            // failing (which used to drop every page of the campus).
+            let mut attempt = 0;
+            let (contents, parsed) = loop {
+                attempt += 1;
+                let response = self
+                    .client
+                    .post(CAGR_URL)
+                    .form(&form_data(semester, campus, page_index))
+                    .send()
+                    .await?;
+                let contents = response.text().await?;
+                match crate::parse::classes_from_html(&contents) {
+                    Ok(parsed) => break (contents, Some(parsed)),
+                    Err(err) if attempt < 3 => {
+                        log::warn!("Retrying page {page_index} for {campus} on {semester} ({err})");
+                        tokio::time::sleep(std::time::Duration::from_secs(2 * attempt)).await;
+                    }
+                    Err(err) if page_index == page_count => {
+                        log::warn!(
+                            "Last page {page_index} for {campus} on {semester} has no table after {attempt} tries; stopping there ({err})"
+                        );
+                        break (contents, None);
+                    }
+                    Err(err) => {
+                        return Err(err).with_context(|| {
+                            format!("Parsing page {page_index} for {campus} on {semester}")
+                        })
+                    }
+                }
+            };
 
             if Some(&contents) == previous.as_ref() {
                 log::warn!(
@@ -130,11 +170,12 @@ impl Scraper {
                 break;
             }
 
-            let parsed = crate::parse::classes_from_html(&contents)
-                .with_context(|| format!("Parsing page {page_index} for {campus} on {semester}"))?;
-            entries.extend(parsed);
+            match parsed {
+                Some(parsed) => entries.extend(parsed),
+                None => break,
+            }
 
-            previous.replace(contents.clone());
+            previous.replace(contents);
         }
 
         Ok(entries)
@@ -201,21 +242,30 @@ pub async fn scrape_last_n_semesters(
     let campi = campi.collect::<Vec<_>>();
 
     let semesters = available_semesters().await?;
-    let last_n_semesters = semesters.into_iter().take(n);
-
-    let tasks = last_n_semesters.map(|semester| {
-        let campi = campi.clone();
-        async move {
-            if !force && is_cache_valid(&semester, &campi) {
-                log::info!("Cache valid for semester {}. Skipping scrape.", semester);
-                // Return empty list to signal skipped/cached
-                return (semester, vec![]);
+    let last_n_semesters = semesters
+        .into_iter()
+        .filter(|s| {
+            let keep = s.is_plausible();
+            if !keep {
+                log::warn!("Skipping implausible semester code {s} from the CAGR dropdown");
             }
+            keep
+        })
+        .take(n);
 
-            let campus_classes = scrape_semester(semester.clone(), &campi).await;
-            (semester, campus_classes)
+    // One semester at a time (campuses still in parallel): CAGR starts dropping
+    // pages when 15 sessions (3 semesters x 5 campuses) hit it at once.
+    let mut results = Vec::new();
+    for semester in last_n_semesters {
+        if !force && is_cache_valid(&semester, &campi) {
+            log::info!("Cache valid for semester {}. Skipping scrape.", semester);
+            // Return empty list to signal skipped/cached
+            results.push((semester, vec![]));
+            continue;
         }
-    });
+        let campus_classes = scrape_semester(semester.clone(), &campi).await;
+        results.push((semester, campus_classes));
+    }
 
-    Ok(join_all(tasks).await)
+    Ok(results)
 }

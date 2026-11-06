@@ -75,7 +75,7 @@ cookie written by `useCurriculum` on every degree-set change. That bundle must c
 | `database/` | `ready.ts` (adapter: `executeQuery`/`executeTransaction`, Neon vs PGlite switch), `local-setup.ts` (schema DDL + auto-seed), `{curriculum,programs,schedule,users}/db-*.ts` (query modules) |
 | `parsers/` | `curriculum-parser.ts` (courseMap, phases, equivalence graph), `class-parser.ts` (MatrUFSC JSON → timetable data), `transcript-parser.ts` (PDF → completed/in-progress courses), `transcript-integration.ts` (merges into `StudentInfo`) |
 | `scrapers/` | `schedule/` (Rust binary scraping MatrUFSC), `curriculum/` (Node + Gemini AI PDF parser), `separator/` (filters full schedule to one curriculum's courses) |
-| `scripts/` | Offline pipeline/maintenance: `orchestrate.ts` (single-curriculum pipeline), `bulk-orchestrate.ts`, `ingest_curriculums.ts`, `update-curriculums.ts`, `update-professors.ts`, `check_anomalies.ts`, `crawler.ts`, one-off `migrate-*.ts` |
+| `scripts/` | Offline pipeline/maintenance: `orchestrate.ts` (single-curriculum pipeline), `bulk-orchestrate.ts`, `ingest_curriculums.ts`, `reingest-curricula.ts`, `update-curriculums.ts`, `schedule-files.ts` (shared campus/semester helpers), `update-professors.ts`, `check_anomalies.ts`, `crawler.ts`, one-off `migrate-*.ts` |
 | `types/` | `curriculum.ts` (`Course`,`Phase`,`Curriculum`), `student-plan.ts` (`StudentInfo`,`StudentCourse`,`CourseStatus`), `degree-program.ts`, `visualization.ts` |
 | `data/`, `curriculums/` | Local JSON/PDF artifacts used by pipeline scripts, not runtime |
 | `.dev-db/` | PGlite on-disk data dir for local dev (gitignored data) |
@@ -136,9 +136,10 @@ save JSONB space; `parseCourses` normalizes array-or-object input.
 `parsers/curriculum-parser.ts`:
 - Module-level `courseMap: Map<string,Course>` — rebuilt on every `generatePhases()` call.
 - `generatePhases(curriculum)` → groups **mandatory-only** courses by phase 1..totalPhases.
-- `generateEquivalenceMap(courses)` → BFS connected-components over `equivalents[]`
-  declarations, undirected, **transitive** (A≡B, B≡C ⇒ A≡C even if undeclared). Critical
-  for crediting renamed courses across curriculum versions.
+- `generateEquivalenceMap(courses)` → **direct, bidirectional** pairs from `equivalents[]`
+  only — no transitive closure (closure merged unrelated courses that share an old code,
+  e.g. MTM3120 and MTM3131 both listing MTM5192). Credits renamed courses across
+  curriculum versions.
 
 `lib/prerequisites.ts` — `checkPrerequisites(course, targetPhase, studentInfo, equivMap)`:
 collects all course IDs from semesters strictly before `targetPhase`, checks direct ID or
@@ -305,13 +306,22 @@ UFSC PDF → scrapers/curriculum/gemini.js (Gemini AI) → data/curriculum(_full
 curriculum_full.json + schedule → scrapers/separator → data/classes.json (scoped to curriculum)
 → scripts/orchestrate.ts Step 4 upserts programs/curriculums/schedules to Neon (testing=true)
 ```
-`scripts/bulk-orchestrate.ts`/`ingest_curriculums.ts` batch-process `data/pdfs/`.
+`scripts/bulk-orchestrate.ts`/`ingest_curriculums.ts` batch-process `data/pdfs/`;
+`ingest_curriculums.ts` uses the deterministic `scrapers/curriculum/parser.ts`, which reads
+`pdftotext -bbox-layout` word coordinates (fixed column x-positions + font size), not
+`-layout` text — see its header before changing it. `ingest_curriculums.ts` only ADDS
+curricula; `scripts/reingest-curricula.ts` re-parses and UPDATES existing ones (dry run by
+default, `--apply` backs up then writes in one transaction, `--restore` undoes).
 `scripts/update-curriculums.ts` refreshes schedules for all existing programs — this is
 what `.github/workflows/update-schedule.yml` runs daily at 08:00 UTC via
-`pnpm run curriculum:update`. `scripts/update-professors.ts` **must run after any
-schedule update** to keep `professor_courses` in sync. `scripts/check_anomalies.ts`
+`pnpm run curriculum:update` (`--dry-run`, `--no-scrape`, `--semester=` for manual runs).
+Each program takes classes from its **own campus file** (campus from the program name,
+`scripts/schedule-files.ts`); a missing/failed campus file leaves the DB untouched. GitHub
+disables that scheduled workflow after 60 days without a push — re-enable it with
+`gh workflow enable update-schedule.yml`. `scripts/update-professors.ts` **must run after
+any schedule update** to keep `professor_courses` in sync. `scripts/check_anomalies.ts`
 flags curricula with zero mandatory courses or bad phase assignments — run after bulk
-ingestion.
+ingestion. The `curriculums.testing` flag is NOT read by the app (every row is live).
 
 ## Known cross-cutting tech debt (avoid reintroducing / good first-fix candidates)
 

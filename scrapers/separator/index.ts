@@ -1,106 +1,47 @@
+/**
+ * Filters one campus schedule file down to a curriculum's courses.
+ *
+ * Usage: tsx scrapers/separator/index.ts <curriculum.json> <YYYYS-CAMPUS.json> <out.json>
+ *
+ * Works for any campus file (FLO, JOI, CBS, ARA, BLN); the output keeps the
+ * input's campus key: `{ DATA, <CAMPUS>: [...] }`.
+ */
 import fs from "fs";
 import path from "path";
+import {
+  campusOf,
+  curriculumCourseIds,
+  filterSchedule,
+  readSchedule,
+} from "../../scripts/schedule-files";
 
-// Define types
-interface CSCourse {
-  id: string;
-  name: string;
-  credits: number;
-  workload?: number;
-  description?: string;
-  prerequisites?: string[] | null;
-  equivalents?: string[] | null;
-  phase: number;
-  type?: string;
-}
-
-interface CSCurriculum {
-  name: string;
-  id: number;
-  totalPhases: number;
-  courses: any[];
-}
-
-interface ClassData {
-  DATA: string;
-  FLO: [string, string, any[]][];
-}
-
-async function main() {
-  try {
-    const args = process.argv.slice(2);
-
-    // Default paths (relative to where the script might be run, but safer to use args)
-    // Args:
-    // 0: Input Curriculum JSON (e.g., generated/curriculum.json)
-    // 1: Input Schedule JSON (e.g., generated/20251-FLO.json)
-    // 2: Output Classes JSON (e.g., generated/cs-classes-2025.json)
-
-    if (args.length < 3) {
-      console.error(
-        "Usage: ts-node index.ts <curriculumJsonPath> <scheduleJsonPath> <outputJsonPath>",
-      );
-      process.exit(1);
-    }
-
-    const curriculumPath = path.resolve(args[0]);
-    const schedulePath = path.resolve(args[1]);
-    const outputPath = path.resolve(args[2]);
-
-    console.log(`Reading curriculum from: ${curriculumPath}`);
-    const curriculumDataRaw = fs.readFileSync(curriculumPath, "utf8");
-    const curriculumData: CSCurriculum = JSON.parse(curriculumDataRaw);
-
-    console.log(`Reading schedule from: ${schedulePath}`);
-    const scheduleDataRaw = fs.readFileSync(schedulePath, "utf8");
-    const scheduleData: ClassData = JSON.parse(scheduleDataRaw);
-
-    // Create a set of CS course IDs for quick lookup
-    const courseIds = new Set(
-      curriculumData.courses.map((course: any) =>
-        Array.isArray(course) ? course[0] : course.id,
-      ),
+function main() {
+  const [curriculumArg, scheduleArg, outputArg] = process.argv.slice(2);
+  if (!curriculumArg || !scheduleArg || !outputArg) {
+    console.error(
+      "Usage: tsx scrapers/separator/index.ts <curriculumJsonPath> <scheduleJsonPath> <outputJsonPath>",
     );
-
-    // Filter FLO data to only include classes for CS courses
-    const filteredFLO: [string, string, any[]][] = [];
-
-    // The scraper output has a top-level key for the degree usually, but here we assume we are getting
-    // the raw JSON that might be inside a degree key OR just the raw structure we saw in the file.
-    // Based on previous code: `const floData: ClassData = JSON.parse(floDataRaw);`
-    // and `floData.FLO`.
-
-    if (!scheduleData.FLO) {
-      console.error(
-        "Error: Input schedule JSON does not contain 'FLO' property.",
-      );
-      process.exit(1);
-    }
-
-    for (const courseData of scheduleData.FLO) {
-      const courseId = courseData[0];
-
-      // Only include courses that exist in our curriculum
-      if (courseIds.has(courseId)) {
-        filteredFLO.push(courseData);
-      }
-    }
-
-    const filteredData = {
-      DATA: scheduleData.DATA,
-      FLO: filteredFLO,
-    };
-
-    fs.writeFileSync(outputPath, JSON.stringify(filteredData));
-
-    console.log(`Data processing complete. Output saved to ${outputPath}`);
-    console.log(
-      `Extracted information for ${filteredFLO.length} courses found in curriculum.`,
-    );
-  } catch (error) {
-    console.error("Error processing data:", error);
     process.exit(1);
   }
+
+  const curriculum = JSON.parse(
+    fs.readFileSync(path.resolve(curriculumArg), "utf8"),
+  );
+  const schedule = readSchedule(path.resolve(scheduleArg));
+  const campus = campusOf(schedule);
+  if (!campus) {
+    console.error(`Error: ${scheduleArg} has no campus array (FLO, BLN, ...).`);
+    process.exit(1);
+  }
+
+  const filtered = filterSchedule(schedule, curriculumCourseIds(curriculum)) ?? {
+    DATA: schedule.DATA,
+    [campus]: [],
+  };
+  fs.writeFileSync(path.resolve(outputArg), JSON.stringify(filtered));
+  console.log(
+    `${campus}: ${(filtered[campus] as unknown[]).length} of the curriculum's courses have classes → ${outputArg}`,
+  );
 }
 
 main();

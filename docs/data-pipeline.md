@@ -91,13 +91,23 @@ Runs the orchestrator against every PDF in a `data/pdfs/` directory in parallel 
 
 ## `scripts/ingest_curriculums.ts` — Bulk PDF Ingestion
 
-Alternative bulk script. Reads all PDFs from `data/pdfs/`, calls the Gemini parser on each, and upserts the results without running the Rust scraper. Used when only updating curriculum data (not schedules).
+Alternative bulk script. Reads all PDFs from `data/pdfs/`, parses each with the deterministic parser (`scrapers/curriculum/parser.ts`) and inserts the curricula that are not in the DB yet (existing ones are skipped). Takes the schedule from the program's own campus file.
+
+The parser reads `pdftotext -bbox-layout` word boxes: the CAGR template draws each table column at a fixed x-coordinate and uses distinct font sizes for table rows (7.4pt), ementas (6.5pt, printed above their row), the page header (8.3pt) and section headings (≥10pt). Phases come only from section headings ("Fase 01", "3ª Fase", "1º Período", "2° Semestre", "Oitava Fase"…).
+
+---
+
+## `scripts/reingest-curricula.ts` — Re-parse existing curricula
+
+Re-parses the PDFs in `data/pdfs/` and UPDATES curricula already in the DB (never adds or deletes one, never touches programs/schedules). Dry run by default, with the full diff in `data/reingest-report.json`. `--apply` saves the rows it will change to `data/backups/curriculums-<timestamp>.json` and updates them in one transaction; `--restore=<backup>` writes a backup back. Gemini-parsed curricula (department ≠ "UFSC") are skipped unless `--include-gemini`; an update that would drop a course id is blocked unless `--allow-removals`.
 
 ---
 
 ## `scripts/update-curriculums.ts` — Schedule Refresh
 
-Updates schedule data for all programs already in the database. For each program, fetches the latest schedule from MatrUFSC (via the Rust scraper) and upserts the new semester's data.
+Updates schedule data for all programs already in the database: scrapes MatrUFSC for every campus, then stores the latest semester's classes for each program **from its own campus file** (campus from the program name, see `scripts/schedule-files.ts`). A program whose campus file is missing (failed scrape) or has none of its courses keeps its DB record. Flags: `--dry-run`, `--no-scrape`, `--semester=YYYYS`, and an optional program id.
+
+GitHub disables the scheduled workflow after 60 days without a push to the repo (`gh workflow list --all` shows `disabled_inactivity`); re-enable it with `gh workflow enable update-schedule.yml`.
 
 ---
 

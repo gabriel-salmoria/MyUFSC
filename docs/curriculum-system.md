@@ -72,15 +72,12 @@ Wrapper around `generatePhases` that returns a `phaseArray: Course[][]` (indexed
 
 ### `generateEquivalenceMap(courses: Course[]) → Map<string, Set<string>>`
 
-Builds a transitive equivalence graph using BFS connected-component discovery:
+Builds **direct, bidirectional** equivalences only:
 
-1. Constructs an undirected adjacency list from all `course.equivalents` declarations. If A declares B as equivalent, edges A↔B are added.
-2. Runs BFS/DFS from every unvisited node to find connected components.
-3. Every node in a component maps to the **full component Set**.
+1. Every course maps to a Set containing itself.
+2. If A declares B as equivalent, B is added to A's Set and A to B's.
 
-The result means: if A ≡ B and B ≡ C (even if A never declared C directly), then `equivalenceMap.get("A") === equivalenceMap.get("B") === equivalenceMap.get("C")` — all return the same Set `{"A", "B", "C"}`.
-
-This transitivity is essential for correctly crediting courses that were renamed or restructured across curriculum versions (e.g. INE5401 renamed to INE5401-07 renamed to INE5401-19).
+There is no transitive closure: if A ≡ B and B ≡ C, A and C are NOT equivalent unless one declares the other. Closure used to merge unrelated courses that happen to share an old code (e.g. MTM3120 and MTM3131 both listing MTM5192). The direct pairs are what credits renamed or restructured courses across curriculum versions.
 
 ---
 

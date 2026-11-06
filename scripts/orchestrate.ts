@@ -5,6 +5,12 @@ import { promisify } from "util";
 import { Client } from "pg";
 import * as dotenv from "dotenv";
 import { retagNonDisciplineRequirements } from "../lib/curriculum-tagging";
+import {
+  bestCampusFile,
+  curriculumCourseIds,
+  listScheduleFiles,
+  type Campus,
+} from "./schedule-files";
 
 dotenv.config();
 
@@ -122,6 +128,7 @@ async function ensureDir(dir: string) {
 // --- Main Pipeline ---
 
 let SELECTED_SCHEDULE_FILE = "";
+let SELECTED_SCHEDULE_FILES: Partial<Record<Campus, string>> = {};
 let SELECTED_SEMESTER = "";
 
 async function scrapeSchedule() {
@@ -136,50 +143,15 @@ async function scrapeSchedule() {
     "Running Rust Scraper",
   );
 
-  // Find output file with Smart Selection
-  // Now searching in data/schedule
-  if (!fs.existsSync(SCHEDULE_DIR)) {
-    throw new Error(`Schedule directory not found at ${SCHEDULE_DIR}`);
+  // Latest semester with real data (skips empty files and bogus codes like 26261).
+  const latest = listScheduleFiles(SCHEDULE_DIR)[0];
+  if (!latest) {
+    throw new Error(`No non-empty schedule files found in ${SCHEDULE_DIR}.`);
   }
-
-  const files = fs.readdirSync(SCHEDULE_DIR);
-
-  // Regex to match "YYYYS-FLO.json" e.g. "20251-FLO.json"
-  // We want to capture YYYY and S
-  const semesterFiles = files
-    .filter((f) => f.endsWith("-FLO.json"))
-    .map((f) => {
-      const match = f.match(/^(\d{4})(\d)-FLO\.json$/);
-      if (!match) return null;
-      const year = parseInt(match[1]);
-      const semester = parseInt(match[2]);
-      return { filename: f, year, semester, fullCode: `${year}${semester}` };
-    })
-    .filter((f) => f !== null)
-    .filter((f) => f.year <= 2030); // Filter out crazy years like 2626
-
-  if (semesterFiles.length === 0) {
-    throw new Error("No valid schedule files found (checked for <= 2030).");
-  }
-
-  // Sort descending to get latest
-  semesterFiles.sort((a, b) => {
-    if (a.year !== b.year) return b.year - a.year;
-    return b.semester - a.semester;
-  });
-
-  const latest = semesterFiles[0];
+  SELECTED_SEMESTER = latest.semester;
+  SELECTED_SCHEDULE_FILES = latest.files;
   logger.substep(
-    `Selected latest semester: ${colors.bright}${latest.fullCode}${colors.reset}`,
-  );
-
-  SELECTED_SEMESTER = latest.fullCode;
-
-  // We just reference it directly now
-  SELECTED_SCHEDULE_FILE = path.join(SCHEDULE_DIR, latest.filename);
-
-  logger.success(
-    `Schedule ready: ${path.relative(DATA_DIR, SELECTED_SCHEDULE_FILE)}`,
+    `Selected latest semester: ${colors.bright}${latest.semester}${colors.reset} (${Object.keys(latest.files).join(", ")})`,
   );
 }
 
@@ -203,13 +175,28 @@ async function parseCurriculum() {
 async function separateData() {
   logger.step(3, "Separating Data");
 
-  if (!SELECTED_SCHEDULE_FILE) {
-    throw new Error("Schedule file not selected. Did scrapers run?");
+  if (!SELECTED_SEMESTER) {
+    throw new Error("Schedule not selected. Did scrapers run?");
   }
 
   if (!fs.existsSync(CURRICULUM_FULL_JSON_OUTPUT)) {
     throw new Error("Curriculum Full JSON not found. Separator requires it.");
   }
+
+  // The program's campus is the one whose schedule matches most of its courses.
+  const courseIds = curriculumCourseIds(
+    JSON.parse(fs.readFileSync(CURRICULUM_FULL_JSON_OUTPUT, "utf-8")),
+  );
+  const best = bestCampusFile(SELECTED_SCHEDULE_FILES, courseIds);
+  SELECTED_SCHEDULE_FILE = best?.file ?? SELECTED_SCHEDULE_FILES.FLO ?? "";
+  if (!SELECTED_SCHEDULE_FILE) {
+    throw new Error(`No schedule file to separate for ${SELECTED_SEMESTER}.`);
+  }
+  logger.substep(
+    best
+      ? `Campus ${best.campus}: ${best.matches} of the curriculum's courses have classes`
+      : "No campus file has classes for this curriculum; storing an empty schedule",
+  );
 
   // Command: tsx <script> <curriculum_full> <schedule> <output>
   const command = `npx tsx ${SEPARATOR_SCRIPT} "${CURRICULUM_FULL_JSON_OUTPUT}" "${SELECTED_SCHEDULE_FILE}" "${CLASSES_JSON_OUTPUT}"`;
@@ -236,17 +223,25 @@ async function updateDatabase() {
     const curriculumData = JSON.parse(
       fs.readFileSync(CURRICULUM_JSON_OUTPUT, "utf-8"),
     );
-    let programId = path.basename(CURRICULUM_PDF, path.extname(CURRICULUM_PDF));
-    const parts = programId.split("_");
-    if (parts.length > 1) {
-      curriculumData.id = parts[0];
-      curriculumData.version = parts[1];
-    } else {
-      programId = String(curriculumData.id);
-      if (curriculumData.version) {
-        programId = `${curriculumData.id}_${curriculumData.version}`;
-      }
+    // Program id = "<course>_<version>". Trust the file name only when it IS
+    // that ("208_20271.pdf"); UFSC's own download name
+    // ("CURRICULO_CIÊNCIAS_DA_COMPUTAÇÃO_20271.pdf.pdf") used to become the id.
+    const fileStem = path.basename(CURRICULUM_PDF, path.extname(CURRICULUM_PDF));
+    const fromName = fileStem.match(/^(\d+)_(\d{5})$/);
+    if (fromName) {
+      curriculumData.id = fromName[1];
+      curriculumData.version = fromName[2];
     }
+    if (
+      !/^\d+$/.test(String(curriculumData.id)) ||
+      !/^\d{5}$/.test(String(curriculumData.version))
+    ) {
+      throw new Error(
+        `Can't tell the program id: file "${fileStem}" isn't <course>_<version> and the parsed ` +
+          `id/version are "${curriculumData.id}"/"${curriculumData.version}". Rename the PDF to e.g. 208_20271.pdf.`,
+      );
+    }
+    const programId = `${curriculumData.id}_${curriculumData.version}`;
 
     let pName = curriculumData.name || "";
     const match = pName.match(/^\d+\s*-\s*(.+)$/);

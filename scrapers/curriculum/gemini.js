@@ -18,8 +18,12 @@ if (!GEMINI_KEY) {
 
 const genAI = new GoogleGenerativeAI(GEMINI_KEY);
 
+// Preview models get retired (gemini-3-pro-preview now returns 404), so the
+// model is overridable without a code change.
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.1-pro-preview";
+
 const model = genAI.getGenerativeModel({
-  model: "gemini-3-pro-preview",
+  model: GEMINI_MODEL,
   generationConfig: {
     responseMimeType: "application/json",
     responseSchema: Schema,
