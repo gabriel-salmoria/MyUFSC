@@ -276,6 +276,8 @@ interface Row {
   phase: number | null;
   /** Last numbered phase heading above the row. */
   inheritedPhase: number | null;
+  /** Title of the section the row is listed under ("Fase 01", "Optativas"…). */
+  section: string;
   /** The page header's "Habilitação:" the row was printed under. */
   habilitacao: string;
   /** Page index and y of the row's last table line, to place notes under it. */
@@ -291,6 +293,29 @@ function rowCells(line: Line): Record<Column, string> {
     cells[col] = cells[col] ? `${cells[col]} ${w.text}` : w.text;
   }
   return cells;
+}
+
+/**
+ * Whether every track is a real course plan: its view (shared courses plus its
+ * own) has mandatory courses in phases 1 and 2, and not all views are equal.
+ */
+function tracksAreCourses(courses: CompactCourse[], trackCount: number): boolean {
+  const views: string[] = [];
+  for (let t = 0; t < trackCount; t++) {
+    const phases = new Set<number | null>();
+    const ids: string[] = [];
+    for (const c of courses) {
+      const placement: [boolean, number | null] | undefined = c[9]
+        ? c[9][String(t)]
+        : [c[7], c[8]];
+      if (!placement) continue;
+      ids.push(c[0]);
+      if (placement[0]) phases.add(placement[1]);
+    }
+    if (!phases.has(1) || !phases.has(2)) return false;
+    views.push(ids.join(","));
+  }
+  return new Set(views).size > 1;
 }
 
 /**
@@ -323,6 +348,7 @@ export function parseCurriculumBBoxDetailed(html: string): {
   let current: Row | null = null;
   let pendingDesc: string[] = [];
   let sectionPhase: number | null = null;
+  let sectionTitle = "";
   // Last numbered phase heading seen; see the phase rule at the end.
   let lastPhase: number | null = null;
   // The word the curriculum numbers its phases with. A heading using another
@@ -366,6 +392,7 @@ export function parseCurriculumBBoxDetailed(html: string): {
       if (kind === "heading") {
         if (/CURR[ÍI]CULO DO CURSO/i.test(text)) continue;
         sectionPhase = phaseFromHeading(text);
+        sectionTitle = text;
         if (sectionPhase !== null) {
           const word = phaseWord(text);
           phaseWordInUse ??= word;
@@ -427,6 +454,7 @@ export function parseCurriculumBBoxDetailed(html: string): {
             prerequisites: [cells.prerequisites ?? ""],
             description: joinWrapped(pendingDesc),
             phase: sectionPhase,
+            section: sectionTitle,
             inheritedPhase: lastPhase,
             habilitacao,
             page: pageNo,
@@ -454,6 +482,8 @@ export function parseCurriculumBBoxDetailed(html: string): {
     course: CompactCourse;
     inherited: boolean;
     placeholder: boolean;
+    /** Listed in a section the PDF calls shared ("…comum às duas habilitações"). */
+    common: boolean;
     habilitacao: string;
     /** Lower = better placement, for choosing among repeats of one id. */
     rank: number;
@@ -502,6 +532,7 @@ export function parseCurriculumBBoxDetailed(html: string): {
       inherited,
       placeholder: isPlaceholder,
       habilitacao: row.habilitacao,
+      common: /\bcomum\b/.test(normalizeHeading(row.section)),
       rank: isMandatory && phase !== null ? (inherited ? 1 : 0) : 2,
     });
   }
@@ -531,10 +562,6 @@ export function parseCurriculumBBoxDetailed(html: string): {
       ),
   );
   if (base) trackNames = trackNames.filter((h) => h !== base);
-  const hasTracks = trackNames.length >= 2;
-  /** Track index of a row, or -1 when it belongs to every track. */
-  const trackOf = (b: (typeof built)[number]) =>
-    hasTracks ? trackNames.indexOf(habOf(b)) : -1;
 
   // One row per course id: the app keys courses by id, so a repeat shows up
   // twice in the phase grid. Repeats come from the per-habilitação grids and
@@ -543,44 +570,81 @@ export function parseCurriculumBBoxDetailed(html: string): {
   // mandatory with an inherited phase, then the first; with tracks, each
   // track's own placement goes in the course's TrackMap. Without tracks, only
   // the first section's elective slots are kept so two loads don't add up.
-  const primary = built[0]?.habilitacao;
-  const candidates = built.filter(
-    (b) => !b.placeholder || hasTracks || b.habilitacao === primary,
-  );
-  const best = new Map<string, number>();
-  const placements = new Map<string, Map<number, (typeof built)[number]> | null>();
-  candidates.forEach((b, i) => {
-    const id = b.course[0];
-    const j = best.get(id);
-    if (j === undefined || b.rank < candidates[j].rank) best.set(id, i);
-    if (!hasTracks) return;
-    const t = trackOf(b);
-    if (t < 0) {
-      placements.set(id, null); // in the core → in every track
-      return;
-    }
-    const byTrack = placements.get(id);
-    if (byTrack === null) return;
-    const map = byTrack ?? new Map();
-    const prev = map.get(t);
-    if (!prev || b.rank < prev.rank) map.set(t, b);
-    placements.set(id, map);
-  });
-  const inheritedPhaseRows = new Set<number>();
-  candidates.forEach((b, i) => {
-    const id = b.course[0];
-    if (best.get(id) !== i) return;
-    if (b.inherited) inheritedPhaseRows.add(result.courses.length);
-    const byTrack = placements.get(id);
-    if (byTrack) {
+  const assemble = (withTracks: boolean) => {
+    const trackOf = (b: (typeof built)[number]) =>
+      withTracks && !b.common ? trackNames.indexOf(habOf(b)) : -1; // -1 = every track
+    const primary = built[0]?.habilitacao;
+    const candidates = built.filter(
+      (b) => !b.placeholder || withTracks || b.habilitacao === primary,
+    );
+    type Row = (typeof built)[number];
+    const best = new Map<string, number>();
+    const coreRow = new Map<string, Row>(); // listed outside every track
+    const trackRows = new Map<string, Map<number, Row>>();
+    candidates.forEach((b, i) => {
+      const id = b.course[0];
+      const j = best.get(id);
+      if (j === undefined || b.rank < candidates[j].rank) best.set(id, i);
+      if (!withTracks) return;
+      const t = trackOf(b);
+      if (t < 0) {
+        const prev = coreRow.get(id);
+        if (!prev || b.rank < prev.rank) coreRow.set(id, b);
+        return;
+      }
+      const map = trackRows.get(id) ?? new Map<number, Row>();
+      const prev = map.get(t);
+      if (!prev || b.rank < prev.rank) map.set(t, b);
+      trackRows.set(id, map);
+    });
+    // Each track takes its own listing of a course, else the core's: a course
+    // that is an elective in the core but mandatory in one track (Geografia's
+    // GCN7500) stays an elective for the others. Same placement everywhere →
+    // shared, no TrackMap.
+    const placementOf = (id: string): TrackMap | null => {
+      const own = trackRows.get(id);
+      if (!own) return null;
+      const core = coreRow.get(id);
       const tracks: TrackMap = {};
-      for (const [t, p] of byTrack) tracks[String(t)] = [p.course[7], p.course[8]];
-      const [c0, c1, c2, c3, c4, c5, c6, c7, c8] = b.course;
-      result.courses.push([c0, c1, c2, c3, c4, c5, c6, c7, c8, tracks]);
-    } else {
-      result.courses.push(b.course);
-    }
-  });
+      for (let t = 0; t < trackNames.length; t++) {
+        const row = own.get(t) ?? core;
+        if (row) tracks[String(t)] = [row.course[7], row.course[8]];
+      }
+      const values = Object.values(tracks).map((v) => JSON.stringify(v));
+      const shared = values.length === trackNames.length && new Set(values).size === 1;
+      return shared ? null : tracks;
+    };
+    const courses: CompactCourse[] = [];
+    const inherited = new Set<number>();
+    candidates.forEach((b, i) => {
+      const id = b.course[0];
+      if (best.get(id) !== i) return;
+      if (b.inherited) inherited.add(courses.length);
+      const tracks = placementOf(id);
+      if (tracks) {
+        const [c0, c1, c2, c3, c4, c5, c6, c7, c8] = b.course;
+        courses.push([c0, c1, c2, c3, c4, c5, c6, c7, c8, tracks]);
+      } else {
+        courses.push(b.course);
+      }
+    });
+    return { courses, inherited };
+  };
+
+  // The "Habilitação:" header is how UFSC's system files courses, and only
+  // sometimes a choice the student makes. Psicologia files its first six phases
+  // under "Licenciatura em Psicologia" and has groups like "Bacharelado e
+  // Psicólogo" holding two courses; its real tracks are in section titles. So
+  // only keep tracks when each one is a whole course plan — mandatory courses in
+  // its first two phases — and they actually differ; otherwise show one grid.
+  let hasTracks = trackNames.length >= 2;
+  let assembled = assemble(hasTracks);
+  if (hasTracks && !tracksAreCourses(assembled.courses, trackNames.length)) {
+    hasTracks = false;
+    assembled = assemble(false);
+  }
+  const inheritedPhaseRows = assembled.inherited;
+  result.courses.push(...assembled.courses);
   if (hasTracks) {
     const labels = habilitacaoLabels(trackNames);
     result.habilitacoes = trackNames.map((name, i) => ({ label: labels[i], name }));

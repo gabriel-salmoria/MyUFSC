@@ -106,6 +106,15 @@ const FIELDS = [
   "tracks",
 ] as const;
 
+/** JSON with object keys sorted: Postgres jsonb stores keys in its own order. */
+function canonical(value: unknown): string {
+  return JSON.stringify(value, (_key, v) =>
+    v && typeof v === "object" && !Array.isArray(v)
+      ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b)))
+      : v,
+  );
+}
+
 function sameField(i: number, a: unknown, b: unknown): boolean {
   if (i === 5 || i === 6) {
     const sa = [...((a as string[]) ?? [])].sort();
@@ -113,7 +122,7 @@ function sameField(i: number, a: unknown, b: unknown): boolean {
     return JSON.stringify(sa) === JSON.stringify(sb);
   }
   if (i === 8) return (a ?? null) === (b ?? null);
-  return JSON.stringify(a) === JSON.stringify(b);
+  return canonical(a) === canonical(b);
 }
 
 function diff(dbCourses: DbCourse[], next: CompactCourse[]) {
@@ -263,9 +272,9 @@ async function main() {
       else delete next.habilitacoes;
 
       if (
-        JSON.stringify(dbCourses) === JSON.stringify(courses) &&
+        canonical(dbCourses) === canonical(courses) &&
         current.totalPhases === totalPhases &&
-        JSON.stringify(current.habilitacoes) === JSON.stringify(next.habilitacoes)
+        canonical(current.habilitacoes) === canonical(next.habilitacoes)
       ) {
         entry.status = "unchanged";
       } else if (origin === "gemini" && !includeGemini) {

@@ -294,6 +294,8 @@ test("habilitações: one row per course, each track's placement in its TrackMap
       ...header("Bacharelado e Licenciatura em Ciências Sociais"),
       ...line(100, HEADING, [[275, "Fase 01"]]),
       ...row(130, "SPO7102", "Ciência Política", "Ob"),
+      ...line(160, HEADING, [[275, "Fase 02"]]),
+      ...row(190, "SPO7202", "Teoria Política", "Ob"),
     ]) +
     page([
       ...header("Licenciatura em Ciências Sociais"),
@@ -322,12 +324,88 @@ test("habilitações: one row per course, each track's placement in its TrackMap
     courses.map((c) => [c[0], c[7], c[8], c[9]]),
     [
       ["SPO7102", true, 1, undefined], // core: every track
-      ["ANT7101", true, 1, { "0": [true, 1], "1": [true, 1] }],
+      ["SPO7202", true, 2, undefined],
+      ["ANT7101", true, 1, undefined], // same placement in both → shared
       ["OPT0001", false, 1, { "0": [false, 1] }], // each track keeps its slots
       ["OPT0002", false, 1, { "1": [false, 1] }],
       // elective in Licenciatura, mandatory phase 7 in Bacharelado
       ["MEN7021", true, 7, { "0": [false, null], "1": [true, 7] }],
       ["CSO7808", true, 7, { "1": [true, 7] }],
+    ],
+  );
+});
+
+test("an elective in the core stays an elective for tracks that don't require it", () => {
+  const header = (hab: string): W[] => [
+    ...line(40, HEADER, [[40, "Curso: 331 - GEOGRAFIA"]]),
+    ...line(52, HEADER, [[40, "Currículo: 20071"]]),
+    ...line(70, HEADER, [[40, `Habilitação: ${hab}`]]),
+  ];
+  const row = (y: number, code: string, type: string): W[] =>
+    line(y, TABLE, [[40, code], [82, "Disciplina"], [255, type], [283, "72"], [316, "4"]]);
+  const html =
+    page([
+      ...header("Bacharelado e Licenciatura em Geografia"),
+      ...line(100, HEADING, [[275, "Fase 01"]]),
+      ...row(130, "GCN7101", "Ob"),
+      ...line(160, HEADING, [[275, "Fase 02"]]),
+      ...row(190, "GCN7201", "Ob"),
+      ...line(220, HEADING, [[275, "Disciplinas Optativas"]]),
+      ...row(250, "GCN7500", "Op"),
+    ]) +
+    page([
+      ...header("Licenciatura em Geografia"),
+      ...line(100, HEADING, [[275, "Fase 05"]]),
+      ...row(130, "MEN7001", "Ob"),
+    ]) +
+    page([
+      ...header("Bacharelado em Geografia"),
+      ...line(100, HEADING, [[275, "Fase 05"]]),
+      ...row(130, "GCN7500", "Ob"),
+    ]);
+  const { courses, habilitacoes } = parseCurriculumBBox(html);
+  assert.deepEqual(habilitacoes?.map((h) => h.label), ["Licenciatura", "Bacharelado"]);
+  const gcn = courses.find((c) => c[0] === "GCN7500")!;
+  assert.deepEqual(gcn[9], { "0": [false, null], "1": [true, 5] });
+});
+
+test("no tracks when a habilitação group is not a whole course plan (Psicologia)", () => {
+  const header = (hab: string): W[] => [
+    ...line(40, HEADER, [[40, "Curso: 319 - PSICOLOGIA"]]),
+    ...line(52, HEADER, [[40, "Currículo: 20101"]]),
+    ...line(70, HEADER, [[40, `Habilitação: ${hab}`]]),
+  ];
+  const row = (y: number, code: string, type = "Ob"): W[] =>
+    line(y, TABLE, [[40, code], [82, "Disciplina"], [255, type], [283, "72"], [316, "4"]]);
+  const html =
+    // UFSC files the first phases under one habilitação...
+    page([
+      ...header("Licenciatura em Psicologia"),
+      ...line(100, HEADING, [[275, "Fase 01"]]),
+      ...row(130, "PSI7101"),
+      ...line(160, HEADING, [[275, "Fase 02"]]),
+      ...row(190, "PSI7201"),
+    ]) +
+    // ...and other groups only hold a few later courses.
+    page([
+      ...header("Bacharelado e Psicólogo"),
+      ...line(100, HEADING, [[275, "Fase 08"]]),
+      ...row(130, "PSI7808"),
+    ]) +
+    page([
+      ...header("Bacharelado em Psicologia"),
+      ...line(100, HEADING, [[275, "Fase 07"]]),
+      ...row(130, "PSI7013"),
+    ]);
+  const { courses, habilitacoes } = parseCurriculumBBox(html);
+  assert.equal(habilitacoes, undefined);
+  assert.deepEqual(
+    courses.map((c) => [c[0], c[8], c[9]]),
+    [
+      ["PSI7101", 1, undefined],
+      ["PSI7201", 2, undefined],
+      ["PSI7808", 8, undefined],
+      ["PSI7013", 7, undefined],
     ],
   );
 });
