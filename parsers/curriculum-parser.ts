@@ -33,7 +33,7 @@ export function parseCourses(courses: any[]): Course[] {
         }
       }
 
-      return {
+      const course = {
         id: courseData[0] || "",
         name: courseData[1] || "",
         credits: courseData[2] || 0,
@@ -44,6 +44,20 @@ export function parseCourses(courses: any[]): Course[] {
         type: normalizedType as "mandatory" | "optional",
         phase: coursePhase != null ? Number(coursePhase) : 0,
       } as Course;
+
+      // Index 9: per-habilitação placement { "<track>": [isMandatory, phase] }.
+      const trackMap = courseData[9];
+      if (trackMap && typeof trackMap === "object" && !Array.isArray(trackMap)) {
+        course.tracks = {};
+        for (const [key, value] of Object.entries(trackMap)) {
+          if (!Array.isArray(value)) continue;
+          course.tracks[Number(key)] = {
+            type: value[0] === true ? "mandatory" : "optional",
+            phase: value[1] != null ? Number(value[1]) : 0,
+          };
+        }
+      }
+      return course;
     }
     return courseData as Course;
   });

@@ -15,6 +15,7 @@ import {
   parseCurriculumBBox,
   parseCurriculumBBoxDetailed,
   phaseFromHeading,
+  habilitacaoLabels,
 } from "@/scrapers/curriculum/parser";
 
 const TABLE = 7.4;
@@ -202,6 +203,22 @@ test("named electives have no phase; placeholder slots keep theirs", () => {
   assert.equal(byId.get("INE5619")![8], null);
 });
 
+test("elective slots are optional placeholders even when the PDF types them Ob", () => {
+  const html = page([
+    ...pageHeader,
+    ...line(100, HEADING, [[275, "Fase 07"]]),
+    ...line(130, TABLE, [
+      [40, "-"],
+      [82, "Optativa I"],
+      [255, "Ob"],
+      [283, "54"],
+      [316, "3"],
+    ]),
+  ]);
+  const [slot] = parseCurriculumBBox(html).courses;
+  assert.deepEqual([slot[0], slot[7], slot[8]], ["OPT0001", false, 7]);
+});
+
 test("Es rows are kept as mandatory; lowercase types are recognized", () => {
   assert.equal(byId.get("AGR5041")![7], true);
   assert.equal(byId.get("INE5619")![7], false);
@@ -258,7 +275,7 @@ test("phaseFromHeading", () => {
   }
 });
 
-test("one row per course across habilitações; only the first one's elective slots", () => {
+test("habilitações: one row per course, each track's placement in its TrackMap", () => {
   const header = (hab: string): W[] => [
     ...line(40, HEADER, [[40, "Curso: 310 - CIÊNCIAS SOCIAIS"]]),
     ...line(52, HEADER, [[40, "Currículo: 20071"]]),
@@ -274,7 +291,12 @@ test("one row per course across habilitações; only the first one's elective sl
     ]);
   const html =
     page([
-      ...header("Licenciatura"),
+      ...header("Bacharelado e Licenciatura em Ciências Sociais"),
+      ...line(100, HEADING, [[275, "Fase 01"]]),
+      ...row(130, "SPO7102", "Ciência Política", "Ob"),
+    ]) +
+    page([
+      ...header("Licenciatura em Ciências Sociais"),
       ...line(100, HEADING, [[275, "Fase 01"]]),
       ...row(130, "ANT7101", "Antropologia", "Ob"),
       ...row(150, "-", "Optativa I", "Op"),
@@ -282,7 +304,7 @@ test("one row per course across habilitações; only the first one's elective sl
       ...row(190, "MEN7021", "Estágio", "Op"),
     ]) +
     page([
-      ...header("Bacharelado"),
+      ...header("Bacharelado em Ciências Sociais"),
       ...line(100, HEADING, [[275, "Fase 01"]]),
       ...row(130, "ANT7101", "Antropologia", "Ob"),
       ...row(150, "-", "Optativa I", "Op"),
@@ -290,14 +312,36 @@ test("one row per course across habilitações; only the first one's elective sl
       ...row(190, "MEN7021", "Estágio", "Ob"),
       ...row(210, "CSO7808", "TCC", "Ob"),
     ]);
-  const { courses } = parseCurriculumBBox(html);
+  const { courses, habilitacoes } = parseCurriculumBBox(html);
+  // The shared core is not a track; the tracks keep document order.
   assert.deepEqual(
-    courses.map((c) => [c[0], c[7], c[8]]),
+    habilitacoes?.map((h) => h.label),
+    ["Licenciatura", "Bacharelado"],
+  );
+  assert.deepEqual(
+    courses.map((c) => [c[0], c[7], c[8], c[9]]),
     [
-      ["ANT7101", true, 1],
-      ["OPT0001", false, 1],
-      ["MEN7021", true, 7], // mandatory with a phase beats the elective listing
-      ["CSO7808", true, 7],
+      ["SPO7102", true, 1, undefined], // core: every track
+      ["ANT7101", true, 1, { "0": [true, 1], "1": [true, 1] }],
+      ["OPT0001", false, 1, { "0": [false, 1] }], // each track keeps its slots
+      ["OPT0002", false, 1, { "1": [false, 1] }],
+      // elective in Licenciatura, mandatory phase 7 in Bacharelado
+      ["MEN7021", true, 7, { "0": [false, null], "1": [true, 7] }],
+      ["CSO7808", true, 7, { "1": [true, 7] }],
     ],
+  );
+});
+
+test("habilitacaoLabels keeps only what differs", () => {
+  assert.deepEqual(
+    habilitacaoLabels(["Licenciatura em Letras - Inglês", "Bacharelado em Letras - Inglês"]),
+    ["Licenciatura", "Bacharelado"],
+  );
+  assert.deepEqual(
+    habilitacaoLabels([
+      "Licenciatura em Pedagogia, habilitação Educação Infantil",
+      "Licenciatura em Pedagogia, habilitação Séries Iniciais",
+    ]),
+    ["Educação Infantil", "Séries Iniciais"],
   );
 });

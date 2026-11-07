@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import type { StudentInfo } from "@/types/student-plan";
 import type { DegreeProgram } from "@/types/degree-program";
 import type { Curriculum } from "@/types/curriculum";
@@ -235,5 +235,40 @@ export function useCurriculum({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: signature-guarded fetch, extra deps would refetch
   }, [studentInfo, isProfileLoading]);
 
-  return { curriculumState, setCurriculumState, isCurriculumLoading, setViewingDegreeId };
+  // Follow the store's cache, which is the source of truth: switching
+  // habilitação (setHabilitacao) re-filters a cached curriculum in place, and
+  // the view must pick that up without a refetch. Shallow copies, memoized on
+  // the cache entry, keep `curriculum` referentially stable between renders
+  // (consumers mutate the copy; cache entries are frozen by Immer).
+  const viewingId = curriculumState.viewingDegreeId;
+  const currentId = studentInfo?.currentDegree;
+  const cachedViewing = useStudentStore((s) =>
+    viewingId ? s.curriculumCache[viewingId] : undefined,
+  );
+  const cachedCurrent = useStudentStore((s) =>
+    currentId ? s.curriculumCache[currentId] : undefined,
+  );
+  const viewingCopy = useMemo(
+    () => (cachedViewing ? { ...cachedViewing } : null),
+    [cachedViewing],
+  );
+  const currentCopy = useMemo(
+    () => (cachedCurrent ? { ...cachedCurrent } : null),
+    [cachedCurrent],
+  );
+  const syncedState = useMemo(
+    () => ({
+      ...curriculumState,
+      curriculum: viewingCopy ?? curriculumState.curriculum,
+      currentCurriculum: currentCopy ?? curriculumState.currentCurriculum,
+    }),
+    [curriculumState, viewingCopy, currentCopy],
+  );
+
+  return {
+    curriculumState: syncedState,
+    setCurriculumState,
+    isCurriculumLoading,
+    setViewingDegreeId,
+  };
 }

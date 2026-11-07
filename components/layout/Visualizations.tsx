@@ -7,6 +7,8 @@ import type { ScheduleHookState } from "@/hooks/setup/UseSchedule";
 import { Switch } from "@/components/ui/switch";
 import { CalendarCog, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useStudentStore } from "@/lib/student-store";
 
 import CurriculumVisualizer from "@/components/visualizers/curriculum-visualizer";
 import ProgressVisualizer from "@/components/visualizers/progress-visualizer";
@@ -121,6 +123,16 @@ export default function Visualizations({
     ].filter((id): id is string => !!id);
     return Array.from(new Set(ids));
   }, [studentInfo.currentDegree, studentInfo.interestedDegrees, viewingDegreeId]);
+
+  // Habilitação slider (Bacharelado / Licenciatura …), only for curricula that
+  // have them. The value is the habilitação the cached curriculum is filtered
+  // to, so the control can't disagree with the grid.
+  const setHabilitacao = useStudentStore((s) => s.setHabilitacao);
+  const habilitacaoDegreeId = viewingDegreeId || studentInfo.currentDegree;
+  const habilitacoes =
+    curriculum?.habilitacoes && curriculum.habilitacoes.length > 1
+      ? curriculum.habilitacoes
+      : null;
 
   const [degreeDropdownOpen, setDegreeDropdownOpen] = useState(false);
   const degreeDropdownRef = useRef<HTMLDivElement>(null);
@@ -243,6 +255,32 @@ export default function Visualizations({
                   </div>
                 )}
               </div>
+              {habilitacoes && (
+                <ToggleGroup
+                  type="single"
+                  variant="outline"
+                  size="sm"
+                  aria-label="Habilitação"
+                  value={String(curriculum?.habilitacao ?? 0)}
+                  onValueChange={(value) => {
+                    // Radix sends "" when the active item is clicked again.
+                    if (value !== "" && habilitacaoDegreeId) {
+                      setHabilitacao(habilitacaoDegreeId, Number(value));
+                    }
+                  }}
+                >
+                  {habilitacoes.map((h, i) => (
+                    <ToggleGroupItem
+                      key={h.name}
+                      value={String(i)}
+                      title={h.name}
+                      className="px-3 max-w-[14rem] truncate"
+                    >
+                      {h.label}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              )}
             </div>
           ) : (
             <h2 className="section-heading">

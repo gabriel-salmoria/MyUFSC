@@ -204,19 +204,20 @@ async function ingest() {
         [programId, formattedName],
       );
 
-      // 2. Upsert Curriculum (WITH TESTING FLAG)
+      // 2. Insert Curriculum (live as soon as it exists: the app does not read
+      // the `testing` column, so it is no longer set)
       const res = await client.query(
         `
-        INSERT INTO curriculums ("programId", "curriculumJson", "testing")
-        VALUES ($1, $2, $3)
+        INSERT INTO curriculums ("programId", "curriculumJson")
+        VALUES ($1, $2)
         ON CONFLICT ("programId") DO NOTHING;
         `,
-        [programId, curriculumData, true],
+        [programId, curriculumData],
       );
 
       if (res.rowCount && res.rowCount > 0) {
         totalUpserted++;
-        console.log(` -> Added successfully as testing.`);
+        console.log(` -> Added.`);
 
         // Schedule Processing
         const campusCode = campusFromProgramName(rawProgramName);

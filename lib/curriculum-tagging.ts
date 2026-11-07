@@ -29,6 +29,8 @@ import { isNonDisciplineRequirement } from "@/lib/plan-generator/engine";
 const COMPACT_TYPE_INDEX = 7;
 /** The name index in the compact-array course encoding. */
 const COMPACT_NAME_INDEX = 1;
+/** Per-habilitação placement { "<track>": [isMandatory, phase] } (optional). */
+const COMPACT_TRACKS_INDEX = 9;
 
 /** Non-mandatory type a non-discipline requirement is re-tagged to. */
 const RETAGGED_TYPE = "optional";
@@ -46,9 +48,23 @@ export function retagNonDisciplineRequirements<T = unknown>(courses: T[]): T[] {
     if (Array.isArray(row)) {
       const name = String(row[COMPACT_NAME_INDEX] ?? "");
       if (!isNonDisciplineRequirement({ name } as Course)) return row;
-      if (row[COMPACT_TYPE_INDEX] === RETAGGED_TYPE) return row; // already correct
+      const tracks = row[COMPACT_TRACKS_INDEX] as
+        | Record<string, [boolean, number | null]>
+        | undefined;
+      const tracksMandatory =
+        !!tracks &&
+        typeof tracks === "object" &&
+        Object.values(tracks).some((v) => Array.isArray(v) && v[0] === true);
+      if (row[COMPACT_TYPE_INDEX] === RETAGGED_TYPE && !tracksMandatory) {
+        return row; // already correct
+      }
       const next = [...row];
       next[COMPACT_TYPE_INDEX] = RETAGGED_TYPE;
+      if (tracksMandatory) {
+        next[COMPACT_TRACKS_INDEX] = Object.fromEntries(
+          Object.entries(tracks).map(([k, v]) => [k, [false, v[1]]]),
+        );
+      }
       return next as T;
     }
 

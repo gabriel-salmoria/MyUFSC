@@ -5,6 +5,7 @@ import { promisify } from "util";
 import { Client } from "pg";
 import * as dotenv from "dotenv";
 import { retagNonDisciplineRequirements } from "../lib/curriculum-tagging";
+import { parsePDF } from "../scrapers/curriculum/parser";
 import {
   bestCampusFile,
   curriculumCourseIds,
@@ -156,9 +157,27 @@ async function scrapeSchedule() {
 }
 
 async function parseCurriculum() {
-  logger.step(2, "Parsing Curriculum (Gemini)");
+  const useGemini = args.includes("--gemini");
+  logger.step(2, `Parsing Curriculum (${useGemini ? "Gemini" : "parser.ts"})`);
   if (!fs.existsSync(CURRICULUM_PDF)) {
     throw new Error(`Curriculum PDF not found at ${CURRICULUM_PDF}`);
+  }
+
+  // Default: the deterministic parser (validated on every PDF in data/pdfs).
+  // Gemini (--gemini) needs a paid GEMINI_KEY and has dropped courses before.
+  if (!useGemini) {
+    const parsed = parsePDF(CURRICULUM_PDF);
+    if (parsed.courses.length === 0) {
+      throw new Error(`No courses found in ${CURRICULUM_PDF}.`);
+    }
+    // The separator accepts compact courses, so both outputs are the same.
+    fs.writeFileSync(CURRICULUM_JSON_OUTPUT, JSON.stringify(parsed));
+    fs.writeFileSync(CURRICULUM_FULL_JSON_OUTPUT, JSON.stringify(parsed));
+    logger.success(
+      `Curriculum parsed: ${parsed.courses.length} courses, ${parsed.totalPhases} phases` +
+        (parsed.habilitacoes ? `, habilitações: ${parsed.habilitacoes.map((h) => h.label).join(" / ")}` : ""),
+    );
+    return;
   }
 
   // Usage: gemini.js <pdf> <compressed_out> <full_out>
@@ -291,8 +310,8 @@ async function updateDatabase() {
     logger.substep(`Upserting Curriculum (Program ID: ${programId})`);
     await client.query(
       `
-            INSERT INTO curriculums ("programId", "curriculumJson", "testing")
-            VALUES ($1, $2, true)
+            INSERT INTO curriculums ("programId", "curriculumJson")
+            VALUES ($1, $2)
             ON CONFLICT ("programId")
             DO UPDATE SET "curriculumJson" = $2;
         `,

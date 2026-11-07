@@ -234,8 +234,10 @@ export default function Header({
         localStorage.removeItem("enc_pwd");
       }
       studentStore.reset();
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload: drop all in-memory state after logout
       window.location.href = "/";
     } catch (err) {
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload, as above
       window.location.href = "/";
     }
   };
@@ -385,11 +387,13 @@ export default function Header({
             </>
           ) : (
             <>
+              {/* eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full load leaves the guest session cleanly */}
               <Button onClick={() => (window.location.href = "/register")}>
                 <Save className="w-4 h-4" />
                 Salvar Progresso (Registrar)
               </Button>
               <ImportHistoryPopover studentInfo={studentInfo} studentStore={studentStore} />
+              {/* eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full load, as above */}
               <Button variant="ghost" onClick={() => (window.location.href = "/login")}
                 className="text-muted-foreground hover:text-foreground hover:bg-transparent">
                 Entrar

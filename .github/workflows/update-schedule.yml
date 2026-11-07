@@ -8,6 +8,9 @@ on:
 jobs:
   update:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write   # for the keepalive step below
 
     steps:
       - name: Checkout repository
@@ -41,3 +44,19 @@ jobs:
         env:
           NEON_URL: ${{ secrets.NEON_URL }}
         run: pnpm run curriculum:update
+
+      # professor_courses is derived from the schedules; it must be rebuilt
+      # after every schedule update (one transaction: TRUNCATE + re-insert).
+      - name: Sync professor-course pairs
+        env:
+          NEON_URL: ${{ secrets.NEON_URL }}
+        run: pnpm exec tsx scripts/update-professors.ts
+
+      # GitHub disables scheduled workflows after 60 days without a push to
+      # the repo (this one stopped on 2026-10-23). Re-enabling it through the
+      # API on every run resets that clock.
+      - name: Keep this scheduled workflow enabled
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/update-schedule.yml/enable"

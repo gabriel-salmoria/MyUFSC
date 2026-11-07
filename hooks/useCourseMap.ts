@@ -11,7 +11,9 @@ export function useCourseMap(): Map<string, Course> {
   return useMemo(() => {
     const map = new Map<string, Course>();
     for (const curriculum of Object.values(curriculumCache)) {
-      for (const course of curriculum.courses) {
+      // Every habilitação's courses, so a plan entry from the other track
+      // (taken as an elective, or before switching) still resolves its name.
+      for (const course of curriculum.allCourses ?? curriculum.courses) {
         if (course.id) map.set(course.id, course);
       }
     }

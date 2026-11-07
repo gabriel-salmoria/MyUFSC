@@ -18,6 +18,9 @@
  *                               default because their shape differs
  *   --allow-removals            allow an update that drops course ids the DB has
  *                               (blocked by default: student plans reference them)
+ *   --hold-new-slots            don't add elective slots ("OPT…") the DB doesn't
+ *                               have yet; the per-habilitação slots stay out until
+ *                               an app that understands habilitações is deployed
  *   --keep-inherited-from=<backup.json>
  *                               where to take the phase of "inherited" rows from
  *                               (default: the DB as it is now; see below)
@@ -56,6 +59,7 @@ const includeGemini = args.includes("--include-gemini");
 const allowRemovals = args.includes("--allow-removals");
 const only = option("--only")?.split(",").filter(Boolean);
 const keepInheritedFrom = option("--keep-inherited-from");
+const holdNewSlots = args.includes("--hold-new-slots");
 const exclude = option("--exclude")?.split(",").filter(Boolean) ?? [];
 
 type DbCourse = unknown[];
@@ -99,6 +103,7 @@ const FIELDS = [
   "equivalents",
   "type",
   "phase",
+  "tracks",
 ] as const;
 
 function sameField(i: number, a: unknown, b: unknown): boolean {
@@ -238,7 +243,12 @@ async function main() {
         entry.note = `PDF says ${parsed.id}_${parsed.version}`;
         continue;
       }
-      const courses = retagNonDisciplineRequirements(parsed.courses);
+      const known = new Set(dbCourses.map((c) => String(c[0])));
+      const courses = retagNonDisciplineRequirements(
+        holdNewSlots
+          ? parsed.courses.filter((c) => !c[0].startsWith("OPT") || known.has(c[0]))
+          : parsed.courses,
+      );
       if (courses.length === 0) {
         entry.status = "empty-parse";
         continue;
@@ -248,10 +258,14 @@ async function main() {
       entry.totalPhases = [current.totalPhases, totalPhases];
       Object.assign(entry, diff(dbCourses, courses));
       const next: DbCurriculum = { ...current, courses, totalPhases };
+      // Habilitações (tracks) come only from the PDF: set or clear them.
+      if (parsed.habilitacoes) next.habilitacoes = parsed.habilitacoes;
+      else delete next.habilitacoes;
 
       if (
         JSON.stringify(dbCourses) === JSON.stringify(courses) &&
-        current.totalPhases === totalPhases
+        current.totalPhases === totalPhases &&
+        JSON.stringify(current.habilitacoes) === JSON.stringify(next.habilitacoes)
       ) {
         entry.status = "unchanged";
       } else if (origin === "gemini" && !includeGemini) {

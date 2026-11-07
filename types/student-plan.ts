@@ -79,6 +79,12 @@ export interface StudentInfo {
   currentPhase: number;
   plans: StudentPlan[];
   customScheduleEntries?: CustomScheduleEntry[];
+  /**
+   * Chosen habilitação per degree id (index into the curriculum's
+   * `habilitacoes`), for curricula with Bacharelado/Licenciatura-style tracks.
+   * Missing → the first one. See `lib/habilitacao.ts`.
+   */
+  habilitacoes?: Record<string, number>;
 }
 
 /**

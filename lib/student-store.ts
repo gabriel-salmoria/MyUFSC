@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { produce } from "immer";
+import { produce, current } from "immer";
 import type {
   StudentInfo,
   StudentPlan,
@@ -16,6 +16,7 @@ import {
   inferCurrentPhase,
 } from "@/lib/semester-status";
 import type { PlanScenario } from "@/lib/plan-generator/types";
+import { applyHabilitacao, needsHabilitacao } from "@/lib/habilitacao";
 import { PHASE_DIMENSIONS } from "@/styles/course-theme";
 
 /** Generate a short random ID for a new course enrollment slot. */
@@ -163,6 +164,8 @@ export interface StudentStore {
   // Cache
   curriculumCache: Record<string, Curriculum>;
   cacheCurriculum: (degreeId: string, curriculum: Curriculum) => void;
+  /** Pick a degree's habilitação; re-filters its cached curriculum. */
+  setHabilitacao: (degreeId: string, habilitacao: number) => void;
 }
 
 const CheckStudentInfo = (info: StudentInfo | null): StudentPlan | null => {
@@ -199,7 +202,11 @@ export const useStudentStore = create<StudentStore>()(
       cacheCurriculum: (degreeId: string, curriculum: Curriculum) =>
         set(
           produce((state: StudentStore) => {
-            state.curriculumCache[degreeId] = curriculum;
+            // `courses` = the chosen habilitação's view; `allCourses` keeps all.
+            state.curriculumCache[degreeId] = applyHabilitacao(
+              curriculum,
+              state.studentInfo?.habilitacoes?.[degreeId],
+            );
 
             // Evict cache entries that are no longer part of the active degree set
             if (state.studentInfo) {
@@ -210,6 +217,24 @@ export const useStudentStore = create<StudentStore>()(
               for (const key of Object.keys(state.curriculumCache)) {
                 if (!active.has(key)) delete state.curriculumCache[key];
               }
+            }
+          }),
+        ),
+
+      setHabilitacao: (degreeId: string, habilitacao: number) =>
+        set(
+          produce((state: StudentStore) => {
+            if (!state.studentInfo) return;
+            state.studentInfo.habilitacoes = {
+              ...state.studentInfo.habilitacoes,
+              [degreeId]: habilitacao,
+            };
+            const cached = state.curriculumCache[degreeId];
+            if (cached && needsHabilitacao(cached, habilitacao)) {
+              state.curriculumCache[degreeId] = applyHabilitacao(
+                current(cached),
+                habilitacao,
+              );
             }
           }),
         ),
@@ -263,6 +288,15 @@ export const useStudentStore = create<StudentStore>()(
                 });
               });
             });
+
+            // The profile route prefetches curricula into the cache before the
+            // profile itself is decrypted, so apply its habilitação choices.
+            for (const [degreeId, cached] of Object.entries(state.curriculumCache)) {
+              const chosen = state.studentInfo!.habilitacoes?.[degreeId];
+              if (needsHabilitacao(cached, chosen)) {
+                state.curriculumCache[degreeId] = applyHabilitacao(current(cached), chosen);
+              }
+            }
 
             if (
               info.currentPlan == null ||

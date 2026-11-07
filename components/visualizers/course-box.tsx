@@ -112,10 +112,18 @@ const CourseBox = memo(function CourseBox({
     }
   }, [isEmpty, studentCourse.status]);
 
+  // Elective/requirement slots ("Optativa I", OPT0001) only show how many
+  // credits are still owed; they fill from the student's electives and are not
+  // courses to drag into a plan or open.
+  const isStub =
+    /OPT/i.test(studentCourse.course.id) ||
+    /optativa/i.test(studentCourse.course.name ?? "");
+  const canDrag = isDraggable && !isEmpty && !isStub;
+
   // Set up drag via Pointer Events instead of native HTML5 drag-and-drop.
   useEffect(() => {
     const el = courseBoxRef.current;
-    if (!el || !isDraggable || isEmpty) return;
+    if (!el || !canDrag) return;
 
     const sourceVisualizer: DragSourceVisualizer = isFromCurriculum ? "curriculum" : "progress";
 
@@ -276,11 +284,7 @@ const CourseBox = memo(function CourseBox({
       if (rafId !== null) cancelAnimationFrame(rafId);
       if (ghostEl?.parentNode) ghostEl.parentNode.removeChild(ghostEl);
     };
-  }, [studentCourse, position, isDraggable, isEmpty, onDragStart, statusClass, isFromCurriculum]);
-
-  const isStub =
-    /OPT/i.test(studentCourse.course.id) ||
-    /optativa/i.test(studentCourse.course.name ?? "");
+  }, [studentCourse, position, canDrag, onDragStart, statusClass, isFromCurriculum]);
 
   const handleCourseClick = (e: React.MouseEvent) => {
     if (suppressClickRef.current) return;
@@ -325,7 +329,7 @@ const CourseBox = memo(function CourseBox({
       className={cn(
         CSS_CLASSES.COURSE_BOX,
         statusClass,
-        isDraggable && !isEmpty && CSS_CLASSES.DRAGGABLE,
+        canDrag && CSS_CLASSES.DRAGGABLE,
         studentCourse?.isHighlighted && "ring-2 ring-primary ring-offset-1 ring-offset-background scale-[1.03] z-10 shadow-lg shadow-primary/20",
         studentCourse?.isDimmed && "opacity-30 saturate-50 pointer-events-none"
       )}
@@ -335,12 +339,12 @@ const CourseBox = memo(function CourseBox({
         width: `${position.width}px`,
         height: `${position.height}px`,
         opacity: isEmpty && !studentCourse ? 0.4 : 1,
-        touchAction: isDraggable && !isEmpty ? "none" : undefined,
+        touchAction: canDrag ? "none" : undefined,
       }}
       onClick={handleCourseClick}
       data-course-id={studentCourse.course.id}
-      role={isDraggable && !isEmpty ? "button" : undefined}
-      aria-label={isDraggable && !isEmpty ? `Drag course ${studentCourse.course.id}` : undefined}
+      role={canDrag ? "button" : undefined}
+      aria-label={canDrag ? `Drag course ${studentCourse.course.id}` : undefined}
     >
       {!isEmpty && (
         <>

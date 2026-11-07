@@ -24,6 +24,12 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
+/**
+ * Per-habilitação placement of a course: track index (as a JSON key) →
+ * [isMandatory, phase]. Absent on courses every habilitação shares.
+ */
+export type TrackMap = Record<string, [boolean, number | null]>;
+
 export type CompactCourse = [
   string,
   string,
@@ -34,7 +40,16 @@ export type CompactCourse = [
   string[],
   boolean,
   number | null,
+  TrackMap?,
 ];
+
+/** A habilitação the student picks between ("Licenciatura" / "Bacharelado"). */
+export interface Habilitacao {
+  /** Short name for the slider: what differs between the habilitações. */
+  label: string;
+  /** Full name from the PDF's "Habilitação:" header. */
+  name: string;
+}
 
 export interface ParsedCurriculum {
   name: string;
@@ -43,6 +58,37 @@ export interface ParsedCurriculum {
   totalPhases: number;
   department: string;
   courses: CompactCourse[];
+  /** Only on curricula with 2+ habilitações; index = TrackMap key. */
+  habilitacoes?: Habilitacao[];
+}
+
+/**
+ * Short labels for habilitação names: drop the words every name shares at the
+ * start and end ("Licenciatura em Ciências Sociais" / "Bacharelado em Ciências
+ * Sociais" → "Licenciatura" / "Bacharelado").
+ */
+export function habilitacaoLabels(names: string[]): string[] {
+  const words = names.map((n) => n.split(" "));
+  // Accent/case-insensitive: one header writes "Lingua", another "Língua".
+  const same = (pick: (w: string[]) => string) =>
+    words.every((w) => normalizeHeading(pick(w)) === normalizeHeading(pick(words[0])));
+  let pre = 0;
+  while (words.every((w) => w.length - pre > 1) && same((w) => w[pre])) pre++;
+  let suf = 0;
+  while (
+    words.every((w) => w.length - pre - suf > 1) &&
+    same((w) => w[w.length - 1 - suf])
+  ) {
+    suf++;
+  }
+  return words.map(
+    (w, i) =>
+      w
+        .slice(pre, w.length - suf)
+        .join(" ")
+        .replace(/^[\s,;:–-]+|[\s,;:–-]+$/g, "")
+        .replace(/^(em|de|da|do|das|dos|e)\s+/i, "") || names[i],
+  );
 }
 
 interface Word {
@@ -414,8 +460,11 @@ export function parseCurriculumBBoxDetailed(html: string): {
   }[] = [];
   let optCounter = 1;
   for (const row of rows) {
-    const isMandatory = /^(ob|es)$/i.test(row.type);
     const isPlaceholder = row.code === "-";
+    // A slot ("- Optativa I", "- Prática como Componente Curricular") is never
+    // a course to take: the app fills it from elective credits only when it is
+    // typed optional (isGenericPlaceholder), even if the PDF says "Ob".
+    const isMandatory = !isPlaceholder && /^(ob|es)$/i.test(row.type);
     const id = isPlaceholder
       ? `OPT${String(optCounter++).padStart(4, "0")}`
       : row.code;
@@ -457,29 +506,85 @@ export function parseCurriculumBBoxDetailed(html: string): {
     });
   }
 
+  // Habilitações ("tracks"). Some PDFs print one full grid per habilitação,
+  // usually a shared core ("Bacharelado e Licenciatura em X") plus one section
+  // per track ("Licenciatura em X", "Bacharelado em X"). The core is not a
+  // track; a curriculum has tracks when 2+ other sections hold courses.
+  const habOf = (b: (typeof built)[number]) =>
+    b.habilitacao.replace(/\s+/g, " ").trim();
+  // A section naming two degrees ("Bacharelado e Licenciatura em X",
+  // "Bacharelado em Química e Bacharelado em Química Tecnológica") is shared.
+  const namesTwoDegrees = (h: string) =>
+    (normalizeHeading(h).match(/bacharel|licenci/g) ?? []).length >= 2;
+  const mandatoryIn = (h: string) =>
+    built.filter((b) => habOf(b) === h && b.course[7] === true).length;
+  let trackNames = [
+    ...new Set(built.map(habOf).filter((h) => h && !namesTwoDegrees(h))),
+  ].filter((h) => mandatoryIn(h) > 0); // an electives-only section isn't a choice
+  // The base a set of habilitações extends ("Licenciatura em Pedagogia" for
+  // "Licenciatura em Pedagogia, habilitação Educação Infantil", …) is shared.
+  const base = trackNames.find(
+    (h) =>
+      trackNames.length > 2 &&
+      trackNames.every(
+        (o) => o === h || normalizeHeading(o).startsWith(normalizeHeading(h)),
+      ),
+  );
+  if (base) trackNames = trackNames.filter((h) => h !== base);
+  const hasTracks = trackNames.length >= 2;
+  /** Track index of a row, or -1 when it belongs to every track. */
+  const trackOf = (b: (typeof built)[number]) =>
+    hasTracks ? trackNames.indexOf(habOf(b)) : -1;
+
   // One row per course id: the app keys courses by id, so a repeat shows up
-  // twice in the phase grid. Repeats come from PDFs with one full grid per
-  // habilitação (Bacharelado + Licenciatura) and from courses listed twice in
-  // one (a phase and "Disciplinas em Extinção"). Keep the best-placed
-  // occurrence — mandatory under a phase heading, then mandatory with an
-  // inherited phase, then the first — so the result is the union of the
-  // habilitações. Elective slots are kept for the first habilitação only;
-  // each habilitação states its own elective load and they must not add up.
+  // twice in the phase grid. Repeats come from the per-habilitação grids and
+  // from courses listed twice in one (a phase and "Disciplinas em Extinção").
+  // Keep the best-placed occurrence — mandatory under a phase heading, then
+  // mandatory with an inherited phase, then the first; with tracks, each
+  // track's own placement goes in the course's TrackMap. Without tracks, only
+  // the first section's elective slots are kept so two loads don't add up.
   const primary = built[0]?.habilitacao;
   const candidates = built.filter(
-    (b) => !b.placeholder || b.habilitacao === primary,
+    (b) => !b.placeholder || hasTracks || b.habilitacao === primary,
   );
   const best = new Map<string, number>();
+  const placements = new Map<string, Map<number, (typeof built)[number]> | null>();
   candidates.forEach((b, i) => {
-    const j = best.get(b.course[0]);
-    if (j === undefined || b.rank < candidates[j].rank) best.set(b.course[0], i);
+    const id = b.course[0];
+    const j = best.get(id);
+    if (j === undefined || b.rank < candidates[j].rank) best.set(id, i);
+    if (!hasTracks) return;
+    const t = trackOf(b);
+    if (t < 0) {
+      placements.set(id, null); // in the core → in every track
+      return;
+    }
+    const byTrack = placements.get(id);
+    if (byTrack === null) return;
+    const map = byTrack ?? new Map();
+    const prev = map.get(t);
+    if (!prev || b.rank < prev.rank) map.set(t, b);
+    placements.set(id, map);
   });
   const inheritedPhaseRows = new Set<number>();
   candidates.forEach((b, i) => {
-    if (best.get(b.course[0]) !== i) return;
+    const id = b.course[0];
+    if (best.get(id) !== i) return;
     if (b.inherited) inheritedPhaseRows.add(result.courses.length);
-    result.courses.push(b.course);
+    const byTrack = placements.get(id);
+    if (byTrack) {
+      const tracks: TrackMap = {};
+      for (const [t, p] of byTrack) tracks[String(t)] = [p.course[7], p.course[8]];
+      const [c0, c1, c2, c3, c4, c5, c6, c7, c8] = b.course;
+      result.courses.push([c0, c1, c2, c3, c4, c5, c6, c7, c8, tracks]);
+    } else {
+      result.courses.push(b.course);
+    }
   });
+  if (hasTracks) {
+    const labels = habilitacaoLabels(trackNames);
+    result.habilitacoes = trackNames.map((name, i) => ({ label: labels[i], name }));
+  }
 
   result.totalPhases = result.courses.reduce(
     (max, c) => (c[8] !== null && c[8] > max ? c[8] : max),
