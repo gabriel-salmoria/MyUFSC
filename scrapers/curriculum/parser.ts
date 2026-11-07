@@ -230,6 +230,8 @@ interface Row {
   phase: number | null;
   /** Last numbered phase heading above the row. */
   inheritedPhase: number | null;
+  /** The page header's "Habilitação:" the row was printed under. */
+  habilitacao: string;
   /** Page index and y of the row's last table line, to place notes under it. */
   page: number;
   lastY: number;
@@ -281,6 +283,8 @@ export function parseCurriculumBBoxDetailed(html: string): {
   // one is a section, not a phase: Design (454) has "1ª Fase-Sugestão" …
   // "8ª Fase-Sugestão" and then "1ª Módulo Introdutório", an elective pool.
   let phaseWordInUse: string | null = null;
+  // Page header "Habilitação: …" — some PDFs hold one full grid per habilitação.
+  let habilitacao = "";
 
   const pages = readPages(html);
   for (let pageNo = 0; pageNo < pages.length; pageNo++) {
@@ -301,6 +305,8 @@ export function parseCurriculumBBoxDetailed(html: string): {
 
       // Page furniture: running header block, title and footer.
       if (kind === "pageHeader") {
+        const hab = text.match(/^Habilita[çc][ãa]o:\s*(.*)$/);
+        if (hab) habilitacao = hab[1].trim();
         // "Observações"/"Legenda" close a habilitação's table; anything after
         // them is a note until the next section starts.
         if (/^(Observa|Legenda)/.test(text)) {
@@ -376,6 +382,7 @@ export function parseCurriculumBBoxDetailed(html: string): {
             description: joinWrapped(pendingDesc),
             phase: sectionPhase,
             inheritedPhase: lastPhase,
+            habilitacao,
             page: pageNo,
             lastY: line.y0,
             noteY: null,
@@ -397,7 +404,14 @@ export function parseCurriculumBBoxDetailed(html: string): {
     }
   }
 
-  const inheritedPhaseRows = new Set<number>();
+  const built: {
+    course: CompactCourse;
+    inherited: boolean;
+    placeholder: boolean;
+    habilitacao: string;
+    /** Lower = better placement, for choosing among repeats of one id. */
+    rank: number;
+  }[] = [];
   let optCounter = 1;
   for (const row of rows) {
     const isMandatory = /^(ob|es)$/i.test(row.type);
@@ -423,21 +437,49 @@ export function parseCurriculumBBoxDetailed(html: string): {
       : isPlaceholder
         ? row.phase
         : null;
-    if (isMandatory && row.phase === null && phase !== null) {
-      inheritedPhaseRows.add(result.courses.length);
-    }
-    result.courses.push([
-      id,
-      joinWrapped(row.name),
-      parseInt(row.aulas, 10) || 0,
-      parseInt(row.ha, 10) || 0,
-      row.description,
-      codes(row.prerequisites),
-      codes(row.equivalents),
-      isMandatory,
-      phase,
-    ]);
+    const inherited = isMandatory && row.phase === null && phase !== null;
+    built.push({
+      course: [
+        id,
+        joinWrapped(row.name),
+        parseInt(row.aulas, 10) || 0,
+        parseInt(row.ha, 10) || 0,
+        row.description,
+        codes(row.prerequisites),
+        codes(row.equivalents),
+        isMandatory,
+        phase,
+      ],
+      inherited,
+      placeholder: isPlaceholder,
+      habilitacao: row.habilitacao,
+      rank: isMandatory && phase !== null ? (inherited ? 1 : 0) : 2,
+    });
   }
+
+  // One row per course id: the app keys courses by id, so a repeat shows up
+  // twice in the phase grid. Repeats come from PDFs with one full grid per
+  // habilitação (Bacharelado + Licenciatura) and from courses listed twice in
+  // one (a phase and "Disciplinas em Extinção"). Keep the best-placed
+  // occurrence — mandatory under a phase heading, then mandatory with an
+  // inherited phase, then the first — so the result is the union of the
+  // habilitações. Elective slots are kept for the first habilitação only;
+  // each habilitação states its own elective load and they must not add up.
+  const primary = built[0]?.habilitacao;
+  const candidates = built.filter(
+    (b) => !b.placeholder || b.habilitacao === primary,
+  );
+  const best = new Map<string, number>();
+  candidates.forEach((b, i) => {
+    const j = best.get(b.course[0]);
+    if (j === undefined || b.rank < candidates[j].rank) best.set(b.course[0], i);
+  });
+  const inheritedPhaseRows = new Set<number>();
+  candidates.forEach((b, i) => {
+    if (best.get(b.course[0]) !== i) return;
+    if (b.inherited) inheritedPhaseRows.add(result.courses.length);
+    result.courses.push(b.course);
+  });
 
   result.totalPhases = result.courses.reduce(
     (max, c) => (c[8] !== null && c[8] > max ? c[8] : max),

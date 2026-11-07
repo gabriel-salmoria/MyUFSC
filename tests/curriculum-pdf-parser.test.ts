@@ -257,3 +257,47 @@ test("phaseFromHeading", () => {
     assert.equal(phaseFromHeading(heading), phase, heading);
   }
 });
+
+test("one row per course across habilitações; only the first one's elective slots", () => {
+  const header = (hab: string): W[] => [
+    ...line(40, HEADER, [[40, "Curso: 310 - CIÊNCIAS SOCIAIS"]]),
+    ...line(52, HEADER, [[40, "Currículo: 20071"]]),
+    ...line(70, HEADER, [[40, `Habilitação: ${hab}`]]),
+  ];
+  const row = (y: number, code: string, name: string, type: string): W[] =>
+    line(y, TABLE, [
+      [40, code],
+      [82, name],
+      [255, type],
+      [283, "72"],
+      [316, "4"],
+    ]);
+  const html =
+    page([
+      ...header("Licenciatura"),
+      ...line(100, HEADING, [[275, "Fase 01"]]),
+      ...row(130, "ANT7101", "Antropologia", "Ob"),
+      ...row(150, "-", "Optativa I", "Op"),
+      ...line(170, HEADING, [[275, "Disciplinas Optativas"]]),
+      ...row(190, "MEN7021", "Estágio", "Op"),
+    ]) +
+    page([
+      ...header("Bacharelado"),
+      ...line(100, HEADING, [[275, "Fase 01"]]),
+      ...row(130, "ANT7101", "Antropologia", "Ob"),
+      ...row(150, "-", "Optativa I", "Op"),
+      ...line(170, HEADING, [[275, "Fase 07"]]),
+      ...row(190, "MEN7021", "Estágio", "Ob"),
+      ...row(210, "CSO7808", "TCC", "Ob"),
+    ]);
+  const { courses } = parseCurriculumBBox(html);
+  assert.deepEqual(
+    courses.map((c) => [c[0], c[7], c[8]]),
+    [
+      ["ANT7101", true, 1],
+      ["OPT0001", false, 1],
+      ["MEN7021", true, 7], // mandatory with a phase beats the elective listing
+      ["CSO7808", true, 7],
+    ],
+  );
+});

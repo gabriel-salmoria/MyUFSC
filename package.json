@@ -68,7 +68,7 @@
     "immer": "^11.1.8",
     "input-otp": "1.4.2",
     "lucide-react": "^0.561.0",
-    "next": "16.2.11",
+    "next": "16.4.5",
     "next-themes": "^0.4.6",
     "pdf-parse": "^1.1.4",
     "pg": "^8.20.0",
@@ -82,7 +82,7 @@
     "tailwind-merge": "^3.6.0",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^1.1.2",
-    "zod": "^4.4.3",
+    "zod": "^4.6.7",
     "zustand": "^5.0.13"
   },
   "devDependencies": {
@@ -92,7 +92,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "eslint": "^9.39.5",
-    "eslint-config-next": "16.2.11",
+    "eslint-config-next": "16.4.5",
     "postcss": "^8.5.23",
     "tailwindcss": "^4.3.3",
     "tsconfig-paths": "^4.2.0",

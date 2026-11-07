@@ -1,14 +1,5 @@
 import { NextResponse } from "next/server";
-import { unstable_cache } from "next/cache";
-import { getCurriculumByProgramId } from "@/database/curriculum/db-curriculum";
-
-function getCachedCurriculum(programId: string) {
-  return unstable_cache(
-    () => getCurriculumByProgramId(programId),
-    [`curriculum-${programId}`],
-    { revalidate: 86400 },
-  )();
-}
+import { getCachedCurriculum } from "@/database/curriculum/cached-curriculum";
 
 export async function GET(
   request: Request,
@@ -34,7 +25,7 @@ export async function GET(
     }
 
     return NextResponse.json(curriculum, {
-      headers: { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=2592000" },
+      headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" },
     });
   } catch (error) {
     console.error("Error fetching curriculum:", error);

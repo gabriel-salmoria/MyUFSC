@@ -2,23 +2,16 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { unstable_cache } from "next/cache";
 import { getUserByHashedUsername } from "@/database/users/db-user";
-import { getCurriculumByProgramId } from "@/database/curriculum/db-curriculum";
+import { getCachedCurriculum } from "@/database/curriculum/cached-curriculum";
 import {
   getScheduleByProgramAndSemester,
   getLatestSemester,
   getAvailableSemesters,
 } from "@/database/schedule/db-schedule";
 
-// Mirror the same cache keys used by the dedicated curriculum/schedule routes so
-// prefetch calls share their cache rather than hitting the DB independently.
-function getCachedCurriculum(programId: string) {
-  return unstable_cache(
-    () => getCurriculumByProgramId(programId),
-    [`curriculum-${programId}`],
-    { revalidate: 86400 },
-  )();
-}
-
+// Mirror the same cache keys used by the dedicated schedule route so prefetch
+// calls share its cache rather than hitting the DB independently (the
+// curriculum read is shared through getCachedCurriculum).
 function getCachedLatestSemester(programId: string) {
   return unstable_cache(
     () => getLatestSemester(programId),
