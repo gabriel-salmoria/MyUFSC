@@ -166,6 +166,8 @@ export interface StudentStore {
   cacheCurriculum: (degreeId: string, curriculum: Curriculum) => void;
   /** Pick a degree's habilitação; re-filters its cached curriculum. */
   setHabilitacao: (degreeId: string, habilitacao: number) => void;
+  /** Pick the option of one ênfase slot of a degree; re-filters its cache. */
+  setEnfase: (degreeId: string, slot: number, option: number) => void;
 }
 
 const CheckStudentInfo = (info: StudentInfo | null): StudentPlan | null => {
@@ -206,6 +208,7 @@ export const useStudentStore = create<StudentStore>()(
             state.curriculumCache[degreeId] = applyHabilitacao(
               curriculum,
               state.studentInfo?.habilitacoes?.[degreeId],
+              state.studentInfo?.enfases?.[degreeId],
             );
 
             // Evict cache entries that are no longer part of the active degree set
@@ -230,10 +233,39 @@ export const useStudentStore = create<StudentStore>()(
               [degreeId]: habilitacao,
             };
             const cached = state.curriculumCache[degreeId];
-            if (cached && needsHabilitacao(cached, habilitacao)) {
+            const enfases = state.studentInfo.enfases?.[degreeId];
+            if (cached && needsHabilitacao(cached, habilitacao, enfases)) {
               state.curriculumCache[degreeId] = applyHabilitacao(
                 current(cached),
                 habilitacao,
+                enfases,
+              );
+            }
+          }),
+        ),
+
+      setEnfase: (degreeId: string, slot: number, option: number) =>
+        set(
+          produce((state: StudentStore) => {
+            if (!state.studentInfo) return;
+            const cached = state.curriculumCache[degreeId];
+            // Start from what the student sees now, so the other slots keep
+            // their (possibly default) options.
+            const enfases = [
+              ...(cached?.enfaseChoice ?? state.studentInfo.enfases?.[degreeId] ?? []),
+            ];
+            while (enfases.length <= slot) enfases.push(enfases.length);
+            enfases[slot] = option;
+            state.studentInfo.enfases = {
+              ...state.studentInfo.enfases,
+              [degreeId]: enfases,
+            };
+            const habilitacao = state.studentInfo.habilitacoes?.[degreeId];
+            if (cached && needsHabilitacao(cached, habilitacao, enfases)) {
+              state.curriculumCache[degreeId] = applyHabilitacao(
+                current(cached),
+                habilitacao,
+                enfases,
               );
             }
           }),
@@ -290,11 +322,17 @@ export const useStudentStore = create<StudentStore>()(
             });
 
             // The profile route prefetches curricula into the cache before the
-            // profile itself is decrypted, so apply its habilitação choices.
+            // profile itself is decrypted, so apply its habilitação and
+            // ênfase choices.
             for (const [degreeId, cached] of Object.entries(state.curriculumCache)) {
               const chosen = state.studentInfo!.habilitacoes?.[degreeId];
-              if (needsHabilitacao(cached, chosen)) {
-                state.curriculumCache[degreeId] = applyHabilitacao(current(cached), chosen);
+              const enfases = state.studentInfo!.enfases?.[degreeId];
+              if (needsHabilitacao(cached, chosen, enfases)) {
+                state.curriculumCache[degreeId] = applyHabilitacao(
+                  current(cached),
+                  chosen,
+                  enfases,
+                );
               }
             }
 

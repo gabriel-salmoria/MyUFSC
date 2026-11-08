@@ -151,6 +151,11 @@ elective placeholders (`id` contains `"OPT"` or name contains `"optativa"`) cons
 per-phase `optionalPools` (credit-accounting, not identity-matching) — models UFSC's
 "any elective fills the slot" rule. **This logic is duplicated in `GridVisualizer`.**
 
+Habilitações/ênfases (tracks such as Bacharelado | Licenciatura, Psicologia's
+1ª/2ª ênfase): compact index 9 = per-track placement, index 10 = ênfase version;
+`lib/habilitacao.ts` filters `courses` to the student's choice and keeps all in
+`allCourses` → see `docs/curriculum-system.md`.
+
 Program/curriculum IDs: `"<baseId>_<version>"`, e.g. `"208_20191"` (208 = Ciências da
 Computação, 20191 = 2019/1). Bare base IDs get resolved to the latest version by
 `resolveCurriculumId` (server) or a duplicated client-side `migrate()` in `UseCurriculum`.

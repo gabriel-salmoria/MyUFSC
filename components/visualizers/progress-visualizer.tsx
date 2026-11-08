@@ -2,7 +2,7 @@
 
 // react apenas
 import type React from "react";
-import { useRef, useState, useEffect, useMemo } from "react";
+import { useRef, useState, useEffect, useLayoutEffect, useMemo } from "react";
 
 // tipos de dados
 import type { StudentPlan } from "@/types/student-plan";
@@ -115,6 +115,17 @@ export default function ProgressVisualizer({
 
   // Use the actual number of semesters for the total width
   const totalWidth = displayedSemesters.length * phaseWidth;
+
+  // Re-measure the height once the grid's width settles. When the phases are
+  // wider than the panel, a horizontal scrollbar appears AFTER the first
+  // measurement and takes height from the panel; nothing resizes, so the
+  // ResizeObserver stays quiet and the frame keeps the old (taller) height,
+  // overflowing by exactly the scrollbar and adding a stray vertical one.
+  useLayoutEffect(() => {
+    if (containerRef.current) {
+      setContainerHeight(containerRef.current.clientHeight);
+    }
+  }, [totalWidth]);
 
   // The createPhases function is likely no longer needed here as Phase will handle StudentCourse[] directly
   // const { phaseArray } = useMemo(() => {

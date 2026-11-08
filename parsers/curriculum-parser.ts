@@ -57,6 +57,15 @@ export function parseCourses(courses: any[]): Course[] {
           };
         }
       }
+      // Index 10: ênfase version [slot, option] (Psicologia's estágios).
+      const enfase = courseData[10];
+      if (
+        Array.isArray(enfase) &&
+        enfase.length === 2 &&
+        enfase.every((n) => Number.isInteger(n))
+      ) {
+        course.enfase = [enfase[0], enfase[1]];
+      }
       return course;
     }
     return courseData as Course;

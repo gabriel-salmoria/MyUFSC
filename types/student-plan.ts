@@ -85,6 +85,11 @@ export interface StudentInfo {
    * Missing → the first one. See `lib/habilitacao.ts`.
    */
   habilitacoes?: Record<string, number>;
+  /**
+   * Chosen ênfases per degree id: one option index per entry of the
+   * curriculum's `enfases` ("1ª ênfase", "2ª ênfase"). Missing → defaults.
+   */
+  enfases?: Record<string, number[]>;
 }
 
 /**

@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useRef, useState, useEffect, useMemo } from "react";
+import { useRef, useState, useEffect, useLayoutEffect, useMemo } from "react";
 
 // tipos de dados
 import type { Curriculum } from "@/types/curriculum";
@@ -109,6 +109,17 @@ export default function CurriculumVisualizer({
 
   // calcula a largura total do curriculo
   const totalWidth = phaseCount * phaseWidth;
+
+  // Re-measure the height once the grid's width settles. When the phases are
+  // wider than the panel, a horizontal scrollbar appears AFTER the first
+  // measurement and takes height from the panel; nothing resizes, so the
+  // ResizeObserver stays quiet and the frame keeps the old (taller) height,
+  // overflowing by exactly the scrollbar and adding a stray vertical one.
+  useLayoutEffect(() => {
+    if (containerRef.current) {
+      setContainerHeight(containerRef.current.clientHeight);
+    }
+  }, [totalWidth]);
 
   const globalTotalSlots = useMemo(() => {
     const countPerPhase = new Map<number, number>();

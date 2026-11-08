@@ -104,6 +104,7 @@ const FIELDS = [
   "type",
   "phase",
   "tracks",
+  "enfase",
 ] as const;
 
 /** JSON with object keys sorted: Postgres jsonb stores keys in its own order. */
@@ -121,7 +122,7 @@ function sameField(i: number, a: unknown, b: unknown): boolean {
     const sb = [...((b as string[]) ?? [])].sort();
     return JSON.stringify(sa) === JSON.stringify(sb);
   }
-  if (i === 8) return (a ?? null) === (b ?? null);
+  if (i === 8 || i === 9) return canonical(a ?? null) === canonical(b ?? null);
   return canonical(a) === canonical(b);
 }
 
@@ -267,14 +268,18 @@ async function main() {
       entry.totalPhases = [current.totalPhases, totalPhases];
       Object.assign(entry, diff(dbCourses, courses));
       const next: DbCurriculum = { ...current, courses, totalPhases };
-      // Habilitações (tracks) come only from the PDF: set or clear them.
+      // Habilitações (tracks) and ênfases come only from the PDF: set or
+      // clear them.
       if (parsed.habilitacoes) next.habilitacoes = parsed.habilitacoes;
       else delete next.habilitacoes;
+      if (parsed.enfases) next.enfases = parsed.enfases;
+      else delete next.enfases;
 
       if (
         canonical(dbCourses) === canonical(courses) &&
         current.totalPhases === totalPhases &&
-        canonical(current.habilitacoes) === canonical(next.habilitacoes)
+        canonical(current.habilitacoes) === canonical(next.habilitacoes) &&
+        canonical(current.enfases) === canonical(next.enfases)
       ) {
         entry.status = "unchanged";
       } else if (origin === "gemini" && !includeGemini) {

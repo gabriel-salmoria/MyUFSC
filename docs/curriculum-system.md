@@ -36,8 +36,40 @@ interface Course {
 
 In the database, courses are stored in compact array format to save JSONB space:
 ```
-[id, name, credits, workload, description, prerequisites[], equivalents[], type, phase]
+[id, name, credits, workload, description, prerequisites[], equivalents[], type, phase, tracks?, enfase?]
 ```
+
+### Habilitações and ênfases (`lib/habilitacao.ts`)
+
+Some curricula are a choice of tracks. The curriculum JSON then carries
+`habilitacoes: [{label, name}]` (the slider next to the degree picker) and, per
+course that differs between tracks, index 9 = `{ "<track>": [isMandatory, phase] }`
+(a course without it is shared). Psicologia also has `enfases: [{label,
+options}]` ("1ª ênfase" / "2ª ênfase", A–D) and index 10 = `[slot, option]` on
+each ênfase version of an Estágio/Fundamentação. The store keeps every course in
+`allCourses` and filters `courses` to the student's choice
+(`StudentInfo.habilitacoes` / `StudentInfo.enfases`, keyed by degree id); every
+consumer reads `courses`, so the choice is applied in one place
+(`applyHabilitacao`). An optional placement with a phase shows in the phase grid
+as a slot to fill, so a named course that is only an elective in a track gets
+phase `null` there.
+
+Where the tracks come from (`scrapers/curriculum/parser.ts`):
+
+- Section titles naming the choice ("NÚCLEO PROFISSIONALIZANTE: BACHARELADO",
+  "Terminalidade: …", "APROFUNDAMENTO … - …") win over the "Habilitação:" page
+  groups, which are often only how UFSC files the courses. They are ignored when
+  a course is required under two tracks' titles in different phases (the titles
+  were stamped on regardless of content: Psicologia 1991.1).
+- Otherwise the "Habilitação:" groups, kept only when each track is a whole
+  course plan (`tracksAreCourses`).
+- "As disciplinas X Y são obrigatórias para efeito de integralização de
+  LICENCIATURA" in the Observações makes X, Y mandatory in that track.
+- A track with no ênfase courses whose own courses belong to "the chosen
+  ênfase" is taken on top of the track that has them (`addOnTracks`): Psicologia
+  2010.1 is "Bacharelado" | "Bacharelado + Licenciatura", and the
+  Licenciatura's 72 h/a Seminários Integrados replace the Bacharelado's 36 h/a
+  ones (Portaria 163/PROGRAD/2015).
 
 ---
 

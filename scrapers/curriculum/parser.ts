@@ -30,6 +30,9 @@ import { fileURLToPath } from "url";
  */
 export type TrackMap = Record<string, [boolean, number | null]>;
 
+/** Ênfase version of a course: [index into `enfases`, option index]. */
+export type EnfaseRef = [number, number];
+
 export type CompactCourse = [
   string,
   string,
@@ -40,7 +43,8 @@ export type CompactCourse = [
   string[],
   boolean,
   number | null,
-  TrackMap?,
+  (TrackMap | null)?,
+  EnfaseRef?,
 ];
 
 /** A habilitação the student picks between ("Licenciatura" / "Bacharelado"). */
@@ -60,6 +64,60 @@ export interface ParsedCurriculum {
   courses: CompactCourse[];
   /** Only on curricula with 2+ habilitações; index = TrackMap key. */
   habilitacoes?: Habilitacao[];
+  /**
+   * Ênfase choices ("1ª ênfase", "2ª ênfase"), each with its options (A–D).
+   * A course with an EnfaseRef is shown only when that option is chosen.
+   */
+  enfases?: Enfase[];
+}
+
+/** One ênfase choice: its slot ("1ª ênfase") and the options to pick from. */
+export interface Enfase {
+  label: string;
+  options: Habilitacao[];
+}
+
+/**
+ * The track a section title assigns its rows to, if any:
+ *   "Fase 07 - NÚCLEO PROFISSIONALIZANTE: BACHARELADO"        → "Bacharelado"
+ *   "5ª Fase - Terminalidade: Linguagens e suas Tecnologias."  → "Linguagens e suas Tecnologias"
+ *   "APROFUNDAMENTO I [Fase 7]-Esportes"                       → "Esportes"
+ */
+export function trackFromSection(title: string): string | null {
+  const m =
+    title.match(/n[úu]cleo\s+profissionalizante\s*:\s*(.+)$/i) ??
+    title.match(/terminalidade\s*:\s*(.+)$/i) ??
+    title.match(/aprofundamento\s+[ivx]+\s*\[[^\]]*\]\s*-\s*(.+)$/i);
+  if (!m) return null;
+  const name = m[1].replace(/[\s.;:,-]+$/, "").replace(/\s+/g, " ").trim();
+  if (!name) return null;
+  return titleCaseIfUpper(name);
+}
+
+/** "LICENCIATURA EM PSICOLOGIA" → "Licenciatura em Psicologia"; mixed case kept. */
+export function titleCaseIfUpper(name: string): string {
+  if (name !== name.toUpperCase()) return name;
+  const small = new Set(["e", "em", "de", "da", "do", "das", "dos"]);
+  return name
+    .toLowerCase()
+    .split(" ")
+    .map((w, i) =>
+      i > 0 && small.has(w)
+        ? w
+        : // "ESCOLAR/EDUCACIONAL" → "Escolar/Educacional"
+          w.replace(/(^|[/-])(\p{L})/gu, (_, sep: string, ch: string) => sep + ch.toUpperCase()),
+    )
+    .join(" ");
+}
+
+/**
+ * Ênfase version in a course name: "Estágio Profissionalizante I A (1ª ênfase
+ * escolhida)" → { slot: 1, letter: "A" }. Psicologia lists the A–D version of
+ * each Estágio/Fundamentação; the student takes the one of the chosen ênfase.
+ */
+export function enfaseVariant(name: string): { slot: number; letter: string } | null {
+  const m = name.match(/([A-D])\s*:?\s*\(\s*(\d)\s*ª?\s*[ÊêEe]nfas/);
+  return m ? { slot: Number(m[2]), letter: m[1] } : null;
 }
 
 /**
@@ -318,6 +376,67 @@ function tracksAreCourses(courses: CompactCourse[], trackCount: number): boolean
   return new Set(views).size > 1;
 }
 
+/** A course name without its "(…)" notes, for comparing two versions of it. */
+function nameStem(name: string): string {
+  return normalizeHeading(name.replace(/\([^)]*\)?/g, ""))
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/**
+ * A track that builds on another. Psicologia's "NÚCLEO PROFISSIONALIZANTE:
+ * LICENCIATURA" holds no ênfase courses, yet its own courses belong to the
+ * chosen ênfase ("Seminários Integrados I: Introdução ao Campo (1ª ênfase
+ * escolhida)"), and the habilitação filing those courses is "Psicólogo e
+ * Licenciatura em Psicologia": the Licenciatura is taken on top of the
+ * psicólogo formation, not instead of it. Such a track gets every mandatory
+ * course of the track holding the ênfases, except where it lists its own
+ * version: its 72 h/a Seminários Integrados replace the base's 36 h/a ones
+ * ("Deve cumprir [PSI7808 e PSI7018] o aluno que não cumprir nenhuma das
+ * disciplinas dentre as PSI7707, PSI7807, PSI7917 e PSI7017").
+ */
+function addOnTracks(result: ParsedCurriculum): void {
+  const habs = result.habilitacoes!;
+  const mandatoryIn = (c: CompactCourse, t: number) => c[9]?.[String(t)]?.[0] === true;
+  // Only tracks that differ (shared courses have no TrackMap).
+  const own = (t: number) => result.courses.filter((c) => c[9] && mandatoryIn(c, t));
+  const withEnfases = habs
+    .map((_, t) => t)
+    .filter((t) => own(t).some((c) => c[10]));
+  if (withEnfases.length !== 1) return;
+  const base = withEnfases[0];
+  for (let t = 0; t < habs.length; t++) {
+    if (t === base) continue;
+    const mine = own(t);
+    if (mine.some((c) => c[10])) continue;
+    if (!mine.some((c) => /[êe]nfase\s+escolhid/i.test(c[1]))) continue;
+    const myStems = new Set(mine.map((c) => nameStem(c[1])));
+    result.courses = result.courses.map((c) => {
+      if (!c[9] || !mandatoryIn(c, base) || mandatoryIn(c, t)) return c;
+      const tracks: TrackMap = { ...c[9] };
+      const [, phase] = c[9][String(base)];
+      // Replaced by this track's own version: still takeable as an elective
+      // (no phase, or the grid would show it as a slot to fill).
+      tracks[String(t)] = myStems.has(nameStem(c[1])) ? [false, null] : [true, phase];
+      const copy = [...c] as CompactCourse;
+      // Same placement in every track → shared, like any other common course.
+      const values = Object.values(tracks).map((v) => JSON.stringify(v));
+      const shared = values.length === habs.length && new Set(values).size === 1;
+      if (shared) {
+        copy[7] = tracks["0"][0];
+        copy[8] = tracks["0"][1];
+      }
+      copy[9] = shared ? null : tracks;
+      if (shared && copy[10] === undefined) copy.length = 9;
+      return copy;
+    });
+    habs[t] = {
+      label: `${habs[base].label} + ${habs[t].label.replace(/\s+(em|de|da|do|das|dos)\s+.*$/i, "")}`,
+      name: `${habs[base].name} e ${habs[t].name}`,
+    };
+  }
+}
+
 /**
  * Parse the `pdftotext -bbox-layout` HTML of a curriculum PDF. Pure, so it can be
  * tested without poppler or PDF fixtures.
@@ -358,10 +477,21 @@ export function parseCurriculumBBoxDetailed(html: string): {
   // Page header "Habilitação: …" — some PDFs hold one full grid per habilitação.
   let habilitacao = "";
 
+  // Observações text (rules such as "As disciplinas X Y são obrigatórias para
+  // efeito de integralização de LICENCIATURA") and ênfase names ("ÊNFASE A -
+  // SAÚDE E PROCESSOS CLÍNICOS").
+  const noteLines: string[] = [];
+  let inNotes = false;
+  const enfaseNames = new Map<string, string>();
+
   const pages = readPages(html);
   for (let pageNo = 0; pageNo < pages.length; pageNo++) {
     for (const line of readLines(pages[pageNo].words)) {
       const { kind, text } = line;
+      const enfaseName = text.match(/ÊNFASE\s+([A-D])\s*[-–]\s*(.+)$/);
+      if (enfaseName && !enfaseNames.has(enfaseName[1])) {
+        enfaseNames.set(enfaseName[1], titleCaseIfUpper(enfaseName[2].trim()));
+      }
 
       if (!result.id) {
         const m = text.match(/Curso:\s*(\d+)\s*-\s*(.+)/);
@@ -384,10 +514,19 @@ export function parseCurriculumBBoxDetailed(html: string): {
         if (/^(Observa|Legenda)/.test(text)) {
           current = null;
           pendingDesc = [];
+          inNotes = text.startsWith("Observa");
+        } else if (
+          inNotes &&
+          !/^(Curso:|Curr[ií]culo:|Habilita[çc][ãa]o:|\d{2}\/\d{2}\/\d{4})/.test(text)
+        ) {
+          // The Observações paragraphs are set in this same 8pt font.
+          noteLines.push(text);
         }
         continue;
       }
       if (FOOTER.test(text) || /P[áa]gina:\s*\d+/.test(text)) continue;
+      if (kind === "heading") inNotes = false;
+      if (inNotes) noteLines.push(text);
 
       if (kind === "heading") {
         if (/CURR[ÍI]CULO DO CURSO/i.test(text)) continue;
@@ -484,6 +623,8 @@ export function parseCurriculumBBoxDetailed(html: string): {
     placeholder: boolean;
     /** Listed in a section the PDF calls shared ("…comum às duas habilitações"). */
     common: boolean;
+    /** Title of the section the row is listed under. */
+    section: string;
     habilitacao: string;
     /** Lower = better placement, for choosing among repeats of one id. */
     rank: number;
@@ -533,6 +674,7 @@ export function parseCurriculumBBoxDetailed(html: string): {
       placeholder: isPlaceholder,
       habilitacao: row.habilitacao,
       common: /\bcomum\b/.test(normalizeHeading(row.section)),
+      section: row.section,
       rank: isMandatory && phase !== null ? (inherited ? 1 : 0) : 2,
     });
   }
@@ -563,6 +705,56 @@ export function parseCurriculumBBoxDetailed(html: string): {
   );
   if (base) trackNames = trackNames.filter((h) => h !== base);
 
+  // A choice written in the section titles ("NÚCLEO PROFISSIONALIZANTE:
+  // BACHARELADO / LICENCIATURA", "Terminalidade: …", "APROFUNDAMENTO …-…")
+  // is the student's real track and wins over the "Habilitação:" groups,
+  // which in those PDFs are only how UFSC files the courses (Psicologia files
+  // its whole núcleo comum under "Licenciatura em Psicologia").
+  const sectionTrackOf = (b: (typeof built)[number]) => trackFromSection(b.section);
+  const sectionTracks = [
+    ...new Set(built.map(sectionTrackOf).filter((t): t is string => !!t)),
+  ];
+  // The titles must actually split the courses. A course every track requires
+  // in the same phase is fine (Educação Física 1991.1's MEN5236 in each
+  // APROFUNDAMENTO); one required under two tracks' titles in DIFFERENT phases
+  // means the titles were stamped on regardless of content (Psicologia 1991.1
+  // lists EED5331 under "Fase 07 - BACHARELADO" and "8ª FASE - LICENCIATURA",
+  // EED5187 the other way round, and its docência internship under
+  // "BACHARELADO").
+  const titledPhases = new Map<string, Map<string, number | null>>();
+  let titlesSplit = true;
+  for (const b of built) {
+    const t = sectionTrackOf(b);
+    if (!t || b.course[7] !== true) continue;
+    const byTrack = titledPhases.get(b.course[0]) ?? new Map<string, number | null>();
+    for (const [other, phase] of byTrack) {
+      if (other !== t && phase !== b.course[8]) titlesSplit = false;
+    }
+    byTrack.set(t, b.course[8]);
+    titledPhases.set(b.course[0], byTrack);
+  }
+  const bySection = sectionTracks.length >= 2 && titlesSplit;
+  if (bySection) trackNames = sectionTracks;
+
+  // Courses the notes declare mandatory for a track even though they're listed
+  // under another one: "As disciplinas PSI7508 PSI7609 são obrigatórias para
+  // efeito de integralização de LICENCIATURA em PSICOLOGIA."
+  const requiredIn = new Map<string, Set<number>>();
+  const notesText = noteLines.join(" ").replace(/\s+/g, " ");
+  for (const m of notesText.matchAll(
+    /disciplinas?\s+((?:[A-Z]{3}\s?\d{4}[\s,e]*)+?)\s*s[ãa]o\s+obrigat[óo]rias\s+para\s+(?:fins\s+de\s+|efeito\s+de\s+)?integraliza[çc][ãa]o\s+(?:curricular\s+)?(?:d[aeo]s?\s+)?(.+?)(?:[.;]|$)/gi,
+  )) {
+    const phrase = normalizeHeading(m[2]);
+    const t = trackNames.findIndex((name) => phrase.includes(normalizeHeading(name)));
+    if (t < 0) continue;
+    for (const code of m[1].match(/[A-Z]{3}\s?\d{4}/g) ?? []) {
+      const id = code.replace(/\s/g, "");
+      const set = requiredIn.get(id) ?? new Set<number>();
+      set.add(t);
+      requiredIn.set(id, set);
+    }
+  }
+
   // One row per course id: the app keys courses by id, so a repeat shows up
   // twice in the phase grid. Repeats come from the per-habilitação grids and
   // from courses listed twice in one (a phase and "Disciplinas em Extinção").
@@ -572,7 +764,11 @@ export function parseCurriculumBBoxDetailed(html: string): {
   // the first section's elective slots are kept so two loads don't add up.
   const assemble = (withTracks: boolean) => {
     const trackOf = (b: (typeof built)[number]) =>
-      withTracks && !b.common ? trackNames.indexOf(habOf(b)) : -1; // -1 = every track
+      !withTracks || b.common
+        ? -1 // -1 = every track
+        : bySection
+          ? trackNames.indexOf(sectionTrackOf(b) ?? "")
+          : trackNames.indexOf(habOf(b));
     const primary = built[0]?.habilitacao;
     const candidates = built.filter(
       (b) => !b.placeholder || withTracks || b.habilitacao === primary,
@@ -604,11 +800,22 @@ export function parseCurriculumBBoxDetailed(html: string): {
     const placementOf = (id: string): TrackMap | null => {
       const own = trackRows.get(id);
       if (!own) return null;
-      const core = coreRow.get(id);
+      // With section-title tracks, a shared listing only counts if it sits in
+      // a phase section: a "Disciplinas Complementares" list isn't the núcleo
+      // comum (Psicologia's ANT7003 belongs to the Licenciatura núcleo). The
+      // other tracks can still take it as a complementar.
+      const sharedRow = coreRow.get(id);
+      const complementar = bySection && !!sharedRow?.inherited;
+      const core = complementar ? undefined : sharedRow;
       const tracks: TrackMap = {};
       for (let t = 0; t < trackNames.length; t++) {
         const row = own.get(t) ?? core;
         if (row) tracks[String(t)] = [row.course[7], row.course[8]];
+        else if (complementar) tracks[String(t)] = [false, null];
+      }
+      const listed = [...own.values()][0];
+      for (const t of requiredIn.get(id) ?? []) {
+        if (tracks[String(t)]?.[0] !== true) tracks[String(t)] = [true, listed.course[8]];
       }
       const values = Object.values(tracks).map((v) => JSON.stringify(v));
       const shared = values.length === trackNames.length && new Set(values).size === 1;
@@ -646,9 +853,43 @@ export function parseCurriculumBBoxDetailed(html: string): {
   const inheritedPhaseRows = assembled.inherited;
   result.courses.push(...assembled.courses);
   if (hasTracks) {
-    const labels = habilitacaoLabels(trackNames);
+    const labels = bySection ? trackNames : habilitacaoLabels(trackNames);
     result.habilitacoes = trackNames.map((name, i) => ({ label: labels[i], name }));
   }
+
+  // Ênfase versions: the same Estágio/Fundamentação listed in A–D versions per
+  // ênfase slot ("1ª ênfase escolhida" for phases 7–8, "2ª" for 9–10). The
+  // student takes only the chosen ênfase's version.
+  const variants = result.courses.map((c) => enfaseVariant(c[1]));
+  const slotIndex = new Map<number, number>();
+  const letters = new Map<number, string[]>();
+  const enfases: Enfase[] = [];
+  for (const slot of [...new Set(variants.flatMap((v) => (v ? [v.slot] : [])))].sort()) {
+    const options = [
+      ...new Set(variants.flatMap((v) => (v && v.slot === slot ? [v.letter] : []))),
+    ].sort();
+    if (options.length < 2) continue;
+    slotIndex.set(slot, enfases.length);
+    letters.set(slot, options);
+    enfases.push({
+      label: `${slot}ª ênfase`,
+      options: options.map((l) => {
+        const name = enfaseNames.get(l) ?? `Ênfase ${l}`;
+        return { label: enfaseNames.has(l) ? `${l} – ${name}` : name, name };
+      }),
+    });
+  }
+  if (enfases.length > 0) {
+    result.enfases = enfases;
+    result.courses = result.courses.map((c, i) => {
+      const v = variants[i];
+      if (!v || !slotIndex.has(v.slot)) return c;
+      const [c0, c1, c2, c3, c4, c5, c6, c7, c8, c9] = c;
+      const ref: EnfaseRef = [slotIndex.get(v.slot)!, letters.get(v.slot)!.indexOf(v.letter)];
+      return [c0, c1, c2, c3, c4, c5, c6, c7, c8, c9 ?? null, ref];
+    });
+  }
+  if (result.habilitacoes && result.enfases) addOnTracks(result);
 
   result.totalPhases = result.courses.reduce(
     (max, c) => (c[8] !== null && c[8] > max ? c[8] : max),

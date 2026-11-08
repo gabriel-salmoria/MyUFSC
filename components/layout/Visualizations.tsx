@@ -8,6 +8,13 @@ import { Switch } from "@/components/ui/switch";
 import { CalendarCog, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useStudentStore } from "@/lib/student-store";
 
 import CurriculumVisualizer from "@/components/visualizers/curriculum-visualizer";
@@ -133,6 +140,25 @@ export default function Visualizations({
     curriculum?.habilitacoes && curriculum.habilitacoes.length > 1
       ? curriculum.habilitacoes
       : null;
+  // Ênfase pickers (Psicologia's 1ª/2ª ênfase), only while the current view
+  // holds ênfase courses — with one habilitação they may not apply at all.
+  const setEnfase = useStudentStore((s) => s.setEnfase);
+  const enfases = useMemo(() => {
+    const all = curriculum?.allCourses ?? curriculum?.courses ?? [];
+    const track = curriculum?.habilitacao;
+    const used = new Set(
+      all
+        .filter(
+          (c) =>
+            c.enfase &&
+            (!c.tracks || track === undefined || c.tracks[track]?.type === "mandatory"),
+        )
+        .map((c) => c.enfase![0]),
+    );
+    return (curriculum?.enfases ?? [])
+      .map((slot, i) => ({ slot, i }))
+      .filter(({ i }) => used.has(i));
+  }, [curriculum]);
 
   const [degreeDropdownOpen, setDegreeDropdownOpen] = useState(false);
   const degreeDropdownRef = useRef<HTMLDivElement>(null);
@@ -156,7 +182,7 @@ export default function Visualizations({
       <div>
         <div className="flex justify-between items-center mb-2">
           {viewMode === ViewMode.CURRICULUM ? (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h2 className="section-heading">
                 Visão Geral:
               </h2>
@@ -281,6 +307,42 @@ export default function Visualizations({
                   ))}
                 </ToggleGroup>
               )}
+              {enfases.map(({ slot, i }) => (
+                <Select
+                  key={slot.label}
+                  value={String(curriculum?.enfaseChoice?.[i] ?? i)}
+                  onValueChange={(value) => {
+                    if (habilitacaoDegreeId) {
+                      setEnfase(habilitacaoDegreeId, i, Number(value));
+                    }
+                  }}
+                >
+                  <SelectTrigger
+                    aria-label={slot.label}
+                    className="h-9 w-auto max-w-[18rem] gap-2 text-sm"
+                    title={
+                      slot.options[curriculum?.enfaseChoice?.[i] ?? i]?.label ?? slot.label
+                    }
+                  >
+                    {/* A div, not a span: the trigger line-clamps its span children. */}
+                    <div className="flex min-w-0 items-center gap-1">
+                      <span className="shrink-0 text-muted-foreground">
+                        {slot.label}:
+                      </span>
+                      <span className="truncate">
+                        <SelectValue />
+                      </span>
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {slot.options.map((option, j) => (
+                      <SelectItem key={option.label} value={String(j)}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ))}
             </div>
           ) : (
             <h2 className="section-heading">

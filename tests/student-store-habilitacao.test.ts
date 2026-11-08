@@ -104,3 +104,57 @@ test("curricula without habilitações are untouched", () => {
   store().setHabilitacao(DEGREE, 1);
   assert.equal(store().curriculumCache[DEGREE].courses.length, 4);
 });
+
+// ── Ênfases ──────────────────────────────────────────────────────────────────
+
+const PSI = "319_20101";
+const options = [
+  { label: "A – Saúde", name: "Saúde" },
+  { label: "B – Trabalho", name: "Trabalho" },
+];
+function psicologia(): Curriculum {
+  return {
+    id: "319",
+    name: "Psicologia",
+    department: "UFSC",
+    totalPhases: 10,
+    courses: parseCourses([
+      ["PSI7101", "Psicologia", 3, 54, "", [], [], true, 1],
+      ["PSI7013", "Estágio I A", 12, 216, "", [], [], true, 7, null, [0, 0]],
+      ["PSI7014", "Estágio I B", 12, 216, "", [], [], true, 7, null, [0, 1]],
+      ["PSI7033", "Estágio I A", 12, 216, "", [], [], true, 9, null, [1, 0]],
+      ["PSI7034", "Estágio I B", 12, 216, "", [], [], true, 9, null, [1, 1]],
+    ]),
+    enfases: [
+      { label: "1ª ênfase", options },
+      { label: "2ª ênfase", options },
+    ],
+  };
+}
+const psiView = () => store().curriculumCache[PSI].courses.map((c) => c.id);
+const psiStudent = (enfases?: Record<string, number[]>): StudentInfo => ({
+  ...student(),
+  currentDegree: PSI,
+  ...(enfases ? { enfases } : {}),
+});
+
+test("ênfases: defaults, choosing one slot keeps the other, saved in the profile", () => {
+  store().setStudentInfo(psiStudent());
+  store().cacheCurriculum(PSI, psicologia());
+  assert.deepEqual(psiView(), ["PSI7101", "PSI7013", "PSI7034"]);
+  store().setEnfase(PSI, 1, 0);
+  assert.deepEqual(psiView(), ["PSI7101", "PSI7013", "PSI7033"]);
+  assert.deepEqual(store().studentInfo?.enfases, { [PSI]: [0, 0] });
+  store().setEnfase(PSI, 0, 1);
+  assert.deepEqual(psiView(), ["PSI7101", "PSI7014", "PSI7033"]);
+  assert.deepEqual(store().studentInfo?.enfases, { [PSI]: [1, 0] });
+});
+
+test("ênfases: a profile loaded after the curriculum was cached applies its choice", () => {
+  store().cacheCurriculum(PSI, psicologia());
+  store().setStudentInfo(psiStudent({ [PSI]: [1, 1] }));
+  assert.deepEqual(psiView(), ["PSI7101", "PSI7014", "PSI7034"]);
+  // and re-caching keeps it
+  store().cacheCurriculum(PSI, psicologia());
+  assert.deepEqual(psiView(), ["PSI7101", "PSI7014", "PSI7034"]);
+});
