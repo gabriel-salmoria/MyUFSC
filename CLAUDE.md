@@ -12,9 +12,10 @@ condensed map; read the relevant doc file for exhaustive detail before large cha
 - **Package manager: `pnpm`.** Dev: `pnpm run dev` (local PGlite DB auto-seeds from prod
   on first boot — no server or `.env` needed for a basic run). Copy `.env.example` if you
   need Neon/Gemini. Lint: `pnpm run lint`. Build: `pnpm run build`.
-- **Never commit to `main`.** This is an open-source project — all work lands on a feature
-  branch (`<type>/<slug>`) and merges via a pull request. Use the **`commit`** skill, which
-  branches off `main` automatically, formats the message, and can open the PR.
+- **Commit straight to `main`.** The maintainer is the only regular dev and pushes to
+  `main` directly — don't create feature branches or open PRs unless asked. Use the
+  **`commit`** skill to format the message. (Outside contributors still follow the PR flow
+  in `CONTRIBUTING.md`.)
 - **Commit style: Conventional Commits.** See the **`commit-conventions`** skill for the
   allowed types, scope vocabulary, and examples. Contributor workflow lives in
   `CONTRIBUTING.md`.

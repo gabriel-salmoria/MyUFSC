@@ -115,7 +115,7 @@ GitHub disables the scheduled workflow after 60 days without a push to the repo 
 
 Reads all schedule JSONs from the database and extracts professor→course relationships. For each course in the schedule, each professor listed for that class section is mapped to the course ID and upserted into `professor_courses`.
 
-Professor names are normalized using `normalizeProfessorId` before insertion. This script must be run after any schedule update to keep professor rating lookups accurate.
+Professor names are normalized using `normalizeProfessorId` before insertion. The table is rebuilt in one transaction (`TRUNCATE` + a single `INSERT … SELECT FROM unnest($1, $2)`), so all ~9k pairs go in one round trip — inserting row by row took ~25 min on CI. Any failure rolls back and exits non-zero. This script must be run after any schedule update to keep professor rating lookups accurate (the `update-schedule.yml` workflow runs it right after `curriculum:update`).
 
 ---
 

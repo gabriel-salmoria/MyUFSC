@@ -10,7 +10,7 @@ if (!DB_CONNECTION_STRING) {
   process.exit(1);
 }
 
-const normalizeProfessorName = normalizeProfessorId;
+const PLACEHOLDER_NAMES = new Set(["A DEFINIR", "NOME A DEFINIR", "SUBSTITUTO", "PROFESSOR SUBSTITUTO"]);
 
 async function updateProfessors() {
   const client = new Client({
@@ -19,86 +19,78 @@ async function updateProfessors() {
   });
   await client.connect();
 
-  console.log("Fetching schedules...");
-  const res = await client.query('SELECT "scheduleJson" FROM schedules');
+  try {
+    console.log("Fetching schedules...");
+    const res = await client.query('SELECT "scheduleJson" FROM schedules');
 
-  const pairs = new Set<string>(); // "normalizedName|courseId"
+    const pairs = new Set<string>(); // "normalizedName|courseId"
 
-  console.log(`Processing ${res.rows.length} schedules...`);
-  for (const row of res.rows) {
-    const data = row.scheduleJson;
-    for (const campus of Object.keys(data)) {
-      if (campus === "DATA") continue;
-      const courses = data[campus];
-      if (!Array.isArray(courses)) continue;
-      for (const course of courses) {
-        const courseId = course[0];
-        const classes = course[2];
-        if (!Array.isArray(classes)) continue;
-        for (const cls of classes) {
-          const teachers = cls[9];
-          if (Array.isArray(teachers)) {
+    console.log(`Processing ${res.rows.length} schedules...`);
+    for (const row of res.rows) {
+      const data = row.scheduleJson;
+      for (const campus of Object.keys(data)) {
+        if (campus === "DATA") continue;
+        const courses = data[campus];
+        if (!Array.isArray(courses)) continue;
+        for (const course of courses) {
+          const courseId = course[0];
+          const classes = course[2];
+          if (!Array.isArray(classes)) continue;
+          for (const cls of classes) {
+            const teachers = cls[9];
+            if (!Array.isArray(teachers)) continue;
             for (const teacher of teachers) {
-              const norm = normalizeProfessorName(teacher);
-              if (norm && norm !== "A DEFINIR" && norm !== "NOME A DEFINIR" && norm !== "SUBSTITUTO" && norm !== "PROFESSOR SUBSTITUTO") {
-                pairs.add(`${norm}|${courseId}`);
-              }
+              const norm = normalizeProfessorId(teacher);
+              if (norm && !PLACEHOLDER_NAMES.has(norm)) pairs.add(`${norm}|${courseId}`);
             }
           }
         }
       }
     }
+
+    console.log(`Found ${pairs.size} unique professor-course pairs.`);
+
+    const professorIds: string[] = [];
+    const courseIds: string[] = [];
+    for (const pair of pairs) {
+      const [prof, course] = pair.split("|");
+      professorIds.push(prof);
+      courseIds.push(course);
+    }
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS professor_courses (
+        "professorId" VARCHAR(255) NOT NULL,
+        "courseId" VARCHAR(255) NOT NULL,
+        PRIMARY KEY ("professorId", "courseId")
+      );
+    `);
+
+    // One round trip for every pair: inserting row by row took ~25 min on CI
+    // (~170 ms of network latency per query to Neon, times ~9k pairs).
+    // TRUNCATE + re-insert in one transaction drops pairs that left the schedule.
+    console.log("Replacing professor_courses...");
+    await client.query("BEGIN");
+    try {
+      await client.query("TRUNCATE TABLE professor_courses");
+      const inserted = await client.query(
+        `INSERT INTO professor_courses ("professorId", "courseId")
+         SELECT * FROM unnest($1::varchar[], $2::varchar[])
+         ON CONFLICT DO NOTHING`,
+        [professorIds, courseIds],
+      );
+      await client.query("COMMIT");
+      console.log(`Done! Inserted ${inserted.rowCount} pairs.`);
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    }
+  } finally {
+    await client.end();
   }
-
-  console.log(`Found ${pairs.size} unique professor-course pairs.`);
-
-  console.log("Recreating professor_courses table...");
-  await client.query(`
-    CREATE TABLE IF NOT EXISTS professor_courses (
-      "professorId" VARCHAR(255) NOT NULL,
-      "courseId" VARCHAR(255) NOT NULL,
-      PRIMARY KEY ("professorId", "courseId")
-    );
-  `);
-  
-  await client.query(`
-    CREATE TABLE IF NOT EXISTS reviews (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      "professorId" VARCHAR(255) NOT NULL,
-      "courseId" VARCHAR(255) NOT NULL,
-      "authorHash" VARCHAR(255) NOT NULL,
-      "parentId" UUID REFERENCES reviews(id) ON DELETE CASCADE,
-      text VARCHAR(500) NOT NULL,
-      scores JSONB,
-      "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-  
-  // We cannot use IF NOT EXISTS with CREATE UNIQUE INDEX directly in standard PG unless we query pg_class.
-  // Actually, PostgreSQL 9.5+ supports CREATE UNIQUE INDEX IF NOT EXISTS
-  await client.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS unique_top_level_review
-    ON reviews ("authorHash", "professorId", "courseId")
-    WHERE "parentId" IS NULL;
-  `);
-
-  console.log("Inserting pairs...");
-  await client.query('BEGIN');
-  // Clear table first to avoid orphaned pairs if schedule changes
-  await client.query('TRUNCATE TABLE professor_courses');
-  
-  const insertQuery = 'INSERT INTO professor_courses ("professorId", "courseId") VALUES ($1, $2) ON CONFLICT DO NOTHING';
-  let i = 0;
-  for (const pair of pairs) {
-    const [prof, course] = pair.split("|");
-    await client.query(insertQuery, [prof, course]);
-    i++;
-    if (i % 1000 === 0) console.log(`Inserted ${i} pairs...`);
-  }
-  
-  await client.query('COMMIT');
-  console.log("Done!");
-  await client.end();
 }
 
-updateProfessors().catch(console.error);
+updateProfessors().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
