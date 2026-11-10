@@ -114,6 +114,8 @@ const animalEmojis: Record<string, string> = {
   Marreco: "🦆",
 };
 
+const maxCharacters = 2000;
+
 function getEmojiForPseudonym(pseudonym?: string) {
   if (!pseudonym) return "👤";
   for (const [animal, emoji] of Object.entries(animalEmojis)) {
@@ -1144,10 +1146,10 @@ function ProfessorDetailsSection({
       });
       return;
     }
-    if (!reviewText.trim() || reviewText.length > 500) {
+    if (!reviewText.trim() || reviewText.length > maxCharacters) {
       toast({
         title: "Texto inválido",
-        description: "O comentário deve ter entre 1 e 500 caracteres.",
+        description: `O comentário deve ter entre 1 e ${maxCharacters} caracteres.`,
         variant: "destructive",
       });
       return;
@@ -1465,7 +1467,7 @@ function ProfessorDetailsSection({
                               value={reviewText}
                               onChange={(e) => setReviewText(e.target.value)}
                               className="text-sm resize-none bg-background border-border/60 w-full h-full"
-                              maxLength={500}
+                              maxLength={maxCharacters}
                             />
                           </div>
                           <div className="flex gap-4 shrink-0 px-2 items-center">
@@ -1498,7 +1500,7 @@ function ProfessorDetailsSection({
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-muted-foreground">
-                            {reviewText.length}/500
+                            {reviewText.length}/{maxCharacters} caracteres
                           </span>
                           <Button
                             size="sm"
